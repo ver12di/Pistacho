@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pistacho 雪茄评分体系</title>
+    <!-- 引入 Tailwind CSS CDN，用于快速构建美观的移动端界面 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 自定义滚动条样式，增加安卓应用质感 */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-thumb { background-color: #6366f1; border-radius: 2px; }
+        .rating-input:checked + .rating-label {
+            background-color: #4f46e5; /* 选中时的深色背景 */
+            color: white;
+            border-color: #4f46e5;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
+        }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans antialiased min-h-screen">
+
+    <!-- 顶部固定标题栏 -->
+    <header class="sticky top-0 z-10 bg-indigo-600 shadow-xl">
+        <div class="max-w-xl mx-auto py-3 px-4 sm:px-6 lg:px-8">
+            <h1 class="text-2xl font-bold text-white tracking-wider">
+                Pistacho 评分 <span class="text-indigo-200 text-sm">v1.0</span>
+            </h1>
+        </div>
+    </header>
+
+    <!-- 主内容区 -->
+    <main class="max-w-xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
+        <form id="ratingForm" onsubmit="event.preventDefault(); calculateAndDisplayResults();">
+            <!-- 1. 基本信息输入 -->
+            <section class="mb-8 p-4 bg-white rounded-xl shadow-lg">
+                <h2 class="text-lg font-semibold text-gray-800 mb-4 border-b pb-2">雪茄基本信息 (记录用)</h2>
+                <div class="space-y-4">
+                    <input type="text" id="brand" placeholder="品牌 Brand" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                    <input type="text" id="model" placeholder="型号 Model" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                    <input type="text" id="size" placeholder="尺寸 Size" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                    <input type="text" id="origin" placeholder="产地 Origin" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                </div>
+            </section>
+
+            <!-- 2. 主观印象评分区 (动态生成) -->
+            <section id="ratingInputs" class="space-y-6">
+                <!-- 评分项将由 JavaScript 动态插入 -->
+            </section>
+
+            <!-- 3. 提交按钮 -->
+            <div class="mt-10 mb-20">
+                <button type="submit" class="w-full py-4 text-xl font-bold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 transition duration-150 shadow-lg shadow-indigo-300/50 focus:outline-none focus:ring-4 focus:ring-indigo-500 focus:ring-opacity-50">
+                    计算 Pistacho 最终评分
+                </button>
+            </div>
+        </form>
+
+        <!-- 4. 结果展示区 (初始隐藏) -->
+        <section id="resultsSection" class="hidden fixed inset-0 bg-gray-100 z-20 overflow-y-auto pt-4 pb-20">
+            <div class="p-4">
+                <div class="bg-white rounded-xl shadow-2xl p-6 mb-6">
+                    <h2 class="text-2xl font-extrabold text-indigo-600 mb-4">最终定级结果</h2>
+                    
+                    <div id="finalGradeDisplay" class="text-center mb-6 p-4 rounded-xl bg-gray-50 border border-gray-200">
+                        <p class="text-sm text-gray-500">Pistacho 等级</p>
+                        <p class="text-6xl font-black" id="resultGradeLetter">?</p>
+                        <p class="text-xl font-semibold" id="resultGradeName">---</p>
+                    </div>
+
+                    <div class="flex justify-between items-center bg-indigo-50 p-3 rounded-lg border-l-4 border-indigo-600">
+                        <span class="text-gray-700 font-medium">总分数 (满分100)</span>
+                        <span id="resultScore" class="text-2xl font-extrabold text-indigo-700">0.0</span>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-2xl p-6 mb-6">
+                    <h2 class="text-xl font-bold text-gray-800 mb-4">雪茄信息回顾</h2>
+                    <ul id="infoSummary" class="text-gray-600 space-y-2">
+                        <!-- 信息将在此处填充 -->
+                    </ul>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-2xl p-6 mb-6">
+                    <h2 class="text-xl font-bold text-gray-800 mb-4">🏆 获得的成就 (Achievements)</h2>
+                    <ul id="achievementList" class="space-y-2 text-sm text-gray-700 list-disc pl-5">
+                        <!-- 成就列表将在此处填充 -->
+                    </ul>
+                </div>
+                
+                <button onclick="document.getElementById('resultsSection').classList.add('hidden')" class="w-full py-3 text-lg font-bold text-indigo-600 bg-white border border-indigo-600 rounded-xl hover:bg-indigo-50 transition duration-150 shadow-md">
+                    返回继续评价
+                </button>
+            </div>
+        </section>
+    </main>
+
+    <!-- 核心数据和逻辑 -->
+    <script>
+        // =========================================================
+        // 核心数据结构: Pistacho 雪茄评价体系
+        // 权重、程度、得分、成就、类型（单选/多选）
+        // =========================================================
+
+        const CIGAR_RATING_DATA = [
+            // --- 外观与结构 (权重合计: 75) ---
+            { impression: "茄标高级感", weight: 15, degrees: [{ level: "简陋", score: 0.10, achievement: "地摊货" }, { level: "中规中矩", score: 0.50, achievement: "礼品装" }, { level: "漂亮", score: 0.70, achievement: "奢侈品" }, { level: "高级感", score: 1.00, achievement: "大师馆藏" }] },
+            { impression: "茄衣", weight: 15, degrees: [{ level: "简陋", score: 0.10, achievement: "廉价外套" }, { level: "中规中矩", score: 0.50, achievement: "正装出席" }, { level: "漂亮", score: 0.70, achievement: "丝绸触感" }, { level: "高级感", score: 1.00, achievement: "顶级皮具" }] },
+            { impression: "卷工", weight: 15, degrees: [{ level: "不合格", score: 0.10, achievement: "匆忙赶工" }, { level: "正常", score: 0.50, achievement: "熟练工人" }, { level: "漂亮", score: 0.70, achievement: "精雕细琢" }, { level: "完美", score: 1.00, achievement: "浑然天成" }] },
+            { impression: "吸阻", weight: 15, degrees: [{ level: "松", score: 0.50, achievement: "自由落体" }, { level: "完美", score: 1.00, achievement: "天选之吸" }, { level: "偏紧", score: 0.50, achievement: "倔强脾气" }, { level: "堵塞", score: 0.00, achievement: "物理绝缘" }] },
+            { impression: "燃烧线", weight: 15, degrees: [{ level: "均匀", score: 1.00, achievement: "激光切割" }, { level: "略不均匀", score: 0.70, achievement: "艺术修饰" }, { level: "持续不均匀", score: 0.10, achievement: "自由发挥" }] },
+
+            // --- 启动与烟灰 (权重合计: 15) ---
+            { impression: "前3口感觉", weight: 5, degrees: [{ level: "眼前一亮", score: 1.00, achievement: "开场爆棚" }, { level: "有期待", score: 0.70, achievement: "稳步升温" }, { level: "中规中矩", score: 0.50, achievement: "平淡如水" }, { level: "估计不怎么样", score: 0.10, achievement: "劝退警告" }] },
+            { impression: "烟灰形态", weight: 10, degrees: [{ level: "完美可以尝试持茄", score: 1.00, achievement: "埃菲尔铁塔" }, { level: "需要主动弹", score: 0.70, achievement: "比萨斜塔" }, { level: "自动脱落", score: 0.30, achievement: "雷峰塔" }] },
+
+            // --- 香气与风味 (权重合计: 75) ---
+            { impression: "第二香气宜人强度", weight: 15, degrees: [{ level: "没有", score: 0.00, achievement: "嗅觉失灵" }, { level: "一点点香", score: 0.30, achievement: "昙花一现" }, { level: "很香", score: 0.70, achievement: "芳香四溢" }, { level: "极香", score: 1.00, achievement: "香水喷雾" }] },
+            { impression: "第二香气高级度", weight: 15, degrees: [{ level: "容易在其他茄获得", score: 0.30, achievement: "大众情人" }, { level: "不容易在其他茄获得但有偶碰到", score: 0.70, achievement: "偶然相遇" }, { level: "独特", score: 1.00, achievement: "独一无二" }] },
+            // 注：香气持续度/多重香气持续度在实际App中应用多选（checkbox），此处为简化结构统一使用单选（radio）。
+            { impression: "香气持续度", weight: 15, degrees: [{ level: "前段有", score: 0.333, achievement: "短暂闪光" }, { level: "中段有", score: 0.666, achievement: "稳健续航" }, { level: "后端有", score: 1.00, achievement: "陪伴到老" }] },
+            { impression: "多重（第三）香气", weight: 15, degrees: [{ level: "没有", score: 0.00, achievement: "单核处理" }, { level: "有", score: 1.00, achievement: "多核运行" }] },
+            { impression: "多重（第三）香气持续度", weight: 15, degrees: [{ level: "前段有", score: 0.333, achievement: "尝鲜限定" }, { level: "中段有", score: 0.666, achievement: "深度体验" }, { level: "后端有", score: 1.00, achievement: "尾韵悠长" }] },
+            
+            // --- 变化与燃烧 (权重合计: 45) ---
+            { impression: "三段变化", weight: 15, degrees: [{ level: "变化明显", score: 1.00, achievement: "过山车" }, { level: "似乎有变化", score: 0.50, achievement: "渐进变奏" }, { level: "始终如一", score: 0.10, achievement: "线性输出" }] },
+            { impression: "燃烧持续", weight: 15, degrees: [{ level: "一根到底", score: 1.00, achievement: "永动机" }, { level: "偶尔补火", score: 0.70, achievement: "火力支援" }, { level: "不断补火", score: 0.30, achievement: "消防队员" }, { level: "点到试图放弃", score: 0.00, achievement: "劝退重来" }] },
+            { impression: "烟雾量", weight: 15, degrees: [{ level: "没有", score: 0.00, achievement: "无烟区" }, { level: "少", score: 0.50, achievement: "隐士模式" }, { level: "正常", score: 1.00, achievement: "效率达人" }, { level: "浓", score: 0.80, achievement: "蒸汽列车" }, { level: "烟囱", score: 0.50, achievement: "火炬达人" }] },
+
+            // --- 尾段与整体感受 (权重合计: 70) ---
+            { impression: "尼古丁浓度", weight: 10, degrees: [{ level: "普通", score: 1.00, achievement: "基础挑战" }, { level: "困难", score: 0.90, achievement: "意志考验" }, { level: "噩梦", score: 0.70, achievement: "灵魂拷问" }, { level: "地狱", score: 0.30, achievement: "见阎王" }] },
+            { impression: "过鼻顺畅度", weight: 15, degrees: [{ level: "无感", score: 0.50, achievement: "呼吸自如" }, { level: "柔顺", score: 1.00, achievement: "丝滑通行" }, { level: "略有刺激", score: 0.70, achievement: "鼻腔警报" }, { level: "辛辣", score: 0.30, achievement: "吃辣大赛" }] },
+            { impression: "烟屁股抽完渴望度", weight: 10, degrees: [{ level: "马上想放弃", score: 0.00, achievement: "及时止损" }, { level: "抽到茄标", score: 0.30, achievement: "尊重标签" }, { level: "抽到烫手为止", score: 0.70, achievement: "极限挑战" }, { level: "抽到牙签烧完为止", score: 1.00, achievement: "榨干价值" }] },
+            { impression: "获得容易度", weight: 10, degrees: [{ level: "容易", score: 1.00, achievement: "唾手可得" }, { level: "普通", score: 0.80, achievement: "市场流通" }, { level: "困难", score: 0.50, achievement: "预约排队" }, { level: "千载难逢", score: 0.30, achievement: "寻宝猎人" }] },
+            { impression: "整体记忆度", weight: 15, degrees: [{ level: "芸芸众生", score: 0.00, achievement: "路人甲" }, { level: "略有印象", score: 0.30, achievement: "闪光一刻" }, { level: "念念不忘", score: 0.70, achievement: "午夜梦回" }, { level: "梦里寻她千百度", score: 1.00, achievement: "刻骨铭心" }] }
+        ];
+
+        // 总权重 (所有 weight 相加: 75 + 15 + 75 + 45 + 70 = 280)
+        const TOTAL_WEIGHT = 280;
+
+        // =========================================================
+        // 核心逻辑函数
+        // =========================================================
+
+        /**
+         * 动态生成评分表格的 HTML 结构
+         */
+        function renderRatingForm() {
+            const container = document.getElementById('ratingInputs');
+            let html = '';
+
+            CIGAR_RATING_DATA.forEach((item, index) => {
+                const impressionId = `imp-${index}`;
+                
+                // 评分项标题
+                html += `
+                    <div class="p-4 bg-white rounded-xl shadow-lg">
+                        <h3 class="text-base font-semibold text-gray-800 mb-3 border-b pb-2">
+                            ${item.impression} <span class="text-xs text-gray-500 font-normal"> (权重: ${item.weight})</span>
+                        </h3>
+                        <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                `;
+
+                // 程度选项
+                item.degrees.forEach((degree, degIndex) => {
+                    const uniqueId = `${impressionId}-${degIndex}`;
+                    html += `
+                        <div>
+                            <input type="radio" id="${uniqueId}" name="${item.impression}" value="${degree.level}" 
+                                class="rating-input hidden" required>
+                            <label for="${uniqueId}" 
+                                class="rating-label block text-center p-2 border border-indigo-400 text-indigo-700 
+                                rounded-lg cursor-pointer transition duration-150 hover:bg-indigo-50 text-sm">
+                                ${degree.level}
+                            </label>
+                        </div>
+                    `;
+                });
+
+                html += `
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        /**
+         * 根据分数确定 Pistacho 等级
+         */
+        function determinePistachoGrade(score) {
+            if (score >= 95) return { grade: "P", name: "Perfection", chinese: "完美 / 臻品", color: "text-yellow-500" };
+            if (score >= 90) return { grade: "I", name: "Iconic", chinese: "标志性 / 典范", color: "text-gray-500" };
+            if (score >= 85) return { grade: "S", name: "Supreme", chinese: "至高 / 卓越", color: "text-amber-700" };
+            if (score >= 80) return { grade: "T", name: "Treasured", chinese: "珍藏 / 珍爱", color: "text-blue-500" };
+            if (score >= 70) return { grade: "A", name: "Acceptable", chinese: "可接受 / 合格", color: "text-green-600" };
+            if (score >= 60) return { grade: "C", name: "Common", chinese: "普通 / 一般", color: "text-yellow-600" };
+            if (score >= 40) return { grade: "H", name: "Hardship", chinese: "困难 / 缺陷多", color: "text-orange-600" };
+            return { grade: "O", name: "Outright Failure", chinese: "彻底失败 / 不合格", color: "text-red-600" };
+        }
+
+        /**
+         * 计算最终分数和等级，并展示结果
+         */
+        function calculateAndDisplayResults() {
+            let rawScoreSum = 0;
+            let earnedAchievements = [];
+            let missingSelections = false;
+
+            // 1. 遍历所有评分项，计算分数和收集成就
+            CIGAR_RATING_DATA.forEach(item => {
+                const selectedInput = document.querySelector(`input[name="${item.impression}"]:checked`);
+                
+                if (!selectedInput) {
+                    missingSelections = true;
+                    return; // 跳过未选择的项
+                }
+
+                const selectedLevel = selectedInput.value;
+                const selectedDegree = item.degrees.find(d => d.level === selectedLevel);
+
+                if (selectedDegree) {
+                    // 计算该项的原始得分: 权重 * 程度得分
+                    const itemScore = item.weight * selectedDegree.score;
+                    rawScoreSum += itemScore;
+                    // 记录成就
+                    earnedAchievements.push({
+                        impression: item.impression,
+                        achievement: selectedDegree.achievement
+                    });
+                }
+            });
+
+            // 2. 检查是否有未选项目
+            if (missingSelections) {
+                // 使用自定义消息框代替 alert
+                showCustomMessage('请完成所有评分项的勾选，以便进行准确计算。');
+                return;
+            }
+
+            // 3. 归一化总分到 100 分
+            const finalScore = (rawScoreSum / TOTAL_WEIGHT) * 100;
+            const roundedScore = Math.round(finalScore * 10) / 10; // 保留一位小数
+            
+            // 4. 确定 Pistacho 等级
+            const finalGrade = determinePistachoGrade(roundedScore);
+
+            // 5. 更新结果展示区
+            updateResultsDisplay(finalGrade, roundedScore, earnedAchievements);
+            updateInfoSummary();
+
+            // 6. 显示结果
+            document.getElementById('resultsSection').classList.remove('hidden');
+        }
+
+        /**
+         * 更新结果显示
+         */
+        function updateResultsDisplay(finalGrade, roundedScore, achievements) {
+            document.getElementById('resultGradeLetter').textContent = finalGrade.grade;
+            document.getElementById('resultGradeLetter').className = `text-6xl font-black ${finalGrade.color}`;
+            document.getElementById('resultGradeName').innerHTML = `${finalGrade.name} (${finalGrade.chinese})`;
+            document.getElementById('resultScore').textContent = roundedScore.toFixed(1);
+
+            const achievementList = document.getElementById('achievementList');
+            achievementList.innerHTML = '';
+            
+            achievements.forEach(item => {
+                const li = document.createElement('li');
+                li.innerHTML = `<span class="font-medium text-indigo-700">${item.impression}:</span> ${item.achievement}`;
+                achievementList.appendChild(li);
+            });
+        }
+
+        /**
+         * 更新雪茄信息回顾
+         */
+        function updateInfoSummary() {
+            const infoSummary = document.getElementById('infoSummary');
+            infoSummary.innerHTML = `
+                <li><span class="font-medium">品牌:</span> ${document.getElementById('brand').value || '未填写'}</li>
+                <li><span class="font-medium">型号:</span> ${document.getElementById('model').value || '未填写'}</li>
+                <li><span class="font-medium">尺寸:</span> ${document.getElementById('size').value || '未填写'}</li>
+                <li><span class="font-medium">产地:</span> ${document.getElementById('origin').value || '未填写'}</li>
+            `;
+        }
+
+        /**
+         * 自定义消息框（替代 alert()）
+         */
+        function showCustomMessage(message) {
+            console.error(message);
+            const overlay = document.createElement('div');
+            overlay.className = 'fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center';
+            overlay.innerHTML = `
+                <div class="bg-white p-6 rounded-xl shadow-2xl max-w-sm mx-4 transform transition-all scale-100">
+                    <h4 class="text-xl font-bold text-red-600 mb-3">提示 (Notice)</h4>
+                    <p class="text-gray-700 mb-6">${message}</p>
+                    <button onclick="this.closest('.fixed').remove()" 
+                        class="w-full py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition">
+                        确认
+                    </button>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+        }
+
+        // 初始化：在页面加载完成后渲染评分表单
+        window.onload = renderRatingForm;
+    </script>
+</body>
+</html>
