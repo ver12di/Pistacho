@@ -79,15 +79,18 @@
                     </div>
                 </div>
 
+                <!-- 详细回顾与成就 (合并区块，便于复制粘贴) -->
                 <div class="bg-white rounded-xl shadow-2xl p-6 mb-6">
-                    <h2 class="text-xl font-bold text-gray-800 mb-4">雪茄信息回顾</h2>
-                    <ul id="infoSummary" class="text-gray-600 space-y-2">
+                    <h2 class="text-xl font-extrabold text-gray-800 mb-4 border-b pb-2">📝 详细回顾与成就 (Review & Achievements)</h2>
+
+                    <!-- 雪茄信息回顾 -->
+                    <h3 class="text-lg font-semibold text-gray-700 mb-2 mt-4">雪茄信息回顾</h3>
+                    <ul id="infoSummary" class="text-gray-600 space-y-2 list-none pl-0 mb-6 border-b pb-4">
                         <!-- 信息将在此处填充 -->
                     </ul>
-                </div>
 
-                <div class="bg-white rounded-xl shadow-2xl p-6 mb-6">
-                    <h2 class="text-xl font-bold text-gray-800 mb-4">🏆 获得的成就 (Achievements)</h2>
+                    <!-- 获得的成就 -->
+                    <h3 class="text-lg font-semibold text-gray-700 mb-2 mt-4">🏆 获得的成就</h3>
                     <ul id="achievementList" class="space-y-2 text-sm text-gray-700 list-disc pl-5">
                         <!-- 成就列表将在此处填充 -->
                     </ul>
@@ -293,6 +296,7 @@
             document.getElementById('resultGradeName').innerHTML = `${finalGrade.name} (${finalGrade.chinese})`;
             document.getElementById('resultScore').textContent = roundedScore.toFixed(1);
 
+            // 4. 更新成就列表
             const achievementList = document.getElementById('achievementList');
             achievementList.innerHTML = '';
             
@@ -308,6 +312,7 @@
          */
         function updateInfoSummary() {
             const infoSummary = document.getElementById('infoSummary');
+            // 注意：infoSummary 的 list-style 已在 HTML 中设置为 list-none，以便它看起来像一个干净的记录区块
             infoSummary.innerHTML = `
                 <li><span class="font-medium">品牌:</span> ${document.getElementById('brand').value || '未填写'}</li>
                 <li><span class="font-medium">型号:</span> ${document.getElementById('model').value || '未填写'}</li>
