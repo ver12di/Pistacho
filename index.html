@@ -10,8 +10,9 @@
         /* 自定义滚动条样式，增加安卓应用质感 */
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-thumb { background-color: #6366f1; border-radius: 2px; }
+        /* 选中时的深色背景适用于 radio 和 checkbox */
         .rating-input:checked + .rating-label {
-            background-color: #4f46e5; /* 选中时的深色背景 */
+            background-color: #4f46e5; 
             color: white;
             border-color: #4f46e5;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
@@ -107,39 +108,49 @@
     <script>
         // =========================================================
         // 核心数据结构: Pistacho 雪茄评价体系
-        // 权重、程度、得分、成就、类型（单选/多选）
+        // type: 'single' (单选/Radio) 或 'multi' (多选/Checkbox)
         // =========================================================
 
         const CIGAR_RATING_DATA = [
             // --- 外观与结构 (权重合计: 75) ---
-            { impression: "茄标高级感", weight: 15, degrees: [{ level: "简陋", score: 0.10, achievement: "地摊货" }, { level: "中规中矩", score: 0.50, achievement: "礼品装" }, { level: "漂亮", score: 0.70, achievement: "奢侈品" }, { level: "高级感", score: 1.00, achievement: "大师馆藏" }] },
-            { impression: "茄衣", weight: 15, degrees: [{ level: "简陋", score: 0.10, achievement: "廉价外套" }, { level: "中规中矩", score: 0.50, achievement: "正装出席" }, { level: "漂亮", score: 0.70, achievement: "丝绸触感" }, { level: "高级感", score: 1.00, achievement: "顶级皮具" }] },
-            { impression: "卷工", weight: 15, degrees: [{ level: "不合格", score: 0.10, achievement: "匆忙赶工" }, { level: "正常", score: 0.50, achievement: "熟练工人" }, { level: "漂亮", score: 0.70, achievement: "精雕细琢" }, { level: "完美", score: 1.00, achievement: "浑然天成" }] },
-            { impression: "吸阻", weight: 15, degrees: [{ level: "松", score: 0.50, achievement: "自由落体" }, { level: "完美", score: 1.00, achievement: "天选之吸" }, { level: "偏紧", score: 0.50, achievement: "倔强脾气" }, { level: "堵塞", score: 0.00, achievement: "物理绝缘" }] },
-            { impression: "燃烧线", weight: 15, degrees: [{ level: "均匀", score: 1.00, achievement: "激光切割" }, { level: "略不均匀", score: 0.70, achievement: "艺术修饰" }, { level: "持续不均匀", score: 0.10, achievement: "自由发挥" }] },
+            { impression: "茄标高级感", weight: 15, degrees: [{ level: "简陋", score: 0.10, achievement: "地摊货" }, { level: "中规中矩", score: 0.50, achievement: "礼品装" }, { level: "漂亮", score: 0.70, achievement: "奢侈品" }, { level: "高级感", score: 1.00, achievement: "大师馆藏" }], type: 'single' },
+            { impression: "茄衣", weight: 15, degrees: [{ level: "简陋", score: 0.10, achievement: "廉价外套" }, { level: "中规中矩", score: 0.50, achievement: "正装出席" }, { level: "漂亮", score: 0.70, achievement: "丝绸触感" }, { level: "高级感", score: 1.00, achievement: "顶级皮具" }], type: 'single' },
+            { impression: "卷工", weight: 15, degrees: [{ level: "不合格", score: 0.10, achievement: "匆忙赶工" }, { level: "正常", score: 0.50, achievement: "熟练工人" }, { level: "漂亮", score: 0.70, achievement: "精雕细琢" }, { level: "完美", score: 1.00, achievement: "浑然天成" }], type: 'single' },
+            { impression: "吸阻", weight: 15, degrees: [{ level: "松", score: 0.50, achievement: "自由落体" }, { level: "完美", score: 1.00, achievement: "天选之吸" }, { level: "偏紧", score: 0.50, achievement: "倔强脾气" }, { level: "堵塞", score: 0.00, achievement: "物理绝缘" }], type: 'single' },
+            { impression: "燃烧线", weight: 15, degrees: [{ level: "均匀", score: 1.00, achievement: "激光切割" }, { level: "略不均匀", score: 0.70, achievement: "艺术修饰" }, { level: "持续不均匀", score: 0.10, achievement: "自由发挥" }], type: 'single' },
 
             // --- 启动与烟灰 (权重合计: 15) ---
-            { impression: "前3口感觉", weight: 5, degrees: [{ level: "眼前一亮", score: 1.00, achievement: "开场爆棚" }, { level: "有期待", score: 0.70, achievement: "稳步升温" }, { level: "中规中矩", score: 0.50, achievement: "平淡如水" }, { level: "估计不怎么样", score: 0.10, achievement: "劝退警告" }] },
-            { impression: "烟灰形态", weight: 10, degrees: [{ level: "完美可以尝试持茄", score: 1.00, achievement: "埃菲尔铁塔" }, { level: "需要主动弹", score: 0.70, achievement: "比萨斜塔" }, { level: "自动脱落", score: 0.30, achievement: "雷峰塔" }] },
+            { impression: "前3口感觉", weight: 5, degrees: [{ level: "眼前一亮", score: 1.00, achievement: "开场爆棚" }, { level: "有期待", score: 0.70, achievement: "稳步升温" }, { level: "中规中矩", score: 0.50, achievement: "平淡如水" }, { level: "估计不怎么样", score: 0.10, achievement: "劝退警告" }], type: 'single' },
+            { impression: "烟灰形态", weight: 10, degrees: [{ level: "完美可以尝试持茄", score: 1.00, achievement: "埃菲尔铁塔" }, { level: "需要主动弹", score: 0.70, achievement: "比萨斜塔" }, { level: "自动脱落", score: 0.30, achievement: "雷峰塔" }], type: 'single' },
 
             // --- 香气与风味 (权重合计: 75) ---
-            { impression: "第二香气宜人强度", weight: 15, degrees: [{ level: "没有", score: 0.00, achievement: "嗅觉失灵" }, { level: "一点点香", score: 0.30, achievement: "昙花一现" }, { level: "很香", score: 0.70, achievement: "芳香四溢" }, { level: "极香", score: 1.00, achievement: "香水喷雾" }] },
-            { impression: "第二香气高级度", weight: 15, degrees: [{ level: "容易在其他茄获得", score: 0.30, achievement: "大众情人" }, { level: "不容易在其他茄获得但有偶碰到", score: 0.70, achievement: "偶然相遇" }, { level: "独特", score: 1.00, achievement: "独一无二" }] },
-            { impression: "香气持续度", weight: 15, degrees: [{ level: "前段有", score: 0.333, achievement: "短暂闪光" }, { level: "中段有", score: 0.666, achievement: "稳健续航" }, { level: "后端有", score: 1.00, achievement: "陪伴到老" }] },
-            { impression: "多重（第三）香气", weight: 15, degrees: [{ level: "没有", score: 0.00, achievement: "单核处理" }, { level: "有", score: 1.00, achievement: "多核运行" }] },
-            { impression: "多重（第三）香气持续度", weight: 15, degrees: [{ level: "前段有", score: 0.333, achievement: "尝鲜限定" }, { level: "中段有", score: 0.666, achievement: "深度体验" }, { level: "后端有", score: 1.00, achievement: "尾韵悠长" }] },
+            { impression: "第二香气宜人强度", weight: 15, degrees: [{ level: "没有", score: 0.00, achievement: "嗅觉失灵" }, { level: "一点点香", score: 0.30, achievement: "昙花一现" }, { level: "很香", score: 0.70, achievement: "芳香四溢" }, { level: "极香", score: 1.00, achievement: "香水喷雾" }], type: 'single' },
+            { impression: "第二香气高级度", weight: 15, degrees: [{ level: "容易在其他茄获得", score: 0.30, achievement: "大众情人" }, { level: "不容易在其他茄获得但有偶碰到", score: 0.70, achievement: "偶然相遇" }, { level: "独特", score: 1.00, achievement: "独一无二" }], type: 'single' },
+            { 
+                impression: "香气持续度", 
+                weight: 15, 
+                degrees: [{ level: "前段有", score: 0.333, achievement: "短暂闪光" }, { level: "中段有", score: 0.666, achievement: "稳健续航" }, { level: "后端有", score: 1.00, achievement: "陪伴到老" }],
+                type: 'multi' // <-- 多选
+            },
+            { impression: "多重（第三）香气", weight: 15, degrees: [{ level: "没有", score: 0.00, achievement: "单核处理" }, { level: "有", score: 1.00, achievement: "多核运行" }], type: 'single' },
+            { 
+                impression: "多重（第三）香气持续度", 
+                weight: 15, 
+                degrees: [{ level: "前段有", score: 0.333, achievement: "尝鲜限定" }, { level: "中段有", score: 0.666, achievement: "深度体验" }, { level: "后端有", score: 1.00, achievement: "尾韵悠长" }],
+                type: 'multi' // <-- 多选
+            },
             
             // --- 变化与燃烧 (权重合计: 45) ---
-            { impression: "三段变化", weight: 15, degrees: [{ level: "变化明显", score: 1.00, achievement: "过山车" }, { level: "似乎有变化", score: 0.50, achievement: "渐进变奏" }, { level: "始终如一", score: 0.10, achievement: "线性输出" }] },
-            { impression: "燃烧持续", weight: 15, degrees: [{ level: "一根到底", score: 1.00, achievement: "永动机" }, { level: "偶尔补火", score: 0.70, achievement: "火力支援" }, { level: "不断补火", score: 0.30, achievement: "消防队员" }, { level: "点到试图放弃", score: 0.00, achievement: "劝退重来" }] },
-            { impression: "烟雾量", weight: 15, degrees: [{ level: "没有", score: 0.00, achievement: "无烟区" }, { level: "少", score: 0.50, achievement: "隐士模式" }, { level: "正常", score: 1.00, achievement: "效率达人" }, { level: "浓", score: 0.80, achievement: "蒸汽列车" }, { level: "烟囱", score: 0.50, achievement: "火炬达人" }] },
+            { impression: "三段变化", weight: 15, degrees: [{ level: "变化明显", score: 1.00, achievement: "过山车" }, { level: "似乎有变化", score: 0.50, achievement: "渐进变奏" }, { level: "始终如一", score: 0.10, achievement: "线性输出" }], type: 'single' },
+            { impression: "燃烧持续", weight: 15, degrees: [{ level: "一根到底", score: 1.00, achievement: "永动机" }, { level: "偶尔补火", score: 0.70, achievement: "火力支援" }, { level: "不断补火", score: 0.30, achievement: "消防队员" }, { level: "点到试图放弃", score: 0.00, achievement: "劝退重来" }], type: 'single' },
+            { impression: "烟雾量", weight: 15, degrees: [{ level: "没有", score: 0.00, achievement: "无烟区" }, { level: "少", score: 0.50, achievement: "隐士模式" }, { level: "正常", score: 1.00, achievement: "效率达人" }, { level: "浓", score: 0.80, achievement: "蒸汽列车" }, { level: "烟囱", score: 0.50, achievement: "火炬达人" }], type: 'single' },
 
             // --- 尾段与整体感受 (权重合计: 70) ---
-            { impression: "尼古丁浓度", weight: 10, degrees: [{ level: "普通", score: 1.00, achievement: "基础挑战" }, { level: "困难", score: 0.90, achievement: "意志考验" }, { level: "噩梦", score: 0.70, achievement: "灵魂拷问" }, { level: "地狱", score: 0.30, achievement: "见阎王" }] },
-            { impression: "过鼻顺畅度", weight: 15, degrees: [{ level: "无感", score: 0.50, achievement: "呼吸自如" }, { level: "柔顺", score: 1.00, achievement: "丝滑通行" }, { level: "略有刺激", score: 0.70, achievement: "鼻腔警报" }, { level: "辛辣", score: 0.30, achievement: "吃辣大赛" }] },
-            { impression: "烟屁股抽完渴望度", weight: 10, degrees: [{ level: "马上想放弃", score: 0.00, achievement: "及时止损" }, { level: "抽到茄标", score: 0.30, achievement: "尊重标签" }, { level: "抽到烫手为止", score: 0.70, achievement: "极限挑战" }, { level: "抽到牙签烧完为止", score: 1.00, achievement: "榨干价值" }] },
-            { impression: "获得容易度", weight: 10, degrees: [{ level: "容易", score: 1.00, achievement: "唾手可得" }, { level: "普通", score: 0.80, achievement: "市场流通" }, { level: "困难", score: 0.50, achievement: "预约排队" }, { level: "千载难逢", score: 0.30, achievement: "寻宝猎人" }] },
-            { impression: "整体记忆度", weight: 15, degrees: [{ level: "芸芸众生", score: 0.00, achievement: "路人甲" }, { level: "略有印象", score: 0.30, achievement: "闪光一刻" }, { level: "念念不忘", score: 0.70, achievement: "午夜梦回" }, { level: "梦里寻她千百度", score: 1.00, achievement: "刻骨铭心" }] }
+            { impression: "尼古丁浓度", weight: 10, degrees: [{ level: "普通", score: 1.00, achievement: "基础挑战" }, { level: "困难", score: 0.90, achievement: "意志考验" }, { level: "噩梦", score: 0.70, achievement: "灵魂拷问" }, { level: "地狱", score: 0.30, achievement: "见阎王" }], type: 'single' },
+            { impression: "过鼻顺畅度", weight: 15, degrees: [{ level: "无感", score: 0.50, achievement: "呼吸自如" }, { level: "柔顺", score: 1.00, achievement: "丝滑通行" }, { level: "略有刺激", score: 0.70, achievement: "鼻腔警报" }, { level: "辛辣", score: 0.30, achievement: "吃辣大赛" }], type: 'single' },
+            { impression: "烟屁股抽完渴望度", weight: 10, degrees: [{ level: "马上想放弃", score: 0.00, achievement: "及时止损" }, { level: "抽到茄标", score: 0.30, achievement: "尊重标签" }, { level: "抽到烫手为止", score: 0.70, achievement: "极限挑战" }, { level: "抽到牙签烧完为止", score: 1.00, achievement: "榨干价值" }], type: 'single' },
+            { impression: "获得容易度", weight: 10, degrees: [{ level: "容易", score: 1.00, achievement: "唾手可得" }, { level: "普通", score: 0.80, achievement: "市场流通" }, { level: "困难", score: 0.50, achievement: "预约排队" }, { level: "千载难逢", score: 0.30, achievement: "寻宝猎人" }], type: 'single' },
+            { impression: "整体记忆度", weight: 15, degrees: [{ level: "芸芸众生", score: 0.00, achievement: "路人甲" }, { level: "略有印象", score: 0.30, achievement: "闪光一刻" }, { level: "念念不忘", score: 0.70, achievement: "午夜梦回" }, { level: "梦里寻她千百度", score: 1.00, achievement: "刻骨铭心" }], type: 'single' }
         ];
 
         // 总权重 (所有 weight 相加: 75 + 15 + 75 + 45 + 70 = 280)
@@ -158,12 +169,18 @@
 
             CIGAR_RATING_DATA.forEach((item, index) => {
                 const impressionId = `imp-${index}`;
+                const inputType = item.type === 'multi' ? 'checkbox' : 'radio';
+                // 只有 radio 需要 required 属性来强制选择
+                const requiredAttr = item.type === 'multi' ? '' : 'required'; 
+                // 为多选项目添加提示
+                const multiSelectNote = item.type === 'multi' ? '<span class="text-sm text-red-600 font-bold ml-2">(可多选)</span>' : '';
                 
                 // 评分项标题
                 html += `
                     <div class="p-4 bg-white rounded-xl shadow-lg">
                         <h3 class="text-base font-semibold text-gray-800 mb-3 border-b pb-2">
                             ${item.impression} <span class="text-xs text-gray-500 font-normal"> (权重: ${item.weight})</span>
+                            ${multiSelectNote}
                         </h3>
                         <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 `;
@@ -173,8 +190,8 @@
                     const uniqueId = `${impressionId}-${degIndex}`;
                     html += `
                         <div>
-                            <input type="radio" id="${uniqueId}" name="${item.impression}" value="${degree.level}" 
-                                class="rating-input hidden" required>
+                            <input type="${inputType}" id="${uniqueId}" name="${item.impression}" value="${degree.level}" 
+                                class="rating-input hidden" ${requiredAttr}>
                             <label for="${uniqueId}" 
                                 class="rating-label block text-center p-2 border border-indigo-400 text-indigo-700 
                                 rounded-lg cursor-pointer transition duration-150 hover:bg-indigo-50 text-sm">
@@ -214,36 +231,71 @@
         function calculateAndDisplayResults() {
             let rawScoreSum = 0;
             let earnedAchievements = [];
-            let missingSelections = false;
+            let allSingleItemsChecked = true;
 
             // 1. 遍历所有评分项，计算分数和收集成就
             CIGAR_RATING_DATA.forEach(item => {
-                const selectedInput = document.querySelector(`input[name="${item.impression}"]:checked`);
+                // 获取所有被选中的输入（无论是 radio 还是 checkbox）
+                const selectedInputs = document.querySelectorAll(`input[name="${item.impression}"]:checked`);
+                let itemScoreMultiplier = 0;
                 
-                if (!selectedInput) {
-                    missingSelections = true;
-                    return; // 跳过未选择的项
-                }
+                if (item.type === 'multi') {
+                    // --- 多选 (Checkbox) 逻辑 ---
+                    if (selectedInputs.length > 0) {
+                        let combinedAchievementParts = [];
+                        
+                        selectedInputs.forEach(input => {
+                            const selectedLevel = input.value;
+                            const selectedDegree = item.degrees.find(d => d.level === selectedLevel);
+                            if (selectedDegree) {
+                                // 累加分数乘数
+                                itemScoreMultiplier += selectedDegree.score;
+                                combinedAchievementParts.push(`${selectedDegree.achievement} (${selectedLevel})`);
+                            }
+                        });
 
-                const selectedLevel = selectedInput.value;
-                const selectedDegree = item.degrees.find(d => d.level === selectedLevel);
-
-                if (selectedDegree) {
-                    // 计算该项的原始得分: 权重 * 程度得分
-                    const itemScore = item.weight * selectedDegree.score;
-                    rawScoreSum += itemScore;
-                    // 记录成就
-                    earnedAchievements.push({
-                        impression: item.impression,
-                        achievement: selectedDegree.achievement
-                    });
+                        // 将所有选中的成就合并为一个条目
+                        if (combinedAchievementParts.length > 0) {
+                            earnedAchievements.push({
+                                impression: item.impression,
+                                achievement: combinedAchievementParts.join(' / ')
+                            });
+                        }
+                        
+                        // 确保分数乘数不超过 1.0 (防止超出该项的权重)
+                        itemScoreMultiplier = Math.min(itemScoreMultiplier, 1.0);
+                    }
+                    // 注意：多选项目允许 0 选，此时 itemScoreMultiplier 为 0，不阻塞提交
+                    
+                } else {
+                    // --- 单选 (Radio) 逻辑 ---
+                    if (selectedInputs.length === 0) {
+                        allSingleItemsChecked = false;
+                        return; // 遇到未选的单选项目，停止并标记
+                    }
+                    
+                    const selectedLevel = selectedInputs[0].value;
+                    const selectedDegree = item.degrees.find(d => d.level === selectedLevel);
+                    
+                    if (selectedDegree) {
+                        itemScoreMultiplier = selectedDegree.score;
+                        // 单选只记录一个成就
+                        earnedAchievements.push({
+                            impression: item.impression,
+                            achievement: selectedDegree.achievement
+                        });
+                    }
                 }
+                
+                // 计算该项的最终得分 (权重 * 乘数) 并累加到总分
+                const itemScore = item.weight * itemScoreMultiplier;
+                rawScoreSum += itemScore;
             });
 
-            // 2. 检查是否有未选项目
-            if (missingSelections) {
+            // 2. 检查是否有未选项目 (仅对单选题进行强制检查)
+            if (!allSingleItemsChecked) {
                 // 使用自定义消息框代替 alert
-                showCustomMessage('请完成所有评分项的勾选，以便进行准确计算。');
+                showCustomMessage('请完成所有单选评分项的勾选，以便进行准确计算。');
                 return;
             }
 
@@ -302,6 +354,7 @@
             
             achievements.forEach(item => {
                 const li = document.createElement('li');
+                // 多选的成就可能包含 '/' 分隔符
                 li.innerHTML = `<span class="font-medium text-indigo-700">${item.impression}:</span> ${item.achievement}`;
                 achievementList.appendChild(li);
             });
