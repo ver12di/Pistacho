@@ -64,7 +64,12 @@
                     
                     <div id="finalGradeDisplay" class="text-center mb-6 p-4 rounded-xl bg-gray-50 border border-gray-200">
                         <p class="text-sm text-gray-500">Pistacho 等级</p>
-                        <p class="text-6xl font-black" id="resultGradeLetter">?</p>
+                        
+                        <!-- 核心修改：使用 flex 容器来展示 P.I.S.T.A.C.H.O. 并突出重点字母 -->
+                        <div id="pistachoAcronymDisplay" class="flex justify-center items-end space-x-1 mb-2">
+                            <!-- Dynamic Letters Go Here -->
+                        </div>
+
                         <p class="text-xl font-semibold" id="resultGradeName">---</p>
                     </div>
 
@@ -117,7 +122,6 @@
             // --- 香气与风味 (权重合计: 75) ---
             { impression: "第二香气宜人强度", weight: 15, degrees: [{ level: "没有", score: 0.00, achievement: "嗅觉失灵" }, { level: "一点点香", score: 0.30, achievement: "昙花一现" }, { level: "很香", score: 0.70, achievement: "芳香四溢" }, { level: "极香", score: 1.00, achievement: "香水喷雾" }] },
             { impression: "第二香气高级度", weight: 15, degrees: [{ level: "容易在其他茄获得", score: 0.30, achievement: "大众情人" }, { level: "不容易在其他茄获得但有偶碰到", score: 0.70, achievement: "偶然相遇" }, { level: "独特", score: 1.00, achievement: "独一无二" }] },
-            // 注：香气持续度/多重香气持续度在实际App中应用多选（checkbox），此处为简化结构统一使用单选（radio）。
             { impression: "香气持续度", weight: 15, degrees: [{ level: "前段有", score: 0.333, achievement: "短暂闪光" }, { level: "中段有", score: 0.666, achievement: "稳健续航" }, { level: "后端有", score: 1.00, achievement: "陪伴到老" }] },
             { impression: "多重（第三）香气", weight: 15, degrees: [{ level: "没有", score: 0.00, achievement: "单核处理" }, { level: "有", score: 1.00, achievement: "多核运行" }] },
             { impression: "多重（第三）香气持续度", weight: 15, degrees: [{ level: "前段有", score: 0.333, achievement: "尝鲜限定" }, { level: "中段有", score: 0.666, achievement: "深度体验" }, { level: "后端有", score: 1.00, achievement: "尾韵悠长" }] },
@@ -190,14 +194,15 @@
          * 根据分数确定 Pistacho 等级
          */
         function determinePistachoGrade(score) {
-            if (score >= 95) return { grade: "P", name: "Perfection", chinese: "完美 / 臻品", color: "text-yellow-500" };
-            if (score >= 90) return { grade: "I", name: "Iconic", chinese: "标志性 / 典范", color: "text-gray-500" };
-            if (score >= 85) return { grade: "S", name: "Supreme", chinese: "至高 / 卓越", color: "text-amber-700" };
-            if (score >= 80) return { grade: "T", name: "Treasured", chinese: "珍藏 / 珍爱", color: "text-blue-500" };
-            if (score >= 70) return { grade: "A", name: "Acceptable", chinese: "可接受 / 合格", color: "text-green-600" };
-            if (score >= 60) return { grade: "C", name: "Common", chinese: "普通 / 一般", color: "text-yellow-600" };
-            if (score >= 40) return { grade: "H", name: "Hardship", chinese: "困难 / 缺陷多", color: "text-orange-600" };
-            return { grade: "O", name: "Outright Failure", chinese: "彻底失败 / 不合格", color: "text-red-600" };
+            // 定义每个等级的颜色，用于突出显示
+            if (score >= 95) return { grade: "P", name: "Perfection", chinese: "完美", color: "text-yellow-500" };
+            if (score >= 90) return { grade: "I", name: "Iconic", chinese: "典范", color: "text-gray-500" };
+            if (score >= 85) return { grade: "S", name: "Supreme", chinese: "卓越", color: "text-amber-700" };
+            if (score >= 80) return { grade: "T", name: "Treasured", chinese: "珍藏", color: "text-blue-500" };
+            if (score >= 70) return { grade: "A", name: "Acceptable", chinese: "可接受", color: "text-green-600" };
+            if (score >= 60) return { grade: "C", name: "Common", chinese: "普通", color: "text-yellow-600" };
+            if (score >= 40) return { grade: "H", name: "Hardship", chinese: "缺陷多", color: "text-orange-600" };
+            return { grade: "O", name: "Outright Failure", chinese: "不合格", color: "text-red-600" };
         }
 
         /**
@@ -255,11 +260,36 @@
         }
 
         /**
-         * 更新结果显示
+         * 更新结果显示 (实现大小字母混合显示)
          */
         function updateResultsDisplay(finalGrade, roundedScore, achievements) {
-            document.getElementById('resultGradeLetter').textContent = finalGrade.grade;
-            document.getElementById('resultGradeLetter').className = `text-6xl font-black ${finalGrade.color}`;
+            const PISTACHO_ACRONYM = "PISTACHO";
+            let acronymHtml = '';
+            const mainGradeLetter = finalGrade.grade;
+
+            // 1. 构建动态 PISTACHO 显示
+            for (const letter of PISTACHO_ACRONYM) {
+                if (letter === mainGradeLetter) {
+                    // 当前获得的等级字母：大号、粗体、着色
+                    acronymHtml += `
+                        <span class="text-6xl font-black ${finalGrade.color} translate-y-0">
+                            ${letter}
+                        </span>
+                    `;
+                } else {
+                    // 其他字母：小号、中等灰度、略微抬高以对齐基线
+                    acronymHtml += `
+                        <span class="text-xl font-bold text-gray-400 transform translate-y-1">
+                            ${letter}
+                        </span>
+                    `;
+                }
+            }
+            
+            // 2. 注入新的 acronym display
+            document.getElementById('pistachoAcronymDisplay').innerHTML = acronymHtml;
+
+            // 3. 更新中文等级和分数
             document.getElementById('resultGradeName').innerHTML = `${finalGrade.name} (${finalGrade.chinese})`;
             document.getElementById('resultScore').textContent = roundedScore.toFixed(1);
 
