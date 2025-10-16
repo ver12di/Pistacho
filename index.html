@@ -3,379 +3,439 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>雪茄评分与记录</title>
-    <!-- 引入 Tailwind CSS -->
+    <title>雪茄品鉴评分系统</title>
+    <!-- 引入 Tailwind CSS 库 -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 设置自定义 Tailwind 配置，使用 Inter 字体，并启用一些常用功能 -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'Avenir', 'Helvetica', 'Arial', 'sans-serif'],
+                    },
+                    colors: {
+                        'cigar-dark': '#4A2B1D',
+                        'cigar-light': '#D6C8B5',
+                        'accent': '#A0522D',
+                    }
+                },
+            }
+        }
+    </script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        /* 确保页面全高且背景色平稳 */
         body {
-            font-family: 'Inter', sans-serif;
-            background-color: #e5e7eb;
-        }
-        .rating-item {
-            padding: 1.5rem;
-            border-radius: 0.75rem;
-            background-color: #ffffff;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
-            margin-bottom: 1rem;
-        }
-        .score-input:checked + label {
-            background-color: #3b82f6;
-            color: white;
-            border-color: #3b82f6;
-            transform: scale(1.02);
-        }
-        .score-input:hover + label {
-            border-color: #93c5fd;
+            background-color: #f7f7f7;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
     </style>
 </head>
-<body class="p-4 md:p-8 min-h-screen">
+<body class="font-sans">
 
-    <div id="app" class="max-w-5xl mx-auto">
-        <h1 class="text-4xl font-extrabold text-gray-800 mb-2 text-center">雪茄评分记录簿</h1>
-        <p class="text-gray-600 mb-6 text-center">使用您的自定义评分标准进行打分，并保存您的品鉴记录。</p>
-
-        <!-- 状态/消息显示区 -->
-        <div id="status-message" class="p-3 mb-6 rounded-lg text-sm transition-all duration-300 hidden" role="alert"></div>
-
-        <div class="bg-white p-6 md:p-8 rounded-xl shadow-2xl space-y-6">
-            
-            <!-- 雪茄信息 -->
-            <div class="border-b pb-4">
-                <label for="cigar-name" class="block text-xl font-semibold text-gray-700 mb-2">雪茄名称 (必填)</label>
-                <input type="text" id="cigar-name" placeholder="输入雪茄品牌和型号" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
-            </div>
-
-            <!-- 评分项目区 -->
-            <div id="rating-form-container" class="space-y-4">
-                <p class="text-center text-gray-500">加载评分配置中...</p>
-            </div>
-
-            <!-- 结果和操作 -->
-            <div class="pt-6 border-t flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
-                <div class="text-2xl font-bold text-gray-800">
-                    总得分: <span id="final-score" class="text-blue-600">0.00</span> / 100 分
+    <!-- 导航栏 -->
+    <header class="bg-cigar-dark text-white shadow-lg sticky top-0 z-10">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <!-- Logo/Title -->
+                <div class="flex-shrink-0">
+                    <span class="text-xl font-bold tracking-wider">CigarScore <span class="text-accent">PRO</span></span>
                 </div>
-
-                <button onclick="saveRating()" id="save-button" class="w-full md:w-auto px-8 py-4 bg-green-600 text-white text-lg font-bold rounded-lg shadow-lg hover:bg-green-700 transition duration-150 ease-in-out disabled:opacity-50" disabled>
-                    <span id="save-text">保存评分记录</span>
-                    <span id="save-spinner" class="hidden animate-spin h-5 w-5 border-4 border-white border-t-transparent rounded-full ml-2"></span>
+                <!-- 菜单 - 桌面端 -->
+                <nav class="hidden md:flex space-x-8">
+                    <a href="#" class="text-cigar-light hover:text-white transition duration-300 rounded-lg px-3 py-2">首页</a>
+                    <a href="#" class="text-cigar-light hover:text-white transition duration-300 rounded-lg px-3 py-2">评分标准</a>
+                    <a href="#" class="text-cigar-light hover:text-white transition duration-300 rounded-lg px-3 py-2">历史记录</a>
+                    <a href="#" class="bg-accent text-white rounded-lg px-4 py-2 font-medium hover:bg-opacity-90 transition duration-300 shadow-md">开始评分</a>
+                </nav>
+                <!-- 菜单 - 移动端按钮 -->
+                <button id="menu-button" class="md:hidden p-2 rounded-lg text-cigar-light hover:bg-cigar-light hover:text-cigar-dark transition duration-300">
+                    <!-- Hamburger Icon (Menu) -->
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
                 </button>
             </div>
-
-            <div class="text-sm text-gray-500 pt-4 border-t">
-                <p>用户ID: <span id="user-id" class="font-mono text-gray-700">加载中...</span></p>
-            </div>
-
         </div>
-    </div>
 
-    <!-- Firebase 逻辑和评分计算 -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, setDoc, doc, collection, addDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        <!-- 移动端菜单内容 (初始隐藏) -->
+        <div id="mobile-menu" class="hidden md:hidden">
+            <div class="px-2 pt-2 pb-3 space-y-1 sm:px-3">
+                <a href="#" class="block px-3 py-2 rounded-md text-base font-medium text-white hover:bg-accent">首页</a>
+                <a href="#" class="block px-3 py-2 rounded-md text-base font-medium text-white hover:bg-accent">评分标准</a>
+                <a href="#" class="block px-3 py-2 rounded-md text-base font-medium text-white hover:bg-accent">历史记录</a>
+                <a href="#" class="block px-3 py-2 rounded-md text-base font-medium bg-accent text-white">开始评分</a>
+            </div>
+        </div>
+    </header>
 
-        // --- 全局变量和 Firestore 实例 ---
-        let app;
-        let db;
-        let auth;
-        let currentUserId = 'anonymous';
-        let ratingConfig = [];
-        let currentSelections = {}; // 存储用户选择: { "impression": "level" } 或 { "impression": ["level1", "level2"] }
-        let totalWeight = 0;
+    <!-- 主内容区 -->
+    <main class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div class="bg-white p-8 rounded-xl shadow-2xl">
+            <!-- 英雄区/主要介绍 -->
+            <section class="text-center mb-12">
+                <h1 class="text-4xl sm:text-5xl font-extrabold text-cigar-dark mb-4 leading-tight">
+                    <span class="text-accent">P.I.S.T.A.C.H.O.</span> 雪茄品鉴系统
+                </h1>
+                <p id="system-subtitle" class="text-xl text-gray-600 max-w-3xl mx-auto mb-6">
+                    将主观印象转化为客观数据，专业、系统地记录每一支雪茄的独特体验。
+                </p>
+                <div class="space-x-4">
+                    <a href="#" class="bg-accent text-white font-semibold py-3 px-8 rounded-full shadow-lg hover:bg-opacity-80 transition duration-300 transform hover:scale-105">
+                        查看评分等级
+                    </a>
+                    <a href="#" class="text-cigar-dark border border-cigar-dark font-semibold py-3 px-8 rounded-full hover:bg-cigar-dark hover:text-white transition duration-300 transform hover:scale-105">
+                        了解体系权重
+                    </a>
+                </div>
+            </section>
 
-        // --- Firestore 路径常量 ---
-        const CONFIG_COLLECTION_NAME = 'configuration';
-        const CONFIG_DOC_ID = 'cigar_config';
-        const RATINGS_COLLECTION_NAME = 'cigar_ratings';
-        
-        // 预设的默认配置 (来自您提供的JSON)
-        const DEFAULT_RATING_CONFIG = ${JSON.stringify(JSON.parse(document.getElementById('config-json') ? document.getElementById('config-json').value : '[]'), null, 2) || '[]'};
-
-        // --- DOM Elements ---
-        const statusEl = document.getElementById('status-message');
-        const ratingFormContainer = document.getElementById('rating-form-container');
-        const finalScoreEl = document.getElementById('final-score');
-        const saveButton = document.getElementById('save-button');
-        const saveText = document.getElementById('save-text');
-        const saveSpinner = document.getElementById('save-spinner');
-        const userIdEl = document.getElementById('user-id');
-        const cigarNameInput = document.getElementById('cigar-name');
-
-
-        // --- 核心函数：状态/消息处理 ---
-        function updateStatus(type, message, isSaving = false) {
-            statusEl.classList.remove('hidden', 'bg-red-100', 'text-red-800', 'bg-green-100', 'text-green-800', 'bg-yellow-100', 'text-yellow-800');
-            saveButton.disabled = isSaving;
-
-            if (isSaving) {
-                saveText.textContent = '保存中...';
-                saveSpinner.classList.remove('hidden');
-                statusEl.classList.add('bg-yellow-100', 'text-yellow-800');
-            } else {
-                saveText.textContent = '保存评分记录';
-                saveSpinner.classList.add('hidden');
-            }
-
-            if (type === 'error') {
-                statusEl.classList.add('bg-red-100', 'text-red-800');
-            } else if (type === 'success') {
-                statusEl.classList.add('bg-green-100', 'text-green-800');
-            } else { // info or default
-                statusEl.classList.add('bg-yellow-100', 'text-yellow-800');
-            }
-
-            statusEl.textContent = message;
-            if (message) statusEl.classList.remove('hidden');
-        }
-
-        // --- 核心函数：计算分数 ---
-        function calculateScore() {
-            if (ratingConfig.length === 0) return 0;
-            
-            let weightedScoreSum = 0;
-            let totalWeightSum = 0;
-
-            ratingConfig.forEach(item => {
-                totalWeightSum += item.weight;
-
-                const selections = currentSelections[item.impression] || [];
-                let itemScore = 0;
-
-                if (item.type === 'single') {
-                    // Single choice: find the score of the selected level (max one)
-                    if (selections.length > 0) {
-                        const selectedLevel = selections[0];
-                        const degree = item.degrees.find(d => d.level === selectedLevel);
-                        itemScore = degree ? degree.score : 0;
-                    }
-                } else if (item.type === 'multi') {
-                    // Multi choice: sum up scores, capped at 1.0 (as per provided JSON structure)
-                    selections.forEach(selectedLevel => {
-                        const degree = item.degrees.find(d => d.level === selectedLevel);
-                        if (degree) {
-                            itemScore += degree.score;
-                        }
-                    });
-                    itemScore = Math.min(itemScore, 1.0); // Cap at 100% of the item's potential
-                }
-
-                weightedScoreSum += itemScore * item.weight;
-            });
-
-            // 防止总权重为 0 (尽管在您的配置中不会发生)
-            if (totalWeightSum === 0) return 0;
-
-            const finalScore = (weightedScoreSum / totalWeightSum) * 100;
-            finalScoreEl.textContent = finalScore.toFixed(2);
-            saveButton.disabled = false; // 允许保存，无论分数如何
-            return finalScore;
-        }
-
-        // --- 核心函数：处理选择事件 ---
-        function handleSelection(impression, level, type, event) {
-            if (type === 'single') {
-                // Single: Only store the current selected level
-                currentSelections[impression] = [level];
-                
-                // Clear other radio buttons in the same group (optional, but good practice for radio)
-                const groupName = `rating-${impression}`;
-                document.querySelectorAll(`input[name="${groupName}"]`).forEach(input => {
-                    if (input.value !== level) {
-                        input.checked = false;
-                    }
-                });
-
-            } else if (type === 'multi') {
-                // Multi: Add or remove from the array
-                currentSelections[impression] = currentSelections[impression] || [];
-                if (event.target.checked) {
-                    currentSelections[impression].push(level);
-                } else {
-                    currentSelections[impression] = currentSelections[impression].filter(l => l !== level);
-                }
-            }
-
-            calculateScore();
-        }
-
-
-        // --- 核心函数：渲染表单 ---
-        function renderRatingItems(config) {
-            ratingFormContainer.innerHTML = '';
-            totalWeight = config.reduce((sum, item) => sum + item.weight, 0);
-
-            config.forEach(item => {
-                const groupName = `rating-${item.impression}`;
-                const inputType = item.type === 'single' ? 'radio' : 'checkbox';
-                
-                const itemHtml = `
-                    <div class="rating-item border border-gray-200">
-                        <h3 class="text-xl font-semibold text-gray-800 mb-3">${item.impression} 
-                            <span class="text-sm font-normal text-blue-500 ml-2">(${item.weight} 分)</span>
-                        </h3>
-                        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-                            ${item.degrees.map((degree, index) => `
-                                <div>
-                                    <input type="${inputType}" 
-                                           id="${groupName}-${index}" 
-                                           name="${groupName}" 
-                                           value="${degree.level}" 
-                                           data-impression="${item.impression}"
-                                           data-type="${item.type}"
-                                           class="score-input hidden"
-                                           onchange="handleSelection('${item.impression}', '${degree.level}', '${item.type}', event)">
-                                    <label for="${groupName}-${index}" 
-                                           class="block text-center cursor-pointer p-2 rounded-lg border-2 border-gray-300 text-gray-700 transition duration-150">
-                                        <span class="font-medium">${degree.level}</span>
-                                        <span class="text-xs block text-gray-500 transition duration-150">${(degree.score * item.weight).toFixed(1)}分 / ${degree.achievement}</span>
-                                    </label>
-                                </div>
-                            `).join('')}
-                        </div>
+            <!-- 特点概览 (基于 CSV 文件内容) -->
+            <section class="grid md:grid-cols-3 gap-8 text-cigar-dark mb-12">
+                <!-- 特点 1: 卷工与外观 -->
+                <div class="bg-cigar-light/50 p-6 rounded-lg shadow-md hover:shadow-xl transition duration-500">
+                    <div class="text-2xl font-bold mb-2 flex items-center">
+                        <span class="text-accent mr-2">🪶</span> 外观与卷工
                     </div>
-                `;
-                ratingFormContainer.innerHTML += itemHtml;
-            });
-            
-            window.handleSelection = handleSelection; // 暴露给全局 scope 供 onchange 调用
-            calculateScore(); // 初始计算 0 分
-        }
-
-        // --- Firebase 初始化和配置加载 ---
-
-        async function initFirebase() {
-            const firebaseConfigStr = typeof __firebase_config !== 'undefined' ? __firebase_config : '{}';
-            const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-            
-            try {
-                const firebaseConfig = JSON.parse(firebaseConfigStr);
-
-                if (Object.keys(firebaseConfig).length === 0) {
-                    updateStatus('error', '致命错误：Firebase配置对象为空。将使用默认配置。');
-                    ratingConfig = DEFAULT_RATING_CONFIG;
-                    renderRatingItems(ratingConfig);
-                    return;
-                }
-
-                app = initializeApp(firebaseConfig);
-                db = getFirestore(app);
-                auth = getAuth(app);
+                    <p class="text-gray-700">涵盖茄标高级感、茄衣状态（薄/厚/油润/干/茎细）和卷工细节（不合格到完美），区分**熟练工人**与**精雕细琢**。</p>
+                </div>
                 
-                if (initialAuthToken) {
-                    await signInWithCustomToken(auth, initialAuthToken);
-                } else {
-                    await signInAnonymously(auth);
-                }
+                <!-- 特点 2: 燃烧与吸阻 -->
+                <div class="bg-cigar-light/50 p-6 rounded-lg shadow-md hover:shadow-xl transition duration-500">
+                    <div class="text-2xl font-bold mb-2 flex items-center">
+                        <span class="text-accent mr-2">🔥</span> 燃烧与气道
+                    </div>
+                    <p class="text-gray-700">精确量化吸阻（**天选之吸** vs **物理绝缘**），记录燃烧线均匀度（**激光切割**）和烟灰形态（**埃菲尔铁塔**）。</p>
+                </div>
 
-                onAuthStateChanged(auth, (user) => {
-                    if (user) {
-                        currentUserId = user.uid;
-                        userIdEl.textContent = currentUserId;
-                        updateStatus('success', 'Firebase初始化成功，正在加载评分标准...', false);
-                        loadRatingConfig();
-                    } else {
-                        currentUserId = 'anonymous'; 
-                        userIdEl.textContent = '匿名/未认证';
-                        updateStatus('info', '已匿名登录，正在使用默认评分标准。', false);
-                        ratingConfig = DEFAULT_RATING_CONFIG;
-                        renderRatingItems(ratingConfig);
-                    }
-                });
+                <!-- 特点 3: 香气与变化 -->
+                <div class="bg-cigar-light/50 p-6 rounded-lg shadow-md hover:shadow-xl transition duration-500">
+                    <div class="text-2xl font-bold mb-2 flex items-center">
+                        <span class="text-accent mr-2">👃</span> 复杂香气谱
+                    </div>
+                    <p class="text-gray-700">追踪第二/多重香气的高级度和持续性，捕捉甜味、花香、古巴味等关键词，记录三段变化是否明显。</p>
+                </div>
+            </section>
+        </div>
 
-            } catch (e) {
-                updateStatus('error', `Firebase初始化失败：${e.message}。正在加载默认配置。`);
-                console.error("Firebase Initialization Error:", e);
-                ratingConfig = DEFAULT_RATING_CONFIG;
-                renderRatingItems(ratingConfig);
-            }
-        }
+        <!-- 评分等级参考表 (P.I.S.T.A.C.H.O.) -->
+        <section class="mt-12">
+            <h2 class="text-3xl font-bold text-cigar-dark mb-6 text-center">P.I.S.T.A.C.H.O. 等级速查</h2>
+            <div class="overflow-x-auto">
+                <table class="min-w-full bg-white rounded-xl shadow-lg border border-gray-200">
+                    <thead class="bg-cigar-dark text-white">
+                        <tr>
+                            <th class="py-3 px-4 text-left rounded-tl-lg">等级</th>
+                            <th class="py-3 px-4 text-left">字母</th>
+                            <th class="py-3 px-4 text-left">英文描述词</th>
+                            <th class="py-3 px-4 text-left rounded-tr-lg">中文释义</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr class="border-b hover:bg-yellow-50/50 transition duration-150">
+                            <td class="py-3 px-4 font-bold text-accent">最高</td>
+                            <td class="py-3 px-4 text-lg font-mono">P</td>
+                            <td class="py-3 px-4">Perfection</td>
+                            <td class="py-3 px-4">完美 / 臻品</td>
+                        </tr>
+                        <tr class="border-b hover:bg-yellow-50/50 transition duration-150">
+                            <td class="py-3 px-4">高</td>
+                            <td class="py-3 px-4 text-lg font-mono">I</td>
+                            <td class="py-3 px-4">Iconic</td>
+                            <td class="py-3 px-4">标志性 / 典范</td>
+                        </tr>
+                        <tr class="border-b hover:bg-yellow-50/50 transition duration-150">
+                            <td class="py-3 px-4">高</td>
+                            <td class="py-3 px-4 text-lg font-mono">S</td>
+                            <td class="py-3 px-4">Supreme</td>
+                            <td class="py-3 px-4">至高 / 卓越</td>
+                        </tr>
+                        <tr class="border-b hover:bg-yellow-50/50 transition duration-150">
+                            <td class="py-3 px-4">中</td>
+                            <td class="py-3 px-4 text-lg font-mono">T</td>
+                            <td class="py-3 px-4">Treasured</td>
+                            <td class="py-3 px-4">珍藏 / 珍爱</td>
+                        </tr>
+                        <tr class="border-b hover:bg-yellow-50/50 transition duration-150 bg-gray-50">
+                            <td class="py-3 px-4">中</td>
+                            <td class="py-3 px-4 text-lg font-mono">A</td>
+                            <td class="py-3 px-4">Acceptable</td>
+                            <td class="py-3 px-4">可接受 / 合格</td>
+                        </tr>
+                        <tr class="border-b hover:bg-yellow-50/50 transition duration-150">
+                            <td class="py-3 px-4">低</td>
+                            <td class="py-3 px-4 text-lg font-mono">C</td>
+                            <td class="py-3 px-4">Common</td>
+                            <td class="py-3 px-4">普通 / 一般</td>
+                        </tr>
+                        <tr class="border-b hover:bg-yellow-50/50 transition duration-150">
+                            <td class="py-3 px-4">低</td>
+                            <td class="py-3 px-4 text-lg font-mono">H</td>
+                            <td class="py-3 px-4">Hardship</td>
+                            <td class="py-3 px-4">困难 / 缺陷多</td>
+                        </tr>
+                        <tr class="hover:bg-yellow-50/50 transition duration-150">
+                            <td class="py-3 px-4 font-bold text-red-600">最低</td>
+                            <td class="py-3 px-4 text-lg font-mono">O</td>
+                            <td class="py-3 px-4">Outright Failure</td>
+                            <td class="py-3 px-4">彻底失败 / 不合格</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
 
-        /**
-         * 从 Firestore 加载用户自定义配置
-         */
-        function loadRatingConfig() {
-            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-            
-            if (!db || !currentUserId || appId === 'default-app-id') {
-                ratingConfig = DEFAULT_RATING_CONFIG;
-                updateStatus('info', '无法连接到用户私有配置，正在使用默认评分标准。');
-                renderRatingItems(ratingConfig);
-                return;
-            }
+        <!-- 配置管理区域 (新增部分) -->
+        <section class="mt-12 bg-white p-6 rounded-xl shadow-2xl border border-cigar-dark/20">
+            <button id="toggle-config-btn" class="w-full text-left p-4 bg-cigar-dark text-white font-bold rounded-lg hover:bg-accent transition duration-300 flex justify-between items-center">
+                <span>⚙️ 评分配置管理 (cigar_rating_config.json)</span>
+                <svg id="config-arrow" class="w-6 h-6 transform rotate-0 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+            </button>
 
-            // 加载配置文档 (与配置管理页面使用同一文档)
-            const configDocRef = doc(db, `artifacts/${appId}/users/${currentUserId}/${CONFIG_COLLECTION_NAME}`, CONFIG_DOC_ID);
-            
-            onSnapshot(configDocRef, (docSnapshot) => {
-                if (docSnapshot.exists() && docSnapshot.data().config && docSnapshot.data().config.length > 0) {
-                    ratingConfig = docSnapshot.data().config;
-                    updateStatus('success', `评分标准 (${ratingConfig.length}项) 加载成功！`, false);
-                } else {
-                    ratingConfig = DEFAULT_RATING_CONFIG;
-                    updateStatus('info', 'Firestore中找不到用户配置，已加载内置默认评分标准。', false);
-                }
-                renderRatingItems(ratingConfig);
-            }, (error) => {
-                updateStatus('error', `加载配置失败: ${error.message}。已加载默认配置。`);
-                console.error("Load Config Error:", error);
-                ratingConfig = DEFAULT_RATING_CONFIG;
-                renderRatingItems(ratingConfig);
-            });
-        }
-
-        /**
-         * 将评分结果保存到 Firestore
-         */
-        window.saveRating = async function() {
-            const cigarName = cigarNameInput.value.trim();
-            if (!cigarName) {
-                updateStatus('error', '保存失败：请填写雪茄名称。');
-                return;
-            }
-            if (!db || !currentUserId) {
-                updateStatus('error', '保存失败：数据库未初始化或用户未认证。');
-                return;
-            }
-            
-            updateStatus('info', '正在保存记录...', true);
-
-            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-            // 将评分记录保存在一个新的集合中: /artifacts/{appId}/users/{userId}/cigar_ratings
-            const ratingsCollectionRef = collection(db, `artifacts/${appId}/users/${currentUserId}/${RATINGS_COLLECTION_NAME}`);
-            
-            try {
-                const finalScore = calculateScore();
-                const ratingData = {
-                    cigarName: cigarName,
-                    finalScore: parseFloat(finalScore.toFixed(2)),
-                    selections: currentSelections, // 保存用户所有选择的原始数据
-                    configSnapshot: ratingConfig,  // 保存当时的配置快照
-                    timestamp: new Date().toISOString() 
-                };
-
-                await addDoc(ratingsCollectionRef, ratingData);
-                updateStatus('success', `评分记录保存成功！[${cigarName}] 得分: ${finalScore.toFixed(2)}。`, false);
+            <div id="config-content" class="mt-4 hidden">
+                <p class="mb-3 text-sm text-gray-600">在此文本框中编辑 JSON 配置，然后点击“应用配置”以在当前会话中加载新的评分标准、权重和得分比例。**请确保 JSON 格式正确。**</p>
+                <textarea id="json-config-textarea" class="w-full h-80 p-4 border border-gray-300 rounded-lg font-mono text-sm resize-none focus:ring-accent focus:border-accent" spellcheck="false"></textarea>
                 
-                // 清空表单
-                cigarNameInput.value = '';
-                currentSelections = {};
-                document.querySelectorAll('.score-input').forEach(input => {
-                    input.checked = false;
-                });
-                calculateScore();
+                <div class="flex flex-col sm:flex-row justify-between items-center mt-4 space-y-3 sm:space-y-0 sm:space-x-3">
+                    <span id="config-status" class="text-sm text-gray-500 font-medium">状态：已加载默认配置 (v1.0)</span>
+                    <button id="apply-config-btn" class="w-full sm:w-auto bg-accent text-white font-semibold py-2 px-6 rounded-full shadow-md hover:bg-opacity-90 transition duration-300">
+                        应用配置
+                    </button>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- 页脚 -->
+    <footer class="bg-cigar-dark mt-12 py-8">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-cigar-light text-sm">
+            <p>&copy; 2025 CigarScore PRO. 基于 P.I.S.T.A.C.H.O. 体系构建。</p>
+            <div class="mt-2 space-x-4">
+                <a href="#" class="hover:text-white transition duration-300">隐私政策</a>
+                <span class="text-white/50">|</span>
+                <a href="#" class="hover:text-white transition duration-300">联系我们</a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- JavaScript 逻辑 -->
+    <script>
+        // 1. 默认配置数据 (来自 cigar_rating_config.json)
+        const DEFAULT_CONFIG_JSON = {
+          "appTitle": "P.I.S.T.A.C.H.O. 雪茄品鉴配置",
+          "version": "1.0",
+          "totalWeightMax": 100,
+          "lastUpdated": "2025-10-16",
+          "ratingCriteria": [
+            {
+              "category": "外观与卷工 (Construction & Appearance)",
+              "criteriaList": [
+                {
+                  "name": "茄标高级感",
+                  "weight": 5,
+                  "options": [
+                    {"description": "简陋 (Dismal)", "scorePct": 0.10},
+                    {"description": "中规中矩 (Standard)", "scorePct": 0.50},
+                    {"description": "漂亮 (Elegant)", "scorePct": 0.70},
+                    {"description": "完美 (Perfect)", "scorePct": 1.00}
+                  ]
+                },
+                {
+                  "name": "茄衣状态",
+                  "weight": 10,
+                  "options": [
+                    {"description": "简陋/多茎 (Dismal/Veiny)", "scorePct": 0.10},
+                    {"description": "正常/中规中矩 (Normal)", "scorePct": 0.50},
+                    {"description": "油润/漂亮 (Oily/Beautiful)", "scorePct": 0.70},
+                    {"description": "丝绸触感/顶级皮具 (Silky/Luxury)", "scorePct": 1.00}
+                  ]
+                },
+                {
+                  "name": "卷工",
+                  "weight": 15,
+                  "options": [
+                    {"description": "不合格/脱胶 (Unacceptable/Unraveling)", "scorePct": 0.10},
+                    {"description": "正常 (Normal)", "scorePct": 0.50},
+                    {"description": "漂亮/熟练工人 (Beautiful/Skilled)", "scorePct": 0.70},
+                    {"description": "完美/精雕细琢 (Flawless/Artisan)", "scorePct": 1.00}
+                  ]
+                }
+              ]
+            },
+            {
+              "category": "燃烧与气道 (Burn & Draw)",
+              "criteriaList": [
+                {
+                  "name": "吸阻",
+                  "weight": 15,
+                  "options": [
+                    {"description": "堵塞/物理绝缘 (Blocked/Insulation)", "scorePct": 0.0},
+                    {"description": "偏松 (Loose)", "scorePct": 0.50},
+                    {"description": "偏紧 (Tight)", "scorePct": 0.50},
+                    {"description": "完美/天选之吸 (Perfect/Chosen Draw)", "scorePct": 1.00}
+                  ]
+                },
+                {
+                  "name": "燃烧均匀性",
+                  "weight": 15,
+                  "options": [
+                    {"description": "持续不均匀 (Constantly Uneven)", "scorePct": 0.10},
+                    {"description": "略不均匀需矫正 (Slightly Uneven)", "scorePct": 0.70},
+                    {"description": "均匀/完美平衡 (Even/Perfect Balance)", "scorePct": 1.00}
+                  ]
+                },
+                {
+                  "name": "烟灰形态",
+                  "weight": 10,
+                  "options": [
+                    {"description": "自动脱落 (Self-Dropping/Weak)", "scorePct": 0.30},
+                    {"description": "需要主动弹 (Needs Tapping)", "scorePct": 0.70},
+                    {"description": "完美/埃菲尔铁塔 (Perfect/Eiffel Tower)", "scorePct": 1.00}
+                  ]
+                }
+              ]
+            },
+            {
+              "category": "风味与体验 (Flavor & Experience)",
+              "criteriaList": [
+                {
+                  "name": "前3口感觉",
+                  "weight": 5,
+                  "options": [
+                    {"description": "估计不怎么样/劝退 (Doubtful/A warning)", "scorePct": 0.10},
+                    {"description": "中规中矩 (Average)", "scorePct": 0.50},
+                    {"description": "有期待/稳步升温 (Promising/Warming up)", "scorePct": 0.70},
+                    {"description": "眼前一亮/开场爆棚 (Immediate Wow/Blast off)", "scorePct": 1.00}
+                  ]
+                },
+                {
+                  "name": "第二香气强度",
+                  "weight": 15,
+                  "options": [
+                    {"description": "没有 (None)", "scorePct": 0.0},
+                    {"description": "一点点香 (Subtle)", "scorePct": 0.30},
+                    {"description": "很香 (Fragrant)", "scorePct": 0.70},
+                    {"description": "极香 (Extremely Aromatic)", "scorePct": 1.00}
+                  ]
+                },
+                {
+                  "name": "三段变化",
+                  "weight": 10,
+                  "options": [
+                    {"description": "始终如一 (Consistent)", "scorePct": 0.50},
+                    {"description": "似乎有变化 (Seemingly changing)", "scorePct": 0.70},
+                    {"description": "变化明显 (Clearly evolving)", "scorePct": 1.00}
+                  ]
+                }
+              ]
+            }
+          ]
+        };
+
+        // 2. 当前使用的配置（初始为默认配置）
+        let currentConfig = DEFAULT_CONFIG_JSON;
+
+        // 3. 页面元素引用
+        const mobileMenu = document.getElementById('mobile-menu');
+        const menuButton = document.getElementById('menu-button');
+        const configTextarea = document.getElementById('json-config-textarea');
+        const applyConfigBtn = document.getElementById('apply-config-btn');
+        const toggleConfigBtn = document.getElementById('toggle-config-btn');
+        const configContent = document.getElementById('config-content');
+        const configStatus = document.getElementById('config-status');
+        const systemSubtitle = document.getElementById('system-subtitle');
+        const configArrow = document.getElementById('config-arrow');
+
+        // 4. 函数：应用配置
+        function applyConfig() {
+            try {
+                const newConfigString = configTextarea.value;
+                const newConfig = JSON.parse(newConfigString);
+
+                // 简单的结构验证
+                if (!newConfig.ratingCriteria || !Array.isArray(newConfig.ratingCriteria)) {
+                    throw new Error("JSON结构无效：缺少 'ratingCriteria' 数组。");
+                }
+
+                // 更新全局配置
+                currentConfig = newConfig;
+
+                // 更新UI显示
+                systemSubtitle.textContent = newConfig.appTitle || "将主观印象转化为客观数据，专业、系统地记录每一支雪茄的独特体验。";
+                configStatus.textContent = `状态：已成功加载自定义配置 (v${newConfig.version || 'Custom'})`;
+                configStatus.classList.remove('text-red-500');
+                configStatus.classList.add('text-green-600');
+                console.log("新配置已成功加载：", currentConfig);
+                
+                // 提示用户成功（使用自定义消息框替代 alert）
+                showCustomMessage('配置更新成功', '新的评分标准已应用到当前会话中。', 'success');
+
 
             } catch (error) {
-                updateStatus('error', `保存评分记录失败: ${error.message}`);
-                console.error("Save Rating Error:", error);
+                configStatus.textContent = `状态：配置加载失败！请检查 JSON 格式。错误: ${error.message}`;
+                configStatus.classList.remove('text-green-600');
+                configStatus.classList.add('text-red-500');
+                console.error("配置加载错误:", error);
+                showCustomMessage('配置加载失败', '请检查 JSON 格式是否正确或结构是否完整。', 'error');
             }
         }
 
-        // 页面加载完成后，初始化 Firebase
-        window.onload = initFirebase;
+        // 5. 函数：显示自定义消息框（替代 alert/confirm）
+        function showCustomMessage(title, message, type) {
+            // 这是一个简单的替代方案，可以在页面上显示消息
+            let msgBox = document.getElementById('custom-message-box');
+            if (!msgBox) {
+                msgBox = document.createElement('div');
+                msgBox.id = 'custom-message-box';
+                msgBox.className = 'fixed top-4 right-4 z-50 p-4 rounded-lg shadow-xl text-white transform transition-transform duration-500 ease-out';
+                document.body.appendChild(msgBox);
+            }
+            
+            msgBox.innerHTML = `<strong>${title}</strong><p class="text-sm mt-1">${message}</p>`;
 
+            // 根据类型设置样式
+            if (type === 'success') {
+                msgBox.style.backgroundColor = 'rgb(16, 185, 129)'; // Green-500
+            } else if (type === 'error') {
+                msgBox.style.backgroundColor = 'rgb(239, 68, 68)'; // Red-500
+            } else {
+                msgBox.style.backgroundColor = 'rgb(59, 130, 246)'; // Blue-500
+            }
+
+            // 显示并自动隐藏
+            msgBox.style.transform = 'translateY(0)';
+            setTimeout(() => {
+                msgBox.style.transform = 'translateY(-100px)';
+            }, 3000);
+        }
+
+
+        // 6. 初始化和事件监听
+        window.onload = function() {
+            // 初始化 JSON 文本框内容
+            configTextarea.value = JSON.stringify(DEFAULT_CONFIG_JSON, null, 2);
+            configStatus.textContent = `状态：已加载默认配置 (v${DEFAULT_CONFIG_JSON.version})`;
+            configStatus.classList.add('text-gray-500');
+
+            // 监听移动端菜单按钮
+            menuButton.addEventListener('click', function() {
+                mobileMenu.classList.toggle('hidden');
+            });
+
+            // 监听应用配置按钮
+            applyConfigBtn.addEventListener('click', applyConfig);
+
+            // 监听配置区域的折叠按钮
+            toggleConfigBtn.addEventListener('click', function() {
+                const isHidden = configContent.classList.toggle('hidden');
+                if (isHidden) {
+                    configArrow.classList.remove('rotate-180');
+                } else {
+                    configArrow.classList.add('rotate-180');
+                }
+            });
+        };
     </script>
 </body>
 </html>
