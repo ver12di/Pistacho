@@ -1,695 +1,287 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-Hans">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>雪茄品鉴评分系统</title>
-    <!-- 引入 Tailwind CSS 库 -->
+    <title>雪茄品鉴评分主应用</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- 设置自定义 Tailwind 配置，使用 Inter 字体，并启用一些常用功能 -->
     <script>
         tailwind.config = {
             theme: {
                 extend: {
                     fontFamily: {
-                        sans: ['Inter', 'system-ui', 'Avenir', 'Helvetica', 'Arial', 'sans-serif'],
+                        sans: ['Inter', 'Noto Sans SC', 'system-ui', 'sans-serif'],
                     },
-                    colors: {
-                        'cigar-dark': '#4A2B1D',
-                        'cigar-light': '#D6C8B5',
-                        'accent': '#A0522D',
-                        'accent-dark': '#8B4513'
-                    }
-                },
+                }
             }
         }
     </script>
+    <script type="module">
+        // --- Firebase Imports ---
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, onSnapshot, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        
+        // --- Global State and Setup ---
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        
+        let db, auth;
+        let ratingConfig = null; // Stores the configuration loaded from Firestore
+        let userRatings = {};    // Stores the user's current selections for the rating session
+        
+        const CONFIG_DOC_PATH = `/artifacts/${appId}/public/data/cigar_config/latest`;
+        
+        // Initial configuration structure (Used for first-time setup)
+        const defaultInitialConfig = {
+            appTitle: "雪茄品鉴评分体系 V2.0 (默认配置)",
+            description: "请点击右上角按钮修改配置。本评分体系基于主观印象权重，旨在提供一个详细且结构化的雪茄品鉴框架。",
+            ratingCriteria: [
+                {
+                    category: "1. 外观与卷工",
+                    detail: "雪茄的物理制造质量。",
+                    criteriaList: [
+                        { name: "茄标高级感", weight: 15, options: [{ description: "简陋", scorePct: 0.10 }, { description: "完美", scorePct: 1.00 }] },
+                        { name: "卷工", weight: 15, options: [{ description: "不合格", scorePct: 0.10 }, { description: "正常", scorePct: 0.50 }, { description: "完美/精雕细琢", scorePct: 1.00 }] }
+                    ]
+                },
+                {
+                    category: "2. 燃烧与气道",
+                    detail: "决定品鉴过程是否顺畅愉快的核心要素。",
+                    criteriaList: [
+                        { name: "吸阻", weight: 15, options: [{ description: "堵塞", scorePct: 0.0 }, { description: "完美", scorePct: 1.00 }] },
+                        { name: "燃烧持续", weight: 50, options: [{ description: "不断补火", scorePct: 0.30 }, { description: "一根到底", scorePct: 1.00 }] }
+                    ]
+                }
+            ]
+        };
+
+        // --- Utility Functions ---
+
+        function calculateWeights(config) {
+            let grandTotal = 0;
+            config.ratingCriteria.forEach(category => {
+                let categoryTotal = 0;
+                category.criteriaList.forEach(criterion => {
+                    categoryTotal += (criterion.weight || 0);
+                });
+                category.totalWeight = categoryTotal;
+                grandTotal += categoryTotal;
+            });
+            config.totalWeightMax = grandTotal;
+        }
+
+        function calculateFinalScore() {
+            if (!ratingConfig) return 0;
+            let totalScore = 0;
+
+            ratingConfig.ratingCriteria.forEach((category, catIndex) => {
+                category.criteriaList.forEach((criterion, critIndex) => {
+                    const id = `${catIndex}-${critIndex}`;
+                    const selectedOptionIndex = userRatings[id];
+
+                    if (selectedOptionIndex !== undefined && criterion.options[selectedOptionIndex]) {
+                        const scorePct = criterion.options[selectedOptionIndex].scorePct;
+                        const weightedScore = criterion.weight * scorePct;
+                        totalScore += weightedScore;
+                    }
+                });
+            });
+            return totalScore;
+        }
+
+        // --- FIREBASE AND DATA LOADING ---
+
+        async function initFirebase() {
+            if (Object.keys(firebaseConfig).length === 0) {
+                document.getElementById('app-container').innerHTML = `<div class="p-6 text-red-600 bg-red-100 rounded-lg max-w-xl mx-auto mt-10">Firebase 配置信息缺失。请检查环境设置。</div>`;
+                return;
+            }
+            try {
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+                
+                // Authenticate (using custom token if provided, otherwise anonymously)
+                const token = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+                if (token) {
+                    await signInWithCustomToken(auth, token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+                
+                loadConfig();
+
+            } catch (error) {
+                console.error("Firebase Initialization Failed:", error);
+            }
+        }
+
+        async function loadConfig() {
+            const configDocRef = doc(db, CONFIG_DOC_PATH);
+            const configStatusElement = document.getElementById('config-load-status');
+
+            // Check if document exists for initial setup
+            const docSnap = await getDoc(configDocRef);
+            if (!docSnap.exists() || !docSnap.data().ratingCriteria) {
+                // Document does not exist or is empty, save default config
+                const configToSave = JSON.parse(JSON.stringify(defaultInitialConfig));
+                calculateWeights(configToSave);
+                // Save default config only if it's missing
+                await setDoc(configDocRef, configToSave); 
+                configStatusElement.textContent = '已自动加载并保存默认配置';
+                configStatusElement.className = 'text-yellow-500';
+            }
+
+            // Listen for real-time updates
+            onSnapshot(configDocRef, (docSnap) => {
+                if (docSnap.exists() && docSnap.data().ratingCriteria) {
+                    ratingConfig = docSnap.data();
+                    calculateWeights(ratingConfig);
+                    renderRatingView(); 
+                    configStatusElement.textContent = '配置已加载';
+                    configStatusElement.className = 'text-green-500';
+                } else {
+                    configStatusElement.textContent = '配置加载失败 (文档结构异常)';
+                    configStatusElement.className = 'text-red-500';
+                }
+            }, (error) => {
+                console.error("Error loading config:", error);
+                configStatusElement.textContent = '配置加载失败';
+                configStatusElement.className = 'text-red-500';
+            });
+        }
+
+        // --- RATING VIEW LOGIC ---
+
+        window.updateRatingSelection = function(catIndex, critIndex, optionIndex) {
+            const id = `${catIndex}-${critIndex}`;
+            userRatings[id] = optionIndex;
+            renderRatingView(); 
+        };
+
+        function renderRatingView() {
+            if (!ratingConfig) {
+                document.getElementById('rating-form-container').innerHTML = `<p class="text-center text-gray-500 mt-10">正在加载评分配置...</p>`;
+                return;
+            }
+
+            const totalScore = calculateFinalScore();
+            
+            // Update Header
+            document.getElementById('app-title-display').textContent = ratingConfig.appTitle || '雪茄评分应用';
+            document.getElementById('app-description-display').textContent = ratingConfig.description || '加载描述中...';
+            document.getElementById('total-weight-max-display').textContent = ratingConfig.totalWeightMax || 0;
+            document.getElementById('current-score-display').textContent = totalScore.toFixed(2);
+
+
+            // Render Form
+            const formContainer = document.getElementById('rating-form-container');
+            formContainer.innerHTML = ratingConfig.ratingCriteria.map((category, catIndex) => `
+                <div class="bg-white p-6 rounded-xl shadow-lg mb-8 border-l-4 border-indigo-500">
+                    <h3 class="text-xl font-bold text-indigo-700 mb-2">${category.category} 
+                        <span class="text-sm font-normal text-gray-500 ml-2">(${category.totalWeight} 分)</span>
+                    </h3>
+                    <p class="text-gray-500 text-sm mb-4">${category.detail || ''}</p>
+                    
+                    <div class="space-y-6">
+                        ${category.criteriaList.map((criterion, critIndex) => renderRatingCriterion(catIndex, critIndex, criterion)).join('')}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderRatingCriterion(catIndex, critIndex, criterion) {
+            const id = `${catIndex}-${critIndex}`;
+            const selectedOptionIndex = userRatings[id];
+            const currentWeight = criterion.weight || 0;
+
+            let currentScore = 0;
+            if (selectedOptionIndex !== undefined && criterion.options[selectedOptionIndex]) {
+                currentScore = currentWeight * criterion.options[selectedOptionIndex].scorePct;
+            }
+
+            return `
+                <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                    <div class="flex justify-between items-center mb-3">
+                        <h4 class="text-lg font-semibold text-gray-800">${criterion.name} (${currentWeight} 分)</h4>
+                        <span class="text-xl font-extrabold text-green-600">${currentScore.toFixed(2)}</span>
+                    </div>
+
+                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
+                        ${criterion.options.map((option, optIndex) => {
+                            const isSelected = selectedOptionIndex === optIndex;
+                            const score = (currentWeight * option.scorePct).toFixed(2);
+                            return `
+                                <button onclick="updateRatingSelection(${catIndex}, ${critIndex}, ${optIndex})" 
+                                    class="p-2 text-sm text-center rounded-lg border transition duration-150 ${
+                                        isSelected 
+                                        ? 'bg-indigo-600 text-white shadow-md border-indigo-800' 
+                                        : 'bg-white text-gray-700 hover:bg-indigo-50 border-gray-300'
+                                    }">
+                                    ${option.description} 
+                                    <span class="block text-xs ${isSelected ? 'text-indigo-200' : 'text-gray-500'}">(得 ${score} 分)</span>
+                                </button>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        // --- Initialize on load ---
+        window.onload = initFirebase;
+    </script>
     <style>
-        /* 确保页面全高且背景色平稳 */
-        body {
-            background-color: #f7f7f7;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
+        .rating-score-display {
+            transition: all 0.3s ease;
+            transform-origin: center;
+            animation: pulse-score 0.5s ease;
         }
-        /* 自定义滚动条样式 */
-        .overflow-y-auto::-webkit-scrollbar {
-            width: 8px;
-        }
-        .overflow-y-auto::-webkit-scrollbar-thumb {
-            background-color: #A0522D;
-            border-radius: 4px;
-        }
-        .overflow-y-auto::-webkit-scrollbar-track {
-            background-color: #D6C8B5;
+        @keyframes pulse-score {
+            0% { transform: scale(1.0); opacity: 0.8; }
+            50% { transform: scale(1.05); opacity: 1; }
+            100% { transform: scale(1.0); opacity: 1; }
         }
     </style>
 </head>
-<body class="font-sans">
+<body class="bg-gray-100 font-sans antialiased text-gray-800">
 
-    <!-- 导航栏 -->
-    <header class="bg-cigar-dark text-white shadow-lg sticky top-0 z-10">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between items-center h-16">
-                <!-- Logo/Title -->
-                <div class="flex-shrink-0 cursor-pointer" onclick="switchView('landing')">
-                    <span class="text-xl font-bold tracking-wider">CigarScore <span class="text-accent">PRO</span></span>
-                </div>
-                <!-- 菜单 - 桌面端 -->
-                <nav class="hidden md:flex space-x-8">
-                    <a href="#" class="text-cigar-light hover:text-white transition duration-300 rounded-lg px-3 py-2" onclick="switchView('landing')">首页</a>
-                    <a href="#" class="text-cigar-light hover:text-white transition duration-300 rounded-lg px-3 py-2">评分标准</a>
-                    <a href="#" class="text-cigar-light hover:text-white transition duration-300 rounded-lg px-3 py-2">历史记录</a>
-                    <a href="#" id="start-rating-btn-desktop" class="bg-accent text-white rounded-lg px-4 py-2 font-medium hover:bg-opacity-90 transition duration-300 shadow-md">开始评分</a>
-                </nav>
-                <!-- 菜单 - 移动端按钮 -->
-                <button id="menu-button" class="md:hidden p-2 rounded-lg text-cigar-light hover:bg-cigar-light hover:text-cigar-dark transition duration-300">
-                    <!-- Hamburger Icon (Menu) -->
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
-                </button>
-            </div>
-        </div>
+    <div id="app-container" class="max-w-6xl mx-auto p-4 md:p-8">
 
-        <!-- 移动端菜单内容 (初始隐藏) -->
-        <div id="mobile-menu" class="hidden md:hidden">
-            <div class="px-2 pt-2 pb-3 space-y-1 sm:px-3">
-                <a href="#" class="block px-3 py-2 rounded-md text-base font-medium text-white hover:bg-accent" onclick="switchView('landing')">首页</a>
-                <a href="#" class="block px-3 py-2 rounded-md text-base font-medium text-white hover:bg-accent">评分标准</a>
-                <a href="#" class="block px-3 py-2 rounded-md text-base font-medium text-white hover:bg-accent">历史记录</a>
-                <a href="#" id="start-rating-btn-mobile" class="block px-3 py-2 rounded-md text-base font-medium bg-accent text-white">开始评分</a>
-            </div>
-        </div>
-    </header>
-
-    <!-- 主应用容器 -->
-    <div class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-
-        <!-- 1. 首页 (Landing Page) 视图 -->
-        <section id="landing-page-section">
-            <div class="bg-white p-8 rounded-xl shadow-2xl">
-                <!-- 英雄区/主要介绍 -->
-                <div class="text-center mb-12">
-                    <h1 class="text-4xl sm:text-5xl font-extrabold text-cigar-dark mb-4 leading-tight">
-                        <span class="text-accent">P.I.S.T.A.C.H.O.</span> 雪茄品鉴系统
-                    </h1>
-                    <p id="system-subtitle" class="text-xl text-gray-600 max-w-3xl mx-auto mb-6">
-                        将主观印象转化为客观数据，专业、系统地记录每一支雪茄的独特体验。
-                    </p>
-                    <div class="space-x-4">
-                        <a href="#" class="bg-accent text-white font-semibold py-3 px-8 rounded-full shadow-lg hover:bg-opacity-80 transition duration-300 transform hover:scale-105">
-                            查看评分等级
-                        </a>
-                        <a href="#" class="text-cigar-dark border border-cigar-dark font-semibold py-3 px-8 rounded-full hover:bg-cigar-dark hover:text-white transition duration-300 transform hover:scale-105">
-                            了解体系权重
-                        </a>
-                    </div>
-                </div>
-
-                <!-- 特点概览 (基于 CSV 文件内容) -->
-                <div class="grid md:grid-cols-3 gap-8 text-cigar-dark mb-12">
-                    <!-- 特点 1: 卷工与外观 -->
-                    <div class="bg-cigar-light/50 p-6 rounded-lg shadow-md hover:shadow-xl transition duration-500">
-                        <div class="text-2xl font-bold mb-2 flex items-center">
-                            <span class="text-accent mr-2">🪶</span> 外观与卷工
-                        </div>
-                        <p class="text-gray-700">涵盖茄标高级感、茄衣状态（薄/厚/油润/干/茎细）和卷工细节（不合格到完美），区分**熟练工人**与**精雕细琢**。</p>
-                    </div>
-                    
-                    <!-- 特点 2: 燃烧与吸阻 -->
-                    <div class="bg-cigar-light/50 p-6 rounded-lg shadow-md hover:shadow-xl transition duration-500">
-                        <div class="text-2xl font-bold mb-2 flex items-center">
-                            <span class="text-accent mr-2">🔥</span> 燃烧与气道
-                        </div>
-                        <p class="text-gray-700">精确量化吸阻（**天选之吸** vs **物理绝缘**），记录燃烧线均匀度（**激光切割**）和烟灰形态（**埃菲尔铁塔**）。</p>
-                    </div>
-
-                    <!-- 特点 3: 香气与变化 -->
-                    <div class="bg-cigar-light/50 p-6 rounded-lg shadow-md hover:shadow-xl transition duration-500">
-                        <div class="text-2xl font-bold mb-2 flex items-center">
-                            <span class="text-accent mr-2">👃</span> 复杂香气谱
-                        </div>
-                        <p class="text-gray-700">追踪第二/多重香气的高级度和持续性，捕捉甜味、花香、古巴味等关键词，记录三段变化是否明显。</p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 评分等级参考表 (P.I.S.T.A.C.H.O.) -->
-            <div class="mt-12">
-                <h2 class="text-3xl font-bold text-cigar-dark mb-6 text-center">P.I.S.T.A.C.H.O. 等级速查</h2>
-                <div class="overflow-x-auto">
-                    <table class="min-w-full bg-white rounded-xl shadow-lg border border-gray-200">
-                        <thead class="bg-cigar-dark text-white">
-                            <tr>
-                                <th class="py-3 px-4 text-left rounded-tl-lg">等级</th>
-                                <th class="py-3 px-4 text-left">字母</th>
-                                <th class="py-3 px-4 text-left">英文描述词</th>
-                                <th class="py-3 px-4 text-left rounded-tr-lg">中文释义</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr class="border-b hover:bg-yellow-50/50 transition duration-150">
-                                <td class="py-3 px-4 font-bold text-accent">最高</td>
-                                <td class="py-3 px-4 text-lg font-mono">P</td>
-                                <td class="py-3 px-4">Perfection</td>
-                                <td class="py-3 px-4">完美 / 臻品</td>
-                            </tr>
-                            <tr class="border-b hover:bg-yellow-50/50 transition duration-150">
-                                <td class="py-3 px-4">高</td>
-                                <td class="py-3 px-4 text-lg font-mono">I</td>
-                                <td class="py-3 px-4">Iconic</td>
-                                <td class="py-3 px-4">标志性 / 典范</td>
-                            </tr>
-                            <tr class="border-b hover:bg-yellow-50/50 transition duration-150">
-                                <td class="py-3 px-4">高</td>
-                                <td class="py-3 px-4 text-lg font-mono">S</td>
-                                <td class="py-3 px-4">Supreme</td>
-                                <td class="py-3 px-4">至高 / 卓越</td>
-                            </tr>
-                            <tr class="border-b hover:bg-yellow-50/50 transition duration-150">
-                                <td class="py-3 px-4">中</td>
-                                <td class="py-3 px-4 text-lg font-mono">T</td>
-                                <td class="py-3 px-4">Treasured</td>
-                                <td class="py-3 px-4">珍藏 / 珍爱</td>
-                            </tr>
-                            <tr class="border-b hover:bg-yellow-50/50 transition duration-150 bg-gray-50">
-                                <td class="py-3 px-4">中</td>
-                                <td class="py-3 px-4 text-lg font-mono">A</td>
-                                <td class="py-3 px-4">Acceptable</td>
-                                <td class="py-3 px-4">可接受 / 合格</td>
-                            </tr>
-                            <tr class="border-b hover:bg-yellow-50/50 transition duration-150">
-                                <td class="py-3 px-4">低</td>
-                                <td class="py-3 px-4 text-lg font-mono">C</td>
-                                <td class="py-3 px-4">Common</td>
-                                <td class="py-3 px-4">普通 / 一般</td>
-                            </tr>
-                            <tr class="border-b hover:bg-yellow-50/50 transition duration-150">
-                                <td class="py-3 px-4">低</td>
-                                <td class="py-3 px-4 text-lg font-mono">H</td>
-                                <td class="py-3 px-4">Hardship</td>
-                                <td class="py-3 px-4">困难 / 缺陷多</td>
-                            </tr>
-                            <tr class="hover:bg-yellow-50/50 transition duration-150">
-                                <td class="py-3 px-4 font-bold text-red-600">最低</td>
-                                <td class="py-3 px-4 text-lg font-mono">O</td>
-                                <td class="py-3 px-4">Outright Failure</td>
-                                <td class="py-3 px-4">彻底失败 / 不合格</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- 配置管理区域 (保留) -->
-            <div class="mt-12 bg-white p-6 rounded-xl shadow-2xl border border-cigar-dark/20">
-                <button id="toggle-config-btn" class="w-full text-left p-4 bg-cigar-dark text-white font-bold rounded-lg hover:bg-accent transition duration-300 flex justify-between items-center">
-                    <span>⚙️ 评分配置管理 (cigar_rating_config.json)</span>
-                    <svg id="config-arrow" class="w-6 h-6 transform rotate-0 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                </button>
-
-                <div id="config-content" class="mt-4 hidden">
-                    <p class="mb-3 text-sm text-gray-600">在此文本框中编辑 JSON 配置，然后点击“应用配置”以在当前会话中加载新的评分标准、权重和得分比例。**请确保 JSON 格式正确。**</p>
-                    <textarea id="json-config-textarea" class="w-full h-80 p-4 border border-gray-300 rounded-lg font-mono text-sm resize-none focus:ring-accent focus:border-accent" spellcheck="false"></textarea>
-                    
-                    <div class="flex flex-col sm:flex-row justify-between items-center mt-4 space-y-3 sm:space-y-0 sm:space-x-3">
-                        <span id="config-status" class="text-sm text-gray-500 font-medium">状态：已加载默认配置 (v1.0)</span>
-                        <button id="apply-config-btn" class="w-full sm:w-auto bg-accent text-white font-semibold py-2 px-6 rounded-full shadow-md hover:bg-opacity-90 transition duration-300">
-                            应用配置
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- 2. 评分应用 (Rating Application) 视图 - 初始隐藏 -->
-        <section id="rating-app-section" class="hidden">
-            <h1 class="text-3xl sm:text-4xl font-extrabold text-cigar-dark mb-6 text-center">开始评分：雪茄品鉴记录</h1>
+        <!-- Main Application Header & Score Display -->
+        <header class="mb-8 p-6 bg-indigo-700 text-white rounded-xl shadow-2xl relative">
+            <h1 id="app-title-display" class="text-3xl font-extrabold mb-1">雪茄评分应用</h1>
+            <p id="app-description-display" class="text-indigo-200 text-sm mb-4">加载描述中...</p>
             
-            <!-- 雪茄基本信息输入 -->
-            <div class="bg-white p-6 rounded-xl shadow-lg mb-8">
-                <h2 class="text-2xl font-bold text-accent mb-4 border-b pb-2">基础信息</h2>
-                <div class="grid md:grid-cols-2 gap-4">
-                    <div>
-                        <label for="cigar-brand" class="block text-sm font-medium text-gray-700">品牌 (Brand)</label>
-                        <input type="text" id="cigar-brand" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border focus:ring-accent focus:border-accent" placeholder="例如：Cohiba">
-                    </div>
-                    <div>
-                        <label for="cigar-model" class="block text-sm font-medium text-gray-700">型号 (Model)</label>
-                        <input type="text" id="cigar-model" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border focus:ring-accent focus:border-accent" placeholder="例如：Robusto">
-                    </div>
-                    <div class="md:col-span-2">
-                        <label for="cigar-notes" class="block text-sm font-medium text-gray-700">品鉴笔记 (Notes)</label>
-                        <textarea id="cigar-notes" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border focus:ring-accent focus:border-accent" placeholder="记录品吸前和品吸后的主观印象..."></textarea>
-                    </div>
+            <div class="flex justify-between items-end">
+                <div class="flex items-end space-x-2">
+                    <span class="text-lg font-medium text-indigo-200">当前得分:</span>
+                    <span id="current-score-display" class="rating-score-display text-6xl font-black leading-none">0.00</span>
+                    <span class="text-lg font-medium text-indigo-200">/</span>
+                    <span id="total-weight-max-display" class="text-lg font-medium text-indigo-200">0</span>
+                    <span id="config-load-status" class="text-xs ml-4 text-yellow-300">正在加载配置...</span>
                 </div>
+                
+                <!-- Rating Standard Modification Button (Navigates to config page) -->
+                <a href="cigar_rating_config.html"
+                    class="flex items-center px-4 py-2 border border-white text-sm font-medium rounded-full shadow-sm text-white bg-indigo-600 hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-150">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" /></svg>
+                    评分标准修改
+                </a>
             </div>
+        </header>
 
-            <!-- 动态评分标准容器 -->
-            <form id="rating-form" class="space-y-6">
-                <!-- 评分标准将通过 JavaScript 动态插入到这里 -->
-                <div class="text-center text-gray-500 p-8 bg-white rounded-xl shadow-lg">
-                    <p>加载中或等待配置...</p>
-                </div>
-            </form>
-
-            <!-- 评分结果和计算按钮 -->
-            <div class="mt-8 pt-6 border-t border-gray-300 flex flex-col sm:flex-row justify-between items-center bg-white p-6 rounded-xl shadow-lg">
-                <div class="text-xl font-bold text-cigar-dark mb-4 sm:mb-0">
-                    最终得分：<span id="final-score" class="text-accent text-3xl">0.0</span> / <span class="text-3xl">100.0</span>
-                </div>
-                <button id="calculate-score-btn" class="w-full sm:w-auto bg-cigar-dark text-white font-semibold py-3 px-8 rounded-full shadow-xl hover:bg-accent-dark transition duration-300 transform hover:scale-105">
-                    计算最终评分
-                </button>
-            </div>
-        </section>
+        <!-- Rating View -->
+        <div id="rating-form-container">
+            <!-- Dynamic Rating Categories and Criteria will be rendered here -->
+            <p class="text-center text-gray-500 mt-10">请等待配置加载...</p>
+        </div>
+        
+        <footer class="mt-8 text-center text-gray-500 text-sm p-4 border-t">
+            评分应用数据由云端配置中心实时同步。
+        </footer>
     </div>
 
-    <!-- 页脚 -->
-    <footer class="bg-cigar-dark mt-12 py-8">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-cigar-light text-sm">
-            <p>&copy; 2025 CigarScore PRO. 基于 P.I.S.T.A.C.H.O. 体系构建。</p>
-            <div class="mt-2 space-x-4">
-                <a href="#" class="hover:text-white transition duration-300">隐私政策</a>
-                <span class="text-white/50">|</span>
-                <a href="#" class="hover:text-white transition duration-300">联系我们</a>
-            </div>
-        </div>
-    </footer>
-
-    <!-- JavaScript 逻辑 -->
-    <script>
-        // 1. 默认配置数据 (来自 cigar_rating_config.json)
-        // 这是一个包含评分体系所有权重的默认配置 JSON
-        const DEFAULT_CONFIG_JSON = {
-          "appTitle": "P.I.S.T.A.C.H.O. 雪茄品鉴配置",
-          "version": "1.0",
-          "totalWeightMax": 100,
-          "lastUpdated": "2025-10-16",
-          "ratingCriteria": [
-            {
-              "category": "外观与卷工 (Construction & Appearance)",
-              "criteriaList": [
-                {
-                  "name": "茄标高级感",
-                  "weight": 5,
-                  "options": [
-                    {"description": "简陋 (Dismal)", "scorePct": 0.10},
-                    {"description": "中规中矩 (Standard)", "scorePct": 0.50},
-                    {"description": "漂亮 (Elegant)", "scorePct": 0.70},
-                    {"description": "完美 (Perfect)", "scorePct": 1.00}
-                  ]
-                },
-                {
-                  "name": "茄衣状态",
-                  "weight": 10,
-                  "options": [
-                    {"description": "简陋/多茎 (Dismal/Veiny)", "scorePct": 0.10},
-                    {"description": "正常/中规中矩 (Normal)", "scorePct": 0.50},
-                    {"description": "油润/漂亮 (Oily/Beautiful)", "scorePct": 0.70},
-                    {"description": "丝绸触感/顶级皮具 (Silky/Luxury)", "scorePct": 1.00}
-                  ]
-                },
-                {
-                  "name": "卷工",
-                  "weight": 15,
-                  "options": [
-                    {"description": "不合格/脱胶 (Unacceptable/Unraveling)", "scorePct": 0.10},
-                    {"description": "正常 (Normal)", "scorePct": 0.50},
-                    {"description": "漂亮/熟练工人 (Beautiful/Skilled)", "scorePct": 0.70},
-                    {"description": "完美/精雕细琢 (Flawless/Artisan)", "scorePct": 1.00}
-                  ]
-                }
-              ]
-            },
-            {
-              "category": "燃烧与气道 (Burn & Draw)",
-              "criteriaList": [
-                {
-                  "name": "吸阻",
-                  "weight": 15,
-                  "options": [
-                    {"description": "堵塞/物理绝缘 (Blocked/Insulation)", "scorePct": 0.0},
-                    {"description": "偏松 (Loose)", "scorePct": 0.50},
-                    {"description": "偏紧 (Tight)", "scorePct": 0.50},
-                    {"description": "完美/天选之吸 (Perfect/Chosen Draw)", "scorePct": 1.00}
-                  ]
-                },
-                {
-                  "name": "燃烧均匀性",
-                  "weight": 15,
-                  "options": [
-                    {"description": "持续不均匀 (Constantly Uneven)", "scorePct": 0.10},
-                    {"description": "略不均匀需矫正 (Slightly Uneven)", "scorePct": 0.70},
-                    {"description": "均匀/完美平衡 (Even/Perfect Balance)", "scorePct": 1.00}
-                  ]
-                },
-                {
-                  "name": "烟灰形态",
-                  "weight": 10,
-                  "options": [
-                    {"description": "自动脱落 (Self-Dropping/Weak)", "scorePct": 0.30},
-                    {"description": "需要主动弹 (Needs Tapping)", "scorePct": 0.70},
-                    {"description": "完美/埃菲尔铁塔 (Perfect/Eiffel Tower)", "scorePct": 1.00}
-                  ]
-                }
-              ]
-            },
-            {
-              "category": "风味与体验 (Flavor & Experience)",
-              "criteriaList": [
-                {
-                  "name": "前3口感觉",
-                  "weight": 5,
-                  "options": [
-                    {"description": "估计不怎么样/劝退 (Doubtful/A warning)", "scorePct": 0.10},
-                    {"description": "中规中矩 (Average)", "scorePct": 0.50},
-                    {"description": "有期待/稳步升温 (Promising/Warming up)", "scorePct": 0.70},
-                    {"description": "眼前一亮/开场爆棚 (Immediate Wow/Blast off)", "scorePct": 1.00}
-                  ]
-                },
-                {
-                  "name": "第二香气强度",
-                  "weight": 15,
-                  "options": [
-                    {"description": "没有 (None)", "scorePct": 0.0},
-                    {"description": "一点点香 (Subtle)", "scorePct": 0.30},
-                    {"description": "很香 (Fragrant)", "scorePct": 0.70},
-                    {"description": "极香 (Extremely Aromatic)", "scorePct": 1.00}
-                  ]
-                },
-                {
-                  "name": "三段变化",
-                  "weight": 10,
-                  "options": [
-                    {"description": "始终如一 (Consistent)", "scorePct": 0.50},
-                    {"description": "似乎有变化 (Seemingly changing)", "scorePct": 0.70},
-                    {"description": "变化明显 (Clearly evolving)", "scorePct": 1.00}
-                  ]
-                }
-              ]
-            }
-          ]
-        };
-
-        // 2. 当前使用的配置（初始为默认配置）
-        let currentConfig = DEFAULT_CONFIG_JSON;
-
-        // 3. 页面元素引用
-        const mobileMenu = document.getElementById('mobile-menu');
-        const menuButton = document.getElementById('menu-button');
-        const configTextarea = document.getElementById('json-config-textarea');
-        const applyConfigBtn = document.getElementById('apply-config-btn');
-        const toggleConfigBtn = document.getElementById('toggle-config-btn');
-        const configContent = document.getElementById('config-content');
-        const configStatus = document.getElementById('config-status');
-        const systemSubtitle = document.getElementById('system-subtitle');
-        const configArrow = document.getElementById('config-arrow');
-
-        // 视图元素
-        const landingPageSection = document.getElementById('landing-page-section');
-        const ratingAppSection = document.getElementById('rating-app-section');
-        const ratingFormContainer = document.getElementById('rating-form');
-        const startRatingBtnDesktop = document.getElementById('start-rating-btn-desktop');
-        const startRatingBtnMobile = document.getElementById('start-rating-btn-mobile');
-        const calculateScoreBtn = document.getElementById('calculate-score-btn');
-        const finalScoreDisplay = document.getElementById('final-score');
-
-
-        // 4. 核心函数：视图切换
-        function switchView(viewName) {
-            if (viewName === 'landing') {
-                landingPageSection.classList.remove('hidden');
-                ratingAppSection.classList.add('hidden');
-                // 确保移动菜单关闭
-                mobileMenu.classList.add('hidden');
-            } else if (viewName === 'rating') {
-                landingPageSection.classList.add('hidden');
-                ratingAppSection.classList.remove('hidden');
-                // 渲染评分表单（确保加载的是最新配置）
-                renderRatingForm();
-                // 确保移动菜单关闭
-                mobileMenu.classList.add('hidden');
-            }
-            window.scrollTo({ top: 0, behavior: 'smooth' }); // 切换后滚动到顶部
-        }
-
-
-        // 5. 核心函数：渲染评分表单
-        function renderRatingForm() {
-            // 每次切换到评分页面时，清空并重建表单
-            ratingFormContainer.innerHTML = ''; 
-
-            // 1. 检查配置是否有效
-            if (!currentConfig.ratingCriteria || currentConfig.ratingCriteria.length === 0) {
-                ratingFormContainer.innerHTML = `
-                    <div class="text-center text-red-600 p-8 bg-white rounded-xl shadow-lg">
-                        <p>🔴 错误：评分配置无效或为空，请检查配置管理区域。</p>
-                    </div>`;
-                return;
-            }
-
-            // 2. 遍历评分分类 Category
-            currentConfig.ratingCriteria.forEach((category, catIndex) => {
-                const categoryId = `category-${catIndex}`;
-                
-                // 计算该类别总权重
-                const categoryTotalWeight = category.criteriaList.reduce((sum, c) => sum + c.weight, 0);
-
-                let categoryHtml = `
-                    <div class="bg-white rounded-xl shadow-lg overflow-hidden">
-                        <!-- Category Header (Accordion) -->
-                        <button type="button" class="category-header w-full text-left p-4 bg-cigar-light/70 text-cigar-dark font-bold text-xl flex justify-between items-center hover:bg-cigar-light transition duration-300" data-target="#${categoryId}-body">
-                            <span>${category.category}</span>
-                            <span class="text-sm font-medium text-gray-700">总权重: ${categoryTotalWeight}</span>
-                        </button>
-
-                        <!-- Category Body -->
-                        <div id="${categoryId}-body" class="p-6 space-y-8">
-                `;
-
-                // 3. 遍历评分标准 Criteria
-                category.criteriaList.forEach((criteria, critIndex) => {
-                    const criteriaName = `crit-${catIndex}-${critIndex}`;
-                    
-                    let criteriaHtml = `
-                        <!-- Single Criteria Block -->
-                        <div>
-                            <p class="text-lg font-semibold text-cigar-dark mb-3">
-                                ${critIndex + 1}. ${criteria.name} 
-                                <span class="text-accent text-sm ml-2">(${criteria.weight} 分权重)</span>
-                                <span id="${criteriaName}-score" class="float-right text-gray-500 font-normal">未选择</span>
-                            </p>
-                            <div class="flex flex-wrap gap-3">
-                    `;
-
-                    // 4. 遍历评分选项 Options (Radio Buttons)
-                    criteria.options.forEach((option, optIndex) => {
-                        const optionId = `${criteriaName}-${optIndex}`;
-                        
-                        criteriaHtml += `
-                            <label for="${optionId}" class="flex items-center p-3 rounded-lg border border-gray-300 cursor-pointer transition duration-200 hover:border-accent hover:shadow-md bg-white">
-                                <input type="radio" id="${optionId}" name="${criteriaName}" value="${criteria.weight * option.scorePct}" data-weight="${criteria.weight}" data-score-pct="${option.scorePct}" class="w-4 h-4 text-accent border-gray-300 focus:ring-accent" required>
-                                <span class="ml-2 text-sm font-medium text-gray-700">${option.description} 
-                                    <span class="text-xs text-gray-500">(${Math.round(option.scorePct * 100)}%)</span>
-                                </span>
-                            </label>
-                        `;
-                    });
-
-                    criteriaHtml += `
-                            </div>
-                        </div>
-                        <!-- Separator -->
-                        ${critIndex < category.criteriaList.length - 1 ? '<div class="border-t border-gray-100 my-4"></div>' : ''}
-                    `;
-                    categoryHtml += criteriaHtml;
-                });
-
-                categoryHtml += `
-                        </div>
-                    </div>
-                `;
-                ratingFormContainer.innerHTML += categoryHtml;
-            });
-            
-            // 添加 Radio Button 监听器，用于实时显示单项得分
-            ratingFormContainer.querySelectorAll('input[type="radio"]').forEach(radio => {
-                radio.addEventListener('change', (e) => {
-                    const selectedRadio = e.target;
-                    const score = parseFloat(selectedRadio.value);
-                    const weight = parseFloat(selectedRadio.getAttribute('data-weight'));
-                    const scorePct = parseFloat(selectedRadio.getAttribute('data-score-pct'));
-                    
-                    const criteriaName = selectedRadio.name;
-                    const scoreDisplay = document.getElementById(`${criteriaName}-score`);
-                    
-                    if (scoreDisplay) {
-                        scoreDisplay.textContent = `得分: ${score.toFixed(2)} / ${weight.toFixed(2)}`;
-                        scoreDisplay.classList.remove('text-gray-500');
-                        scoreDisplay.classList.add('text-green-600');
-                    }
-                });
-            });
-
-            // 添加手风琴（Accordion）功能
-            ratingAppSection.querySelectorAll('.category-header').forEach(header => {
-                const targetId = header.getAttribute('data-target');
-                const targetElement = document.querySelector(targetId);
-                if (targetElement) {
-                    // 默认展开第一个类别，隐藏其他
-                    if (catIndex === 0) {
-                        targetElement.classList.remove('hidden');
-                    } else {
-                        targetElement.classList.add('hidden');
-                    }
-
-                    header.addEventListener('click', () => {
-                        targetElement.classList.toggle('hidden');
-                        // 可选：添加旋转图标，但这里我保持简单不加图标，因为 Tailwind 没有内置旋转 class
-                    });
-                }
-            });
-        }
-
-
-        // 6. 函数：计算最终评分
-        function calculateFinalScore() {
-            let totalScore = 0;
-            let totalPossibleWeight = 0;
-            let missingSelections = 0;
-
-            // 遍历所有评分标准组
-            currentConfig.ratingCriteria.forEach((category, catIndex) => {
-                category.criteriaList.forEach((criteria, critIndex) => {
-                    const criteriaName = `crit-${catIndex}-${critIndex}`;
-                    const radioGroup = document.getElementsByName(criteriaName);
-                    
-                    const selectedOption = Array.from(radioGroup).find(radio => radio.checked);
-
-                    if (selectedOption) {
-                        totalScore += parseFloat(selectedOption.value);
-                    } else {
-                        missingSelections++;
-                    }
-                    totalPossibleWeight += criteria.weight;
-                });
-            });
-
-            if (missingSelections > 0) {
-                showCustomMessage('⚠️ 警告', `您还有 ${missingSelections} 个评分项未选择！请完整填写。`, 'error');
-                finalScoreDisplay.textContent = '0.0';
-                return;
-            }
-
-            // 格式化输出
-            finalScoreDisplay.textContent = totalScore.toFixed(2);
-            // 这里也可以根据总得分匹配到 P.I.S.T.A.C.H.O. 等级，但暂时只显示分数
-            showCustomMessage('计算完成', `总得分: ${totalScore.toFixed(2)} / ${totalPossibleWeight.toFixed(2)}`, 'success');
-
-            console.log(`最终得分: ${totalScore.toFixed(2)} / ${totalPossibleWeight.toFixed(2)}`);
-        }
-
-        // 7. 函数：应用配置 (从上一版本继承)
-        function applyConfig() {
-            try {
-                const newConfigString = configTextarea.value;
-                const newConfig = JSON.parse(newConfigString);
-
-                if (!newConfig.ratingCriteria || !Array.isArray(newConfig.ratingCriteria)) {
-                    throw new Error("JSON结构无效：缺少 'ratingCriteria' 数组。");
-                }
-
-                currentConfig = newConfig;
-
-                systemSubtitle.textContent = newConfig.appTitle || "将主观印象转化为客观数据，专业、系统地记录每一支雪茄的独特体验。";
-                configStatus.textContent = `状态：已成功加载自定义配置 (v${newConfig.version || 'Custom'})`;
-                configStatus.classList.remove('text-red-500', 'text-gray-500');
-                configStatus.classList.add('text-green-600');
-                
-                showCustomMessage('配置更新成功', '新的评分标准已应用到当前会话中，请点击“开始评分”查看。', 'success');
-
-            } catch (error) {
-                configStatus.textContent = `状态：配置加载失败！请检查 JSON 格式。错误: ${error.message}`;
-                configStatus.classList.remove('text-green-600');
-                configStatus.classList.add('text-red-500');
-                console.error("配置加载错误:", error);
-                showCustomMessage('配置加载失败', '请检查 JSON 格式是否正确或结构是否完整。', 'error');
-            }
-        }
-
-        // 8. 函数：显示自定义消息框（替代 alert/confirm）
-        function showCustomMessage(title, message, type) {
-            let msgBox = document.getElementById('custom-message-box');
-            if (!msgBox) {
-                msgBox = document.createElement('div');
-                msgBox.id = 'custom-message-box';
-                msgBox.className = 'fixed top-4 right-4 z-50 p-4 rounded-lg shadow-xl text-white transform transition-transform duration-500 ease-out';
-                document.body.appendChild(msgBox);
-            }
-            
-            msgBox.innerHTML = `<strong>${title}</strong><p class="text-sm mt-1">${message}</p>`;
-
-            // 根据类型设置样式
-            if (type === 'success') {
-                msgBox.style.backgroundColor = '#10B981'; // Tailwind Green-500
-            } else if (type === 'error') {
-                msgBox.style.backgroundColor = '#EF4444'; // Tailwind Red-500
-            } else {
-                msgBox.style.backgroundColor = '#3B82F6'; // Tailwind Blue-500
-            }
-
-            // 显示并自动隐藏
-            msgBox.style.transform = 'translateY(0)';
-            msgBox.style.opacity = '1';
-
-            setTimeout(() => {
-                msgBox.style.transform = 'translateY(-100px)';
-                msgBox.style.opacity = '0';
-            }, 4000);
-        }
-
-        // 9. 初始化和事件监听
-        window.onload = function() {
-            // 初始化 JSON 文本框内容
-            configTextarea.value = JSON.stringify(DEFAULT_CONFIG_JSON, null, 2);
-            configStatus.textContent = `状态：已加载默认配置 (v${DEFAULT_CONFIG_JSON.version})`;
-            configStatus.classList.add('text-gray-500');
-
-            // 监听移动端菜单按钮
-            menuButton.addEventListener('click', function() {
-                mobileMenu.classList.toggle('hidden');
-            });
-
-            // 监听开始评分按钮 (桌面端和移动端)
-            startRatingBtnDesktop.addEventListener('click', (e) => {
-                e.preventDefault();
-                switchView('rating');
-            });
-            startRatingBtnMobile.addEventListener('click', (e) => {
-                e.preventDefault();
-                switchView('rating');
-            });
-
-            // 监听计算评分按钮
-            calculateScoreBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                calculateFinalScore();
-            });
-
-
-            // 监听应用配置按钮
-            applyConfigBtn.addEventListener('click', applyConfig);
-
-            // 监听配置区域的折叠按钮
-            toggleConfigBtn.addEventListener('click', function() {
-                const isHidden = configContent.classList.toggle('hidden');
-                if (isHidden) {
-                    configArrow.classList.remove('rotate-180');
-                } else {
-                    configArrow.classList.add('rotate-180');
-                }
-            });
-        };
-    </script>
 </body>
 </html>
