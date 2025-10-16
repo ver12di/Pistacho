@@ -6,6 +6,7 @@
     <title>雪茄品鉴评分主应用</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
+        // 1. Tailwind CSS 配置
         tailwind.config = {
             theme: {
                 extend: {
@@ -16,6 +17,27 @@
             }
         }
     </script>
+    
+    <script>
+        // 应用程序 ID - 用于构建 Firestore 路径：/artifacts/{appId}/...
+        const __app_id = 'cigar-score-pro-v2-production'; // <-- 建议修改
+
+        // 您的 Firebase 项目配置 (作为 JSON 字符串)
+        // ** 请将以下占位符替换为您 Firebase 项目的真实配置！**
+        const __firebase_config = JSON.stringify({
+            apiKey: "YOUR_FIREBASE_API_KEY", 
+            authDomain: "your-project-id.firebaseapp.com",
+            projectId: "your-project-id",
+            storageBucket: "your-project-id.appspot.com",
+            messagingSenderId: "1234567890",
+            appId: "1:1234567890:web:abcdef1234567890",
+            // measurementId 可选
+        });
+        
+        // 如果您使用自定义令牌认证，可以在此设置：
+        // const __initial_auth_token = 'YOUR_CUSTOM_TOKEN_HERE'; 
+    </script>
+    
     <script type="module">
         // --- Firebase Imports ---
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
@@ -23,6 +45,7 @@
         import { getFirestore, doc, onSnapshot, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         
         // --- Global State and Setup ---
+        // 这些变量现在应该由上方的 <script> 块提供
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
         
@@ -58,6 +81,10 @@
 
         // --- Utility Functions ---
 
+        /**
+         * 计算配置中所有评分标准和类别的最大总权重。
+         * @param {object} config - 评分配置对象。
+         */
         function calculateWeights(config) {
             let grandTotal = 0;
             config.ratingCriteria.forEach(category => {
@@ -71,6 +98,10 @@
             config.totalWeightMax = grandTotal;
         }
 
+        /**
+         * 计算用户当前选择的总得分。
+         * @returns {number} 最终得分。
+         */
         function calculateFinalScore() {
             if (!ratingConfig) return 0;
             let totalScore = 0;
@@ -92,9 +123,13 @@
 
         // --- FIREBASE AND DATA LOADING ---
 
+        /**
+         * 初始化 Firebase 应用、认证和 Firestore。
+         */
         async function initFirebase() {
+            // 检查配置是否缺失
             if (Object.keys(firebaseConfig).length === 0) {
-                document.getElementById('app-container').innerHTML = `<div class="p-6 text-red-600 bg-red-100 rounded-lg max-w-xl mx-auto mt-10">Firebase 配置信息缺失。请检查环境设置。</div>`;
+                document.getElementById('app-container').innerHTML = `<div class="p-6 text-red-600 bg-red-100 rounded-lg max-w-xl mx-auto mt-10">🔴 Firebase 配置信息缺失。请检查环境设置脚本。</div>`;
                 return;
             }
             try {
@@ -102,7 +137,7 @@
                 db = getFirestore(app);
                 auth = getAuth(app);
                 
-                // Authenticate (using custom token if provided, otherwise anonymously)
+                // 认证
                 const token = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
                 if (token) {
                     await signInWithCustomToken(auth, token);
@@ -114,52 +149,67 @@
 
             } catch (error) {
                 console.error("Firebase Initialization Failed:", error);
+                document.getElementById('app-container').innerHTML = `<div class="p-6 text-red-600 bg-red-100 rounded-lg max-w-xl mx-auto mt-10">❌ Firebase 初始化失败：${error.message}</div>`;
             }
         }
 
+        /**
+         * 从 Firestore 加载配置，并设置实时监听。
+         */
         async function loadConfig() {
             const configDocRef = doc(db, CONFIG_DOC_PATH);
             const configStatusElement = document.getElementById('config-load-status');
 
-            // Check if document exists for initial setup
+            // 1. 检查文档是否存在，不存在则写入默认配置
             const docSnap = await getDoc(configDocRef);
             if (!docSnap.exists() || !docSnap.data().ratingCriteria) {
-                // Document does not exist or is empty, save default config
                 const configToSave = JSON.parse(JSON.stringify(defaultInitialConfig));
                 calculateWeights(configToSave);
-                // Save default config only if it's missing
-                await setDoc(configDocRef, configToSave); 
-                configStatusElement.textContent = '已自动加载并保存默认配置';
-                configStatusElement.className = 'text-yellow-500';
+                // 仅在文档不存在时写入，避免不必要的写入操作
+                if (!docSnap.exists()) {
+                    await setDoc(configDocRef, configToSave);  
+                }
+                configStatusElement.textContent = '已自动加载默认配置';
+                configStatusElement.className = 'text-yellow-300';
             }
 
-            // Listen for real-time updates
+            // 2. 实时监听配置更新
             onSnapshot(configDocRef, (docSnap) => {
                 if (docSnap.exists() && docSnap.data().ratingCriteria) {
                     ratingConfig = docSnap.data();
                     calculateWeights(ratingConfig);
                     renderRatingView(); 
-                    configStatusElement.textContent = '配置已加载';
-                    configStatusElement.className = 'text-green-500';
+                    configStatusElement.textContent = '配置已实时同步';
+                    configStatusElement.className = 'text-green-400';
                 } else {
                     configStatusElement.textContent = '配置加载失败 (文档结构异常)';
                     configStatusElement.className = 'text-red-500';
                 }
             }, (error) => {
                 console.error("Error loading config:", error);
-                configStatusElement.textContent = '配置加载失败';
+                configStatusElement.textContent = '配置实时监听失败';
                 configStatusElement.className = 'text-red-500';
             });
         }
 
         // --- RATING VIEW LOGIC ---
 
+        /**
+         * 更新用户选择并触发视图刷新。
+         * 这是一个全局函数，由评分按钮的 onclick 事件调用。
+         * @param {number} catIndex - 类别索引。
+         * @param {number} critIndex - 标准索引。
+         * @param {number} optionIndex - 选项索引。
+         */
         window.updateRatingSelection = function(catIndex, critIndex, optionIndex) {
             const id = `${catIndex}-${critIndex}`;
             userRatings[id] = optionIndex;
             renderRatingView(); 
         };
 
+        /**
+         * 渲染整个评分视图：更新得分显示和重新生成表单。
+         */
         function renderRatingView() {
             if (!ratingConfig) {
                 document.getElementById('rating-form-container').innerHTML = `<p class="text-center text-gray-500 mt-10">正在加载评分配置...</p>`;
@@ -168,14 +218,21 @@
 
             const totalScore = calculateFinalScore();
             
-            // Update Header
+            // 1. Update Header / Score Display
             document.getElementById('app-title-display').textContent = ratingConfig.appTitle || '雪茄评分应用';
             document.getElementById('app-description-display').textContent = ratingConfig.description || '加载描述中...';
             document.getElementById('total-weight-max-display').textContent = ratingConfig.totalWeightMax || 0;
-            document.getElementById('current-score-display').textContent = totalScore.toFixed(2);
+            
+            const currentScoreDisplay = document.getElementById('current-score-display');
+            currentScoreDisplay.textContent = totalScore.toFixed(2);
+            // 每次得分变化时触发动画
+            currentScoreDisplay.classList.add('animate-pulse-score'); 
+            setTimeout(() => {
+                 currentScoreDisplay.classList.remove('animate-pulse-score'); 
+            }, 500);
 
 
-            // Render Form
+            // 2. Render Form
             const formContainer = document.getElementById('rating-form-container');
             formContainer.innerHTML = ratingConfig.ratingCriteria.map((category, catIndex) => `
                 <div class="bg-white p-6 rounded-xl shadow-lg mb-8 border-l-4 border-indigo-500">
@@ -191,6 +248,9 @@
             `).join('');
         }
 
+        /**
+         * 渲染单个评分标准（Criteria）的 HTML 块。
+         */
         function renderRatingCriterion(catIndex, critIndex, criterion) {
             const id = `${catIndex}-${critIndex}`;
             const selectedOptionIndex = userRatings[id];
@@ -233,9 +293,8 @@
         window.onload = initFirebase;
     </script>
     <style>
-        .rating-score-display {
-            transition: all 0.3s ease;
-            transform-origin: center;
+        /* CSS for the score pulse animation */
+        .animate-pulse-score {
             animation: pulse-score 0.5s ease;
         }
         @keyframes pulse-score {
@@ -249,7 +308,6 @@
 
     <div id="app-container" class="max-w-6xl mx-auto p-4 md:p-8">
 
-        <!-- Main Application Header & Score Display -->
         <header class="mb-8 p-6 bg-indigo-700 text-white rounded-xl shadow-2xl relative">
             <h1 id="app-title-display" class="text-3xl font-extrabold mb-1">雪茄评分应用</h1>
             <p id="app-description-display" class="text-indigo-200 text-sm mb-4">加载描述中...</p>
@@ -263,7 +321,6 @@
                     <span id="config-load-status" class="text-xs ml-4 text-yellow-300">正在加载配置...</span>
                 </div>
                 
-                <!-- Rating Standard Modification Button (Navigates to config page) -->
                 <a href="cigar_rating_config.html"
                     class="flex items-center px-4 py-2 border border-white text-sm font-medium rounded-full shadow-sm text-white bg-indigo-600 hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-150">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" /></svg>
@@ -272,9 +329,7 @@
             </div>
         </header>
 
-        <!-- Rating View -->
         <div id="rating-form-container">
-            <!-- Dynamic Rating Categories and Criteria will be rendered here -->
             <p class="text-center text-gray-500 mt-10">请等待配置加载...</p>
         </div>
         
