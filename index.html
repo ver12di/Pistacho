@@ -3,73 +3,109 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>雪茄评分配置管理 (Firestore Fix)</title>
+    <title>雪茄评分与记录</title>
     <!-- 引入 Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #f3f4f6;
+            background-color: #e5e7eb;
+        }
+        .rating-item {
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            background-color: #ffffff;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
+            margin-bottom: 1rem;
+        }
+        .score-input:checked + label {
+            background-color: #3b82f6;
+            color: white;
+            border-color: #3b82f6;
+            transform: scale(1.02);
+        }
+        .score-input:hover + label {
+            border-color: #93c5fd;
         }
     </style>
 </head>
 <body class="p-4 md:p-8 min-h-screen">
 
-    <div id="app" class="max-w-4xl mx-auto bg-white p-6 md:p-10 rounded-xl shadow-2xl">
-        <h1 class="text-3xl font-bold text-gray-800 mb-6 border-b pb-3">雪茄评分配置管理</h1>
-        <p class="text-gray-600 mb-6">
-            您可以通过此界面保存或更新 **`cigar_rating_config.json`** 的内容到您的私有 Firestore 配置文档中。
-            <br>
-            <span class="font-semibold text-red-500">此文件已修复 Firebase 配置未提供的错误。</span>
-        </p>
+    <div id="app" class="max-w-5xl mx-auto">
+        <h1 class="text-4xl font-extrabold text-gray-800 mb-2 text-center">雪茄评分记录簿</h1>
+        <p class="text-gray-600 mb-6 text-center">使用您的自定义评分标准进行打分，并保存您的品鉴记录。</p>
 
         <!-- 状态/消息显示区 -->
         <div id="status-message" class="p-3 mb-6 rounded-lg text-sm transition-all duration-300 hidden" role="alert"></div>
 
-        <div class="space-y-4">
-            <label for="config-json" class="block text-lg font-medium text-gray-700">配置 JSON 内容</label>
-            <textarea id="config-json" rows="20" class="w-full p-4 border border-gray-300 rounded-lg shadow-inner focus:ring-blue-500 focus:border-blue-500 font-mono text-sm" placeholder="粘贴您的 JSON 配置..."></textarea>
+        <div class="bg-white p-6 md:p-8 rounded-xl shadow-2xl space-y-6">
             
-            <div class="flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0 sm:space-x-4">
-                <button onclick="saveConfig()" id="save-button" class="w-full sm:w-auto px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 transition duration-150 ease-in-out disabled:opacity-50">
-                    <span id="save-text">保存配置到 Firestore</span>
+            <!-- 雪茄信息 -->
+            <div class="border-b pb-4">
+                <label for="cigar-name" class="block text-xl font-semibold text-gray-700 mb-2">雪茄名称 (必填)</label>
+                <input type="text" id="cigar-name" placeholder="输入雪茄品牌和型号" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+            </div>
+
+            <!-- 评分项目区 -->
+            <div id="rating-form-container" class="space-y-4">
+                <p class="text-center text-gray-500">加载评分配置中...</p>
+            </div>
+
+            <!-- 结果和操作 -->
+            <div class="pt-6 border-t flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
+                <div class="text-2xl font-bold text-gray-800">
+                    总得分: <span id="final-score" class="text-blue-600">0.00</span> / 100 分
+                </div>
+
+                <button onclick="saveRating()" id="save-button" class="w-full md:w-auto px-8 py-4 bg-green-600 text-white text-lg font-bold rounded-lg shadow-lg hover:bg-green-700 transition duration-150 ease-in-out disabled:opacity-50" disabled>
+                    <span id="save-text">保存评分记录</span>
                     <span id="save-spinner" class="hidden animate-spin h-5 w-5 border-4 border-white border-t-transparent rounded-full ml-2"></span>
                 </button>
-                <div class="text-sm text-gray-500">
-                    用户ID: <span id="user-id" class="font-mono text-gray-700">加载中...</span>
-                </div>
             </div>
+
+            <div class="text-sm text-gray-500 pt-4 border-t">
+                <p>用户ID: <span id="user-id" class="font-mono text-gray-700">加载中...</span></p>
+            </div>
+
         </div>
     </div>
 
-    <!-- Firebase 初始化和业务逻辑 -->
+    <!-- Firebase 逻辑和评分计算 -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, setDoc, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, setDoc, doc, collection, addDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
+        // --- 全局变量和 Firestore 实例 ---
         let app;
         let db;
         let auth;
         let currentUserId = 'anonymous';
+        let ratingConfig = [];
+        let currentSelections = {}; // 存储用户选择: { "impression": "level" } 或 { "impression": ["level1", "level2"] }
+        let totalWeight = 0;
+
+        // --- Firestore 路径常量 ---
+        const CONFIG_COLLECTION_NAME = 'configuration';
+        const CONFIG_DOC_ID = 'cigar_config';
+        const RATINGS_COLLECTION_NAME = 'cigar_ratings';
+        
+        // 预设的默认配置 (来自您提供的JSON)
+        const DEFAULT_RATING_CONFIG = ${JSON.stringify(JSON.parse(document.getElementById('config-json') ? document.getElementById('config-json').value : '[]'), null, 2) || '[]'};
 
         // --- DOM Elements ---
         const statusEl = document.getElementById('status-message');
-        const configTextArea = document.getElementById('config-json');
+        const ratingFormContainer = document.getElementById('rating-form-container');
+        const finalScoreEl = document.getElementById('final-score');
         const saveButton = document.getElementById('save-button');
         const saveText = document.getElementById('save-text');
         const saveSpinner = document.getElementById('save-spinner');
         const userIdEl = document.getElementById('user-id');
+        const cigarNameInput = document.getElementById('cigar-name');
 
-        // --- Firestore Paths and Document ID ---
-        const CONFIG_COLLECTION_NAME = 'configuration';
-        const CONFIG_DOC_ID = 'cigar_config';
 
-        // 默认配置（用于首次加载或配置失败的场景）
-        const DEFAULT_CONFIG_JSON = ${JSON.stringify(JSON.parse(document.getElementById('config-json') ? document.getElementById('config-json').value : '[]'), null, 2)};
-        
-        // **修复核心: 错误处理和初始化**
+        // --- 核心函数：状态/消息处理 ---
         function updateStatus(type, message, isSaving = false) {
             statusEl.classList.remove('hidden', 'bg-red-100', 'text-red-800', 'bg-green-100', 'text-green-800', 'bg-yellow-100', 'text-yellow-800');
             saveButton.disabled = isSaving;
@@ -79,7 +115,7 @@
                 saveSpinner.classList.remove('hidden');
                 statusEl.classList.add('bg-yellow-100', 'text-yellow-800');
             } else {
-                saveText.textContent = '保存配置到 Firestore';
+                saveText.textContent = '保存评分记录';
                 saveSpinner.classList.add('hidden');
             }
 
@@ -92,23 +128,135 @@
             }
 
             statusEl.textContent = message;
+            if (message) statusEl.classList.remove('hidden');
         }
 
-        /**
-         * 初始化 Firebase, 处理配置和认证。
-         */
+        // --- 核心函数：计算分数 ---
+        function calculateScore() {
+            if (ratingConfig.length === 0) return 0;
+            
+            let weightedScoreSum = 0;
+            let totalWeightSum = 0;
+
+            ratingConfig.forEach(item => {
+                totalWeightSum += item.weight;
+
+                const selections = currentSelections[item.impression] || [];
+                let itemScore = 0;
+
+                if (item.type === 'single') {
+                    // Single choice: find the score of the selected level (max one)
+                    if (selections.length > 0) {
+                        const selectedLevel = selections[0];
+                        const degree = item.degrees.find(d => d.level === selectedLevel);
+                        itemScore = degree ? degree.score : 0;
+                    }
+                } else if (item.type === 'multi') {
+                    // Multi choice: sum up scores, capped at 1.0 (as per provided JSON structure)
+                    selections.forEach(selectedLevel => {
+                        const degree = item.degrees.find(d => d.level === selectedLevel);
+                        if (degree) {
+                            itemScore += degree.score;
+                        }
+                    });
+                    itemScore = Math.min(itemScore, 1.0); // Cap at 100% of the item's potential
+                }
+
+                weightedScoreSum += itemScore * item.weight;
+            });
+
+            // 防止总权重为 0 (尽管在您的配置中不会发生)
+            if (totalWeightSum === 0) return 0;
+
+            const finalScore = (weightedScoreSum / totalWeightSum) * 100;
+            finalScoreEl.textContent = finalScore.toFixed(2);
+            saveButton.disabled = false; // 允许保存，无论分数如何
+            return finalScore;
+        }
+
+        // --- 核心函数：处理选择事件 ---
+        function handleSelection(impression, level, type, event) {
+            if (type === 'single') {
+                // Single: Only store the current selected level
+                currentSelections[impression] = [level];
+                
+                // Clear other radio buttons in the same group (optional, but good practice for radio)
+                const groupName = `rating-${impression}`;
+                document.querySelectorAll(`input[name="${groupName}"]`).forEach(input => {
+                    if (input.value !== level) {
+                        input.checked = false;
+                    }
+                });
+
+            } else if (type === 'multi') {
+                // Multi: Add or remove from the array
+                currentSelections[impression] = currentSelections[impression] || [];
+                if (event.target.checked) {
+                    currentSelections[impression].push(level);
+                } else {
+                    currentSelections[impression] = currentSelections[impression].filter(l => l !== level);
+                }
+            }
+
+            calculateScore();
+        }
+
+
+        // --- 核心函数：渲染表单 ---
+        function renderRatingItems(config) {
+            ratingFormContainer.innerHTML = '';
+            totalWeight = config.reduce((sum, item) => sum + item.weight, 0);
+
+            config.forEach(item => {
+                const groupName = `rating-${item.impression}`;
+                const inputType = item.type === 'single' ? 'radio' : 'checkbox';
+                
+                const itemHtml = `
+                    <div class="rating-item border border-gray-200">
+                        <h3 class="text-xl font-semibold text-gray-800 mb-3">${item.impression} 
+                            <span class="text-sm font-normal text-blue-500 ml-2">(${item.weight} 分)</span>
+                        </h3>
+                        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+                            ${item.degrees.map((degree, index) => `
+                                <div>
+                                    <input type="${inputType}" 
+                                           id="${groupName}-${index}" 
+                                           name="${groupName}" 
+                                           value="${degree.level}" 
+                                           data-impression="${item.impression}"
+                                           data-type="${item.type}"
+                                           class="score-input hidden"
+                                           onchange="handleSelection('${item.impression}', '${degree.level}', '${item.type}', event)">
+                                    <label for="${groupName}-${index}" 
+                                           class="block text-center cursor-pointer p-2 rounded-lg border-2 border-gray-300 text-gray-700 transition duration-150">
+                                        <span class="font-medium">${degree.level}</span>
+                                        <span class="text-xs block text-gray-500 transition duration-150">${(degree.score * item.weight).toFixed(1)}分 / ${degree.achievement}</span>
+                                    </label>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+                ratingFormContainer.innerHTML += itemHtml;
+            });
+            
+            window.handleSelection = handleSelection; // 暴露给全局 scope 供 onchange 调用
+            calculateScore(); // 初始计算 0 分
+        }
+
+        // --- Firebase 初始化和配置加载 ---
+
         async function initFirebase() {
-            // 确保使用 Canvas 提供的全局变量
             const firebaseConfigStr = typeof __firebase_config !== 'undefined' ? __firebase_config : '{}';
             const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
             
             try {
                 const firebaseConfig = JSON.parse(firebaseConfigStr);
 
-                // **关键检查点: 确保配置存在**
                 if (Object.keys(firebaseConfig).length === 0) {
-                    updateStatus('error', '致命错误：Firebase配置对象为空。无法连接数据库。');
-                    configTextArea.value = JSON.stringify(DEFAULT_CONFIG_JSON, null, 2);
+                    updateStatus('error', '致命错误：Firebase配置对象为空。将使用默认配置。');
+                    ratingConfig = DEFAULT_RATING_CONFIG;
+                    renderRatingItems(ratingConfig);
                     return;
                 }
 
@@ -116,108 +264,117 @@
                 db = getFirestore(app);
                 auth = getAuth(app);
                 
-                // 启用身份验证日志
-                // setLogLevel('Debug'); 
-
-                // 尝试使用 Canvas 提供的自定义令牌登录，否则匿名登录
                 if (initialAuthToken) {
                     await signInWithCustomToken(auth, initialAuthToken);
                 } else {
                     await signInAnonymously(auth);
                 }
 
-                // 监听认证状态变化
                 onAuthStateChanged(auth, (user) => {
                     if (user) {
                         currentUserId = user.uid;
                         userIdEl.textContent = currentUserId;
-                        updateStatus('success', 'Firebase初始化和用户认证成功。', false);
-                        loadConfig();
+                        updateStatus('success', 'Firebase初始化成功，正在加载评分标准...', false);
+                        loadRatingConfig();
                     } else {
-                        currentUserId = 'anonymous'; // Fallback
+                        currentUserId = 'anonymous'; 
                         userIdEl.textContent = '匿名/未认证';
-                        updateStatus('info', '已匿名登录，请尝试保存配置。', false);
+                        updateStatus('info', '已匿名登录，正在使用默认评分标准。', false);
+                        ratingConfig = DEFAULT_RATING_CONFIG;
+                        renderRatingItems(ratingConfig);
                     }
                 });
 
             } catch (e) {
-                updateStatus('error', `Firebase初始化失败：${e.message}。请联系支持。`);
+                updateStatus('error', `Firebase初始化失败：${e.message}。正在加载默认配置。`);
                 console.error("Firebase Initialization Error:", e);
-                configTextArea.value = JSON.stringify(DEFAULT_CONFIG_JSON, null, 2);
+                ratingConfig = DEFAULT_RATING_CONFIG;
+                renderRatingItems(ratingConfig);
             }
         }
 
         /**
-         * 从 Firestore 加载配置并显示
+         * 从 Firestore 加载用户自定义配置
          */
-        function loadConfig() {
+        function loadRatingConfig() {
             const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
             
             if (!db || !currentUserId || appId === 'default-app-id') {
-                updateStatus('error', '数据库或用户ID未准备好，无法加载配置。', false);
+                ratingConfig = DEFAULT_RATING_CONFIG;
+                updateStatus('info', '无法连接到用户私有配置，正在使用默认评分标准。');
+                renderRatingItems(ratingConfig);
                 return;
             }
 
-            // 私有配置路径: /artifacts/{appId}/users/{userId}/configuration/{docId}
+            // 加载配置文档 (与配置管理页面使用同一文档)
             const configDocRef = doc(db, `artifacts/${appId}/users/${currentUserId}/${CONFIG_COLLECTION_NAME}`, CONFIG_DOC_ID);
             
-            // 使用 onSnapshot 实时监听配置变化
             onSnapshot(configDocRef, (docSnapshot) => {
-                if (docSnapshot.exists()) {
-                    const configData = docSnapshot.data().config;
-                    configTextArea.value = JSON.stringify(configData, null, 2);
-                    updateStatus('success', '配置加载成功。您可以修改后重新保存。');
+                if (docSnapshot.exists() && docSnapshot.data().config && docSnapshot.data().config.length > 0) {
+                    ratingConfig = docSnapshot.data().config;
+                    updateStatus('success', `评分标准 (${ratingConfig.length}项) 加载成功！`, false);
                 } else {
-                    // 如果文档不存在，使用默认配置填充
-                    configTextArea.value = JSON.stringify(DEFAULT_CONFIG_JSON, null, 2);
-                    updateStatus('info', 'Firestore中找不到现有配置，已加载默认配置。请点击保存。');
+                    ratingConfig = DEFAULT_RATING_CONFIG;
+                    updateStatus('info', 'Firestore中找不到用户配置，已加载内置默认评分标准。', false);
                 }
+                renderRatingItems(ratingConfig);
             }, (error) => {
-                updateStatus('error', `加载配置失败: ${error.message}`);
+                updateStatus('error', `加载配置失败: ${error.message}。已加载默认配置。`);
                 console.error("Load Config Error:", error);
+                ratingConfig = DEFAULT_RATING_CONFIG;
+                renderRatingItems(ratingConfig);
             });
         }
 
         /**
-         * 将配置保存到 Firestore
+         * 将评分结果保存到 Firestore
          */
-        window.saveConfig = async function() {
+        window.saveRating = async function() {
+            const cigarName = cigarNameInput.value.trim();
+            if (!cigarName) {
+                updateStatus('error', '保存失败：请填写雪茄名称。');
+                return;
+            }
             if (!db || !currentUserId) {
-                updateStatus('error', '错误：数据库未初始化或用户未认证。请刷新页面重试。');
+                updateStatus('error', '保存失败：数据库未初始化或用户未认证。');
                 return;
             }
             
-            updateStatus('info', '正在保存...', true);
-
-            let configObject;
-            try {
-                configObject = JSON.parse(configTextArea.value);
-            } catch (e) {
-                updateStatus('error', `JSON解析失败：请检查格式错误。${e.message}`);
-                return;
-            }
+            updateStatus('info', '正在保存记录...', true);
 
             const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-            const configDocRef = doc(db, `artifacts/${appId}/users/${currentUserId}/${CONFIG_COLLECTION_NAME}`, CONFIG_DOC_ID);
+            // 将评分记录保存在一个新的集合中: /artifacts/{appId}/users/{userId}/cigar_ratings
+            const ratingsCollectionRef = collection(db, `artifacts/${appId}/users/${currentUserId}/${RATINGS_COLLECTION_NAME}`);
             
             try {
-                // 使用 setDoc 写入数据（如果存在则覆盖，不存在则创建）
-                await setDoc(configDocRef, { 
-                    config: configObject, 
+                const finalScore = calculateScore();
+                const ratingData = {
+                    cigarName: cigarName,
+                    finalScore: parseFloat(finalScore.toFixed(2)),
+                    selections: currentSelections, // 保存用户所有选择的原始数据
+                    configSnapshot: ratingConfig,  // 保存当时的配置快照
                     timestamp: new Date().toISOString() 
+                };
+
+                await addDoc(ratingsCollectionRef, ratingData);
+                updateStatus('success', `评分记录保存成功！[${cigarName}] 得分: ${finalScore.toFixed(2)}。`, false);
+                
+                // 清空表单
+                cigarNameInput.value = '';
+                currentSelections = {};
+                document.querySelectorAll('.score-input').forEach(input => {
+                    input.checked = false;
                 });
-                updateStatus('success', `配置成功保存到 Firestore! (${new Date().toLocaleTimeString()})`);
+                calculateScore();
+
             } catch (error) {
-                updateStatus('error', `保存到 Firestore 失败: ${error.message}`);
-                console.error("Save Config Error:", error);
+                updateStatus('error', `保存评分记录失败: ${error.message}`);
+                console.error("Save Rating Error:", error);
             }
         }
 
         // 页面加载完成后，初始化 Firebase
         window.onload = initFirebase;
-        
-        // 将默认 JSON 放入 textarea，以便用户看到内容
-        configTextArea.value = JSON.stringify(DEFAULT_CONFIG_JSON, null, 2);
 
     </script>
 </body>
