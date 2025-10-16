@@ -18,6 +18,7 @@
                         'cigar-dark': '#4A2B1D',
                         'cigar-light': '#D6C8B5',
                         'accent': '#A0522D',
+                        'accent-dark': '#8B4513'
                     }
                 },
             }
@@ -31,6 +32,17 @@
             display: flex;
             flex-direction: column;
         }
+        /* 自定义滚动条样式 */
+        .overflow-y-auto::-webkit-scrollbar {
+            width: 8px;
+        }
+        .overflow-y-auto::-webkit-scrollbar-thumb {
+            background-color: #A0522D;
+            border-radius: 4px;
+        }
+        .overflow-y-auto::-webkit-scrollbar-track {
+            background-color: #D6C8B5;
+        }
     </style>
 </head>
 <body class="font-sans">
@@ -40,15 +52,15 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center h-16">
                 <!-- Logo/Title -->
-                <div class="flex-shrink-0">
+                <div class="flex-shrink-0 cursor-pointer" onclick="switchView('landing')">
                     <span class="text-xl font-bold tracking-wider">CigarScore <span class="text-accent">PRO</span></span>
                 </div>
                 <!-- 菜单 - 桌面端 -->
                 <nav class="hidden md:flex space-x-8">
-                    <a href="#" class="text-cigar-light hover:text-white transition duration-300 rounded-lg px-3 py-2">首页</a>
+                    <a href="#" class="text-cigar-light hover:text-white transition duration-300 rounded-lg px-3 py-2" onclick="switchView('landing')">首页</a>
                     <a href="#" class="text-cigar-light hover:text-white transition duration-300 rounded-lg px-3 py-2">评分标准</a>
                     <a href="#" class="text-cigar-light hover:text-white transition duration-300 rounded-lg px-3 py-2">历史记录</a>
-                    <a href="#" class="bg-accent text-white rounded-lg px-4 py-2 font-medium hover:bg-opacity-90 transition duration-300 shadow-md">开始评分</a>
+                    <a href="#" id="start-rating-btn-desktop" class="bg-accent text-white rounded-lg px-4 py-2 font-medium hover:bg-opacity-90 transition duration-300 shadow-md">开始评分</a>
                 </nav>
                 <!-- 菜单 - 移动端按钮 -->
                 <button id="menu-button" class="md:hidden p-2 rounded-lg text-cigar-light hover:bg-cigar-light hover:text-cigar-dark transition duration-300">
@@ -61,151 +73,196 @@
         <!-- 移动端菜单内容 (初始隐藏) -->
         <div id="mobile-menu" class="hidden md:hidden">
             <div class="px-2 pt-2 pb-3 space-y-1 sm:px-3">
-                <a href="#" class="block px-3 py-2 rounded-md text-base font-medium text-white hover:bg-accent">首页</a>
+                <a href="#" class="block px-3 py-2 rounded-md text-base font-medium text-white hover:bg-accent" onclick="switchView('landing')">首页</a>
                 <a href="#" class="block px-3 py-2 rounded-md text-base font-medium text-white hover:bg-accent">评分标准</a>
                 <a href="#" class="block px-3 py-2 rounded-md text-base font-medium text-white hover:bg-accent">历史记录</a>
-                <a href="#" class="block px-3 py-2 rounded-md text-base font-medium bg-accent text-white">开始评分</a>
+                <a href="#" id="start-rating-btn-mobile" class="block px-3 py-2 rounded-md text-base font-medium bg-accent text-white">开始评分</a>
             </div>
         </div>
     </header>
 
-    <!-- 主内容区 -->
-    <main class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div class="bg-white p-8 rounded-xl shadow-2xl">
-            <!-- 英雄区/主要介绍 -->
-            <section class="text-center mb-12">
-                <h1 class="text-4xl sm:text-5xl font-extrabold text-cigar-dark mb-4 leading-tight">
-                    <span class="text-accent">P.I.S.T.A.C.H.O.</span> 雪茄品鉴系统
-                </h1>
-                <p id="system-subtitle" class="text-xl text-gray-600 max-w-3xl mx-auto mb-6">
-                    将主观印象转化为客观数据，专业、系统地记录每一支雪茄的独特体验。
-                </p>
-                <div class="space-x-4">
-                    <a href="#" class="bg-accent text-white font-semibold py-3 px-8 rounded-full shadow-lg hover:bg-opacity-80 transition duration-300 transform hover:scale-105">
-                        查看评分等级
-                    </a>
-                    <a href="#" class="text-cigar-dark border border-cigar-dark font-semibold py-3 px-8 rounded-full hover:bg-cigar-dark hover:text-white transition duration-300 transform hover:scale-105">
-                        了解体系权重
-                    </a>
-                </div>
-            </section>
+    <!-- 主应用容器 -->
+    <div class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
 
-            <!-- 特点概览 (基于 CSV 文件内容) -->
-            <section class="grid md:grid-cols-3 gap-8 text-cigar-dark mb-12">
-                <!-- 特点 1: 卷工与外观 -->
-                <div class="bg-cigar-light/50 p-6 rounded-lg shadow-md hover:shadow-xl transition duration-500">
-                    <div class="text-2xl font-bold mb-2 flex items-center">
-                        <span class="text-accent mr-2">🪶</span> 外观与卷工
+        <!-- 1. 首页 (Landing Page) 视图 -->
+        <section id="landing-page-section">
+            <div class="bg-white p-8 rounded-xl shadow-2xl">
+                <!-- 英雄区/主要介绍 -->
+                <div class="text-center mb-12">
+                    <h1 class="text-4xl sm:text-5xl font-extrabold text-cigar-dark mb-4 leading-tight">
+                        <span class="text-accent">P.I.S.T.A.C.H.O.</span> 雪茄品鉴系统
+                    </h1>
+                    <p id="system-subtitle" class="text-xl text-gray-600 max-w-3xl mx-auto mb-6">
+                        将主观印象转化为客观数据，专业、系统地记录每一支雪茄的独特体验。
+                    </p>
+                    <div class="space-x-4">
+                        <a href="#" class="bg-accent text-white font-semibold py-3 px-8 rounded-full shadow-lg hover:bg-opacity-80 transition duration-300 transform hover:scale-105">
+                            查看评分等级
+                        </a>
+                        <a href="#" class="text-cigar-dark border border-cigar-dark font-semibold py-3 px-8 rounded-full hover:bg-cigar-dark hover:text-white transition duration-300 transform hover:scale-105">
+                            了解体系权重
+                        </a>
                     </div>
-                    <p class="text-gray-700">涵盖茄标高级感、茄衣状态（薄/厚/油润/干/茎细）和卷工细节（不合格到完美），区分**熟练工人**与**精雕细琢**。</p>
-                </div>
-                
-                <!-- 特点 2: 燃烧与吸阻 -->
-                <div class="bg-cigar-light/50 p-6 rounded-lg shadow-md hover:shadow-xl transition duration-500">
-                    <div class="text-2xl font-bold mb-2 flex items-center">
-                        <span class="text-accent mr-2">🔥</span> 燃烧与气道
-                    </div>
-                    <p class="text-gray-700">精确量化吸阻（**天选之吸** vs **物理绝缘**），记录燃烧线均匀度（**激光切割**）和烟灰形态（**埃菲尔铁塔**）。</p>
                 </div>
 
-                <!-- 特点 3: 香气与变化 -->
-                <div class="bg-cigar-light/50 p-6 rounded-lg shadow-md hover:shadow-xl transition duration-500">
-                    <div class="text-2xl font-bold mb-2 flex items-center">
-                        <span class="text-accent mr-2">👃</span> 复杂香气谱
+                <!-- 特点概览 (基于 CSV 文件内容) -->
+                <div class="grid md:grid-cols-3 gap-8 text-cigar-dark mb-12">
+                    <!-- 特点 1: 卷工与外观 -->
+                    <div class="bg-cigar-light/50 p-6 rounded-lg shadow-md hover:shadow-xl transition duration-500">
+                        <div class="text-2xl font-bold mb-2 flex items-center">
+                            <span class="text-accent mr-2">🪶</span> 外观与卷工
+                        </div>
+                        <p class="text-gray-700">涵盖茄标高级感、茄衣状态（薄/厚/油润/干/茎细）和卷工细节（不合格到完美），区分**熟练工人**与**精雕细琢**。</p>
                     </div>
-                    <p class="text-gray-700">追踪第二/多重香气的高级度和持续性，捕捉甜味、花香、古巴味等关键词，记录三段变化是否明显。</p>
-                </div>
-            </section>
-        </div>
+                    
+                    <!-- 特点 2: 燃烧与吸阻 -->
+                    <div class="bg-cigar-light/50 p-6 rounded-lg shadow-md hover:shadow-xl transition duration-500">
+                        <div class="text-2xl font-bold mb-2 flex items-center">
+                            <span class="text-accent mr-2">🔥</span> 燃烧与气道
+                        </div>
+                        <p class="text-gray-700">精确量化吸阻（**天选之吸** vs **物理绝缘**），记录燃烧线均匀度（**激光切割**）和烟灰形态（**埃菲尔铁塔**）。</p>
+                    </div>
 
-        <!-- 评分等级参考表 (P.I.S.T.A.C.H.O.) -->
-        <section class="mt-12">
-            <h2 class="text-3xl font-bold text-cigar-dark mb-6 text-center">P.I.S.T.A.C.H.O. 等级速查</h2>
-            <div class="overflow-x-auto">
-                <table class="min-w-full bg-white rounded-xl shadow-lg border border-gray-200">
-                    <thead class="bg-cigar-dark text-white">
-                        <tr>
-                            <th class="py-3 px-4 text-left rounded-tl-lg">等级</th>
-                            <th class="py-3 px-4 text-left">字母</th>
-                            <th class="py-3 px-4 text-left">英文描述词</th>
-                            <th class="py-3 px-4 text-left rounded-tr-lg">中文释义</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr class="border-b hover:bg-yellow-50/50 transition duration-150">
-                            <td class="py-3 px-4 font-bold text-accent">最高</td>
-                            <td class="py-3 px-4 text-lg font-mono">P</td>
-                            <td class="py-3 px-4">Perfection</td>
-                            <td class="py-3 px-4">完美 / 臻品</td>
-                        </tr>
-                        <tr class="border-b hover:bg-yellow-50/50 transition duration-150">
-                            <td class="py-3 px-4">高</td>
-                            <td class="py-3 px-4 text-lg font-mono">I</td>
-                            <td class="py-3 px-4">Iconic</td>
-                            <td class="py-3 px-4">标志性 / 典范</td>
-                        </tr>
-                        <tr class="border-b hover:bg-yellow-50/50 transition duration-150">
-                            <td class="py-3 px-4">高</td>
-                            <td class="py-3 px-4 text-lg font-mono">S</td>
-                            <td class="py-3 px-4">Supreme</td>
-                            <td class="py-3 px-4">至高 / 卓越</td>
-                        </tr>
-                        <tr class="border-b hover:bg-yellow-50/50 transition duration-150">
-                            <td class="py-3 px-4">中</td>
-                            <td class="py-3 px-4 text-lg font-mono">T</td>
-                            <td class="py-3 px-4">Treasured</td>
-                            <td class="py-3 px-4">珍藏 / 珍爱</td>
-                        </tr>
-                        <tr class="border-b hover:bg-yellow-50/50 transition duration-150 bg-gray-50">
-                            <td class="py-3 px-4">中</td>
-                            <td class="py-3 px-4 text-lg font-mono">A</td>
-                            <td class="py-3 px-4">Acceptable</td>
-                            <td class="py-3 px-4">可接受 / 合格</td>
-                        </tr>
-                        <tr class="border-b hover:bg-yellow-50/50 transition duration-150">
-                            <td class="py-3 px-4">低</td>
-                            <td class="py-3 px-4 text-lg font-mono">C</td>
-                            <td class="py-3 px-4">Common</td>
-                            <td class="py-3 px-4">普通 / 一般</td>
-                        </tr>
-                        <tr class="border-b hover:bg-yellow-50/50 transition duration-150">
-                            <td class="py-3 px-4">低</td>
-                            <td class="py-3 px-4 text-lg font-mono">H</td>
-                            <td class="py-3 px-4">Hardship</td>
-                            <td class="py-3 px-4">困难 / 缺陷多</td>
-                        </tr>
-                        <tr class="hover:bg-yellow-50/50 transition duration-150">
-                            <td class="py-3 px-4 font-bold text-red-600">最低</td>
-                            <td class="py-3 px-4 text-lg font-mono">O</td>
-                            <td class="py-3 px-4">Outright Failure</td>
-                            <td class="py-3 px-4">彻底失败 / 不合格</td>
-                        </tr>
-                    </tbody>
-                </table>
+                    <!-- 特点 3: 香气与变化 -->
+                    <div class="bg-cigar-light/50 p-6 rounded-lg shadow-md hover:shadow-xl transition duration-500">
+                        <div class="text-2xl font-bold mb-2 flex items-center">
+                            <span class="text-accent mr-2">👃</span> 复杂香气谱
+                        </div>
+                        <p class="text-gray-700">追踪第二/多重香气的高级度和持续性，捕捉甜味、花香、古巴味等关键词，记录三段变化是否明显。</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 评分等级参考表 (P.I.S.T.A.C.H.O.) -->
+            <div class="mt-12">
+                <h2 class="text-3xl font-bold text-cigar-dark mb-6 text-center">P.I.S.T.A.C.H.O. 等级速查</h2>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full bg-white rounded-xl shadow-lg border border-gray-200">
+                        <thead class="bg-cigar-dark text-white">
+                            <tr>
+                                <th class="py-3 px-4 text-left rounded-tl-lg">等级</th>
+                                <th class="py-3 px-4 text-left">字母</th>
+                                <th class="py-3 px-4 text-left">英文描述词</th>
+                                <th class="py-3 px-4 text-left rounded-tr-lg">中文释义</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="border-b hover:bg-yellow-50/50 transition duration-150">
+                                <td class="py-3 px-4 font-bold text-accent">最高</td>
+                                <td class="py-3 px-4 text-lg font-mono">P</td>
+                                <td class="py-3 px-4">Perfection</td>
+                                <td class="py-3 px-4">完美 / 臻品</td>
+                            </tr>
+                            <tr class="border-b hover:bg-yellow-50/50 transition duration-150">
+                                <td class="py-3 px-4">高</td>
+                                <td class="py-3 px-4 text-lg font-mono">I</td>
+                                <td class="py-3 px-4">Iconic</td>
+                                <td class="py-3 px-4">标志性 / 典范</td>
+                            </tr>
+                            <tr class="border-b hover:bg-yellow-50/50 transition duration-150">
+                                <td class="py-3 px-4">高</td>
+                                <td class="py-3 px-4 text-lg font-mono">S</td>
+                                <td class="py-3 px-4">Supreme</td>
+                                <td class="py-3 px-4">至高 / 卓越</td>
+                            </tr>
+                            <tr class="border-b hover:bg-yellow-50/50 transition duration-150">
+                                <td class="py-3 px-4">中</td>
+                                <td class="py-3 px-4 text-lg font-mono">T</td>
+                                <td class="py-3 px-4">Treasured</td>
+                                <td class="py-3 px-4">珍藏 / 珍爱</td>
+                            </tr>
+                            <tr class="border-b hover:bg-yellow-50/50 transition duration-150 bg-gray-50">
+                                <td class="py-3 px-4">中</td>
+                                <td class="py-3 px-4 text-lg font-mono">A</td>
+                                <td class="py-3 px-4">Acceptable</td>
+                                <td class="py-3 px-4">可接受 / 合格</td>
+                            </tr>
+                            <tr class="border-b hover:bg-yellow-50/50 transition duration-150">
+                                <td class="py-3 px-4">低</td>
+                                <td class="py-3 px-4 text-lg font-mono">C</td>
+                                <td class="py-3 px-4">Common</td>
+                                <td class="py-3 px-4">普通 / 一般</td>
+                            </tr>
+                            <tr class="border-b hover:bg-yellow-50/50 transition duration-150">
+                                <td class="py-3 px-4">低</td>
+                                <td class="py-3 px-4 text-lg font-mono">H</td>
+                                <td class="py-3 px-4">Hardship</td>
+                                <td class="py-3 px-4">困难 / 缺陷多</td>
+                            </tr>
+                            <tr class="hover:bg-yellow-50/50 transition duration-150">
+                                <td class="py-3 px-4 font-bold text-red-600">最低</td>
+                                <td class="py-3 px-4 text-lg font-mono">O</td>
+                                <td class="py-3 px-4">Outright Failure</td>
+                                <td class="py-3 px-4">彻底失败 / 不合格</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 配置管理区域 (保留) -->
+            <div class="mt-12 bg-white p-6 rounded-xl shadow-2xl border border-cigar-dark/20">
+                <button id="toggle-config-btn" class="w-full text-left p-4 bg-cigar-dark text-white font-bold rounded-lg hover:bg-accent transition duration-300 flex justify-between items-center">
+                    <span>⚙️ 评分配置管理 (cigar_rating_config.json)</span>
+                    <svg id="config-arrow" class="w-6 h-6 transform rotate-0 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                </button>
+
+                <div id="config-content" class="mt-4 hidden">
+                    <p class="mb-3 text-sm text-gray-600">在此文本框中编辑 JSON 配置，然后点击“应用配置”以在当前会话中加载新的评分标准、权重和得分比例。**请确保 JSON 格式正确。**</p>
+                    <textarea id="json-config-textarea" class="w-full h-80 p-4 border border-gray-300 rounded-lg font-mono text-sm resize-none focus:ring-accent focus:border-accent" spellcheck="false"></textarea>
+                    
+                    <div class="flex flex-col sm:flex-row justify-between items-center mt-4 space-y-3 sm:space-y-0 sm:space-x-3">
+                        <span id="config-status" class="text-sm text-gray-500 font-medium">状态：已加载默认配置 (v1.0)</span>
+                        <button id="apply-config-btn" class="w-full sm:w-auto bg-accent text-white font-semibold py-2 px-6 rounded-full shadow-md hover:bg-opacity-90 transition duration-300">
+                            应用配置
+                        </button>
+                    </div>
+                </div>
             </div>
         </section>
 
-        <!-- 配置管理区域 (新增部分) -->
-        <section class="mt-12 bg-white p-6 rounded-xl shadow-2xl border border-cigar-dark/20">
-            <button id="toggle-config-btn" class="w-full text-left p-4 bg-cigar-dark text-white font-bold rounded-lg hover:bg-accent transition duration-300 flex justify-between items-center">
-                <span>⚙️ 评分配置管理 (cigar_rating_config.json)</span>
-                <svg id="config-arrow" class="w-6 h-6 transform rotate-0 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-            </button>
-
-            <div id="config-content" class="mt-4 hidden">
-                <p class="mb-3 text-sm text-gray-600">在此文本框中编辑 JSON 配置，然后点击“应用配置”以在当前会话中加载新的评分标准、权重和得分比例。**请确保 JSON 格式正确。**</p>
-                <textarea id="json-config-textarea" class="w-full h-80 p-4 border border-gray-300 rounded-lg font-mono text-sm resize-none focus:ring-accent focus:border-accent" spellcheck="false"></textarea>
-                
-                <div class="flex flex-col sm:flex-row justify-between items-center mt-4 space-y-3 sm:space-y-0 sm:space-x-3">
-                    <span id="config-status" class="text-sm text-gray-500 font-medium">状态：已加载默认配置 (v1.0)</span>
-                    <button id="apply-config-btn" class="w-full sm:w-auto bg-accent text-white font-semibold py-2 px-6 rounded-full shadow-md hover:bg-opacity-90 transition duration-300">
-                        应用配置
-                    </button>
+        <!-- 2. 评分应用 (Rating Application) 视图 - 初始隐藏 -->
+        <section id="rating-app-section" class="hidden">
+            <h1 class="text-3xl sm:text-4xl font-extrabold text-cigar-dark mb-6 text-center">开始评分：雪茄品鉴记录</h1>
+            
+            <!-- 雪茄基本信息输入 -->
+            <div class="bg-white p-6 rounded-xl shadow-lg mb-8">
+                <h2 class="text-2xl font-bold text-accent mb-4 border-b pb-2">基础信息</h2>
+                <div class="grid md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="cigar-brand" class="block text-sm font-medium text-gray-700">品牌 (Brand)</label>
+                        <input type="text" id="cigar-brand" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border focus:ring-accent focus:border-accent" placeholder="例如：Cohiba">
+                    </div>
+                    <div>
+                        <label for="cigar-model" class="block text-sm font-medium text-gray-700">型号 (Model)</label>
+                        <input type="text" id="cigar-model" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border focus:ring-accent focus:border-accent" placeholder="例如：Robusto">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label for="cigar-notes" class="block text-sm font-medium text-gray-700">品鉴笔记 (Notes)</label>
+                        <textarea id="cigar-notes" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border focus:ring-accent focus:border-accent" placeholder="记录品吸前和品吸后的主观印象..."></textarea>
+                    </div>
                 </div>
             </div>
-        </section>
 
-    </main>
+            <!-- 动态评分标准容器 -->
+            <form id="rating-form" class="space-y-6">
+                <!-- 评分标准将通过 JavaScript 动态插入到这里 -->
+                <div class="text-center text-gray-500 p-8 bg-white rounded-xl shadow-lg">
+                    <p>加载中或等待配置...</p>
+                </div>
+            </form>
+
+            <!-- 评分结果和计算按钮 -->
+            <div class="mt-8 pt-6 border-t border-gray-300 flex flex-col sm:flex-row justify-between items-center bg-white p-6 rounded-xl shadow-lg">
+                <div class="text-xl font-bold text-cigar-dark mb-4 sm:mb-0">
+                    最终得分：<span id="final-score" class="text-accent text-3xl">0.0</span> / <span class="text-3xl">100.0</span>
+                </div>
+                <button id="calculate-score-btn" class="w-full sm:w-auto bg-cigar-dark text-white font-semibold py-3 px-8 rounded-full shadow-xl hover:bg-accent-dark transition duration-300 transform hover:scale-105">
+                    计算最终评分
+                </button>
+            </div>
+        </section>
+    </div>
 
     <!-- 页脚 -->
     <footer class="bg-cigar-dark mt-12 py-8">
@@ -222,6 +279,7 @@
     <!-- JavaScript 逻辑 -->
     <script>
         // 1. 默认配置数据 (来自 cigar_rating_config.json)
+        // 这是一个包含评分体系所有权重的默认配置 JSON
         const DEFAULT_CONFIG_JSON = {
           "appTitle": "P.I.S.T.A.C.H.O. 雪茄品鉴配置",
           "version": "1.0",
@@ -347,30 +405,208 @@
         const systemSubtitle = document.getElementById('system-subtitle');
         const configArrow = document.getElementById('config-arrow');
 
-        // 4. 函数：应用配置
+        // 视图元素
+        const landingPageSection = document.getElementById('landing-page-section');
+        const ratingAppSection = document.getElementById('rating-app-section');
+        const ratingFormContainer = document.getElementById('rating-form');
+        const startRatingBtnDesktop = document.getElementById('start-rating-btn-desktop');
+        const startRatingBtnMobile = document.getElementById('start-rating-btn-mobile');
+        const calculateScoreBtn = document.getElementById('calculate-score-btn');
+        const finalScoreDisplay = document.getElementById('final-score');
+
+
+        // 4. 核心函数：视图切换
+        function switchView(viewName) {
+            if (viewName === 'landing') {
+                landingPageSection.classList.remove('hidden');
+                ratingAppSection.classList.add('hidden');
+                // 确保移动菜单关闭
+                mobileMenu.classList.add('hidden');
+            } else if (viewName === 'rating') {
+                landingPageSection.classList.add('hidden');
+                ratingAppSection.classList.remove('hidden');
+                // 渲染评分表单（确保加载的是最新配置）
+                renderRatingForm();
+                // 确保移动菜单关闭
+                mobileMenu.classList.add('hidden');
+            }
+            window.scrollTo({ top: 0, behavior: 'smooth' }); // 切换后滚动到顶部
+        }
+
+
+        // 5. 核心函数：渲染评分表单
+        function renderRatingForm() {
+            // 每次切换到评分页面时，清空并重建表单
+            ratingFormContainer.innerHTML = ''; 
+
+            // 1. 检查配置是否有效
+            if (!currentConfig.ratingCriteria || currentConfig.ratingCriteria.length === 0) {
+                ratingFormContainer.innerHTML = `
+                    <div class="text-center text-red-600 p-8 bg-white rounded-xl shadow-lg">
+                        <p>🔴 错误：评分配置无效或为空，请检查配置管理区域。</p>
+                    </div>`;
+                return;
+            }
+
+            // 2. 遍历评分分类 Category
+            currentConfig.ratingCriteria.forEach((category, catIndex) => {
+                const categoryId = `category-${catIndex}`;
+                
+                // 计算该类别总权重
+                const categoryTotalWeight = category.criteriaList.reduce((sum, c) => sum + c.weight, 0);
+
+                let categoryHtml = `
+                    <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+                        <!-- Category Header (Accordion) -->
+                        <button type="button" class="category-header w-full text-left p-4 bg-cigar-light/70 text-cigar-dark font-bold text-xl flex justify-between items-center hover:bg-cigar-light transition duration-300" data-target="#${categoryId}-body">
+                            <span>${category.category}</span>
+                            <span class="text-sm font-medium text-gray-700">总权重: ${categoryTotalWeight}</span>
+                        </button>
+
+                        <!-- Category Body -->
+                        <div id="${categoryId}-body" class="p-6 space-y-8">
+                `;
+
+                // 3. 遍历评分标准 Criteria
+                category.criteriaList.forEach((criteria, critIndex) => {
+                    const criteriaName = `crit-${catIndex}-${critIndex}`;
+                    
+                    let criteriaHtml = `
+                        <!-- Single Criteria Block -->
+                        <div>
+                            <p class="text-lg font-semibold text-cigar-dark mb-3">
+                                ${critIndex + 1}. ${criteria.name} 
+                                <span class="text-accent text-sm ml-2">(${criteria.weight} 分权重)</span>
+                                <span id="${criteriaName}-score" class="float-right text-gray-500 font-normal">未选择</span>
+                            </p>
+                            <div class="flex flex-wrap gap-3">
+                    `;
+
+                    // 4. 遍历评分选项 Options (Radio Buttons)
+                    criteria.options.forEach((option, optIndex) => {
+                        const optionId = `${criteriaName}-${optIndex}`;
+                        
+                        criteriaHtml += `
+                            <label for="${optionId}" class="flex items-center p-3 rounded-lg border border-gray-300 cursor-pointer transition duration-200 hover:border-accent hover:shadow-md bg-white">
+                                <input type="radio" id="${optionId}" name="${criteriaName}" value="${criteria.weight * option.scorePct}" data-weight="${criteria.weight}" data-score-pct="${option.scorePct}" class="w-4 h-4 text-accent border-gray-300 focus:ring-accent" required>
+                                <span class="ml-2 text-sm font-medium text-gray-700">${option.description} 
+                                    <span class="text-xs text-gray-500">(${Math.round(option.scorePct * 100)}%)</span>
+                                </span>
+                            </label>
+                        `;
+                    });
+
+                    criteriaHtml += `
+                            </div>
+                        </div>
+                        <!-- Separator -->
+                        ${critIndex < category.criteriaList.length - 1 ? '<div class="border-t border-gray-100 my-4"></div>' : ''}
+                    `;
+                    categoryHtml += criteriaHtml;
+                });
+
+                categoryHtml += `
+                        </div>
+                    </div>
+                `;
+                ratingFormContainer.innerHTML += categoryHtml;
+            });
+            
+            // 添加 Radio Button 监听器，用于实时显示单项得分
+            ratingFormContainer.querySelectorAll('input[type="radio"]').forEach(radio => {
+                radio.addEventListener('change', (e) => {
+                    const selectedRadio = e.target;
+                    const score = parseFloat(selectedRadio.value);
+                    const weight = parseFloat(selectedRadio.getAttribute('data-weight'));
+                    const scorePct = parseFloat(selectedRadio.getAttribute('data-score-pct'));
+                    
+                    const criteriaName = selectedRadio.name;
+                    const scoreDisplay = document.getElementById(`${criteriaName}-score`);
+                    
+                    if (scoreDisplay) {
+                        scoreDisplay.textContent = `得分: ${score.toFixed(2)} / ${weight.toFixed(2)}`;
+                        scoreDisplay.classList.remove('text-gray-500');
+                        scoreDisplay.classList.add('text-green-600');
+                    }
+                });
+            });
+
+            // 添加手风琴（Accordion）功能
+            ratingAppSection.querySelectorAll('.category-header').forEach(header => {
+                const targetId = header.getAttribute('data-target');
+                const targetElement = document.querySelector(targetId);
+                if (targetElement) {
+                    // 默认展开第一个类别，隐藏其他
+                    if (catIndex === 0) {
+                        targetElement.classList.remove('hidden');
+                    } else {
+                        targetElement.classList.add('hidden');
+                    }
+
+                    header.addEventListener('click', () => {
+                        targetElement.classList.toggle('hidden');
+                        // 可选：添加旋转图标，但这里我保持简单不加图标，因为 Tailwind 没有内置旋转 class
+                    });
+                }
+            });
+        }
+
+
+        // 6. 函数：计算最终评分
+        function calculateFinalScore() {
+            let totalScore = 0;
+            let totalPossibleWeight = 0;
+            let missingSelections = 0;
+
+            // 遍历所有评分标准组
+            currentConfig.ratingCriteria.forEach((category, catIndex) => {
+                category.criteriaList.forEach((criteria, critIndex) => {
+                    const criteriaName = `crit-${catIndex}-${critIndex}`;
+                    const radioGroup = document.getElementsByName(criteriaName);
+                    
+                    const selectedOption = Array.from(radioGroup).find(radio => radio.checked);
+
+                    if (selectedOption) {
+                        totalScore += parseFloat(selectedOption.value);
+                    } else {
+                        missingSelections++;
+                    }
+                    totalPossibleWeight += criteria.weight;
+                });
+            });
+
+            if (missingSelections > 0) {
+                showCustomMessage('⚠️ 警告', `您还有 ${missingSelections} 个评分项未选择！请完整填写。`, 'error');
+                finalScoreDisplay.textContent = '0.0';
+                return;
+            }
+
+            // 格式化输出
+            finalScoreDisplay.textContent = totalScore.toFixed(2);
+            // 这里也可以根据总得分匹配到 P.I.S.T.A.C.H.O. 等级，但暂时只显示分数
+            showCustomMessage('计算完成', `总得分: ${totalScore.toFixed(2)} / ${totalPossibleWeight.toFixed(2)}`, 'success');
+
+            console.log(`最终得分: ${totalScore.toFixed(2)} / ${totalPossibleWeight.toFixed(2)}`);
+        }
+
+        // 7. 函数：应用配置 (从上一版本继承)
         function applyConfig() {
             try {
                 const newConfigString = configTextarea.value;
                 const newConfig = JSON.parse(newConfigString);
 
-                // 简单的结构验证
                 if (!newConfig.ratingCriteria || !Array.isArray(newConfig.ratingCriteria)) {
                     throw new Error("JSON结构无效：缺少 'ratingCriteria' 数组。");
                 }
 
-                // 更新全局配置
                 currentConfig = newConfig;
 
-                // 更新UI显示
                 systemSubtitle.textContent = newConfig.appTitle || "将主观印象转化为客观数据，专业、系统地记录每一支雪茄的独特体验。";
                 configStatus.textContent = `状态：已成功加载自定义配置 (v${newConfig.version || 'Custom'})`;
-                configStatus.classList.remove('text-red-500');
+                configStatus.classList.remove('text-red-500', 'text-gray-500');
                 configStatus.classList.add('text-green-600');
-                console.log("新配置已成功加载：", currentConfig);
                 
-                // 提示用户成功（使用自定义消息框替代 alert）
-                showCustomMessage('配置更新成功', '新的评分标准已应用到当前会话中。', 'success');
-
+                showCustomMessage('配置更新成功', '新的评分标准已应用到当前会话中，请点击“开始评分”查看。', 'success');
 
             } catch (error) {
                 configStatus.textContent = `状态：配置加载失败！请检查 JSON 格式。错误: ${error.message}`;
@@ -381,9 +617,8 @@
             }
         }
 
-        // 5. 函数：显示自定义消息框（替代 alert/confirm）
+        // 8. 函数：显示自定义消息框（替代 alert/confirm）
         function showCustomMessage(title, message, type) {
-            // 这是一个简单的替代方案，可以在页面上显示消息
             let msgBox = document.getElementById('custom-message-box');
             if (!msgBox) {
                 msgBox = document.createElement('div');
@@ -396,22 +631,24 @@
 
             // 根据类型设置样式
             if (type === 'success') {
-                msgBox.style.backgroundColor = 'rgb(16, 185, 129)'; // Green-500
+                msgBox.style.backgroundColor = '#10B981'; // Tailwind Green-500
             } else if (type === 'error') {
-                msgBox.style.backgroundColor = 'rgb(239, 68, 68)'; // Red-500
+                msgBox.style.backgroundColor = '#EF4444'; // Tailwind Red-500
             } else {
-                msgBox.style.backgroundColor = 'rgb(59, 130, 246)'; // Blue-500
+                msgBox.style.backgroundColor = '#3B82F6'; // Tailwind Blue-500
             }
 
             // 显示并自动隐藏
             msgBox.style.transform = 'translateY(0)';
+            msgBox.style.opacity = '1';
+
             setTimeout(() => {
                 msgBox.style.transform = 'translateY(-100px)';
-            }, 3000);
+                msgBox.style.opacity = '0';
+            }, 4000);
         }
 
-
-        // 6. 初始化和事件监听
+        // 9. 初始化和事件监听
         window.onload = function() {
             // 初始化 JSON 文本框内容
             configTextarea.value = JSON.stringify(DEFAULT_CONFIG_JSON, null, 2);
@@ -422,6 +659,23 @@
             menuButton.addEventListener('click', function() {
                 mobileMenu.classList.toggle('hidden');
             });
+
+            // 监听开始评分按钮 (桌面端和移动端)
+            startRatingBtnDesktop.addEventListener('click', (e) => {
+                e.preventDefault();
+                switchView('rating');
+            });
+            startRatingBtnMobile.addEventListener('click', (e) => {
+                e.preventDefault();
+                switchView('rating');
+            });
+
+            // 监听计算评分按钮
+            calculateScoreBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                calculateFinalScore();
+            });
+
 
             // 监听应用配置按钮
             applyConfigBtn.addEventListener('click', applyConfig);
