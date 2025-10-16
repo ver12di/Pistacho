@@ -1,0 +1,227 @@
+[
+  {
+    "impression": "茄标高级感",
+    "weight": 15,
+    "type": "single",
+    "degrees": [
+      { "level": "简陋", "score": 0.10, "achievement": "地摊货" },
+      { "level": "中规中矩", "score": 0.50, "achievement": "礼品装" },
+      { "level": "漂亮", "score": 0.70, "achievement": "奢侈品" },
+      { "level": "高级感", "score": 1.00, "achievement": "大师馆藏" }
+    ]
+  },
+  {
+    "impression": "茄衣",
+    "weight": 15,
+    "type": "single",
+    "degrees": [
+      { "level": "简陋", "score": 0.10, "achievement": "廉价外套" },
+      { "level": "中规中矩", "score": 0.50, "achievement": "正装出席" },
+      { "level": "漂亮", "score": 0.70, "achievement": "丝绸触感" },
+      { "level": "完美", "score": 1.00, "achievement": "顶级皮具" }
+    ]
+  },
+  {
+    "impression": "卷工",
+    "weight": 15,
+    "type": "single",
+    "degrees": [
+      { "level": "不合格", "score": 0.10, "achievement": "匆忙赶工" },
+      { "level": "正常", "score": 0.50, "achievement": "熟练工人" },
+      { "level": "漂亮", "score": 0.70, "achievement": "精雕细琢" },
+      { "level": "完美", "score": 1.00, "achievement": "浑然天成" }
+    ]
+  },
+  {
+    "impression": "吸阻",
+    "weight": 15,
+    "type": "single",
+    "degrees": [
+      { "level": "松", "score": 0.50, "achievement": "自由落体" },
+      { "level": "完美", "score": 1.00, "achievement": "天选之吸" },
+      { "level": "偏紧", "score": 0.50, "achievement": "倔强脾气" },
+      { "level": "堵塞", "score": 0.00, "achievement": "物理绝缘" }
+    ]
+  },
+  {
+    "impression": "前3口感觉",
+    "weight": 5,
+    "type": "single",
+    "degrees": [
+      { "level": "眼前一亮", "score": 1.00, "achievement": "开场爆棚" },
+      { "level": "有期待", "score": 0.70, "achievement": "稳步升温" },
+      { "level": "中规中矩", "score": 0.50, "achievement": "平淡如水" },
+      { "level": "估计不怎么样", "score": 0.10, "achievement": "劝退警告" }
+    ]
+  },
+  {
+    "impression": "烟灰形态",
+    "weight": 10,
+    "type": "single",
+    "degrees": [
+      { "level": "完美可以尝试持茄", "score": 1.00, "achievement": "埃菲尔铁塔" },
+      { "level": "需要主动弹", "score": 0.70, "achievement": "比萨斜塔" },
+      { "level": "自动脱落", "score": 0.30, "achievement": "雷峰塔" }
+    ]
+  },
+  {
+    "impression": "燃烧均匀",
+    "weight": 15,
+    "type": "single",
+    "degrees": [
+      { "level": "完美平衡", "score": 1.00, "achievement": "激光切割" },
+      { "level": "略有偏烧需要偶尔矫正", "score": 0.70, "achievement": "艺术修饰" },
+      { "level": "燃烧不均需要持续修正", "score": 0.10, "achievement": "自由发挥" }
+    ]
+  },
+  {
+    "impression": "第二香气宜人强度",
+    "weight": 15,
+    "type": "single",
+    "degrees": [
+      { "level": "没有", "score": 0.00, "achievement": "嗅觉失灵" },
+      { "level": "一点点香", "score": 0.30, "achievement": "昙花一现" },
+      { "level": "很香", "score": 0.70, "achievement": "芳香四溢" },
+      { "level": "极香", "score": 1.00, "achievement": "香水喷雾" }
+    ]
+  },
+  {
+    "impression": "第二香气高级度",
+    "weight": 15,
+    "type": "single",
+    "degrees": [
+      { "level": "容易", "score": 0.30, "achievement": "大众情人" },
+      { "level": "不容易但有", "score": 0.70, "achievement": "偶然相遇" },
+      { "level": "独特", "score": 1.00, "achievement": "独一无二" }
+    ]
+  },
+  {
+    "impression": "香气持续度",
+    "weight": 15,
+    "type": "multi",
+    "degrees": [
+      { "level": "前段有", "score": 0.333, "achievement": "短暂闪光" },
+      { "level": "中段有", "score": 0.667, "achievement": "稳健续航" },
+      { "level": "后端有", "score": 1.00, "achievement": "陪伴到老" }
+    ]
+  },
+  {
+    "impression": "多重（第三）香气",
+    "weight": 15,
+    "type": "single",
+    "degrees": [
+      { "level": "没有", "score": 0.00, "achievement": "单核处理" },
+      { "level": "有", "score": 1.00, "achievement": "多核运行" }
+    ]
+  },
+  {
+    "impression": "多重（第三）香气持续度",
+    "weight": 15,
+    "type": "multi",
+    "degrees": [
+      { "level": "前段有", "score": 0.333, "achievement": "尝鲜限定" },
+      { "level": "中段有", "score": 0.667, "achievement": "深度体验" },
+      { "level": "后端有", "score": 1.00, "achievement": "尾韵悠长" }
+    ]
+  },
+  {
+    "impression": "三段变化",
+    "weight": 15,
+    "type": "single",
+    "degrees": [
+      { "level": "变化明显", "score": 1.00, "achievement": "过山车" },
+      { "level": "似乎有变化", "score": 0.50, "achievement": "渐进变奏" },
+      { "level": "始终如一", "score": 0.10, "achievement": "线性输出" }
+    ]
+  },
+  {
+    "impression": "燃烧持续",
+    "weight": 15,
+    "type": "single",
+    "degrees": [
+      { "level": "一根到底", "score": 1.00, "achievement": "永动机" },
+      { "level": "偶尔补火", "score": 0.70, "achievement": "火力支援" },
+      { "level": "不断补火", "score": 0.30, "achievement": "消防队员" },
+      { "level": "点到试图放弃", "score": 0.00, "achievement": "劝退重来" }
+    ]
+  },
+  {
+    "impression": "烟雾量",
+    "weight": 15,
+    "type": "single",
+    "degrees": [
+      { "level": "没有", "score": 0.00, "achievement": "无烟区" },
+      { "level": "少", "score": 0.50, "achievement": "隐士模式" },
+      { "level": "正常", "score": 1.00, "achievement": "效率达人" },
+      { "level": "浓", "score": 0.80, "achievement": "蒸汽列车" },
+      { "level": "烟囱", "score": 0.50, "achievement": "火炬达人" }
+    ]
+  },
+  {
+    "impression": "尼古丁浓度",
+    "weight": 10,
+    "type": "single",
+    "degrees": [
+      { "level": "普通", "score": 1.00, "achievement": "基础挑战" },
+      { "level": "困难", "score": 0.90, "achievement": "意志考验" },
+      { "level": "噩梦", "score": 0.70, "achievement": "灵魂拷问" },
+      { "level": "地狱", "score": 0.30, "achievement": "见阎王" }
+    ]
+  },
+  {
+    "impression": "过鼻顺畅度",
+    "weight": 15,
+    "type": "single",
+    "degrees": [
+      { "level": "无感", "score": 0.50, "achievement": "呼吸自如" },
+      { "level": "柔顺", "score": 1.00, "achievement": "丝滑通行" },
+      { "level": "略有刺激", "score": 0.70, "achievement": "鼻腔警报" },
+      { "level": "辛辣", "score": 0.30, "achievement": "吃辣大赛" }
+    ]
+  },
+  {
+    "impression": "烟屁股抽完渴望度",
+    "weight": 10,
+    "type": "single",
+    "degrees": [
+      { "level": "马上想放弃", "score": 0.00, "achievement": "及时止损" },
+      { "level": "抽到茄标", "score": 0.30, "achievement": "尊重标签" },
+      { "level": "抽到烫手为止", "score": 0.70, "achievement": "极限挑战" },
+      { "level": "抽到牙签烧完为止", "score": 1.00, "achievement": "榨干价值" }
+    ]
+  },
+  {
+    "impression": "获得容易度",
+    "weight": 10,
+    "type": "single",
+    "degrees": [
+      { "level": "容易", "score": 1.00, "achievement": "唾手可得" },
+      { "level": "普通", "score": 0.80, "achievement": "市场流通" },
+      { "level": "困难", "score": 0.50, "achievement": "预约排队" },
+      { "level": "千载难逢", "score": 0.30, "achievement": "寻宝猎人" }
+    ]
+  },
+  {
+    "impression": "整体记忆度",
+    "weight": 15,
+    "type": "single",
+    "degrees": [
+      { "level": "芸芸众生", "score": 0.00, "achievement": "路人甲" },
+      { "level": "略有印象", "score": 0.30, "achievement": "闪光一刻" },
+      { "level": "念念不忘", "score": 0.70, "achievement": "午夜梦回" },
+      { "level": "梦里寻她千百度", "score": 1.00, "achievement": "刻骨铭心" }
+    ]
+  },
+  {
+    "impression": "推荐欲望",
+    "weight": 10,
+    "type": "single",
+    "degrees": [
+      { "level": "不在list", "score": 0.00, "achievement": "毫不推荐" },
+      { "level": "偶尔提提", "score": 0.30, "achievement": "谨慎推荐" },
+      { "level": "可以有", "score": 0.70, "achievement": "值得一试" },
+      { "level": "强推", "score": 0.90, "achievement": "热烈安利" },
+      { "level": "必须有", "score": 1.00, "achievement": "毕生挚爱" }
+    ]
+  }
+]
