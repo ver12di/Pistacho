@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>用户角色管理 - Super Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'Noto Sans SC', 'system-ui', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    
+    <script>
+        const __app_id = 'pistacho-b9efe'; 
+
+        const __firebase_config = JSON.stringify({
+            apiKey: "AIzaSyDC-8qbWsjRyxBzJpfCi9n3ftzdg9FStF0", 
+            authDomain: "pistacho-b9efe.firebaseapp.com",
+            projectId: "pistacho-b9efe",
+            storageBucket: "pistacho-b9efe.firebasestorage.app",
+            messagingSenderId: "686695750713",
+            appId: "1:686695750713:web:5314331be7b46e93f401e8",
+            measurementId: "G-HQS7Q78LY7"
+        });
+    </script>
+    
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        
+        // --- 常量与状态 ---
+        let db;
+        let currentAuthUser = null;
+        let userRole = 'unknown'; // 当前登录用户的角色
+        const USERS_COLLECTION_PATH = 'users';
+        const APP_CONTAINER = document.getElementById('app-container');
+        const STATUS_DISPLAY = document.getElementById('status-message');
+
+        // --- 核心工具函数 ---
+
+        /**
+         * 渲染状态信息。
+         */
+        function renderStatus(message, isError = false) {
+            STATUS_DISPLAY.textContent = message;
+            STATUS_DISPLAY.className = `text-sm font-semibold ${isError ? 'text-red-600 bg-red-100 p-2 rounded' : 'text-green-600'}`;
+        }
+        
+        /**
+         * 检查权限并渲染受限内容或拒绝访问。
+         */
+        function checkAndRender() {
+            if (userRole === 'super_admin') {
+                renderAdminUI();
+            } else {
+                APP_CONTAINER.innerHTML = `
+                    <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mt-10" role="alert">
+                        <strong class="font-bold">权限不足!</strong>
+                        <span class="block sm:inline">您不是超级管理员 (Super Admin)。当前角色: ${userRole.toUpperCase()}。</span>
+                    </div>
+                    <div class="mt-4 text-center">
+                        <a href="index.html" class="text-indigo-600 hover:text-indigo-800">返回评分主页</a>
+                    </div>
+                `;
+            }
+        }
+
+        /**
+         * 渲染 Super Admin 界面。
+         */
+        function renderAdminUI() {
+            APP_CONTAINER.innerHTML = `
+                <header class="mb-8 p-6 bg-purple-700 text-white rounded-xl shadow-2xl">
+                    <h1 class="text-3xl font-extrabold mb-1">用户角色管理中心</h1>
+                    <p class="text-purple-200 text-sm">当前用户 (${currentAuthUser.uid}) 角色: <strong class="uppercase">${userRole}</strong></p>
+                    <a href="index.html" class="inline-flex items-center mt-4 px-4 py-2 border border-white text-sm font-medium rounded-full shadow-sm text-white bg-purple-600 hover:bg-purple-500 transition duration-150">
+                        返回主页
+                    </a>
+                </header>
+
+                <div class="bg-white p-6 rounded-xl shadow-lg mb-8">
+                    <h2 class="text-2xl font-bold text-purple-700 mb-4">查询与设置用户角色</h2>
+                    
+                    <div class="space-y-4">
+                        <label class="block">
+                            <span class="text-gray-700">用户 UID (User ID)</span>
+                            <input type="text" id="targetUidInput" placeholder="请输入要查询/修改的用户的 Firebase UID" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 focus:border-purple-500">
+                        </label>
+                        
+                        <div class="flex space-x-4">
+                            <button onclick="lookupUserRole()" class="flex-1 py-2 bg-indigo-500 text-white font-semibold rounded-lg hover:bg-indigo-600 transition duration-150">
+                                查询当前角色
+                            </button>
+                            <button onclick="showRoleAssignment()" class="flex-1 py-2 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 transition duration-150">
+                                设定新角色
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div id="role-result-container" class="mt-6 p-4 border rounded-lg bg-gray-50 min-h-[50px]">
+                        <p class="text-gray-500">请输入 UID 进行查询。</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        // --- 角色查询与修改逻辑 ---
+
+        window.lookupUserRole = async function() {
+            const uid = document.getElementById('targetUidInput').value.trim();
+            const resultContainer = document.getElementById('role-result-container');
+            if (!uid) {
+                resultContainer.innerHTML = '<p class="text-red-500">UID 不能为空。</p>';
+                return;
+            }
+            
+            resultContainer.innerHTML = '<p class="text-indigo-500">正在查询...</p>';
+            try {
+                const roleDocRef = doc(db, USERS_COLLECTION_PATH, uid);
+                const docSnap = await getDoc(roleDocRef);
+                
+                let targetRole = 'general';
+                if (docSnap.exists() && docSnap.data().role) {
+                    targetRole = docSnap.data().role;
+                }
+                
+                resultContainer.innerHTML = `
+                    <p class="text-lg font-bold">UID: ${uid}</p>
+                    <p class="text-md mt-1">当前角色: <span class="uppercase font-extrabold text-green-700">${targetRole}</span></p>
+                `;
+            } catch (error) {
+                resultContainer.innerHTML = `<p class="text-red-500">查询失败: ${error.message}</p>`;
+                console.error("Error looking up role:", error);
+            }
+        }
+
+        window.showRoleAssignment = async function() {
+             const uid = document.getElementById('targetUidInput').value.trim();
+             const resultContainer = document.getElementById('role-result-container');
+             if (!uid) {
+                resultContainer.innerHTML = '<p class="text-red-500">UID 不能为空。</p>';
+                return;
+             }
+
+             resultContainer.innerHTML = `
+                <p class="text-lg font-bold mb-3">为 ${uid} 设定新角色:</p>
+                <select id="newRoleSelect" class="block w-full rounded-md border-gray-300 shadow-sm p-2 mb-3">
+                    <option value="general">General (一般用户) - 仅评分</option>
+                    <option value="admin">Admin (管理员) - 可配置评分标准</option>
+                    <option value="super_admin">Super Admin (超级管理员) - 所有权限</option>
+                </select>
+                <button onclick="assignUserRole('${uid}')" class="py-2 px-4 bg-purple-500 text-white font-semibold rounded-lg hover:bg-purple-600 transition duration-150">
+                    确认分配
+                </button>
+             `;
+        }
+
+        window.assignUserRole = async function(uid) {
+            const newRole = document.getElementById('newRoleSelect').value;
+            const resultContainer = document.getElementById('role-result-container');
+
+            if (!['general', 'admin', 'super_admin'].includes(newRole)) {
+                 resultContainer.innerHTML = `<p class="text-red-500">角色选择无效。</p>`;
+                 return;
+            }
+
+            resultContainer.innerHTML = '<p class="text-indigo-500">正在分配角色...</p>';
+
+            try {
+                const roleDocRef = doc(db, USERS_COLLECTION_PATH, uid);
+                // 使用 setDoc 覆盖或创建文档
+                await setDoc(roleDocRef, { role: newRole });
+                
+                resultContainer.innerHTML = `
+                    <p class="text-lg font-bold text-green-600">分配成功！</p>
+                    <p class="text-md mt-1">UID ${uid} 的新角色: <span class="uppercase font-extrabold">${newRole}</span></p>
+                `;
+
+                // 强制刷新当前超级管理员的角色信息，避免操作自己时出问题
+                if (currentAuthUser.uid === uid) {
+                    userRole = newRole; 
+                    renderAdminUI(); 
+                    renderStatus(`角色已成功更新为 ${newRole}！`, false);
+                }
+
+            } catch (error) {
+                resultContainer.innerHTML = `<p class="text-red-500">分配失败 (可能是权限不足): ${error.message}</p>`;
+                console.error("Error assigning role:", error);
+            }
+        }
+
+        // --- 初始化流程 ---
+
+        async function fetchUserRole(uid) {
+            const roleDocRef = doc(db, USERS_COLLECTION_PATH, uid);
+            try {
+                const docSnap = await getDoc(roleDocRef);
+                return docSnap.exists() ? docSnap.data().role : 'general'; // 默认是 general
+            } catch (e) {
+                console.warn("Failed to fetch user role, assuming general:", e);
+                return 'general';
+            }
+        }
+
+        async function initFirebase() {
+            renderStatus('正在初始化 Firebase...');
+            try {
+                const app = initializeApp(JSON.parse(__firebase_config));
+                db = getFirestore(app);
+                const auth = getAuth(app);
+                
+                // 监听认证状态
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        currentAuthUser = user;
+                        userRole = await fetchUserRole(user.uid);
+                        renderStatus(`身份验证成功。当前角色: ${userRole.toUpperCase()}. 正在检查权限...`);
+                        checkAndRender();
+                    } else {
+                        // 首次加载时进行匿名登录
+                        await signInAnonymously(auth);
+                        renderStatus('正在进行匿名登录...', false);
+                    }
+                });
+
+            } catch (error) {
+                console.error("Firebase Initialization Failed:", error);
+                renderStatus(`❌ 初始化失败: ${error.message}`, true);
+            }
+        }
+
+        window.onload = initFirebase;
+    </script>
+</head>
+<body class="bg-gray-100 font-sans antialiased text-gray-800">
+
+    <div id="app-container" class="max-w-5xl mx-auto p-4 md:p-8">
+        <p class="text-center text-gray-500 mt-10">正在加载和验证身份...</p>
+    </div>
+    
+    <div class="fixed bottom-0 left-0 right-0 bg-white p-4 shadow-2xl border-t border-gray-200">
+        <div class="max-w-5xl mx-auto">
+            <span id="status-message" class="text-sm font-medium text-yellow-500">正在等待初始化...</span>
+        </div>
+    </div>
+    
+    <div class="h-20"></div> 
+
+</body>
+</html>
