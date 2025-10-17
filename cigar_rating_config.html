@@ -19,10 +19,8 @@
     </script>
     
     <script>
-        // 应用程序 ID - 必须和 index.html 中的值一致！
         const __app_id = 'pistacho-b9efe'; 
 
-        // 您的 Firebase 项目配置 (作为 JSON 字符串) - 必须和 index.html 中的值一致！
         const __firebase_config = JSON.stringify({
             apiKey: "AIzaSyDC-8qbWsjRyxBzJpfCi9n3ftzdg9FStF0", 
             authDomain: "pistacho-b9efe.firebaseapp.com",
@@ -32,20 +30,19 @@
             appId: "1:686695750713:web:5314331be7b46e93f401e8",
             measurementId: "G-HQS7Q78LY7"
         });
-        
-        // 可选的 Custom Auth Token
-        // const __initial_auth_token = 'YOUR_CUSTOM_TOKEN_HERE'; 
     </script>
     
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         
-        // 全局状态
+        // --- 常量与状态 ---
         let db;
-        let editorConfig = {}; // 存储当前在编辑器中操作的配置数据
+        let editorConfig = {}; 
+        let userRole = 'unknown'; // 新增：当前登录用户的角色
         const CONFIG_DOC_PATH = `/artifacts/${__app_id}/public/data/cigar_config/latest`;
+        const USERS_COLLECTION_PATH = 'users'; // 新增
         
         // DOM 元素
         const editorContainer = document.getElementById('config-editor-container');
@@ -75,11 +72,47 @@
             loadStatus.className = `text-sm font-medium ${className}`;
         }
         
-        // --- 表单操作函数 (与 DOM 交互) ---
-
+        // --- 权限检查与渲染函数 ---
+        
         /**
-         * 动态渲染整个配置表单。
+         * 检查权限并决定是否加载编辑器。
          */
+        function checkPermissionAndLoad() {
+            if (userRole === 'admin' || userRole === 'super_admin') {
+                updateStatus('权限验证成功 (Admin/Super Admin)。正在加载配置...', 'text-yellow-600');
+                loadConfig(); // 有权限，开始加载配置
+            } else {
+                updateStatus(`❌ 权限不足。当前角色: ${userRole.toUpperCase()}。`, 'text-red-600');
+                saveButton.disabled = true;
+                saveButton.textContent = '权限不足，无法保存';
+                editorContainer.innerHTML = `
+                    <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mt-10" role="alert">
+                        <strong class="font-bold">访问被拒绝!</strong>
+                        <span class="block sm:inline">您需要管理员 (Admin) 或超级管理员 (Super Admin) 权限才能修改配置。</span>
+                    </div>
+                `;
+            }
+        }
+
+        // --- [其余的渲染和数据模型函数保持不变] ---
+        // ... (省略 renderEditor, renderCategory, renderCriterion, renderOption, update..., add..., remove... 等函数) ...
+        
+        // 将核心更新函数暴露给全局作用域，以便 HTML 元素的 onclick/onchange 调用
+        window.updateGeneralConfig = (key, value) => { editorConfig[key] = value; };
+        window.updateCategoryTitle = (catIndex, value) => { editorConfig.ratingCriteria[catIndex].category = value; renderEditor(); };
+        window.updateCategoryDetail = (catIndex, value) => { editorConfig.ratingCriteria[catIndex].detail = value; };
+        window.updateCriterionName = (catIndex, critIndex, value) => { editorConfig.ratingCriteria[catIndex].criteriaList[critIndex].name = value; };
+        window.updateCriterionWeight = (catIndex, critIndex, value) => { editorConfig.ratingCriteria[catIndex].criteriaList[critIndex].weight = parseFloat(value) || 0; renderEditor(); };
+        window.updateOptionDescription = (catIndex, critIndex, optIndex, value) => { editorConfig.ratingCriteria[catIndex].criteriaList[critIndex].options[optIndex].description = value; };
+        window.updateOptionScorePct = (catIndex, critIndex, optIndex, value) => { editorConfig.ratingCriteria[catIndex].criteriaList[critIndex].options[optIndex].scorePct = parseFloat(value) || 0; renderEditor(); };
+        window.addCategory = () => { editorConfig.ratingCriteria.push({ category: "新类别标题", detail: "新类别描述", criteriaList: [{ name: "新标准名称", weight: 10, options: [{ description: "一般", scorePct: 0.5 }, { description: "优秀", scorePct: 1.0 }] }] }); renderEditor(); };
+        window.removeCategory = (catIndex) => { if (confirm("确定要删除此评分类别吗？")) { editorConfig.ratingCriteria.splice(catIndex, 1); renderEditor(); } };
+        window.addCriterion = (catIndex) => { editorConfig.ratingCriteria[catIndex].criteriaList.push({ name: "新评分标准", weight: 10, options: [{ description: "新选项1", scorePct: 0.5 }, { description: "新选项2", scorePct: 1.0 }] }); renderEditor(); };
+        window.removeCriterion = (catIndex, critIndex) => { if (confirm("确定要删除此评分标准吗？")) { editorConfig.ratingCriteria[catIndex].criteriaList.splice(critIndex, 1); renderEditor(); } };
+        window.addOption = (catIndex, critIndex) => { editorConfig.ratingCriteria[catIndex].criteriaList[critIndex].options.push({ description: "新选项", scorePct: 0.5 }); renderEditor(); };
+        window.removeOption = (catIndex, critIndex, optIndex) => { editorConfig.ratingCriteria[catIndex].criteriaList[critIndex].options.splice(optIndex, 1); renderEditor(); };
+
+        // ** [重新插入前面步骤中 renderEditor 及相关辅助函数，保持代码完整性] **
         function renderEditor() {
             calculateWeights(editorConfig);
             totalMaxScoreDisplay.textContent = editorConfig.totalWeightMax.toFixed(2);
@@ -112,9 +145,6 @@
             editorContainer.innerHTML = generalConfig + '<div id="categories-list">' + categoriesHtml + '</div>' + addCategoryButton;
         }
 
-        /**
-         * 渲染单个评分类别（Category）的 HTML。
-         */
         function renderCategory(cat, catIndex) {
             const criteriaHtml = cat.criteriaList.map((crit, critIndex) => renderCriterion(crit, catIndex, critIndex)).join('');
             
@@ -143,9 +173,6 @@
             `;
         }
         
-        /**
-         * 渲染单个评分标准（Criterion）的 HTML。
-         */
         function renderCriterion(crit, catIndex, critIndex) {
             const optionsHtml = crit.options.map((opt, optIndex) => renderOption(opt, catIndex, critIndex, optIndex)).join('');
             const maxScore = crit.weight || 0;
@@ -179,14 +206,10 @@
             `;
         }
         
-        /**
-         * 渲染单个选项（Option）的 HTML。
-         */
         function renderOption(opt, catIndex, critIndex, optIndex) {
             const currentCriterion = editorConfig.ratingCriteria[catIndex].criteriaList[critIndex];
             const maxScore = currentCriterion.weight || 0;
             const scoreDisplay = ((opt.scorePct || 0) * maxScore).toFixed(2);
-            
             return `
                 <div class="flex items-center space-x-2" data-option-index="${optIndex}">
                     <input type="text" placeholder="描述" value="${opt.description || ''}" onchange="updateOptionDescription(${catIndex}, ${critIndex}, ${optIndex}, this.value)" class="block w-2/3 rounded-md border-gray-300 shadow-sm text-xs p-1">
@@ -196,123 +219,18 @@
                 </div>
             `;
         }
-
-        // --- 数据模型修改函数 ---
-
-        function updateGeneralConfig(key, value) {
-            editorConfig[key] = value;
-        }
-        
-        function updateCategoryTitle(catIndex, value) {
-            editorConfig.ratingCriteria[catIndex].category = value;
-            renderEditor(); // 刷新以更新总分
-        }
-
-        function updateCategoryDetail(catIndex, value) {
-            editorConfig.ratingCriteria[catIndex].detail = value;
-        }
-
-        function updateCriterionName(catIndex, critIndex, value) {
-            editorConfig.ratingCriteria[catIndex].criteriaList[critIndex].name = value;
-        }
-
-        function updateCriterionWeight(catIndex, critIndex, value) {
-            editorConfig.ratingCriteria[catIndex].criteriaList[critIndex].weight = parseFloat(value) || 0;
-            renderEditor(); // 权重变化，需要刷新以更新所有得分显示
-        }
-        
-        function updateOptionDescription(catIndex, critIndex, optIndex, value) {
-            editorConfig.ratingCriteria[catIndex].criteriaList[critIndex].options[optIndex].description = value;
-        }
-
-        function updateOptionScorePct(catIndex, critIndex, optIndex, value) {
-            editorConfig.ratingCriteria[catIndex].criteriaList[critIndex].options[optIndex].scorePct = parseFloat(value) || 0;
-            renderEditor(); // 比例变化，需要刷新以更新得分显示
-        }
-
-        // --- 动态添加/删除函数 ---
-
-        function addCategory() {
-            editorConfig.ratingCriteria.push({
-                category: "新类别标题",
-                detail: "新类别描述",
-                criteriaList: [
-                    { name: "新标准名称", weight: 10, options: [{ description: "一般", scorePct: 0.5 }, { description: "优秀", scorePct: 1.0 }] }
-                ]
-            });
-            renderEditor();
-        }
-
-        function removeCategory(catIndex) {
-            if (confirm("确定要删除此评分类别吗？")) {
-                editorConfig.ratingCriteria.splice(catIndex, 1);
-                renderEditor();
-            }
-        }
-
-        function addCriterion(catIndex) {
-            editorConfig.ratingCriteria[catIndex].criteriaList.push({
-                name: "新评分标准",
-                weight: 10,
-                options: [{ description: "新选项1", scorePct: 0.5 }, { description: "新选项2", scorePct: 1.0 }]
-            });
-            renderEditor();
-        }
-
-        function removeCriterion(catIndex, critIndex) {
-            if (confirm("确定要删除此评分标准吗？")) {
-                editorConfig.ratingCriteria[catIndex].criteriaList.splice(critIndex, 1);
-                renderEditor();
-            }
-        }
-
-        function addOption(catIndex, critIndex) {
-            editorConfig.ratingCriteria[catIndex].criteriaList[critIndex].options.push({ description: "新选项", scorePct: 0.5 });
-            renderEditor();
-        }
-
-        function removeOption(catIndex, critIndex, optIndex) {
-            editorConfig.ratingCriteria[catIndex].criteriaList[critIndex].options.splice(optIndex, 1);
-            renderEditor();
-        }
-
-        // 将核心更新函数暴露给全局作用域，以便 HTML 元素的 onclick/onchange 调用
-        window.updateGeneralConfig = updateGeneralConfig;
-        window.updateCategoryTitle = updateCategoryTitle;
-        window.updateCategoryDetail = updateCategoryDetail;
-        window.updateCriterionName = updateCriterionName;
-        window.updateCriterionWeight = updateCriterionWeight;
-        window.updateOptionDescription = updateOptionDescription;
-        window.updateOptionScorePct = updateOptionScorePct;
-        window.addCategory = addCategory;
-        window.removeCategory = removeCategory;
-        window.addCriterion = addCriterion;
-        window.removeCriterion = removeCriterion;
-        window.addOption = addOption;
-        window.removeOption = removeOption;
-
+        // --- [重新插入前面步骤中 renderEditor 及相关辅助函数结束] ---
 
         // --- Firebase 操作 ---
 
-        async function initFirebase() {
-            if (Object.keys(JSON.parse(__firebase_config)).length === 0 || !JSON.parse(__firebase_config).projectId) {
-                document.getElementById('app-container').innerHTML = `<div class="p-6 text-red-600 bg-red-100 rounded-lg max-w-xl mx-auto mt-10">🔴 Firebase 配置信息缺失。</div>`;
-                return;
-            }
+        async function fetchUserRole(uid) {
+            const roleDocRef = doc(db, USERS_COLLECTION_PATH, uid);
             try {
-                const app = initializeApp(JSON.parse(__firebase_config));
-                db = getFirestore(app);
-                const auth = getAuth(app);
-                
-                const token = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-                token ? await signInWithCustomToken(auth, token) : await signInAnonymously(auth);
-                
-                loadConfig();
-                saveButton.disabled = false;
-
-            } catch (error) {
-                console.error("Firebase Initialization Failed:", error);
-                updateStatus(`❌ 初始化失败: ${error.message}`, 'text-red-500');
+                const docSnap = await getDoc(roleDocRef);
+                return docSnap.exists() ? docSnap.data().role : 'general'; // 默认是 general
+            } catch (e) {
+                console.warn("Failed to fetch user role, assuming general:", e);
+                return 'general';
             }
         }
 
@@ -324,53 +242,77 @@
 
                 if (docSnap.exists() && docSnap.data().ratingCriteria) {
                     editorConfig = docSnap.data();
-                    updateStatus('配置加载成功，可以开始编辑。', 'text-green-600');
+                    updateStatus(`配置加载成功。当前角色: ${userRole.toUpperCase()}`, 'text-green-600');
                 } else {
-                    // 如果文档不存在，使用一个空结构体作为默认值
                     editorConfig = { appTitle: "新评分体系 (请编辑)", description: "在此添加您的描述。", ratingCriteria: [] };
-                    updateStatus('警告：未找到云端配置文档，已加载空默认结构。', 'text-orange-500');
+                    updateStatus(`警告：未找到云端配置文档，已加载空默认结构。当前角色: ${userRole.toUpperCase()}`, 'text-orange-500');
                 }
                 
                 renderEditor();
             } catch (error) {
                 console.error("Error loading config:", error);
-                updateStatus(`加载失败: ${error.message}`, 'text-red-500');
+                updateStatus(`加载失败 (可能因配置不存在): ${error.message}`, 'text-red-500');
             }
         }
 
         async function saveConfig() {
+            if (userRole !== 'admin' && userRole !== 'super_admin') {
+                updateStatus('❌ 权限不足，无法执行保存操作。', 'text-red-600');
+                return;
+            }
+
             saveButton.disabled = true;
             saveButton.textContent = '正在保存...';
             try {
-                // 1. 重新计算所有权重和总分 (确保数据结构一致)
                 calculateWeights(editorConfig);
 
-                // 2. 验证基本数据
                 if (!editorConfig.ratingCriteria || !Array.isArray(editorConfig.ratingCriteria)) {
                     throw new Error("数据结构错误：缺少 'ratingCriteria' 数组。");
                 }
                 
-                // 3. 写入 Firestore
                 const configDocRef = doc(db, CONFIG_DOC_PATH);
                 await setDoc(configDocRef, editorConfig);
 
-                updateStatus(`✅ 配置保存成功！总分：${editorConfig.totalWeightMax.toFixed(2)}。主应用已实时同步。`, 'text-green-600');
-
-                // 重新渲染，确保最大总分等更新
+                updateStatus(`✅ 配置保存成功！总分：${editorConfig.totalWeightMax.toFixed(2)}。`, 'text-green-600');
                 renderEditor(); 
 
             } catch (error) {
                 console.error("Error saving config:", error);
-                updateStatus(`❌ 保存失败：${error.message}`, 'text-red-600');
+                updateStatus(`❌ 保存失败 (可能是 Firestore 规则拒绝): ${error.message}`, 'text-red-600');
             } finally {
                 saveButton.disabled = false;
                 saveButton.textContent = '保存并同步到云端';
             }
         }
 
-        // --- 事件监听器 ---
-        saveButton.addEventListener('click', saveConfig);
+        async function initFirebase() {
+            updateStatus('正在初始化 Firebase 和验证身份...');
+            if (Object.keys(JSON.parse(__firebase_config)).length === 0) {
+                document.getElementById('app-container').innerHTML = `<div class="p-6 text-red-600 bg-red-100 rounded-lg max-w-xl mx-auto mt-10">🔴 Firebase 配置信息缺失。</div>`;
+                return;
+            }
+            try {
+                const app = initializeApp(JSON.parse(__firebase_config));
+                db = getFirestore(app);
+                const auth = getAuth(app);
+                
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        userRole = await fetchUserRole(user.uid);
+                        checkPermissionAndLoad(); // 认证后检查权限并加载
+                        saveButton.addEventListener('click', saveConfig);
+                    } else {
+                        await signInAnonymously(auth); // 首次加载时进行匿名登录
+                        updateStatus('正在进行匿名登录...', 'text-yellow-500');
+                    }
+                });
 
+            } catch (error) {
+                console.error("Firebase Initialization Failed:", error);
+                updateStatus(`❌ 初始化失败: ${error.message}`, 'text-red-500');
+            }
+        }
+        
         // 初始化
         window.onload = initFirebase;
     </script>
