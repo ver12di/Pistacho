@@ -19,6 +19,7 @@
     </script>
     
     <script>
+        // 请确保这里的配置与您的 Firebase 项目配置完全一致
         const __app_id = 'pistacho-b9efe'; 
 
         const __firebase_config = JSON.stringify({
@@ -46,12 +47,12 @@
         let ratingConfig = null; 
         let userRatings = {};    
         let userRole = 'unknown'; 
-        let currentAuthUser = null; // 新增：存储当前登录用户对象
+        let currentAuthUser = null; 
         
         const CONFIG_DOC_PATH = `/artifacts/${appId}/public/data/cigar_config/latest`;
         const USERS_COLLECTION_PATH = 'users'; 
 
-        // Initial configuration structure (Used for first-time setup) - (保持不变)
+        // 默认配置结构 (用于首次写入 Firestore)
         const defaultInitialConfig = {
             appTitle: "雪茄品鉴评分体系 V2.0 (默认配置)",
             description: "请点击右上角按钮修改配置。本评分体系基于主观印象权重，旨在提供一个详细且结构化的雪茄品鉴框架。",
@@ -75,7 +76,7 @@
             ]
         };
 
-        // --- Utility Functions --- (保持不变)
+        // --- Utility Functions ---
 
         function calculateWeights(config) {
             let grandTotal = 0;
@@ -109,15 +110,39 @@
             return totalScore;
         }
 
-        // --- FIREBASE AND DATA LOADING ---
+        // --- FIREBASE AUTHENTICATION & DATA LOADING ---
         
-        async function fetchUserRole(uid) {
+        /**
+         * 关键函数：获取用户角色，如果非匿名用户角色文档不存在，则初始化为 'general'。
+         */
+        async function fetchUserRole(user) {
+            const uid = user.uid;
             const roleDocRef = doc(db, USERS_COLLECTION_PATH, uid);
+            
             try {
                 const docSnap = await getDoc(roleDocRef);
-                return docSnap.exists() ? docSnap.data().role : 'general'; 
+
+                if (docSnap.exists() && docSnap.data().role) {
+                    // 情况 A: 文档存在且包含角色信息，直接返回
+                    return docSnap.data().role; 
+                } 
+                
+                // 情况 B: 文档不存在或不包含角色字段
+                if (!user.isAnonymous) {
+                    // 只有非匿名用户（邮箱/密码用户）才需要初始化角色文档
+                    console.log(`用户角色文档不存在 (${uid})，正在初始化为 'general'。`);
+                    await setDoc(roleDocRef, { 
+                        role: 'general',
+                        email: user.email,
+                        createdAt: new Date().toISOString()
+                    }, { merge: true }); // 使用 merge: true 确保不会覆盖其他数据
+                }
+
+                // 无论是新创建的还是匿名的，如果文档没有 role 字段，默认角色都是 'general'
+                return 'general'; 
+
             } catch (e) {
-                console.warn("Failed to fetch user role, assuming general:", e);
+                console.warn("获取或设置用户角色失败，默认为 'general':", e);
                 return 'general';
             }
         }
@@ -198,14 +223,15 @@
                 onAuthStateChanged(auth, async (user) => {
                     if (user) {
                         currentAuthUser = user;
-                        // 1. 获取用户角色
-                        userRole = await fetchUserRole(user.uid);
+
+                        // 1. 获取用户角色（此函数现在包含初始化逻辑）
+                        userRole = await fetchUserRole(user); 
                         
                         // 2. 渲染管理链接和登录状态
                         renderAdminLinks(); 
                         renderLoginStatus(user);
                         
-                        // 3. 加载配置
+                        // 3. 加载配置（所有认证用户都可以读取）
                         loadConfig(); 
                         
                         document.getElementById('config-load-status').textContent = `已认证。角色: ${userRole.toUpperCase()}`;
@@ -220,7 +246,6 @@
                         userRole = 'general'; // 匿名用户默认是 general
                         renderAdminLinks(); 
                         renderLoginStatus(null);
-                        
                     }
                 });
 
@@ -240,7 +265,6 @@
                 calculateWeights(configToSave);
                 if (!docSnap.exists()) {
                     // 仅当文档不存在时才写入默认配置
-                    // 注意：这需要保证当前用户（匿名用户）有写入权限，我们在规则中已允许
                     await setDoc(configDocRef, configToSave);  
                 }
                 configStatusElement.textContent = `已自动加载默认配置。角色: ${userRole.toUpperCase()}`;
@@ -296,7 +320,7 @@
         }
 
         /**
-         * 新增：渲染登录状态和按钮
+         * 渲染登录状态和按钮
          */
         function renderLoginStatus(user) {
             const container = document.getElementById('login-status-container');
@@ -322,7 +346,7 @@
                     </button>
                 `;
             } else {
-                // 未登录 (理论上在 onAuthStateChanged 中会触发匿名登录，这里是安全备用)
+                // 未登录 (安全备用)
                  container.innerHTML = `
                     <button onclick="showLoginModal()" class="px-3 py-1 text-xs font-medium rounded-full bg-green-500 text-white hover:bg-green-600 transition duration-150">
                         登录/注册
@@ -446,10 +470,7 @@
                 
                 <div class="flex items-center space-x-3">
                     <div id="login-status-container" class="flex items-center">
-                        <button onclick="showLoginModal()" class="px-3 py-1 text-xs font-medium rounded-full bg-green-500 text-white hover:bg-green-600 transition duration-150">
-                            登录/注册
-                        </button>
-                    </div>
+                        </div>
                     <div id="admin-links-container" class="flex items-center space-x-3">
                         </div>
                 </div>
