@@ -20,18 +20,17 @@
     
     <script>
         // 应用程序 ID - 用于构建 Firestore 路径：/artifacts/{appId}/...
-        const __app_id = 'pistacho-b9efe'; // <-- 建议修改
+        const __app_id = 'pistacho-b9efe'; 
 
         // 您的 Firebase 项目配置 (作为 JSON 字符串)
-        // ** 请将以下占位符替换为您 Firebase 项目的真实配置！**
         const __firebase_config = JSON.stringify({
-            apiKey: "YOUR_FIREBASE_API_KEY", 
-            authDomain: "your-project-id.firebaseapp.com",
-            projectId: "your-project-id",
-            storageBucket: "your-project-id.appspot.com",
-            messagingSenderId: "1234567890",
-            appId: "1:1234567890:web:abcdef1234567890",
-            // measurementId 可选
+            apiKey: "AIzaSyDC-8qbWsjRyxBzJpfCi9n3ftzdg9FStF0", 
+            authDomain: "pistacho-b9efe.firebaseapp.com",
+            projectId: "pistacho-b9efe",
+            storageBucket: "pistacho-b9efe.firebasestorage.app",
+            messagingSenderId: "686695750713",
+            appId: "1:686695750713:web:5314331be7b46e93f401e8",
+            measurementId: "G-HQS7Q78LY7"
         });
         
         // 如果您使用自定义令牌认证，可以在此设置：
@@ -45,7 +44,6 @@
         import { getFirestore, doc, onSnapshot, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         
         // --- Global State and Setup ---
-        // 这些变量现在应该由上方的 <script> 块提供
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
         
@@ -128,7 +126,7 @@
          */
         async function initFirebase() {
             // 检查配置是否缺失
-            if (Object.keys(firebaseConfig).length === 0) {
+            if (Object.keys(firebaseConfig).length === 0 || !firebaseConfig.projectId) {
                 document.getElementById('app-container').innerHTML = `<div class="p-6 text-red-600 bg-red-100 rounded-lg max-w-xl mx-auto mt-10">🔴 Firebase 配置信息缺失。请检查环境设置脚本。</div>`;
                 return;
             }
@@ -165,7 +163,7 @@
             if (!docSnap.exists() || !docSnap.data().ratingCriteria) {
                 const configToSave = JSON.parse(JSON.stringify(defaultInitialConfig));
                 calculateWeights(configToSave);
-                // 仅在文档不存在时写入，避免不必要的写入操作
+                // 仅在文档不存在时写入，确保文档第一次创建
                 if (!docSnap.exists()) {
                     await setDoc(configDocRef, configToSave);  
                 }
@@ -237,7 +235,7 @@
             formContainer.innerHTML = ratingConfig.ratingCriteria.map((category, catIndex) => `
                 <div class="bg-white p-6 rounded-xl shadow-lg mb-8 border-l-4 border-indigo-500">
                     <h3 class="text-xl font-bold text-indigo-700 mb-2">${category.category} 
-                        <span class="text-sm font-normal text-gray-500 ml-2">(${category.totalWeight} 分)</span>
+                        <span class="text-sm font-normal text-gray-500 ml-2">(${category.totalWeight.toFixed(2)} 分)</span>
                     </h3>
                     <p class="text-gray-500 text-sm mb-4">${category.detail || ''}</p>
                     
@@ -249,7 +247,7 @@
         }
 
         /**
-         * 渲染单个评分标准（Criteria）的 HTML 块。
+         * 渲染单个评分标准（Criterion）的 HTML 块。
          */
         function renderRatingCriterion(catIndex, critIndex, criterion) {
             const id = `${catIndex}-${critIndex}`;
