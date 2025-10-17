@@ -35,7 +35,7 @@
     <script type="module">
         // --- Firebase Imports ---
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, onSnapshot, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         
         // --- Global State and Setup ---
@@ -45,12 +45,13 @@
         let db, auth;
         let ratingConfig = null; 
         let userRatings = {};    
-        let userRole = 'unknown'; // 新增：当前登录用户的角色
+        let userRole = 'unknown'; 
+        let currentAuthUser = null; // 新增：存储当前登录用户对象
         
         const CONFIG_DOC_PATH = `/artifacts/${appId}/public/data/cigar_config/latest`;
-        const USERS_COLLECTION_PATH = 'users'; // 新增
+        const USERS_COLLECTION_PATH = 'users'; 
 
-        // Initial configuration structure (Used for first-time setup)
+        // Initial configuration structure (Used for first-time setup) - (保持不变)
         const defaultInitialConfig = {
             appTitle: "雪茄品鉴评分体系 V2.0 (默认配置)",
             description: "请点击右上角按钮修改配置。本评分体系基于主观印象权重，旨在提供一个详细且结构化的雪茄品鉴框架。",
@@ -74,7 +75,7 @@
             ]
         };
 
-        // --- Utility Functions ---
+        // --- Utility Functions --- (保持不变)
 
         function calculateWeights(config) {
             let grandTotal = 0;
@@ -110,18 +111,76 @@
 
         // --- FIREBASE AND DATA LOADING ---
         
-        /**
-         * 新增：获取用户角色。
-         */
         async function fetchUserRole(uid) {
             const roleDocRef = doc(db, USERS_COLLECTION_PATH, uid);
             try {
                 const docSnap = await getDoc(roleDocRef);
-                return docSnap.exists() ? docSnap.data().role : 'general'; // 默认是 general
+                return docSnap.exists() ? docSnap.data().role : 'general'; 
             } catch (e) {
                 console.warn("Failed to fetch user role, assuming general:", e);
                 return 'general';
             }
+        }
+        
+        /**
+         * 登录/注册处理函数
+         */
+        window.handleLoginSignup = async function(isSignup) {
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+            const loginStatus = document.getElementById('login-modal-status');
+            loginStatus.textContent = isSignup ? '正在注册...' : '正在登录...';
+            loginStatus.className = 'text-sm text-yellow-600 mt-2';
+
+            try {
+                if (isSignup) {
+                    await createUserWithEmailAndPassword(auth, email, password);
+                } else {
+                    await signInWithEmailAndPassword(auth, email, password);
+                }
+                
+                // 成功后关闭弹窗
+                document.getElementById('login-modal').classList.add('hidden');
+                loginStatus.textContent = ''; // 状态由 onAuthStateChanged 更新
+
+            } catch (error) {
+                const errorCode = error.code;
+                let errorMessage = '发生错误。';
+                if (errorCode.includes('auth/')) {
+                    errorMessage = errorCode.replace('auth/', '').replace(/-/g, ' ').toUpperCase();
+                } else {
+                    errorMessage = error.message;
+                }
+                loginStatus.textContent = `失败: ${errorMessage}`;
+                loginStatus.className = 'text-sm text-red-600 mt-2';
+            }
+        }
+
+        /**
+         * 退出登录处理函数
+         */
+        window.logout = async function() {
+            try {
+                await signOut(auth);
+                // 登出后 onAuthStateChanged 会触发，自动处理UI更新和匿名登录。
+            } catch (error) {
+                console.error("Logout Error:", error);
+            }
+        }
+
+        /**
+         * 显示登录弹窗
+         */
+        window.showLoginModal = function() {
+            document.getElementById('login-modal').classList.remove('hidden');
+            document.getElementById('login-modal-status').textContent = '';
+        }
+
+        /**
+         * 隐藏登录弹窗
+         */
+        window.hideLoginModal = function() {
+            document.getElementById('login-modal').classList.add('hidden');
         }
 
 
@@ -138,21 +197,30 @@
                 // 监听认证状态
                 onAuthStateChanged(auth, async (user) => {
                     if (user) {
+                        currentAuthUser = user;
                         // 1. 获取用户角色
                         userRole = await fetchUserRole(user.uid);
                         
-                        // 2. 渲染管理链接
+                        // 2. 渲染管理链接和登录状态
                         renderAdminLinks(); 
+                        renderLoginStatus(user);
                         
-                        // 3. 加载配置（所有认证用户都可以读取）
+                        // 3. 加载配置
                         loadConfig(); 
                         
                         document.getElementById('config-load-status').textContent = `已认证。角色: ${userRole.toUpperCase()}`;
 
                     } else {
-                        // 首次加载时进行匿名登录
+                        // 如果用户退出或未登录，尝试进行匿名登录
                         await signInAnonymously(auth);
                         document.getElementById('config-load-status').textContent = '正在进行匿名登录...';
+                        
+                        // 登出后重置状态
+                        currentAuthUser = null;
+                        userRole = 'general'; // 匿名用户默认是 general
+                        renderAdminLinks(); 
+                        renderLoginStatus(null);
+                        
                     }
                 });
 
@@ -171,6 +239,8 @@
                 const configToSave = JSON.parse(JSON.stringify(defaultInitialConfig));
                 calculateWeights(configToSave);
                 if (!docSnap.exists()) {
+                    // 仅当文档不存在时才写入默认配置
+                    // 注意：这需要保证当前用户（匿名用户）有写入权限，我们在规则中已允许
                     await setDoc(configDocRef, configToSave);  
                 }
                 configStatusElement.textContent = `已自动加载默认配置。角色: ${userRole.toUpperCase()}`;
@@ -196,9 +266,6 @@
 
         // --- RATING VIEW LOGIC ---
 
-        /**
-         * 新增：根据用户角色渲染管理链接。
-         */
         function renderAdminLinks() {
             const adminLinksContainer = document.getElementById('admin-links-container');
             let linksHtml = '';
@@ -209,7 +276,7 @@
                     <a href="cigar_rating_config.html"
                         class="flex items-center px-4 py-2 border border-white text-sm font-medium rounded-full shadow-sm text-white bg-indigo-600 hover:bg-indigo-500 transition duration-150">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" /></svg>
-                        评分标准修改
+                        标准修改
                     </a>
                 `;
             }
@@ -220,13 +287,50 @@
                     <a href="role_management.html"
                         class="flex items-center px-4 py-2 border border-white text-sm font-medium rounded-full shadow-sm text-yellow-100 bg-purple-600 hover:bg-purple-500 transition duration-150">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" /></svg>
-                        用户角色管理
+                        角色管理
                     </a>
                 `;
             }
 
             adminLinksContainer.innerHTML = linksHtml;
         }
+
+        /**
+         * 新增：渲染登录状态和按钮
+         */
+        function renderLoginStatus(user) {
+            const container = document.getElementById('login-status-container');
+            if (user && user.email) {
+                // 已登录 (Email/Password)
+                container.innerHTML = `
+                    <span class="text-sm font-medium text-yellow-300 mr-2 hidden sm:inline">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                        ${user.email}
+                    </span>
+                    <button onclick="logout()" class="px-3 py-1 text-xs font-medium rounded-full bg-red-500 text-white hover:bg-red-600 transition duration-150">
+                        退出
+                    </button>
+                `;
+            } else if (user && user.isAnonymous) {
+                // 匿名登录
+                 container.innerHTML = `
+                    <span class="text-sm font-medium text-indigo-300 mr-2 hidden sm:inline">
+                        当前为匿名用户
+                    </span>
+                    <button onclick="showLoginModal()" class="px-3 py-1 text-xs font-medium rounded-full bg-green-500 text-white hover:bg-green-600 transition duration-150">
+                        登录/注册
+                    </button>
+                `;
+            } else {
+                // 未登录 (理论上在 onAuthStateChanged 中会触发匿名登录，这里是安全备用)
+                 container.innerHTML = `
+                    <button onclick="showLoginModal()" class="px-3 py-1 text-xs font-medium rounded-full bg-green-500 text-white hover:bg-green-600 transition duration-150">
+                        登录/注册
+                    </button>
+                `;
+            }
+        }
+
 
         window.updateRatingSelection = function(catIndex, critIndex, optionIndex) {
             const id = `${catIndex}-${critIndex}`;
@@ -340,8 +444,15 @@
                     <span id="config-load-status" class="text-xs ml-4 text-yellow-300">正在加载配置...</span>
                 </div>
                 
-                <div id="admin-links-container" class="flex items-center space-x-3">
+                <div class="flex items-center space-x-3">
+                    <div id="login-status-container" class="flex items-center">
+                        <button onclick="showLoginModal()" class="px-3 py-1 text-xs font-medium rounded-full bg-green-500 text-white hover:bg-green-600 transition duration-150">
+                            登录/注册
+                        </button>
                     </div>
+                    <div id="admin-links-container" class="flex items-center space-x-3">
+                        </div>
+                </div>
             </div>
         </header>
 
@@ -352,6 +463,35 @@
         <footer class="mt-8 text-center text-gray-500 text-sm p-4 border-t">
             评分应用数据由云端配置中心实时同步。
         </footer>
+    </div>
+
+    <div id="login-modal" class="fixed inset-0 bg-gray-600 bg-opacity-75 hidden flex items-center justify-center z-50">
+        <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-sm">
+            <h3 class="text-xl font-bold mb-4 text-indigo-700">登录或注册</h3>
+            <label class="block mb-3">
+                <span class="text-gray-700 text-sm">邮箱 (Email)</span>
+                <input type="email" id="login-email" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" placeholder="user@example.com">
+            </label>
+            <label class="block mb-4">
+                <span class="text-gray-700 text-sm">密码 (Password)</span>
+                <input type="password" id="login-password" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2">
+            </label>
+            
+            <div class="flex space-x-3">
+                <button onclick="handleLoginSignup(false)" class="flex-1 py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition duration-150">
+                    登录
+                </button>
+                <button onclick="handleLoginSignup(true)" class="flex-1 py-2 bg-gray-200 text-indigo-600 font-semibold rounded-lg hover:bg-gray-300 transition duration-150">
+                    注册
+                </button>
+            </div>
+            
+            <p id="login-modal-status" class="text-center mt-3"></p>
+            
+            <button onclick="hideLoginModal()" class="mt-4 text-sm text-gray-500 hover:text-gray-700 w-full">
+                取消
+            </button>
+        </div>
     </div>
 
 </body>
