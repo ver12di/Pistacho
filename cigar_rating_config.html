@@ -3,9 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>雪茄评分配置中心</title>
+    <title>评分配置管理 - 表单编辑器</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
+        // 1. Tailwind CSS 配置
         tailwind.config = {
             theme: {
                 extend: {
@@ -16,47 +17,47 @@
             }
         }
     </script>
+    
+    <script>
+        // 应用程序 ID - 必须和 index.html 中的值一致！
+        const __app_id = 'cigar-score-pro-v2-production'; 
+
+        // 您的 Firebase 项目配置 (作为 JSON 字符串) - 必须和 index.html 中的值一致！
+        // ** 请将以下占位符替换为您 Firebase 项目的真实配置！**
+        const firebaseConfig = {
+  apiKey: "AIzaSyDC-8qbWsjRyxBzJpfCi9n3ftzdg9FStF0",
+  authDomain: "pistacho-b9efe.firebaseapp.com",
+  projectId: "pistacho-b9efe",
+  storageBucket: "pistacho-b9efe.firebasestorage.app",
+  messagingSenderId: "686695750713",
+  appId: "1:686695750713:web:5314331be7b46e93f401e8",
+  measurementId: "G-HQS7Q78LY7"
+            // ...其他配置
+        });
+        
+        // 可选的 Custom Auth Token
+        // const __initial_auth_token = 'YOUR_CUSTOM_TOKEN_HERE'; 
+    </script>
+    
     <script type="module">
-        // --- Firebase Imports ---
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, onSnapshot, serverTimestamp, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         
-        // --- Global State and Setup ---
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        // 全局状态
+        let db;
+        let editorConfig = {}; // 存储当前在编辑器中操作的配置数据
+        const CONFIG_DOC_PATH = `/artifacts/${__app_id}/public/data/cigar_config/latest`;
         
-        let db, auth;
-        let ratingConfig = null; // Stores the configuration loaded from Firestore
-        
-        const CONFIG_DOC_PATH = `/artifacts/${appId}/public/data/cigar_config/latest`;
-        
-        // Initial configuration structure (Used for first-time setup or if data is missing)
-        const defaultInitialConfig = {
-            appTitle: "雪茄品鉴评分体系 V2.0 (默认配置)",
-            description: "请点击右上角按钮修改配置。本评分体系基于主观印象权重，旨在提供一个详细且结构化的雪茄品鉴框架。",
-            ratingCriteria: [
-                {
-                    category: "1. 外观与卷工",
-                    detail: "雪茄的物理制造质量。",
-                    criteriaList: [
-                        { name: "茄标高级感", weight: 15, options: [{ description: "简陋", scorePct: 0.10 }, { description: "完美", scorePct: 1.00 }] },
-                        { name: "卷工", weight: 15, options: [{ description: "不合格", scorePct: 0.10 }, { description: "正常", scorePct: 0.50 }, { description: "完美/精雕细琢", scorePct: 1.00 }] }
-                    ]
-                },
-                {
-                    category: "2. 燃烧与气道",
-                    detail: "决定品鉴过程是否顺畅愉快的核心要素。",
-                    criteriaList: [
-                        { name: "吸阻", weight: 15, options: [{ description: "堵塞", scorePct: 0.0 }, { description: "完美", scorePct: 1.00 }] },
-                        { name: "燃烧持续", weight: 50, options: [{ description: "不断补火", scorePct: 0.30 }, { description: "一根到底", scorePct: 1.00 }] }
-                    ]
-                }
-            ]
-        };
+        // DOM 元素
+        const editorContainer = document.getElementById('config-editor-container');
+        const loadStatus = document.getElementById('config-load-status');
+        const saveButton = document.getElementById('save-config-btn');
+        const totalMaxScoreDisplay = document.getElementById('total-max-score');
 
-        // --- Utility Functions ---
+        // --- 核心工具函数 ---
 
+        // 计算权重 (与 index.html 保持一致)
         function calculateWeights(config) {
             let grandTotal = 0;
             config.ratingCriteria.forEach(category => {
@@ -70,415 +71,343 @@
             config.totalWeightMax = grandTotal;
         }
 
-
-        // --- FIREBASE AND DATA LOADING ---
-
-        async function initFirebase() {
-            if (Object.keys(firebaseConfig).length === 0) {
-                document.getElementById('config-view-container').innerHTML = `<div class="p-6 text-red-600 bg-red-100 rounded-lg max-w-xl mx-auto mt-10">Firebase 配置信息缺失。请检查环境设置。</div>`;
-                return;
-            }
-            try {
-                const app = initializeApp(firebaseConfig);
-                db = getFirestore(app);
-                auth = getAuth(app);
-                
-                // Authenticate (using custom token if provided, otherwise anonymously)
-                const token = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-                if (token) {
-                    await signInWithCustomToken(auth, token);
-                } else {
-                    await signInAnonymously(auth);
-                }
-                
-                loadConfig();
-
-            } catch (error) {
-                console.error("Firebase Initialization Failed:", error);
-            }
-        }
-
-        async function loadConfig() {
-            const configDocRef = doc(db, CONFIG_DOC_PATH);
-            const configStatusElement = document.getElementById('config-load-status');
-
-            // Check if document exists for initial setup
-            const docSnap = await getDoc(configDocRef);
-            if (!docSnap.exists() || !docSnap.data().ratingCriteria) {
-                // Document does not exist or is empty, save default config
-                const configToSave = JSON.parse(JSON.stringify(defaultInitialConfig));
-                calculateWeights(configToSave);
-                // Save default config only if it's missing
-                await setDoc(configDocRef, configToSave);
-                configStatusElement.textContent = '已自动加载并保存默认配置';
-                configStatusElement.className = 'text-yellow-500';
-            }
-
-            // Listen for real-time updates (important if multiple users edit config)
-            onSnapshot(configDocRef, (docSnap) => {
-                if (docSnap.exists() && docSnap.data().ratingCriteria) {
-                    ratingConfig = docSnap.data();
-                    calculateWeights(ratingConfig);
-                    renderConfigView(); // Re-render when data changes in Firestore
-                    configStatusElement.textContent = '已加载最新配置';
-                    configStatusElement.classList.remove('text-yellow-600');
-                    configStatusElement.classList.add('text-green-600');
-                }
-            }, (error) => {
-                console.error("Error loading config:", error);
-                configStatusElement.textContent = '配置加载失败';
-                configStatusElement.className = 'text-red-500';
-            });
+        // 渲染状态更新
+        function updateStatus(message, className) {
+            loadStatus.textContent = message;
+            loadStatus.className = `text-sm font-medium ${className}`;
         }
         
-        // --- CONFIG VIEW LOGIC & STATE MANIPULATION ---
+        // --- 表单操作函数 (与 DOM 交互) ---
 
-        async function saveConfig() {
-            if (!ratingConfig || !db) return;
-
-            const configToSave = JSON.parse(JSON.stringify(ratingConfig));
-            calculateWeights(configToSave); // Recalculate weights before final save
-            configToSave.updatedAt = serverTimestamp();
-            if (auth.currentUser) {
-                configToSave.updatedBy = auth.currentUser.uid;
-            }
-
-            const saveButton = document.getElementById('config-save-button');
-            const saveStatus = document.getElementById('config-save-status');
-
-            saveButton.disabled = true;
-            saveStatus.textContent = '正在保存...';
-            saveStatus.classList.remove('text-green-600', 'text-red-600');
-            saveStatus.classList.add('text-yellow-600');
-
-            try {
-                await setDoc(doc(db, CONFIG_DOC_PATH), configToSave);
-                saveStatus.textContent = '保存成功！';
-                saveStatus.classList.remove('text-yellow-600');
-                saveStatus.classList.add('text-green-600');
-            } catch (error) {
-                console.error("Error saving configuration:", error);
-                saveStatus.textContent = '保存失败，请查看控制台错误。';
-                saveStatus.classList.remove('text-yellow-600');
-                saveStatus.classList.add('text-red-600');
-            } finally {
-                saveButton.disabled = false;
-            }
-        }
-        
-        function renderConfigView() {
-            if (!ratingConfig) {
-                document.getElementById('config-criteria-list-container').innerHTML = `<p class="text-center text-gray-500 mt-10">正在加载配置编辑器...</p>`;
-                return;
-            }
-
-            // 1. Render Global Settings
-            document.getElementById('config-app-title').value = ratingConfig.appTitle || '';
-            document.getElementById('config-app-description').value = ratingConfig.description || '';
-            document.getElementById('config-total-weight-display').textContent = ratingConfig.totalWeightMax;
+        /**
+         * 动态渲染整个配置表单。
+         */
+        function renderEditor() {
+            calculateWeights(editorConfig);
+            totalMaxScoreDisplay.textContent = editorConfig.totalWeightMax.toFixed(2);
             
-            // 2. Render Categories
-            const criteriaContainer = document.getElementById('config-criteria-list-container');
-            if (criteriaContainer) {
-                criteriaContainer.innerHTML = ratingConfig.ratingCriteria.map((category, catIndex) => `
-                    <div class="bg-white p-6 rounded-xl shadow-lg mb-6 border-l-4 border-yellow-500 transition hover:shadow-xl">
-                        <!-- Category Header -->
-                        <div class="flex justify-between items-start mb-4 border-b pb-3">
-                            <h3 class="text-xl font-bold text-yellow-700">
-                                大类 ${catIndex + 1}: ${category.category} 
-                                <span class="text-sm font-normal text-gray-500 ml-2">(${category.totalWeight} 分)</span>
-                            </h3>
-                            <div class="flex space-x-2">
-                                <button onclick="configDeleteCategory(${catIndex})" 
-                                    class="p-2 text-red-500 hover:text-red-700 rounded-full bg-red-50 hover:bg-red-100 transition duration-150" title="删除此大类">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" /></svg>
-                                </button>
-                                <button onclick="configEditCategory(${catIndex})" 
-                                    class="p-2 text-yellow-500 hover:text-yellow-700 rounded-full bg-yellow-50 hover:bg-yellow-100 transition duration-150" title="编辑此大类信息">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zm-3.04 3.194A3.991 3.991 0 0014 10c0 .524-.108 1.026-.308 1.493L9.62 16.59l-2.829-2.828 4.092-4.092z" /><path fill-rule="evenodd" d="M14.5 13.5a1 1 0 00-1 1v2.5a1 1 0 01-1 1H4a1 1 0 01-1-1V6a1 1 0 011-1h6.5a1 1 0 000-2H4a3 3 0 00-3 3v10a3 3 0 003 3h9.5a3 3 0 003-3v-2.5a1 1 0 00-1-1z" clip-rule="evenodd" /></svg>
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- Category Detail Textarea (Editable) -->
-                        <label class="block text-sm font-medium text-gray-700 mb-2">大类描述 (Detail):</label>
-                        <textarea 
-                            onchange="configUpdateCategoryDetail(${catIndex}, this.value)"
-                            class="w-full p-2 border border-gray-300 rounded-lg focus:ring-yellow-500 focus:border-yellow-500 mb-4 h-16">${category.detail || ''}</textarea>
-
-                        <!-- Criteria List -->
-                        <div id="criteria-list-${catIndex}" class="space-y-4">
-                            ${category.criteriaList.map((criterion, critIndex) => configRenderCriterion(catIndex, critIndex, criterion)).join('')}
-                        </div>
-
-                        <!-- Add Criterion Button -->
-                        <button onclick="configAddCriterion(${catIndex})" 
-                            class="mt-4 w-full flex items-center justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-yellow-600 hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 transition duration-150">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd" /></svg>
-                            添加评分细项
-                        </button>
+            const generalConfig = `
+                <div class="bg-white p-6 rounded-xl shadow-lg mb-8 border-t-4 border-indigo-500">
+                    <h2 class="text-2xl font-bold text-indigo-700 mb-4">应用基础信息</h2>
+                    <div class="space-y-4">
+                        <label class="block">
+                            <span class="text-gray-700">应用标题 (appTitle)</span>
+                            <input type="text" id="appTitle" value="${editorConfig.appTitle || ''}" onchange="updateGeneralConfig(this.id, this.value)" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                        </label>
+                        <label class="block">
+                            <span class="text-gray-700">应用描述 (description)</span>
+                            <textarea id="description" onchange="updateGeneralConfig(this.id, this.value)" rows="2" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">${editorConfig.description || ''}</textarea>
+                        </label>
                     </div>
-                `).join('');
-            }
+                </div>
+            `;
+            
+            const categoriesHtml = editorConfig.ratingCriteria.map((cat, catIndex) => renderCategory(cat, catIndex)).join('');
+            
+            const addCategoryButton = `
+                <button onclick="addCategory()" class="w-full mt-4 py-3 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 transition duration-150 flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd" /></svg>
+                    添加新的评分类别
+                </button>
+            `;
+
+            editorContainer.innerHTML = generalConfig + '<div id="categories-list">' + categoriesHtml + '</div>' + addCategoryButton;
         }
 
-        // Helper function to render a single Criterion in config view
-        function configRenderCriterion(catIndex, critIndex, criterion) {
-            const currentWeight = criterion.weight || 0;
-            const optionCount = criterion.options.length;
-
+        /**
+         * 渲染单个评分类别（Category）的 HTML。
+         */
+        function renderCategory(cat, catIndex) {
+            const criteriaHtml = cat.criteriaList.map((crit, critIndex) => renderCriterion(crit, catIndex, critIndex)).join('');
+            
             return `
-                <div class="bg-gray-50 p-4 rounded-lg shadow-inner border border-gray-200">
-                    <div class="flex justify-between items-center mb-2">
-                        <h4 class="text-lg font-semibold text-gray-800">${critIndex + 1}. ${criterion.name}</h4>
-                        <div class="flex space-x-2">
-                            <button onclick="configDeleteCriterion(${catIndex}, ${critIndex})" 
-                                class="text-red-400 hover:text-red-600 p-1 rounded-full hover:bg-red-100 transition" title="删除此细项">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" /></svg>
+                <div class="bg-white p-6 rounded-xl shadow-lg mb-8 border-l-4 border-yellow-500" data-cat-index="${catIndex}">
+                    <div class="flex justify-between items-center mb-4 border-b pb-3">
+                        <h3 class="text-xl font-bold text-yellow-700">类别 ${catIndex + 1}: <input type="text" value="${cat.category || ''}" onchange="updateCategoryTitle(${catIndex}, this.value)" class="border-b-2 border-yellow-500 font-bold text-lg p-1"></h3>
+                        <div class="flex items-center space-x-2">
+                            <span class="text-sm font-semibold text-gray-500">总权重: ${cat.totalWeight.toFixed(2)}</span>
+                            <button onclick="removeCategory(${catIndex})" class="text-red-500 hover:text-red-700 transition duration-150">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                             </button>
                         </div>
                     </div>
-                    
-                    <!-- Name & Weight Edit -->
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                        <div class="md:col-span-2">
-                            <label class="block text-xs font-medium text-gray-500">细项名称 (Name)</label>
-                            <input type="text" value="${criterion.name}" 
-                                onchange="configUpdateCriterionName(${catIndex}, ${critIndex}, this.value)"
-                                class="w-full p-2 border border-gray-300 rounded-md text-sm">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-500">权重 (Weight / 分值)</label>
-                            <input type="number" min="0" value="${currentWeight}" 
-                                onchange="configUpdateCriterionWeight(${catIndex}, ${critIndex}, this.value)"
-                                class="w-full p-2 border border-gray-300 rounded-md text-sm font-bold text-yellow-600">
-                        </div>
+                    <label class="block mb-4">
+                        <span class="text-gray-700 text-sm">类别描述 (detail)</span>
+                        <input type="text" value="${cat.detail || ''}" onchange="updateCategoryDetail(${catIndex}, this.value)" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm p-1">
+                    </label>
+                    <div class="space-y-4 pt-2" data-criteria-list>
+                        ${criteriaHtml}
                     </div>
-
-                    <!-- Options List -->
-                    <label class="block text-xs font-medium text-gray-500 mb-2">评分选项 (${optionCount} 个)</label>
-                    <div class="space-y-2 bg-white p-3 rounded-lg border">
-                        ${criterion.options.map((option, optIndex) => `
-                            <div class="flex space-x-2 items-center">
-                                <span class="text-sm font-semibold text-gray-400">${optIndex + 1}.</span>
-                                <!-- Description -->
-                                <input type="text" value="${option.description}" placeholder="描述"
-                                    onchange="configUpdateOption(${catIndex}, ${critIndex}, ${optIndex}, 'description', this.value)"
-                                    class="flex-grow p-1 border border-gray-200 rounded-md text-sm focus:border-yellow-400">
-                                <!-- ScorePct -->
-                                <input type="number" step="0.01" min="0" max="1" value="${option.scorePct}" placeholder="得分%"
-                                    onchange="configUpdateOption(${catIndex}, ${critIndex}, ${optIndex}, 'scorePct', parseFloat(this.value) || 0)"
-                                    class="w-20 p-1 border border-gray-200 rounded-md text-sm text-right focus:border-yellow-400">
-                                <span class="text-xs text-gray-500 ml-1"> ( x ${currentWeight} 分)</span>
-                                <button onclick="configDeleteOption(${catIndex}, ${critIndex}, ${optIndex})" 
-                                    class="text-gray-400 hover:text-red-500 transition">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
-                                </button>
-                            </div>
-                        `).join('')}
-                    </div>
-
-                    <!-- Add Option Button -->
-                    <button onclick="configAddOption(${catIndex}, ${critIndex})" 
-                        class="mt-2 w-full text-sm py-1 border border-dashed border-gray-300 rounded-lg text-gray-600 hover:bg-gray-100 transition duration-150">
-                        + 添加新选项
+                    <button onclick="addCriterion(${catIndex})" class="w-full mt-4 py-2 text-sm bg-yellow-100 text-yellow-800 font-medium rounded-lg hover:bg-yellow-200 transition duration-150">
+                        + 添加评分标准
                     </button>
                 </div>
             `;
         }
-
-        // --- CONFIG STATE MANIPULATION FUNCTIONS (Triggering renderConfigView() upon state change) ---
-
-        function setConfigDirty() {
-            // Re-render immediately to reflect local changes in the form
-            calculateWeights(ratingConfig);
-            renderConfigView();
-
-            const statusElement = document.getElementById('config-save-status');
-            if (statusElement) {
-                statusElement.textContent = '有未保存的更改';
-                statusElement.classList.remove('text-green-600');
-                statusElement.classList.add('text-yellow-600');
-            }
-        }
-
-        window.configUpdateGlobalSetting = function(key, value) {
-            ratingConfig[key] = value;
-            setConfigDirty();
-        };
-
-        window.configUpdateCategoryDetail = function(catIndex, value) {
-            ratingConfig.ratingCriteria[catIndex].detail = value;
-            setConfigDirty();
-        };
-
-        window.configEditCategory = function(catIndex) {
-            const category = ratingConfig.ratingCriteria[catIndex];
-            const newName = prompt(`编辑大类名称: ${category.category}`, category.category);
-            if (newName !== null && newName.trim() !== "") {
-                category.category = newName.trim();
-                setConfigDirty();
-            }
-        };
-
-        window.configAddCategory = function() {
-            const newName = prompt("请输入新大类的名称:");
-            if (newName && newName.trim() !== "") {
-                ratingConfig.ratingCriteria.push({
-                    category: newName.trim(),
-                    detail: "新添加的大类描述...",
-                    criteriaList: [],
-                    totalWeight: 0
-                });
-                setConfigDirty();
-            }
-        };
-
-        window.configDeleteCategory = function(catIndex) {
-            if (confirm(`确定要删除大类 "${ratingConfig.ratingCriteria[catIndex].category}" 吗？此操作无法撤销。`)) {
-                ratingConfig.ratingCriteria.splice(catIndex, 1);
-                setConfigDirty();
-            }
-        };
         
-        window.configUpdateCriterionName = function(catIndex, critIndex, value) {
-            ratingConfig.ratingCriteria[catIndex].criteriaList[critIndex].name = value;
-            setConfigDirty();
-        };
+        /**
+         * 渲染单个评分标准（Criterion）的 HTML。
+         */
+        function renderCriterion(crit, catIndex, critIndex) {
+            const optionsHtml = crit.options.map((opt, optIndex) => renderOption(opt, catIndex, critIndex, optIndex)).join('');
+            const maxScore = crit.weight || 0;
 
-        window.configUpdateCriterionWeight = function(catIndex, critIndex, value) {
-            const newWeight = parseInt(value, 10) || 0;
-            const criterion = ratingConfig.ratingCriteria[catIndex].criteriaList[critIndex];
-            
-            if (newWeight >= 0) {
-                criterion.weight = newWeight;
-                setConfigDirty();
-            } else {
-                console.error("权重必须是非负整数。");
-            }
-        };
-
-        window.configAddCriterion = function(catIndex) {
-            const newName = prompt("请输入新评分细项的名称:");
-            if (newName && newName.trim() !== "") {
-                ratingConfig.ratingCriteria[catIndex].criteriaList.push({
-                    name: newName.trim(),
-                    weight: 10,
-                    options: [{ description: "一般", scorePct: 0.50 }, { description: "优秀", scorePct: 1.00 }]
-                });
-                setConfigDirty();
-            }
-        };
-
-        window.configDeleteCriterion = function(catIndex, critIndex) {
-            if (confirm(`确定要删除细项 "${ratingConfig.ratingCriteria[catIndex].criteriaList[critIndex].name}" 吗？`)) {
-                ratingConfig.ratingCriteria[catIndex].criteriaList.splice(critIndex, 1);
-                setConfigDirty();
-            }
-        };
-
-        window.configUpdateOption = function(catIndex, critIndex, optIndex, key, value) {
-            const option = ratingConfig.ratingCriteria[catIndex].criteriaList[critIndex].options[optIndex];
-            option[key] = value;
-            setConfigDirty();
-        };
-
-        window.configAddOption = function(catIndex, critIndex) {
-            ratingConfig.ratingCriteria[catIndex].criteriaList[critIndex].options.push({
-                description: "新选项",
-                scorePct: 0.0
-            });
-            setConfigDirty();
-        };
-
-        window.configDeleteOption = function(catIndex, critIndex, optIndex) {
-            if (confirm("确定要删除此评分选项吗？")) {
-                ratingConfig.ratingCriteria[catIndex].criteriaList[critIndex].options.splice(optIndex, 1);
-                setConfigDirty();
-            }
-        };
-        
-        // Expose save function globally
-        window.saveConfig = saveConfig;
-
-        // --- Initialize on load ---
-        window.onload = initFirebase;
-    </script>
-    <style>
-        .config-card {
-            background-color: #ffffff;
-            border-radius: 1rem;
-            box-shadow: 0 5px 10px -3px rgba(0, 0, 0, 0.1);
-            transition: all 0.3s ease;
-        }
-    </style>
-</head>
-<body class="bg-gray-100 font-sans antialiased text-gray-800">
-
-    <div id="app-container" class="max-w-6xl mx-auto p-4 md:p-8">
-        <header class="mb-6 flex justify-between items-center p-4 bg-white rounded-xl shadow-lg border-b-4 border-yellow-500">
-            <h2 class="text-2xl font-bold text-yellow-700">评分标准配置中心</h2>
-            <a href="cigar_rating_main.html"
-                class="flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-full shadow-sm text-gray-700 bg-gray-100 hover:bg-gray-200 transition duration-150">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.707-10.293a1 1 0 00-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L9.414 11H13a1 1 0 100-2H9.414l1.293-1.293z" clip-rule="evenodd" /></svg>
-                返回评分主页
-            </a>
-        </header>
-
-        <div id="config-view-container">
-            <!-- Global Settings and Save Bar -->
-            <div class="config-card p-6 mb-6">
-                <h3 class="text-xl font-bold mb-4 text-yellow-600 border-b pb-2">全局设置</h3>
-                
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-4">
-                    <div>
-                        <label for="config-app-title" class="block text-sm font-medium text-gray-700">评分体系标题</label>
-                        <input type="text" id="config-app-title" 
-                            onchange="configUpdateGlobalSetting('appTitle', this.value)"
-                            class="mt-1 block w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-yellow-500 focus:border-yellow-500">
+            return `
+                <div class="bg-gray-50 p-4 rounded-lg border border-gray-200" data-crit-index="${critIndex}">
+                    <div class="flex justify-between items-center mb-3">
+                        <h4 class="text-md font-semibold text-gray-800">标准 ${critIndex + 1}</h4>
+                        <button onclick="removeCriterion(${catIndex}, ${critIndex})" class="text-red-400 hover:text-red-600 transition duration-150">删除标准</button>
                     </div>
-                    
-                    <div class="md:col-span-2">
-                        <label for="config-app-description" class="block text-sm font-medium text-gray-700">评分体系描述</label>
-                        <textarea id="config-app-description" 
-                            onchange="configUpdateGlobalSetting('description', this.value)"
-                            rows="2" class="mt-1 block w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-yellow-500 focus:border-yellow-500"></textarea>
-                    </div>
-                </div>
 
-                <div class="flex justify-between items-center pt-4 border-t">
-                    <div class="text-lg font-semibold text-gray-700">
-                        当前总权重: <span id="config-total-weight-display" class="text-3xl font-extrabold text-yellow-600">0</span> 分
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                        <div>
+                            <span class="text-gray-700 text-sm block">名称 (name)</span>
+                            <input type="text" value="${crit.name || ''}" onchange="updateCriterionName(${catIndex}, ${critIndex}, this.value)" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm p-1">
+                        </div>
+                        <div>
+                            <span class="text-gray-700 text-sm block">权重 (weight) - 最大 ${maxScore} 分</span>
+                            <input type="number" step="1" value="${crit.weight || 0}" onchange="updateCriterionWeight(${catIndex}, ${critIndex}, this.value)" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm p-1">
+                        </div>
                     </div>
-                    <div class="flex items-center space-x-4">
-                        <span id="config-save-status" class="text-sm font-medium text-green-600">正在加载配置...</span>
-                        <button id="config-save-button" onclick="saveConfig()"
-                            class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-full shadow-sm text-white bg-green-500 hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition duration-150">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path d="M7.707 10.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L10 11.586l-2.293-2.293z" /><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v5.586l-1.293-1.293a1 1 0 10-1.414 1.414l2 2a1 1 0 001.414 0l4-4a1 1 0 00-1.414-1.414L11 10.586V5z" clip-rule="evenodd" /></svg>
-                            保存所有更改
+
+                    <p class="text-sm font-medium mb-2 text-indigo-600">评分选项 (Options)</p>
+                    <div class="space-y-2 border p-3 rounded-md bg-white">
+                        ${optionsHtml}
+                        <button onclick="addOption(${catIndex}, ${critIndex})" class="w-full mt-2 py-1 text-xs bg-indigo-50 text-indigo-700 rounded-md hover:bg-indigo-100 transition duration-150">
+                            + 添加选项
                         </button>
                     </div>
                 </div>
-            </div>
-            
-            <!-- Category Configuration Area -->
-            <h3 class="text-xl font-bold mb-4 text-yellow-600 border-b pb-2">评分大类与细项配置</h3>
-            <div id="config-criteria-list-container">
-                <!-- Dynamic content here -->
-            </div>
+            `;
+        }
+        
+        /**
+         * 渲染单个选项（Option）的 HTML。
+         */
+        function renderOption(opt, catIndex, critIndex, optIndex) {
+            const scoreDisplay = ((opt.scorePct || 0) * (editorConfig.ratingCriteria[catIndex].criteriaList[critIndex].weight || 0)).toFixed(2);
+            return `
+                <div class="flex items-center space-x-2" data-option-index="${optIndex}">
+                    <input type="text" placeholder="描述" value="${opt.description || ''}" onchange="updateOptionDescription(${catIndex}, ${critIndex}, ${optIndex}, this.value)" class="block w-2/3 rounded-md border-gray-300 shadow-sm text-xs p-1">
+                    <input type="number" step="0.01" placeholder="得分比例(0.0-1.0)" value="${opt.scorePct || 0}" onchange="updateOptionScorePct(${catIndex}, ${critIndex}, ${optIndex}, this.value)" class="block w-1/4 rounded-md border-gray-300 shadow-sm text-xs p-1 text-right">
+                    <span class="text-xs text-gray-500 w-1/5 shrink-0">(得 ${scoreDisplay} 分)</span>
+                    <button onclick="removeOption(${catIndex}, ${critIndex}, ${optIndex})" class="text-red-400 hover:text-red-600 text-xs shrink-0">X</button>
+                </div>
+            `;
+        }
 
-            <!-- Add New Category Button -->
-            <button onclick="configAddCategory()" 
-                class="w-full flex items-center justify-center py-3 px-4 border border-dashed border-yellow-400 text-base font-medium rounded-lg text-yellow-700 bg-yellow-50 hover:bg-yellow-100 transition duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clip-rule="evenodd" /></svg>
-                添加新评分大类 (Category)
-            </button>
+        // --- 数据模型修改函数 ---
+
+        function updateGeneralConfig(key, value) {
+            editorConfig[key] = value;
+        }
+        
+        function updateCategoryTitle(catIndex, value) {
+            editorConfig.ratingCriteria[catIndex].category = value;
+            renderEditor(); // 刷新以更新总分
+        }
+
+        function updateCategoryDetail(catIndex, value) {
+            editorConfig.ratingCriteria[catIndex].detail = value;
+        }
+
+        function updateCriterionName(catIndex, critIndex, value) {
+            editorConfig.ratingCriteria[catIndex].criteriaList[critIndex].name = value;
+        }
+
+        function updateCriterionWeight(catIndex, critIndex, value) {
+            editorConfig.ratingCriteria[catIndex].criteriaList[critIndex].weight = parseFloat(value) || 0;
+            renderEditor(); // 权重变化，需要刷新以更新所有得分显示
+        }
+        
+        function updateOptionDescription(catIndex, critIndex, optIndex, value) {
+            editorConfig.ratingCriteria[catIndex].criteriaList[critIndex].options[optIndex].description = value;
+        }
+
+        function updateOptionScorePct(catIndex, critIndex, optIndex, value) {
+            editorConfig.ratingCriteria[catIndex].criteriaList[critIndex].options[optIndex].scorePct = parseFloat(value) || 0;
+            renderEditor(); // 比例变化，需要刷新以更新得分显示
+        }
+
+        // --- 动态添加/删除函数 ---
+
+        function addCategory() {
+            editorConfig.ratingCriteria.push({
+                category: "新类别标题",
+                detail: "新类别描述",
+                criteriaList: [
+                    { name: "新标准名称", weight: 10, options: [{ description: "一般", scorePct: 0.5 }, { description: "优秀", scorePct: 1.0 }] }
+                ]
+            });
+            renderEditor();
+        }
+
+        function removeCategory(catIndex) {
+            if (confirm("确定要删除此评分类别吗？")) {
+                editorConfig.ratingCriteria.splice(catIndex, 1);
+                renderEditor();
+            }
+        }
+
+        function addCriterion(catIndex) {
+            editorConfig.ratingCriteria[catIndex].criteriaList.push({
+                name: "新评分标准",
+                weight: 10,
+                options: [{ description: "新选项1", scorePct: 0.5 }, { description: "新选项2", scorePct: 1.0 }]
+            });
+            renderEditor();
+        }
+
+        function removeCriterion(catIndex, critIndex) {
+            if (confirm("确定要删除此评分标准吗？")) {
+                editorConfig.ratingCriteria[catIndex].criteriaList.splice(critIndex, 1);
+                renderEditor();
+            }
+        }
+
+        function addOption(catIndex, critIndex) {
+            editorConfig.ratingCriteria[catIndex].criteriaList[critIndex].options.push({ description: "新选项", scorePct: 0.5 });
+            renderEditor();
+        }
+
+        function removeOption(catIndex, critIndex, optIndex) {
+            editorConfig.ratingCriteria[catIndex].criteriaList[critIndex].options.splice(optIndex, 1);
+            renderEditor();
+        }
+
+        // 将核心更新函数暴露给全局作用域，以便 HTML 元素的 onclick/onchange 调用
+        window.updateGeneralConfig = updateGeneralConfig;
+        window.updateCategoryTitle = updateCategoryTitle;
+        window.updateCategoryDetail = updateCategoryDetail;
+        window.updateCriterionName = updateCriterionName;
+        window.updateCriterionWeight = updateCriterionWeight;
+        window.updateOptionDescription = updateOptionDescription;
+        window.updateOptionScorePct = updateOptionScorePct;
+        window.addCategory = addCategory;
+        window.removeCategory = removeCategory;
+        window.addCriterion = addCriterion;
+        window.removeCriterion = removeCriterion;
+        window.addOption = addOption;
+        window.removeOption = removeOption;
+
+
+        // --- Firebase 操作 ---
+
+        async function initFirebase() {
+            if (Object.keys(JSON.parse(__firebase_config)).length === 0) {
+                document.getElementById('app-container').innerHTML = `<div class="p-6 text-red-600 bg-red-100 rounded-lg max-w-xl mx-auto mt-10">🔴 Firebase 配置信息缺失。</div>`;
+                return;
+            }
+            try {
+                const app = initializeApp(JSON.parse(__firebase_config));
+                db = getFirestore(app);
+                const auth = getAuth(app);
+                
+                const token = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+                token ? await signInWithCustomToken(auth, token) : await signInAnonymously(auth);
+                
+                loadConfig();
+                saveButton.disabled = false;
+
+            } catch (error) {
+                console.error("Firebase Initialization Failed:", error);
+                updateStatus(`❌ 初始化失败: ${error.message}`, 'text-red-500');
+            }
+        }
+
+        async function loadConfig() {
+            updateStatus('正在从云端加载配置...', 'text-yellow-500');
+            try {
+                const configDocRef = doc(db, CONFIG_DOC_PATH);
+                const docSnap = await getDoc(configDocRef);
+
+                if (docSnap.exists() && docSnap.data().ratingCriteria) {
+                    editorConfig = docSnap.data();
+                    updateStatus('配置加载成功，可以开始编辑。', 'text-green-600');
+                } else {
+                    // 如果文档不存在，使用一个空结构体作为默认值
+                    editorConfig = { appTitle: "新评分体系 (请编辑)", description: "在此添加您的描述。", ratingCriteria: [] };
+                    updateStatus('警告：未找到云端配置文档，已加载空默认结构。', 'text-orange-500');
+                }
+                
+                renderEditor();
+            } catch (error) {
+                console.error("Error loading config:", error);
+                updateStatus(`加载失败: ${error.message}`, 'text-red-500');
+            }
+        }
+
+        async function saveConfig() {
+            saveButton.disabled = true;
+            saveButton.textContent = '正在保存...';
+            try {
+                // 1. 重新计算所有权重和总分 (确保数据结构一致)
+                calculateWeights(editorConfig);
+
+                // 2. 验证基本数据
+                if (!editorConfig.ratingCriteria || !Array.isArray(editorConfig.ratingCriteria)) {
+                    throw new Error("数据结构错误：缺少 'ratingCriteria' 数组。");
+                }
+                
+                // 3. 写入 Firestore
+                const configDocRef = doc(db, CONFIG_DOC_PATH);
+                await setDoc(configDocRef, editorConfig);
+
+                updateStatus(`✅ 配置保存成功！总分：${editorConfig.totalWeightMax.toFixed(2)}。主应用已实时同步。`, 'text-green-600');
+
+            } catch (error) {
+                console.error("Error saving config:", error);
+                updateStatus(`❌ 保存失败：${error.message}`, 'text-red-600');
+            } finally {
+                saveButton.disabled = false;
+                saveButton.textContent = '保存并同步到云端';
+            }
+        }
+
+        // --- 事件监听器 ---
+        saveButton.addEventListener('click', saveConfig);
+
+        // 初始化
+        window.onload = initFirebase;
+    </script>
+</head>
+<body class="bg-gray-100 font-sans antialiased text-gray-800">
+
+    <div id="app-container" class="max-w-5xl mx-auto p-4 md:p-8">
+
+        <header class="mb-8 p-6 bg-indigo-700 text-white rounded-xl shadow-2xl">
+            <h1 class="text-3xl font-extrabold mb-1">雪茄评分标准配置中心</h1>
+            <p class="text-indigo-200 text-sm">通过表单实时编辑评分标准。完成后点击保存，所有使用该配置的主应用将立即更新。</p>
+            
+            <div class="flex justify-between items-end mt-4">
+                 <div class="flex items-end space-x-2">
+                    <span class="text-lg font-medium text-indigo-200">当前最大总分:</span>
+                    <span id="total-max-score" class="text-4xl font-black leading-none text-yellow-300">0.00</span>
+                </div>
+                <a href="index.html" class="inline-flex items-center px-4 py-2 border border-white text-sm font-medium rounded-full shadow-sm text-white bg-indigo-600 hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-150">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+                    返回评分主页
+                </a>
+            </div>
+        </header>
+
+        <div id="config-editor-container">
+            <p class="text-center text-gray-500 mt-10">正在加载编辑器...</p>
         </div>
         
-        <footer class="mt-8 text-center text-gray-500 text-sm p-4 border-t">
-            请确保保存更改，以便主应用获取最新配置。
-        </footer>
+        <div class="fixed bottom-0 left-0 right-0 bg-white p-4 shadow-2xl border-t border-gray-200">
+            <div class="max-w-5xl mx-auto flex justify-between items-center">
+                <span id="config-load-status" class="text-sm font-medium text-yellow-500">正在等待初始化...</span>
+                <button id="save-config-btn" 
+                        class="px-6 py-3 bg-indigo-600 text-white font-semibold rounded-full shadow-lg hover:bg-indigo-700 transition duration-300 disabled:bg-gray-400"
+                        disabled>
+                    保存并同步到云端
+                </button>
+            </div>
+        </div>
+
     </div>
+    <div class="h-20"></div> 
 
 </body>
 </html>
