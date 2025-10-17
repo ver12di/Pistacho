@@ -19,10 +19,8 @@
     </script>
     
     <script>
-        // 应用程序 ID - 用于构建 Firestore 路径：/artifacts/{appId}/...
         const __app_id = 'pistacho-b9efe'; 
 
-        // 您的 Firebase 项目配置 (作为 JSON 字符串)
         const __firebase_config = JSON.stringify({
             apiKey: "AIzaSyDC-8qbWsjRyxBzJpfCi9n3ftzdg9FStF0", 
             authDomain: "pistacho-b9efe.firebaseapp.com",
@@ -32,15 +30,12 @@
             appId: "1:686695750713:web:5314331be7b46e93f401e8",
             measurementId: "G-HQS7Q78LY7"
         });
-        
-        // 如果您使用自定义令牌认证，可以在此设置：
-        // const __initial_auth_token = 'YOUR_CUSTOM_TOKEN_HERE'; 
     </script>
     
     <script type="module">
         // --- Firebase Imports ---
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, onSnapshot, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         
         // --- Global State and Setup ---
@@ -48,11 +43,13 @@
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
         
         let db, auth;
-        let ratingConfig = null; // Stores the configuration loaded from Firestore
-        let userRatings = {};    // Stores the user's current selections for the rating session
+        let ratingConfig = null; 
+        let userRatings = {};    
+        let userRole = 'unknown'; // 新增：当前登录用户的角色
         
         const CONFIG_DOC_PATH = `/artifacts/${appId}/public/data/cigar_config/latest`;
-        
+        const USERS_COLLECTION_PATH = 'users'; // 新增
+
         // Initial configuration structure (Used for first-time setup)
         const defaultInitialConfig = {
             appTitle: "雪茄品鉴评分体系 V2.0 (默认配置)",
@@ -79,10 +76,6 @@
 
         // --- Utility Functions ---
 
-        /**
-         * 计算配置中所有评分标准和类别的最大总权重。
-         * @param {object} config - 评分配置对象。
-         */
         function calculateWeights(config) {
             let grandTotal = 0;
             config.ratingCriteria.forEach(category => {
@@ -96,10 +89,6 @@
             config.totalWeightMax = grandTotal;
         }
 
-        /**
-         * 计算用户当前选择的总得分。
-         * @returns {number} 最终得分。
-         */
         function calculateFinalScore() {
             if (!ratingConfig) return 0;
             let totalScore = 0;
@@ -120,14 +109,25 @@
         }
 
         // --- FIREBASE AND DATA LOADING ---
-
+        
         /**
-         * 初始化 Firebase 应用、认证和 Firestore。
+         * 新增：获取用户角色。
          */
+        async function fetchUserRole(uid) {
+            const roleDocRef = doc(db, USERS_COLLECTION_PATH, uid);
+            try {
+                const docSnap = await getDoc(roleDocRef);
+                return docSnap.exists() ? docSnap.data().role : 'general'; // 默认是 general
+            } catch (e) {
+                console.warn("Failed to fetch user role, assuming general:", e);
+                return 'general';
+            }
+        }
+
+
         async function initFirebase() {
-            // 检查配置是否缺失
             if (Object.keys(firebaseConfig).length === 0 || !firebaseConfig.projectId) {
-                document.getElementById('app-container').innerHTML = `<div class="p-6 text-red-600 bg-red-100 rounded-lg max-w-xl mx-auto mt-10">🔴 Firebase 配置信息缺失。请检查环境设置脚本。</div>`;
+                document.getElementById('app-container').innerHTML = `<div class="p-6 text-red-600 bg-red-100 rounded-lg max-w-xl mx-auto mt-10">🔴 Firebase 配置信息缺失。</div>`;
                 return;
             }
             try {
@@ -135,15 +135,26 @@
                 db = getFirestore(app);
                 auth = getAuth(app);
                 
-                // 认证
-                const token = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-                if (token) {
-                    await signInWithCustomToken(auth, token);
-                } else {
-                    await signInAnonymously(auth);
-                }
-                
-                loadConfig();
+                // 监听认证状态
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        // 1. 获取用户角色
+                        userRole = await fetchUserRole(user.uid);
+                        
+                        // 2. 渲染管理链接
+                        renderAdminLinks(); 
+                        
+                        // 3. 加载配置（所有认证用户都可以读取）
+                        loadConfig(); 
+                        
+                        document.getElementById('config-load-status').textContent = `已认证。角色: ${userRole.toUpperCase()}`;
+
+                    } else {
+                        // 首次加载时进行匿名登录
+                        await signInAnonymously(auth);
+                        document.getElementById('config-load-status').textContent = '正在进行匿名登录...';
+                    }
+                });
 
             } catch (error) {
                 console.error("Firebase Initialization Failed:", error);
@@ -151,33 +162,26 @@
             }
         }
 
-        /**
-         * 从 Firestore 加载配置，并设置实时监听。
-         */
         async function loadConfig() {
             const configDocRef = doc(db, CONFIG_DOC_PATH);
             const configStatusElement = document.getElementById('config-load-status');
 
-            // 1. 检查文档是否存在，不存在则写入默认配置
             const docSnap = await getDoc(configDocRef);
             if (!docSnap.exists() || !docSnap.data().ratingCriteria) {
                 const configToSave = JSON.parse(JSON.stringify(defaultInitialConfig));
                 calculateWeights(configToSave);
-                // 仅在文档不存在时写入，确保文档第一次创建
                 if (!docSnap.exists()) {
                     await setDoc(configDocRef, configToSave);  
                 }
-                configStatusElement.textContent = '已自动加载默认配置';
-                configStatusElement.className = 'text-yellow-300';
+                configStatusElement.textContent = `已自动加载默认配置。角色: ${userRole.toUpperCase()}`;
             }
 
-            // 2. 实时监听配置更新
             onSnapshot(configDocRef, (docSnap) => {
                 if (docSnap.exists() && docSnap.data().ratingCriteria) {
                     ratingConfig = docSnap.data();
                     calculateWeights(ratingConfig);
                     renderRatingView(); 
-                    configStatusElement.textContent = '配置已实时同步';
+                    configStatusElement.textContent = `配置已实时同步。角色: ${userRole.toUpperCase()}`;
                     configStatusElement.className = 'text-green-400';
                 } else {
                     configStatusElement.textContent = '配置加载失败 (文档结构异常)';
@@ -193,21 +197,43 @@
         // --- RATING VIEW LOGIC ---
 
         /**
-         * 更新用户选择并触发视图刷新。
-         * 这是一个全局函数，由评分按钮的 onclick 事件调用。
-         * @param {number} catIndex - 类别索引。
-         * @param {number} critIndex - 标准索引。
-         * @param {number} optionIndex - 选项索引。
+         * 新增：根据用户角色渲染管理链接。
          */
+        function renderAdminLinks() {
+            const adminLinksContainer = document.getElementById('admin-links-container');
+            let linksHtml = '';
+            
+            // 评分标准修改 (Admin 和 Super Admin 可见)
+            if (userRole === 'admin' || userRole === 'super_admin') {
+                linksHtml += `
+                    <a href="cigar_rating_config.html"
+                        class="flex items-center px-4 py-2 border border-white text-sm font-medium rounded-full shadow-sm text-white bg-indigo-600 hover:bg-indigo-500 transition duration-150">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" /></svg>
+                        评分标准修改
+                    </a>
+                `;
+            }
+
+            // 用户角色管理 (Super Admin 可见)
+            if (userRole === 'super_admin') {
+                 linksHtml += `
+                    <a href="role_management.html"
+                        class="flex items-center px-4 py-2 border border-white text-sm font-medium rounded-full shadow-sm text-yellow-100 bg-purple-600 hover:bg-purple-500 transition duration-150">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" /></svg>
+                        用户角色管理
+                    </a>
+                `;
+            }
+
+            adminLinksContainer.innerHTML = linksHtml;
+        }
+
         window.updateRatingSelection = function(catIndex, critIndex, optionIndex) {
             const id = `${catIndex}-${critIndex}`;
             userRatings[id] = optionIndex;
             renderRatingView(); 
         };
 
-        /**
-         * 渲染整个评分视图：更新得分显示和重新生成表单。
-         */
         function renderRatingView() {
             if (!ratingConfig) {
                 document.getElementById('rating-form-container').innerHTML = `<p class="text-center text-gray-500 mt-10">正在加载评分配置...</p>`;
@@ -223,12 +249,10 @@
             
             const currentScoreDisplay = document.getElementById('current-score-display');
             currentScoreDisplay.textContent = totalScore.toFixed(2);
-            // 每次得分变化时触发动画
             currentScoreDisplay.classList.add('animate-pulse-score'); 
             setTimeout(() => {
                  currentScoreDisplay.classList.remove('animate-pulse-score'); 
             }, 500);
-
 
             // 2. Render Form
             const formContainer = document.getElementById('rating-form-container');
@@ -246,9 +270,6 @@
             `).join('');
         }
 
-        /**
-         * 渲染单个评分标准（Criterion）的 HTML 块。
-         */
         function renderRatingCriterion(catIndex, critIndex, criterion) {
             const id = `${catIndex}-${critIndex}`;
             const selectedOptionIndex = userRatings[id];
@@ -319,11 +340,8 @@
                     <span id="config-load-status" class="text-xs ml-4 text-yellow-300">正在加载配置...</span>
                 </div>
                 
-                <a href="cigar_rating_config.html"
-                    class="flex items-center px-4 py-2 border border-white text-sm font-medium rounded-full shadow-sm text-white bg-indigo-600 hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-150">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" /></svg>
-                    评分标准修改
-                </a>
+                <div id="admin-links-container" class="flex items-center space-x-3">
+                    </div>
             </div>
         </header>
 
