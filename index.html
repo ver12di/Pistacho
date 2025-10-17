@@ -113,36 +113,45 @@
         // --- FIREBASE AUTHENTICATION & DATA LOADING ---
         
         /**
-         * 关键函数：获取用户角色，如果非匿名用户角色文档不存在，则初始化为 'general'。
+         * 关键函数：获取用户角色，如果非匿名用户角色文档不存在，则尝试初始化为 'general'。
+         * 即使初始化失败，也要确保返回一个默认角色，让应用继续加载。
          */
         async function fetchUserRole(user) {
             const uid = user.uid;
             const roleDocRef = doc(db, USERS_COLLECTION_PATH, uid);
-            
+            let role = 'general'; // 默认角色
+
             try {
                 const docSnap = await getDoc(roleDocRef);
 
                 if (docSnap.exists() && docSnap.data().role) {
-                    // 情况 A: 文档存在且包含角色信息，直接返回
+                    // 情况 A: 文档存在且包含角色信息，返回实际角色
                     return docSnap.data().role; 
                 } 
                 
                 // 情况 B: 文档不存在或不包含角色字段
                 if (!user.isAnonymous) {
                     // 只有非匿名用户（邮箱/密码用户）才需要初始化角色文档
-                    console.log(`用户角色文档不存在 (${uid})，正在初始化为 'general'。`);
-                    await setDoc(roleDocRef, { 
-                        role: 'general',
-                        email: user.email,
-                        createdAt: new Date().toISOString()
-                    }, { merge: true }); // 使用 merge: true 确保不会覆盖其他数据
+                    try {
+                        console.log(`当前用户 UID: ${uid}. 角色文档不存在，正在尝试初始化为 'general'。`);
+                        await setDoc(roleDocRef, { 
+                            role: 'general',
+                            email: user.email,
+                            createdAt: new Date().toISOString()
+                        }, { merge: true });
+                        console.log('角色文档初始化尝试成功（或已存在）。');
+                    } catch (initError) {
+                        // 如果 setDoc 失败（例如权限不足），我们捕获它，但不阻塞主流程。
+                        console.error("初始化用户角色文档失败 (请检查 Firestore 规则!):", initError.message);
+                    }
                 }
-
-                // 无论是新创建的还是匿名的，如果文档没有 role 字段，默认角色都是 'general'
-                return 'general'; 
+                
+                // 无论初始化是否成功，如果上面没有返回，我们都返回默认角色
+                return role; 
 
             } catch (e) {
-                console.warn("获取或设置用户角色失败，默认为 'general':", e);
+                // 捕获 getDoc 阶段的错误
+                console.warn("获取用户角色失败，默认为 'general':", e);
                 return 'general';
             }
         }
@@ -223,7 +232,6 @@
                 onAuthStateChanged(auth, async (user) => {
                     if (user) {
                         currentAuthUser = user;
-
                         // 1. 获取用户角色（此函数现在包含初始化逻辑）
                         userRole = await fetchUserRole(user); 
                         
