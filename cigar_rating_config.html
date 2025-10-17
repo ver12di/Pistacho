@@ -20,19 +20,17 @@
     
     <script>
         // 应用程序 ID - 必须和 index.html 中的值一致！
-        const __app_id = 'Pistacho Cigar Rating System'; 
+        const __app_id = 'pistacho-b9efe'; 
 
         // 您的 Firebase 项目配置 (作为 JSON 字符串) - 必须和 index.html 中的值一致！
-        // ** 请将以下占位符替换为您 Firebase 项目的真实配置！**
-        const firebaseConfig = {
-  apiKey: "AIzaSyDC-8qbWsjRyxBzJpfCi9n3ftzdg9FStF0",
-  authDomain: "pistacho-b9efe.firebaseapp.com",
-  projectId: "pistacho-b9efe",
-  storageBucket: "pistacho-b9efe.firebasestorage.app",
-  messagingSenderId: "686695750713",
-  appId: "1:686695750713:web:5314331be7b46e93f401e8",
-  measurementId: "G-HQS7Q78LY7"
-            // ...其他配置
+        const __firebase_config = JSON.stringify({
+            apiKey: "AIzaSyDC-8qbWsjRyxBzJpfCi9n3ftzdg9FStF0", 
+            authDomain: "pistacho-b9efe.firebaseapp.com",
+            projectId: "pistacho-b9efe",
+            storageBucket: "pistacho-b9efe.firebasestorage.app",
+            messagingSenderId: "686695750713",
+            appId: "1:686695750713:web:5314331be7b46e93f401e8",
+            measurementId: "G-HQS7Q78LY7"
         });
         
         // 可选的 Custom Auth Token
@@ -185,7 +183,10 @@
          * 渲染单个选项（Option）的 HTML。
          */
         function renderOption(opt, catIndex, critIndex, optIndex) {
-            const scoreDisplay = ((opt.scorePct || 0) * (editorConfig.ratingCriteria[catIndex].criteriaList[critIndex].weight || 0)).toFixed(2);
+            const currentCriterion = editorConfig.ratingCriteria[catIndex].criteriaList[critIndex];
+            const maxScore = currentCriterion.weight || 0;
+            const scoreDisplay = ((opt.scorePct || 0) * maxScore).toFixed(2);
+            
             return `
                 <div class="flex items-center space-x-2" data-option-index="${optIndex}">
                     <input type="text" placeholder="描述" value="${opt.description || ''}" onchange="updateOptionDescription(${catIndex}, ${critIndex}, ${optIndex}, this.value)" class="block w-2/3 rounded-md border-gray-300 shadow-sm text-xs p-1">
@@ -294,7 +295,7 @@
         // --- Firebase 操作 ---
 
         async function initFirebase() {
-            if (Object.keys(JSON.parse(__firebase_config)).length === 0) {
+            if (Object.keys(JSON.parse(__firebase_config)).length === 0 || !JSON.parse(__firebase_config).projectId) {
                 document.getElementById('app-container').innerHTML = `<div class="p-6 text-red-600 bg-red-100 rounded-lg max-w-xl mx-auto mt-10">🔴 Firebase 配置信息缺失。</div>`;
                 return;
             }
@@ -354,6 +355,9 @@
                 await setDoc(configDocRef, editorConfig);
 
                 updateStatus(`✅ 配置保存成功！总分：${editorConfig.totalWeightMax.toFixed(2)}。主应用已实时同步。`, 'text-green-600');
+
+                // 重新渲染，确保最大总分等更新
+                renderEditor(); 
 
             } catch (error) {
                 console.error("Error saving config:", error);
