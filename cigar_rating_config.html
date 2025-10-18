@@ -201,9 +201,30 @@
             const deleteProfileButton = document.getElementById('delete-profile-button');
             const isAdmin = hasAdminAccess();
             
+            // (*** 灰色按钮修复 ***)
+            // 按钮状态更新逻辑现在位于函数顶部，确保每次都执行
+            if (isAdmin) {
+                publishButton.disabled = false;
+                publishButton.className = 'w-full py-3 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition duration-150';
+                
+                if (currentProfileId === 'latest') {
+                    saveProfileButton.disabled = true;
+                    saveProfileButton.className = 'w-full py-3 bg-gray-400 text-gray-700 font-semibold rounded-lg cursor-not-allowed';
+                    deleteProfileButton.disabled = true;
+                } else {
+                    saveProfileButton.disabled = false;
+                    saveProfileButton.className = 'w-full py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition duration-150';
+                    deleteProfileButton.disabled = false;
+                }
+            } else {
+                publishButton.disabled = true;
+                saveProfileButton.disabled = true;
+                deleteProfileButton.disabled = true;
+            }
+            
             if (Object.keys(ratingConfig).length === 0) {
                  container.innerHTML = `<div class="p-6 text-center text-gray-500">正在加载配置...</div>`;
-                 return; // 等待数据加载
+                 return;
             }
             
             document.getElementById('app-title-input').value = ratingConfig.appTitle || '';
@@ -227,28 +248,6 @@
                 </div>
             `).join('');
              container.innerHTML += `<button onclick="addCategory()" class="mt-6 w-full py-3 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 transition duration-150 shadow-md">+ 添加新类别</button>`;
-            
-            if (isAdmin) {
-                publishButton.disabled = false;
-                publishButton.className = 'w-full py-3 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition duration-150';
-                
-                // (*** 灰色按钮修复 ***)
-                // 明确地在 if/else 中设置 disabled 和 className 属性
-                if (currentProfileId === 'latest') {
-                    saveProfileButton.disabled = true;
-                    saveProfileButton.className = 'w-full py-3 bg-gray-400 text-gray-700 font-semibold rounded-lg cursor-not-allowed';
-                    deleteProfileButton.disabled = true;
-                } else {
-                    saveProfileButton.disabled = false;
-                    saveProfileButton.className = 'w-full py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition duration-150';
-                    deleteProfileButton.disabled = false;
-                }
-
-            } else {
-                publishButton.disabled = true;
-                saveProfileButton.disabled = true;
-                deleteProfileButton.disabled = true;
-            }
         }
 
         function renderCriterion(catIndex, critIndex, criterion) {
@@ -484,7 +483,7 @@
     <div id="main-container" class="max-w-4xl mx-auto p-4 md:p-8">
 
         <header class="mb-8 p-6 bg-indigo-700 text-white rounded-xl shadow-2xl relative">
-            <h1 class="text-3xl font-extrabold mb-1">雪茄评分体系配置</h1>
+            <h1 class="text-3xl font-extrabold mb-1">雪茄品鉴配置管理</h1>
             <p class="text-indigo-200 text-sm mb-2">管理评分标准，所有更改在发布后将实时同步到主应用。</p>
             <div id="role-display" class="text-xs text-yellow-300">正在检查权限...</div>
             <a href="index.html" class="absolute top-4 right-4 text-indigo-200 hover:text-white transition">← 返回主页</a>
@@ -557,3 +556,4 @@
 
 </body>
 </html>
+
