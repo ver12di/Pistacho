@@ -260,16 +260,19 @@
         }
 
         function renderOption(catIndex, critIndex, optIndex, option) {
-            // 🚨 选项渲染检查点：确保 value 正确绑定
+            // 🚨 核心修复点：使用 String() 确保 description 严格转换为字符串，避免潜在的渲染问题。
+            const safeDescription = String(option.description || ''); 
+            const safeScorePct = option.scorePct || 0;
+
             return `
                 <div class="flex space-x-2 items-center bg-white p-2 rounded-md border text-sm">
                     <div class="flex-1">
                         <label class="block text-xs">描述:</label>
-                        <input type="text" data-type="option" data-cat-index="${catIndex}" data-crit-index="${critIndex}" data-index="${optIndex}" data-field="description" value="${option.description || ''}" class="config-input w-full p-1 border rounded-md text-xs" oninput="handleInputChange(this)">
+                        <input type="text" data-type="option" data-cat-index="${catIndex}" data-crit-index="${critIndex}" data-index="${optIndex}" data-field="description" value="${safeDescription}" class="config-input w-full p-1 border rounded-md text-xs" oninput="handleInputChange(this)">
                     </div>
                     <div class="w-1/4">
                         <label class="block text-xs">得分率 (0-1):</label>
-                        <input type="number" step="0.01" data-type="option" data-cat-index="${catIndex}" data-crit-index="${critIndex}" data-index="${optIndex}" data-field="scorePct" value="${option.scorePct || 0}" class="config-input w-full p-1 border rounded-md text-xs" oninput="handleInputChange(this)">
+                        <input type="number" step="0.01" data-type="option" data-cat-index="${catIndex}" data-crit-index="${critIndex}" data-index="${optIndex}" data-field="scorePct" value="${safeScorePct}" class="config-input w-full p-1 border rounded-md text-xs" oninput="handleInputChange(this)">
                     </div>
                     <button onclick="removeOption(${catIndex}, ${critIndex}, ${optIndex})" class="text-red-400 hover:text-red-600 transition text-sm flex-shrink-0">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 10-2 0v6a1 1 0 102 0V8z" clip-rule="evenodd" /></svg>
@@ -289,7 +292,7 @@
             const type = element.getAttribute('data-type');
             const field = element.getAttribute('data-field');
             
-            // --- 索引解析逻辑：修正了评分项和选项的索引获取 ---
+            // --- 索引解析逻辑 ---
             let catIndex = null, critIndex = null, optIndex = null;
 
             if (field === 'appTitle' || field === 'description') {
