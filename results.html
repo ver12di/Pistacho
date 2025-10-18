@@ -44,7 +44,6 @@
                 <h1 class="text-4xl font-extrabold text-gray-800 mb-2">评分报告</h1>
             </header>
             
-            <!-- (*** 新增：雪茄信息展示区域 ***) -->
             <section id="cigar-info-container" class="mb-6">
                 <!-- JS will inject cigar info here -->
             </section>
@@ -133,7 +132,6 @@
             }
             
             try {
-                // (*** 新增：从数据中提取 cigarInfo ***)
                 const { config, ratings, calculatedScore, cigarInfo } = JSON.parse(storedData);
                 const maxScore = config.totalWeightMax || 100;
                 const normalizedScore = (calculatedScore / maxScore) * 100;
@@ -146,7 +144,6 @@
                     }
                 }
                 
-                // (*** 新增：渲染雪茄信息 ***)
                 if (cigarInfo) {
                     renderCigarInfo(cigarInfoContainer, cigarInfo);
                 }
@@ -165,7 +162,6 @@
         
         // --- 渲染函数 ---
 
-        // (*** 新增：渲染雪茄信息的函数 ***)
         function renderCigarInfo(container, info) {
             container.innerHTML = `
                 <div class="bg-white rounded-xl shadow-lg p-6 text-center">
@@ -180,7 +176,15 @@
         }
 
         function renderResultsCard(container, score, grade) {
-            const { bgGradient, textColor, shadowColor, ringColor } = getGradeStyles(grade.color);
+            // 添加一个安全检查，以防 grade 对象无效
+            if (!grade || !grade.color) {
+                console.error("无法渲染结果卡片，无效的 grade 对象:", grade);
+                container.innerHTML = `<div class="p-4 bg-red-100 text-red-700 rounded-lg">无法显示评级卡片。</div>`;
+                return;
+            }
+            const styles = getGradeStyles(grade.color);
+            const { bgGradient, shadowColor } = styles;
+
             container.innerHTML = `
                 <div class="relative rounded-2xl p-8 text-white overflow-hidden shadow-2xl ${bgGradient} ${shadowColor}">
                     <div class="relative z-10 flex justify-between items-center">
@@ -198,10 +202,86 @@
             `;
         }
 
-        function renderSummary(container, config, ratings) { /* ... (same as before) ... */ }
-        function renderFullScale(container, finalGrade) { /* ... (same as before) ... */ }
-        function getScoreRange(grade) { /* ... (same as before) ... */ }
-        function getGradeStyles(color) { /* ... (same as before) ... */ }
+        function renderSummary(container, config, ratings) {
+            let summaryHtml = '';
+            (config.ratingCriteria || []).forEach((category, catIndex) => {
+                summaryHtml += `<div class="mb-4">`;
+                summaryHtml += `<h4 class="text-md font-semibold text-gray-600 mb-2 border-b pb-1">${category.category}</h4>`;
+                summaryHtml += `<ul class="list-none space-y-1 text-sm">`;
+                (category.criteriaList || []).forEach((criterion, critIndex) => {
+                    const id = `${category.category}-${criterion.name}`;
+                    const selectedOptionIndex = ratings[id];
+                    if (selectedOptionIndex !== undefined && criterion.options && criterion.options[selectedOptionIndex]) {
+                        const option = criterion.options[selectedOptionIndex];
+                        const weightedScore = (criterion.weight || 0) * (option.scorePct || 0);
+                        summaryHtml += `
+                            <li class="flex justify-between items-center p-1">
+                                <div>
+                                    <span class="font-medium text-gray-700">${criterion.name}:</span>
+                                    <span class="text-gray-500 ml-2">${option.description}</span>
+                                </div>
+                                <span class="font-semibold text-green-600">+${weightedScore.toFixed(2)}</span>
+                            </li>
+                        `;
+                    }
+                });
+                summaryHtml += `</ul></div>`;
+            });
+            container.innerHTML = summaryHtml;
+        }
+        
+        function renderFullScale(container, finalGrade) {
+            let scaleHtml = '<div class="space-y-3">';
+            GRADING_SCALE.forEach(grade => {
+                const isCurrentGrade = grade.grade === finalGrade.grade;
+                const styles = getGradeStyles(grade.color);
+                const highlightClasses = isCurrentGrade 
+                    ? `border-blue-500 bg-blue-50 ring-2 ring-blue-200 animate-highlight` 
+                    : 'border-gray-200 bg-white hover:bg-gray-50';
+                
+                scaleHtml += `
+                    <div class="p-4 rounded-lg border-2 transition-all duration-300 ${highlightClasses}">
+                        <div class="flex items-center space-x-4">
+                            <div class="w-8 h-8 flex-shrink-0 rounded-full flex items-center justify-center font-black text-xl ${styles.textColor} ${styles.bgColor}">
+                                ${grade.grade}
+                            </div>
+                            <div class="flex-grow">
+                                <p class="font-bold text-lg ${styles.textColor}">${grade.name_cn}</p>
+                                <p class="text-sm text-gray-500">${grade.name_en}</p>
+                            </div>
+                            <p class="font-mono font-semibold text-gray-700 text-right">${getScoreRange(grade.grade)}</p>
+                        </div>
+                    </div>
+                `;
+            });
+            scaleHtml += '</div>';
+            container.innerHTML = scaleHtml;
+        }
+
+        // --- 样式辅助函数 ---
+        
+        function getScoreRange(grade) {
+            const index = GRADING_SCALE.findIndex(g => g.grade === grade);
+            const min = GRADING_SCALE[index].min_score;
+            const max = index === 0 ? 100 : GRADING_SCALE[index - 1].min_score - 0.01;
+            return index === 0 ? `${min}-100` : `${min.toFixed(0)}-${max.toFixed(2)}`;
+        }
+
+        // (*** 已修复：重写为更健壮的实现 ***)
+        function getGradeStyles(color) {
+            const stylesMap = {
+                'gold':   { bgColor: 'bg-yellow-400', textColor: 'text-yellow-800', bgGradient: 'bg-gradient-to-br from-yellow-400 to-amber-500', shadowColor: 'shadow-yellow-500/50' },
+                'indigo': { bgColor: 'bg-indigo-300', textColor: 'text-indigo-800', bgGradient: 'bg-gradient-to-br from-indigo-500 to-purple-600', shadowColor: 'shadow-indigo-500/50' },
+                'purple': { bgColor: 'bg-purple-300', textColor: 'text-purple-800', bgGradient: 'bg-gradient-to-br from-purple-500 to-violet-600', shadowColor: 'shadow-purple-500/50' },
+                'blue':   { bgColor: 'bg-blue-300',   textColor: 'text-blue-800',   bgGradient: 'bg-gradient-to-br from-blue-500 to-cyan-600',   shadowColor: 'shadow-blue-500/50' },
+                'green':  { bgColor: 'bg-green-300',  textColor: 'text-green-800',  bgGradient: 'bg-gradient-to-br from-green-500 to-lime-600',   shadowColor: 'shadow-green-500/50' },
+                'gray':   { bgColor: 'bg-gray-300',   textColor: 'text-gray-800',   bgGradient: 'bg-gradient-to-br from-gray-500 to-slate-600',    shadowColor: 'shadow-gray-500/50' },
+                'orange': { bgColor: 'bg-orange-300', textColor: 'text-orange-800', bgGradient: 'bg-gradient-to-br from-orange-500 to-amber-600',  shadowColor: 'shadow-orange-500/50' },
+                'red':    { bgColor: 'bg-red-300',    textColor: 'text-red-800',    bgGradient: 'bg-gradient-to-br from-red-500 to-rose-600',     shadowColor: 'shadow-red-500/50' }
+            };
+            // 如果找不到指定的颜色，则返回默认的灰色样式
+            return stylesMap[color] || stylesMap['gray'];
+        }
     </script>
 </body>
 </html>
