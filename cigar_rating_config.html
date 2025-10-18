@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>评分配置管理 - 表单编辑器</title>
+    <title>雪茄品鉴配置管理</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         // 1. Tailwind CSS 配置
@@ -33,327 +33,403 @@
     </script>
     
     <script type="module">
+        // --- Firebase Imports ---
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, onSnapshot, setDoc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         
-        // --- 常量与状态 ---
-        let db;
-        let editorConfig = {}; 
-        let userRole = 'unknown'; // 新增：当前登录用户的角色
-        const CONFIG_DOC_PATH = `/artifacts/${__app_id}/public/data/cigar_config/latest`;
-        const USERS_COLLECTION_PATH = 'users'; // 新增
+        // --- Global State and Setup ---
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
         
-        // DOM 元素
-        const editorContainer = document.getElementById('config-editor-container');
-        const loadStatus = document.getElementById('config-load-status');
-        const saveButton = document.getElementById('save-config-btn');
-        const totalMaxScoreDisplay = document.getElementById('total-max-score');
+        let db, auth;
+        let ratingConfig = {};    
+        let userRole = 'unknown'; 
+        
+        const CONFIG_DOC_PATH = `/artifacts/${appId}/public/data/cigar_config/latest`;
+        const USERS_COLLECTION_PATH = 'users'; 
+        
+        // --- Utility Functions ---
 
-        // --- 核心工具函数 ---
-
-        // 计算权重 (与 index.html 保持一致)
-        function calculateWeights(config) {
-            let grandTotal = 0;
-            config.ratingCriteria.forEach(category => {
-                let categoryTotal = 0;
-                category.criteriaList.forEach(criterion => {
-                    categoryTotal += (criterion.weight || 0);
-                });
-                category.totalWeight = categoryTotal;
-                grandTotal += categoryTotal;
-            });
-            config.totalWeightMax = grandTotal;
-        }
-
-        // 渲染状态更新
-        function updateStatus(message, className) {
-            loadStatus.textContent = message;
-            loadStatus.className = `text-sm font-medium ${className}`;
-        }
-        
-        // --- 权限检查与渲染函数 ---
-        
         /**
-         * 检查权限并决定是否加载编辑器。
+         * 检查当前用户角色是否有权限修改配置
          */
-        function checkPermissionAndLoad() {
-            if (userRole === 'admin' || userRole === 'super_admin') {
-                updateStatus('权限验证成功 (Admin/Super Admin)。正在加载配置...', 'text-yellow-600');
-                loadConfig(); // 有权限，开始加载配置
-            } else {
-                updateStatus(`❌ 权限不足。当前角色: ${userRole.toUpperCase()}。`, 'text-red-600');
-                saveButton.disabled = true;
-                saveButton.textContent = '权限不足，无法保存';
-                editorContainer.innerHTML = `
-                    <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mt-10" role="alert">
-                        <strong class="font-bold">访问被拒绝!</strong>
-                        <span class="block sm:inline">您需要管理员 (Admin) 或超级管理员 (Super Admin) 权限才能修改配置。</span>
-                    </div>
-                `;
-            }
+        function hasAdminAccess() {
+            return userRole === 'admin' || userRole === 'super_admin';
         }
 
-        // --- [其余的渲染和数据模型函数保持不变] ---
-        // ... (省略 renderEditor, renderCategory, renderCriterion, renderOption, update..., add..., remove... 等函数) ...
-        
-        // 将核心更新函数暴露给全局作用域，以便 HTML 元素的 onclick/onchange 调用
-        window.updateGeneralConfig = (key, value) => { editorConfig[key] = value; };
-        window.updateCategoryTitle = (catIndex, value) => { editorConfig.ratingCriteria[catIndex].category = value; renderEditor(); };
-        window.updateCategoryDetail = (catIndex, value) => { editorConfig.ratingCriteria[catIndex].detail = value; };
-        window.updateCriterionName = (catIndex, critIndex, value) => { editorConfig.ratingCriteria[catIndex].criteriaList[critIndex].name = value; };
-        window.updateCriterionWeight = (catIndex, critIndex, value) => { editorConfig.ratingCriteria[catIndex].criteriaList[critIndex].weight = parseFloat(value) || 0; renderEditor(); };
-        window.updateOptionDescription = (catIndex, critIndex, optIndex, value) => { editorConfig.ratingCriteria[catIndex].criteriaList[critIndex].options[optIndex].description = value; };
-        window.updateOptionScorePct = (catIndex, critIndex, optIndex, value) => { editorConfig.ratingCriteria[catIndex].criteriaList[critIndex].options[optIndex].scorePct = parseFloat(value) || 0; renderEditor(); };
-        window.addCategory = () => { editorConfig.ratingCriteria.push({ category: "新类别标题", detail: "新类别描述", criteriaList: [{ name: "新标准名称", weight: 10, options: [{ description: "一般", scorePct: 0.5 }, { description: "优秀", scorePct: 1.0 }] }] }); renderEditor(); };
-        window.removeCategory = (catIndex) => { if (confirm("确定要删除此评分类别吗？")) { editorConfig.ratingCriteria.splice(catIndex, 1); renderEditor(); } };
-        window.addCriterion = (catIndex) => { editorConfig.ratingCriteria[catIndex].criteriaList.push({ name: "新评分标准", weight: 10, options: [{ description: "新选项1", scorePct: 0.5 }, { description: "新选项2", scorePct: 1.0 }] }); renderEditor(); };
-        window.removeCriterion = (catIndex, critIndex) => { if (confirm("确定要删除此评分标准吗？")) { editorConfig.ratingCriteria[catIndex].criteriaList.splice(critIndex, 1); renderEditor(); } };
-        window.addOption = (catIndex, critIndex) => { editorConfig.ratingCriteria[catIndex].criteriaList[critIndex].options.push({ description: "新选项", scorePct: 0.5 }); renderEditor(); };
-        window.removeOption = (catIndex, critIndex, optIndex) => { editorConfig.ratingCriteria[catIndex].criteriaList[critIndex].options.splice(optIndex, 1); renderEditor(); };
-
-        // ** [重新插入前面步骤中 renderEditor 及相关辅助函数，保持代码完整性] **
-        function renderEditor() {
-            calculateWeights(editorConfig);
-            totalMaxScoreDisplay.textContent = editorConfig.totalWeightMax.toFixed(2);
-            
-            const generalConfig = `
-                <div class="bg-white p-6 rounded-xl shadow-lg mb-8 border-t-4 border-indigo-500">
-                    <h2 class="text-2xl font-bold text-indigo-700 mb-4">应用基础信息</h2>
-                    <div class="space-y-4">
-                        <label class="block">
-                            <span class="text-gray-700">应用标题 (appTitle)</span>
-                            <input type="text" id="appTitle" value="${editorConfig.appTitle || ''}" onchange="updateGeneralConfig(this.id, this.value)" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
-                        </label>
-                        <label class="block">
-                            <span class="text-gray-700">应用描述 (description)</span>
-                            <textarea id="description" onchange="updateGeneralConfig(this.id, this.value)" rows="2" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">${editorConfig.description || ''}</textarea>
-                        </label>
-                    </div>
-                </div>
-            `;
-            
-            const categoriesHtml = editorConfig.ratingCriteria.map((cat, catIndex) => renderCategory(cat, catIndex)).join('');
-            
-            const addCategoryButton = `
-                <button onclick="addCategory()" class="w-full mt-4 py-3 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 transition duration-150 flex items-center justify-center">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd" /></svg>
-                    添加新的评分类别
-                </button>
-            `;
-
-            editorContainer.innerHTML = generalConfig + '<div id="categories-list">' + categoriesHtml + '</div>' + addCategoryButton;
-        }
-
-        function renderCategory(cat, catIndex) {
-            const criteriaHtml = cat.criteriaList.map((crit, critIndex) => renderCriterion(crit, catIndex, critIndex)).join('');
-            
-            return `
-                <div class="bg-white p-6 rounded-xl shadow-lg mb-8 border-l-4 border-yellow-500" data-cat-index="${catIndex}">
-                    <div class="flex justify-between items-center mb-4 border-b pb-3">
-                        <h3 class="text-xl font-bold text-yellow-700">类别 ${catIndex + 1}: <input type="text" value="${cat.category || ''}" onchange="updateCategoryTitle(${catIndex}, this.value)" class="border-b-2 border-yellow-500 font-bold text-lg p-1"></h3>
-                        <div class="flex items-center space-x-2">
-                            <span class="text-sm font-semibold text-gray-500">总权重: ${cat.totalWeight.toFixed(2)}</span>
-                            <button onclick="removeCategory(${catIndex})" class="text-red-500 hover:text-red-700 transition duration-150">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                            </button>
-                        </div>
-                    </div>
-                    <label class="block mb-4">
-                        <span class="text-gray-700 text-sm">类别描述 (detail)</span>
-                        <input type="text" value="${cat.detail || ''}" onchange="updateCategoryDetail(${catIndex}, this.value)" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm p-1">
-                    </label>
-                    <div class="space-y-4 pt-2" data-criteria-list>
-                        ${criteriaHtml}
-                    </div>
-                    <button onclick="addCriterion(${catIndex})" class="w-full mt-4 py-2 text-sm bg-yellow-100 text-yellow-800 font-medium rounded-lg hover:bg-yellow-200 transition duration-150">
-                        + 添加评分标准
-                    </button>
-                </div>
-            `;
-        }
-        
-        function renderCriterion(crit, catIndex, critIndex) {
-            const optionsHtml = crit.options.map((opt, optIndex) => renderOption(opt, catIndex, critIndex, optIndex)).join('');
-            const maxScore = crit.weight || 0;
-
-            return `
-                <div class="bg-gray-50 p-4 rounded-lg border border-gray-200" data-crit-index="${critIndex}">
-                    <div class="flex justify-between items-center mb-3">
-                        <h4 class="text-md font-semibold text-gray-800">标准 ${critIndex + 1}</h4>
-                        <button onclick="removeCriterion(${catIndex}, ${critIndex})" class="text-red-400 hover:text-red-600 transition duration-150">删除标准</button>
-                    </div>
-
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                        <div>
-                            <span class="text-gray-700 text-sm block">名称 (name)</span>
-                            <input type="text" value="${crit.name || ''}" onchange="updateCriterionName(${catIndex}, ${critIndex}, this.value)" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm p-1">
-                        </div>
-                        <div>
-                            <span class="text-gray-700 text-sm block">权重 (weight) - 最大 ${maxScore} 分</span>
-                            <input type="number" step="1" value="${crit.weight || 0}" onchange="updateCriterionWeight(${catIndex}, ${critIndex}, this.value)" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm text-sm p-1">
-                        </div>
-                    </div>
-
-                    <p class="text-sm font-medium mb-2 text-indigo-600">评分选项 (Options)</p>
-                    <div class="space-y-2 border p-3 rounded-md bg-white">
-                        ${optionsHtml}
-                        <button onclick="addOption(${catIndex}, ${critIndex})" class="w-full mt-2 py-1 text-xs bg-indigo-50 text-indigo-700 rounded-md hover:bg-indigo-100 transition duration-150">
-                            + 添加选项
-                        </button>
-                    </div>
-                </div>
-            `;
-        }
-        
-        function renderOption(opt, catIndex, critIndex, optIndex) {
-            const currentCriterion = editorConfig.ratingCriteria[catIndex].criteriaList[critIndex];
-            const maxScore = currentCriterion.weight || 0;
-            const scoreDisplay = ((opt.scorePct || 0) * maxScore).toFixed(2);
-            return `
-                <div class="flex items-center space-x-2" data-option-index="${optIndex}">
-                    <input type="text" placeholder="描述" value="${opt.description || ''}" onchange="updateOptionDescription(${catIndex}, ${critIndex}, ${optIndex}, this.value)" class="block w-2/3 rounded-md border-gray-300 shadow-sm text-xs p-1">
-                    <input type="number" step="0.01" placeholder="得分比例(0.0-1.0)" value="${opt.scorePct || 0}" onchange="updateOptionScorePct(${catIndex}, ${critIndex}, ${optIndex}, this.value)" class="block w-1/4 rounded-md border-gray-300 shadow-sm text-xs p-1 text-right">
-                    <span class="text-xs text-gray-500 w-1/5 shrink-0">(得 ${scoreDisplay} 分)</span>
-                    <button onclick="removeOption(${catIndex}, ${critIndex}, ${optIndex})" class="text-red-400 hover:text-red-600 text-xs shrink-0">X</button>
-                </div>
-            `;
-        }
-        // --- [重新插入前面步骤中 renderEditor 及相关辅助函数结束] ---
-
-        // --- Firebase 操作 ---
-
+        /**
+         * 从 Firestore 获取用户角色
+         */
         async function fetchUserRole(uid) {
             const roleDocRef = doc(db, USERS_COLLECTION_PATH, uid);
+            let roleDisplayElement = document.getElementById('role-display');
+
             try {
                 const docSnap = await getDoc(roleDocRef);
-                return docSnap.exists() ? docSnap.data().role : 'general'; // 默认是 general
+                
+                if (docSnap.exists() && docSnap.data().role) {
+                    const fetchedRole = docSnap.data().role;
+                    console.log(`[Role Check SUCCESS] UID: ${uid}, Fetched Role: ${fetchedRole}`);
+                    userRole = fetchedRole; // 立即更新全局变量
+                    roleDisplayElement.textContent = `当前用户角色: ${userRole.toUpperCase()} (从 Firestore 读取)`;
+                    return fetchedRole; 
+                } 
+                
+                // 文档不存在或没有角色字段
+                console.warn(`[Role Check WARNING] UID: ${uid}, User document not found or role missing. Defaulting to 'general'.`);
+                userRole = 'general';
+                roleDisplayElement.textContent = `当前用户角色: ${userRole.toUpperCase()} (默认)`;
+                return 'general'; 
+
             } catch (e) {
-                console.warn("Failed to fetch user role, assuming general:", e);
+                // 读取失败，通常是权限被拒绝！
+                console.error(`[Role Check ERROR] Failed to fetch user role, possibly PERMISSION_DENIED. Defaulting to 'general'. Error: ${e.message}`);
+                renderError(`❗️ 角色读取失败 (可能是 Firestore 权限问题)。默认为 GENERAL 角色。`);
+                userRole = 'general';
+                roleDisplayElement.textContent = `当前用户角色: ${userRole.toUpperCase()} (读取失败)`;
                 return 'general';
             }
         }
-
-        async function loadConfig() {
-            updateStatus('正在从云端加载配置...', 'text-yellow-500');
-            try {
-                const configDocRef = doc(db, CONFIG_DOC_PATH);
-                const docSnap = await getDoc(configDocRef);
-
-                if (docSnap.exists() && docSnap.data().ratingCriteria) {
-                    editorConfig = docSnap.data();
-                    updateStatus(`配置加载成功。当前角色: ${userRole.toUpperCase()}`, 'text-green-600');
-                } else {
-                    editorConfig = { appTitle: "新评分体系 (请编辑)", description: "在此添加您的描述。", ratingCriteria: [] };
-                    updateStatus(`警告：未找到云端配置文档，已加载空默认结构。当前角色: ${userRole.toUpperCase()}`, 'text-orange-500');
-                }
-                
-                renderEditor();
-            } catch (error) {
-                console.error("Error loading config:", error);
-                updateStatus(`加载失败 (可能因配置不存在): ${error.message}`, 'text-red-500');
-            }
-        }
-
-        async function saveConfig() {
-            if (userRole !== 'admin' && userRole !== 'super_admin') {
-                updateStatus('❌ 权限不足，无法执行保存操作。', 'text-red-600');
-                return;
-            }
-
-            saveButton.disabled = true;
-            saveButton.textContent = '正在保存...';
-            try {
-                calculateWeights(editorConfig);
-
-                if (!editorConfig.ratingCriteria || !Array.isArray(editorConfig.ratingCriteria)) {
-                    throw new Error("数据结构错误：缺少 'ratingCriteria' 数组。");
-                }
-                
-                const configDocRef = doc(db, CONFIG_DOC_PATH);
-                await setDoc(configDocRef, editorConfig);
-
-                updateStatus(`✅ 配置保存成功！总分：${editorConfig.totalWeightMax.toFixed(2)}。`, 'text-green-600');
-                renderEditor(); 
-
-            } catch (error) {
-                console.error("Error saving config:", error);
-                updateStatus(`❌ 保存失败 (可能是 Firestore 规则拒绝): ${error.message}`, 'text-red-600');
-            } finally {
-                saveButton.disabled = false;
-                saveButton.textContent = '保存并同步到云端';
-            }
-        }
+        
+        // --- FIREBASE INITIALIZATION ---
 
         async function initFirebase() {
-            updateStatus('正在初始化 Firebase 和验证身份...');
-            if (Object.keys(JSON.parse(__firebase_config)).length === 0) {
-                document.getElementById('app-container').innerHTML = `<div class="p-6 text-red-600 bg-red-100 rounded-lg max-w-xl mx-auto mt-10">🔴 Firebase 配置信息缺失。</div>`;
+            if (Object.keys(firebaseConfig).length === 0 || !firebaseConfig.projectId) {
+                renderError('🔴 Firebase 配置信息缺失。');
                 return;
             }
             try {
-                const app = initializeApp(JSON.parse(__firebase_config));
+                const app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
-                const auth = getAuth(app);
+                auth = getAuth(app);
                 
+                // 认证状态监听
                 onAuthStateChanged(auth, async (user) => {
                     if (user) {
-                        userRole = await fetchUserRole(user.uid);
-                        checkPermissionAndLoad(); // 认证后检查权限并加载
-                        saveButton.addEventListener('click', saveConfig);
+                        // 1. 获取用户角色 (这个函数现在会更新 userRole 全局变量)
+                        await fetchUserRole(user.uid); 
+                        
+                        // 2. 检查权限并加载配置
+                        if (!hasAdminAccess()) {
+                            // 即使权限不足，也要渲染配置视图，但按钮是禁用的
+                            renderConfigView(); 
+                            renderError(`权限不足。当前角色: ${userRole.toUpperCase()}。需要 ADMIN 或 SUPER_ADMIN 权限才能修改配置。`);
+                            return;
+                        }
+                        
+                        // 3. 有权限，加载配置
+                        loadConfig();
+                        
                     } else {
-                        await signInAnonymously(auth); // 首次加载时进行匿名登录
-                        updateStatus('正在进行匿名登录...', 'text-yellow-500');
+                        renderError('用户未登录。请返回主页登录。');
                     }
                 });
 
             } catch (error) {
                 console.error("Firebase Initialization Failed:", error);
-                updateStatus(`❌ 初始化失败: ${error.message}`, 'text-red-500');
+                renderError(`❌ Firebase 初始化失败：${error.message}`);
             }
         }
+
+        function renderError(message) {
+            const errorContainer = document.getElementById('error-container');
+            if (errorContainer) {
+                 errorContainer.innerHTML = `
+                    <div class="p-4 text-red-700 bg-red-100 border border-red-300 rounded-lg max-w-2xl mx-auto mt-4 shadow-sm">
+                        <p class="font-bold text-sm mb-1">权限/加载错误</p>
+                        <p class="text-sm">${message}</p>
+                    </div>`;
+            } else {
+                 document.getElementById('main-container').innerHTML = `
+                    <div class="p-6 text-red-700 bg-red-100 border border-red-300 rounded-lg max-w-2xl mx-auto mt-10 shadow-lg">
+                        <p class="font-bold text-lg mb-2">系统错误/权限检查</p>
+                        <p>${message}</p>
+                        <a href="index.html" class="mt-4 inline-block text-indigo-600 hover:text-indigo-800 underline">返回主页</a>
+                    </div>`;
+            }
+        }
+
+
+        async function loadConfig() {
+            const configDocRef = doc(db, CONFIG_DOC_PATH);
+            
+            // 实时监听配置变化
+            onSnapshot(configDocRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    ratingConfig = docSnap.data();
+                    renderConfigView(); 
+                } else {
+                    ratingConfig = { appTitle: "新的雪茄评分体系", description: "新的描述", ratingCriteria: [] };
+                    renderConfigView();
+                }
+            }, (error) => {
+                console.error("Error loading config:", error);
+                renderError('配置实时加载失败，请检查 Firestore 规则 (read)');
+            });
+        }
+
+        // --- UI RENDERING & INTERACTION ---
+
+        function renderConfigView() {
+            const container = document.getElementById('config-form-container');
+            const saveButton = document.getElementById('save-button');
+            const isAdmin = hasAdminAccess(); 
+            
+            // 确保渲染配置表单
+             if (Object.keys(ratingConfig).length === 0) {
+                 container.innerHTML = `<div class="p-6 text-center text-gray-500">正在加载配置...</div>`;
+             } else {
+                // 渲染基本信息
+                document.getElementById('app-title-input').value = ratingConfig.appTitle || '';
+                document.getElementById('app-description-input').value = ratingConfig.description || '';
+
+                // 渲染评分标准 
+                container.innerHTML = ratingConfig.ratingCriteria.map((category, catIndex) => `
+                    <div class="bg-white p-6 rounded-xl shadow-lg mb-6 border-l-4 border-indigo-500">
+                        <div class="flex justify-between items-start mb-4">
+                            <h3 class="text-xl font-bold text-indigo-700">评分类别 #${catIndex + 1}</h3>
+                            <button onclick="removeCategory(${catIndex})" class="text-red-500 hover:text-red-700 transition">删除类别</button>
+                        </div>
+                        
+                        <label class="block mb-2">类别名称:</label>
+                        <input type="text" data-type="category" data-index="${catIndex}" data-field="category" value="${category.category || ''}" class="config-input w-full p-2 border rounded-md mb-3" onchange="handleInputChange(this)">
+                        
+                        <label class="block mb-4">描述:</label>
+                        <textarea data-type="category" data-index="${catIndex}" data-field="detail" class="config-input w-full p-2 border rounded-md mb-3" onchange="handleInputChange(this)">${category.detail || ''}</textarea>
+                        
+                        <h4 class="text-lg font-semibold mt-6 mb-3 border-t pt-4">评分项:</h4>
+                        
+                        <div class="space-y-4">
+                            ${category.criteriaList.map((criterion, critIndex) => renderCriterion(catIndex, critIndex, criterion)).join('')}
+                        </div>
+                        
+                        <button onclick="addCriterion(${catIndex})" class="mt-4 w-full py-2 border border-dashed border-indigo-300 text-indigo-500 hover:bg-indigo-50 rounded-md transition">
+                            + 添加评分项
+                        </button>
+                    </div>
+                `).join('');
+                
+                 // 添加类别按钮
+                 container.innerHTML += `<button onclick="addCategory()" class="mt-6 w-full py-3 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 transition duration-150 shadow-md">
+                    + 添加新类别
+                </button>`;
+             }
+            
+            // ==========================================================
+            // 按钮启用/禁用逻辑 (核心)
+            // ==========================================================
+            if (isAdmin) {
+                saveButton.disabled = false;
+                saveButton.className = 'w-full py-3 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition duration-150';
+                saveButton.textContent = '保存并同步到云端';
+            } else {
+                saveButton.disabled = true;
+                saveButton.className = 'w-full py-3 bg-gray-400 text-gray-700 font-semibold rounded-lg cursor-not-allowed';
+                saveButton.textContent = `权限不足 (${userRole.toUpperCase()})，无法保存`;
+            }
+            // ==========================================================
+        }
+
+        function renderCriterion(catIndex, critIndex, criterion) {
+            return `
+                <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                    <div class="flex justify-between items-center mb-3">
+                        <h5 class="font-medium text-gray-800">评分项 #${critIndex + 1}</h5>
+                        <button onclick="removeCriterion(${catIndex}, ${critIndex})" class="text-red-400 hover:text-red-600 transition text-sm">删除评分项</button>
+                    </div>
+
+                    <label class="block text-sm">名称:</label>
+                    <input type="text" data-type="criterion" data-cat-index="${catIndex}" data-index="${critIndex}" data-field="name" value="${criterion.name || ''}" class="config-input w-full p-1 border rounded-md mb-2 text-sm" onchange="handleInputChange(this)">
+                    
+                    <label class="block text-sm">权重 (分数):</label>
+                    <input type="number" data-type="criterion" data-cat-index="${catIndex}" data-index="${critIndex}" data-field="weight" value="${criterion.weight || 0}" class="config-input w-full p-1 border rounded-md mb-3 text-sm" onchange="handleInputChange(this)">
+                    
+                    <h6 class="text-sm font-semibold mb-2 mt-3">选项:</h6>
+                    
+                    <div class="space-y-2">
+                        ${criterion.options.map((option, optIndex) => renderOption(catIndex, critIndex, optIndex, option)).join('')}
+                    </div>
+                    
+                    <button onclick="addOption(${catIndex}, ${critIndex})" class="mt-3 w-full py-1 border border-dashed border-gray-300 text-gray-500 hover:bg-gray-100 rounded-md transition text-sm">
+                        + 添加选项
+                    </button>
+                </div>
+            `;
+        }
+
+        function renderOption(catIndex, critIndex, optIndex, option) {
+            return `
+                <div class="flex space-x-2 items-center bg-white p-2 rounded-md border text-sm">
+                    <div class="flex-1">
+                        <label class="block text-xs">描述:</label>
+                        <input type="text" data-type="option" data-cat-index="${catIndex}" data-crit-index="${critIndex}" data-index="${optIndex}" data-field="description" value="${option.description || ''}" class="config-input w-full p-1 border rounded-md text-xs" onchange="handleInputChange(this)">
+                    </div>
+                    <div class="w-1/4">
+                        <label class="block text-xs">得分率 (0-1):</label>
+                        <input type="number" step="0.01" data-type="option" data-cat-index="${catIndex}" data-crit-index="${critIndex}" data-index="${optIndex}" data-field="scorePct" value="${option.scorePct || 0}" class="config-input w-full p-1 border rounded-md text-xs" onchange="handleInputChange(this)">
+                    </div>
+                    <button onclick="removeOption(${catIndex}, ${critIndex}, ${optIndex})" class="text-red-400 hover:text-red-600 transition text-sm flex-shrink-0">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 10-2 0v6a1 1 0 102 0V8z" clip-rule="evenodd" /></svg>
+                    </button>
+                </div>
+            `;
+        }
+
+
+        // --- DYNAMIC DATA MANIPULATION ---
+
+        window.handleInputChange = function(element) {
+            const value = element.type === 'number' ? parseFloat(element.value) : element.value;
+            const type = element.getAttribute('data-type');
+            const field = element.getAttribute('data-field');
+            const catIndex = parseInt(element.getAttribute('data-index') || element.getAttribute('data-cat-index'));
+            const critIndex = parseInt(element.getAttribute('data-crit-index'));
+            const optIndex = parseInt(element.getAttribute('data-index')); 
+            
+            if (field === 'appTitle' || field === 'description') {
+                ratingConfig[field] = value;
+            } else if (type === 'category') {
+                ratingConfig.ratingCriteria[catIndex][field] = value;
+            } else if (type === 'criterion') {
+                ratingConfig.ratingCriteria[catIndex].criteriaList[critIndex][field] = value;
+            } else if (type === 'option') {
+                ratingConfig.ratingCriteria[catIndex].criteriaList[critIndex].options[optIndex][field] = value;
+            }
+        };
+
+        window.addCategory = function() {
+            ratingConfig.ratingCriteria.push({
+                category: "新类别",
+                detail: "新类别描述",
+                criteriaList: [{
+                    name: "新评分项",
+                    weight: 10,
+                    options: [{ description: "一般", scorePct: 0.5 }, { description: "优秀", scorePct: 1.0 }]
+                }]
+            });
+            renderConfigView();
+        };
+
+        window.removeCategory = function(catIndex) {
+            if (confirm(`确定删除类别 #${catIndex + 1} 吗？`)) {
+                ratingConfig.ratingCriteria.splice(catIndex, 1);
+                renderConfigView();
+            }
+        };
+
+        window.addCriterion = function(catIndex) {
+             ratingConfig.ratingCriteria[catIndex].criteriaList.push({
+                name: "新评分项",
+                weight: 10,
+                options: [{ description: "一般", scorePct: 0.5 }, { description: "优秀", scorePct: 1.0 }]
+            });
+            renderConfigView();
+        };
+
+        window.removeCriterion = function(catIndex, critIndex) {
+            if (confirm(`确定删除类别 #${catIndex + 1} 下的评分项 #${critIndex + 1} 吗？`)) {
+                 ratingConfig.ratingCriteria[catIndex].criteriaList.splice(critIndex, 1);
+                 renderConfigView();
+            }
+        };
         
-        // 初始化
+        window.addOption = function(catIndex, critIndex) {
+            ratingConfig.ratingCriteria[catIndex].criteriaList[critIndex].options.push({
+                description: "新选项",
+                scorePct: 0.5
+            });
+            renderConfigView();
+        };
+
+        window.removeOption = function(catIndex, critIndex, optIndex) {
+             if (confirm(`确定删除评分项 #${critIndex + 1} 下的选项 #${optIndex + 1} 吗？`)) {
+                 ratingConfig.ratingCriteria[catIndex].criteriaList[critIndex].options.splice(optIndex, 1);
+                 renderConfigView();
+             }
+        };
+
+
+        // --- SAVE TO FIREBASE ---
+
+        window.saveConfig = async function() {
+            if (!hasAdminAccess()) {
+                alert('错误：您没有管理员权限来保存配置。');
+                return;
+            }
+            
+            const saveButton = document.getElementById('save-button');
+            const originalText = saveButton.textContent;
+            
+            saveButton.textContent = '正在保存...';
+            saveButton.disabled = true;
+
+            const configDocRef = doc(db, CONFIG_DOC_PATH);
+            
+            // 确保同步最新的顶层字段
+            ratingConfig.appTitle = document.getElementById('app-title-input').value;
+            ratingConfig.description = document.getElementById('app-description-input').value;
+
+            try {
+                // 使用 setDoc 覆盖整个文档，实现完全同步
+                await setDoc(configDocRef, ratingConfig);
+                alert('配置保存成功，已同步到云端！');
+            } catch (error) {
+                console.error("保存配置失败:", error);
+                alert(`保存失败！请检查您的 Firestore 写入规则。错误信息: ${error.message}`);
+            } finally {
+                saveButton.textContent = originalText;
+                // 重新启用按钮（如果权限允许）
+                if(hasAdminAccess()) {
+                    saveButton.disabled = false;
+                }
+            }
+        };
+
+
+        // --- Initialize on load ---
         window.onload = initFirebase;
     </script>
 </head>
 <body class="bg-gray-100 font-sans antialiased text-gray-800">
 
-    <div id="app-container" class="max-w-5xl mx-auto p-4 md:p-8">
+    <div id="main-container" class="max-w-4xl mx-auto p-4 md:p-8">
 
-        <header class="mb-8 p-6 bg-indigo-700 text-white rounded-xl shadow-2xl">
-            <h1 class="text-3xl font-extrabold mb-1">雪茄评分标准配置中心</h1>
-            <p class="text-indigo-200 text-sm">通过表单实时编辑评分标准。完成后点击保存，所有使用该配置的主应用将立即更新。</p>
-            
-            <div class="flex justify-between items-end mt-4">
-                 <div class="flex items-end space-x-2">
-                    <span class="text-lg font-medium text-indigo-200">当前最大总分:</span>
-                    <span id="total-max-score" class="text-4xl font-black leading-none text-yellow-300">0.00</span>
-                </div>
-                <a href="index.html" class="inline-flex items-center px-4 py-2 border border-white text-sm font-medium rounded-full shadow-sm text-white bg-indigo-600 hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-150">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
-                    返回评分主页
-                </a>
-            </div>
+        <header class="mb-8 p-6 bg-indigo-700 text-white rounded-xl shadow-2xl relative">
+            <h1 class="text-3xl font-extrabold mb-1">雪茄评分体系配置</h1>
+            <p class="text-indigo-200 text-sm mb-2">在此处修改和管理评分标准。所有更改将实时同步到主应用。</p>
+            <div id="role-display" class="text-xs text-yellow-300">正在检查权限...</div>
+            <a href="index.html" class="absolute top-4 right-4 text-indigo-200 hover:text-white transition">← 返回主页</a>
         </header>
-
-        <div id="config-editor-container">
-            <p class="text-center text-gray-500 mt-10">正在加载编辑器...</p>
-        </div>
         
-        <div class="fixed bottom-0 left-0 right-0 bg-white p-4 shadow-2xl border-t border-gray-200">
-            <div class="max-w-5xl mx-auto flex justify-between items-center">
-                <span id="config-load-status" class="text-sm font-medium text-yellow-500">正在等待初始化...</span>
-                <button id="save-config-btn" 
-                        class="px-6 py-3 bg-indigo-600 text-white font-semibold rounded-full shadow-lg hover:bg-indigo-700 transition duration-300 disabled:bg-gray-400"
-                        disabled>
-                    保存并同步到云端
+        <div id="error-container">
+            </div>
+
+        <section class="mb-8 p-6 bg-white rounded-xl shadow-lg">
+             <h2 class="text-xl font-bold text-indigo-700 mb-4">应用基本信息</h2>
+             <label class="block mb-4">
+                 <span class="text-gray-700 font-medium">应用标题 (App Title)</span>
+                 <input type="text" id="app-title-input" class="w-full p-2 border border-gray-300 rounded-md mt-1" onchange="handleInputChange(this)" data-field="appTitle">
+             </label>
+             <label class="block mb-4">
+                 <span class="text-gray-700 font-medium">应用描述 (Description)</span>
+                 <textarea id="app-description-input" class="w-full p-2 border border-gray-300 rounded-md mt-1" rows="3" onchange="handleInputChange(this)" data-field="description"></textarea>
+             </label>
+        </section>
+
+
+        <form id="config-form">
+            <section id="config-form-container" class="space-y-6">
+                <div class="p-6 text-center text-gray-500">正在加载配置...</div>
+            </section>
+        
+            <div class="mt-8 pt-4 border-t border-gray-300">
+                <button type="button" id="save-button" onclick="saveConfig()" class="w-full py-3 bg-gray-400 text-gray-700 font-semibold rounded-lg cursor-not-allowed">
+                    正在检查权限...
                 </button>
             </div>
-        </div>
-
+        </form>
     </div>
-    <div class="h-20"></div> 
 
 </body>
 </html>
