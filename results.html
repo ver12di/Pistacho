@@ -12,6 +12,15 @@
                     fontFamily: {
                         sans: ['Inter', 'Noto Sans SC', 'system-ui', 'sans-serif'],
                     },
+                    keyframes: {
+                        highlight: {
+                            '0%, 100%': { transform: 'scale(1)', boxShadow: '0 0 0 rgba(66, 153, 225, 0)' },
+                            '50%': { transform: 'scale(1.02)', boxShadow: '0 0 15px rgba(66, 153, 225, 0.4)' },
+                        }
+                    },
+                    animation: {
+                        highlight: 'highlight 1.5s ease-in-out infinite',
+                    }
                 }
             }
         }
@@ -27,18 +36,24 @@
         </header>
 
         <!-- 错误容器 -->
-        <div id="error-container" class="bg-red-100 p-6 rounded-lg shadow-lg text-center text-red-700 font-medium hidden">
+        <div id="error-container" class="hidden bg-red-100 p-6 rounded-lg shadow-lg text-center text-red-700 font-medium">
             <!-- JS 将在这里填入错误信息 -->
         </div>
 
         <!-- 结果容器 -->
-        <section id="results-container" class="mb-8 p-6 bg-white rounded-xl shadow-2xl hidden">
+        <section id="results-container" class="hidden mb-8 p-6 bg-white rounded-xl shadow-2xl">
             <!-- JS 将在这里填入最终得分和等级 -->
         </section>
 
         <!-- 汇总容器 -->
-        <section id="summary-container" class="p-6 bg-white rounded-xl shadow-lg hidden">
+        <section id="summary-container" class="hidden p-6 bg-white rounded-xl shadow-lg">
             <!-- JS 将在这里填入评分详情 -->
+        </section>
+        
+        <!-- 新增：完整等级列表容器 -->
+        <section id="full-scale-container" class="hidden mt-8">
+             <h3 class="text-2xl font-bold text-gray-800 mb-4">PISTACHO 评级体系</h3>
+            <!-- JS 将在这里填入所有等级 -->
         </section>
 
         <footer class="mt-8 text-center">
@@ -50,16 +65,16 @@
     </div>
 
     <script>
-        // 评级体系 (由您提供)
+        // *** 已更新为 PISTACHO 体系 ***
         const GRADING_SCALE = [
-          { "grade": "P", "name_en": "Perfection", "name_cn": "完美 / 臻品", "min_score": 95 },
-          { "grade": "I", "name_en": "Iconic", "name_cn": "标志性 / 典范", "min_score": 90 },
-          { "grade": "S", "name_en": "Supreme", "name_cn": "至高 / 卓越", "min_score": 85 },
-          { "grade": "T", "name_en": "Treasured", "name_cn": "珍藏 / 珍爱", "min_score": 80 },
-          { "grade": "A", "name_en": "Acceptable", "name_cn": "可接受 / 合格", "min_score": 70 },
-          { "grade": "C", "name_en": "Common", "name_cn": "普通 / 一般", "min_score": 60 },
-          { "grade": "H", "name_en": "Hardship", "name_cn": "困难 / 缺陷多", "min_score": 40 },
-          { "grade": "O", "name_en": "Outright Failure", "name_cn": "彻底失败 / 不合格", "min_score": 0 }
+          { "grade": "P", "name_en": "Pinnacle", "name_cn": "顶峰 / 登峰造极", "min_score": 95 },
+          { "grade": "I", "name_en": "Impeccable", "name_cn": "无暇 / 完美无瑕", "min_score": 90 },
+          { "grade": "S", "name_en": "Superior", "name_cn": "卓越 / 出众", "min_score": 85 },
+          { "grade": "T", "name_en": "Terrific", "name_cn": "极好 / 绝佳", "min_score": 80 },
+          { "grade": "A", "name_en": "Appreciable", "name_cn": "可圈可点 / 值得欣赏", "min_score": 70 },
+          { "grade": "C", "name_en": "Commonplace", "name_cn": "平庸 / 普通", "min_score": 60 },
+          { "grade": "H", "name_en": "Hesitant", "name_cn": "犹豫 / 瑕瑜互见", "min_score": 40 },
+          { "grade": "O", "name_en": "Ordinary", "name_cn": "乏善可陈 / 平淡", "min_score": 0 }
         ];
 
         // 页面加载时执行
@@ -67,6 +82,7 @@
             const resultsContainer = document.getElementById('results-container');
             const summaryContainer = document.getElementById('summary-container');
             const errorContainer = document.getElementById('error-container');
+            const fullScaleContainer = document.getElementById('full-scale-container');
             
             // 1. 从 sessionStorage 获取数据
             const storedData = sessionStorage.getItem('cigarRatingResults');
@@ -85,15 +101,15 @@
                 const { config, ratings, calculatedScore } = JSON.parse(storedData);
                 
                 // 2. 计算折合百分制得分
-                const maxScore = config.totalWeightMax || 100; // 安全备用
+                const maxScore = config.totalWeightMax || 100;
                 const normalizedScore = (calculatedScore / maxScore) * 100;
                 
                 // 3. 获取评级
-                let finalGrade = GRADING_SCALE[GRADING_SCALE.length - 1]; // 默认为最低等级
+                let finalGrade = GRADING_SCALE[GRADING_SCALE.length - 1];
                 for (const grade of GRADING_SCALE) {
                     if (normalizedScore >= grade.min_score) {
                         finalGrade = grade;
-                        break; // 找到了最高匹配的等级
+                        break;
                     }
                 }
                 
@@ -107,30 +123,24 @@
                             (原始得分: ${calculatedScore.toFixed(2)} / ${maxScore.toFixed(2)})
                         </p>
                     </div>
-                    <div class="mt-6 p-6 rounded-lg text-center ${getGradeBgColor(finalGrade.grade)} border ${getGradeBorderColor(finalGrade.grade)}">
-                        <span class="block text-2xl font-bold ${getGradeTextColor(finalGrade.grade)}">${finalGrade.grade}</span>
-                        <h2 class="text-4xl font-extrabold ${getGradeTextColor(finalGrade.grade)}">${finalGrade.name_cn}</h2>
-                        <p class="text-lg font-medium ${getGradeTextColor(finalGrade.grade, true)}">${finalGrade.name_en}</p>
-                    </div>
                 `;
                 
                 // 5. 渲染评分汇总
                 summaryContainer.classList.remove('hidden');
                 let summaryHtml = '<h3 class="text-2xl font-bold text-gray-800 mb-4">评分详情汇总</h3>';
                 
-                config.ratingCriteria.forEach((category, catIndex) => {
+                (config.ratingCriteria || []).forEach((category, catIndex) => {
                     summaryHtml += `<div class="mb-6 bg-gray-50 p-4 rounded-lg border border-gray-200">`;
                     summaryHtml += `<h4 class="text-lg font-semibold text-indigo-700 mb-3">${category.category}</h4>`;
                     summaryHtml += `<ul class="list-none space-y-2 text-sm">`;
                     
-                    category.criteriaList.forEach((criterion, critIndex) => {
+                    (category.criteriaList || []).forEach((criterion, critIndex) => {
                         const id = `${catIndex}-${critIndex}`;
                         const selectedOptionIndex = ratings[id];
                         
-                        if (selectedOptionIndex !== undefined && criterion.options[selectedOptionIndex]) {
+                        if (selectedOptionIndex !== undefined && criterion.options && criterion.options[selectedOptionIndex]) {
                             const option = criterion.options[selectedOptionIndex];
-                            const scorePct = option.scorePct;
-                            const weightedScore = criterion.weight * scorePct;
+                            const weightedScore = (criterion.weight || 0) * (option.scorePct || 0);
                             
                             summaryHtml += `
                                 <li class="p-2 bg-white rounded-md border border-gray-200 shadow-sm">
@@ -153,10 +163,43 @@
                             `;
                         }
                     });
-                    
                     summaryHtml += `</ul></div>`;
                 });
                 summaryContainer.innerHTML = summaryHtml;
+                
+                // *** 6. 新增：渲染完整等级列表，并高亮当前等级 ***
+                fullScaleContainer.classList.remove('hidden');
+                let scaleHtml = '<div class="space-y-3">';
+                GRADING_SCALE.forEach(grade => {
+                    const isCurrentGrade = grade.grade === finalGrade.grade;
+                    
+                    // 定义高亮样式
+                    const highlightClasses = isCurrentGrade 
+                        ? `border-blue-500 bg-blue-100 ring-4 ring-blue-200 animate-highlight` 
+                        : 'border-gray-200 bg-white hover:bg-gray-50';
+                    
+                    const scoreRange = getScoreRange(grade.grade);
+
+                    scaleHtml += `
+                        <div class="p-4 rounded-lg border-2 transition-all duration-300 ${highlightClasses}">
+                            <div class="flex items-baseline space-x-4">
+                                <div class="w-8 h-8 flex-shrink-0 rounded-full flex items-center justify-center font-black text-xl ${getGradeTextColor(grade.grade)} ${getGradeBgColor(grade.grade)}">
+                                    ${grade.grade}
+                                </div>
+                                <div class="flex-grow">
+                                    <p class="font-bold text-lg ${getGradeTextColor(grade.grade)}">${grade.name_cn}</p>
+                                    <p class="text-sm text-gray-500">${grade.name_en}</p>
+                                </div>
+                                <div class="text-right flex-shrink-0">
+                                    <p class="font-mono font-semibold text-gray-700">${scoreRange}</p>
+                                    <p class="text-xs text-gray-500">分数区间</p>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                scaleHtml += '</div>';
+                fullScaleContainer.innerHTML = scaleHtml;
                 
             } catch (e) {
                  errorContainer.classList.remove('hidden');
@@ -169,46 +212,46 @@
             }
         }
         
-        // --- 用于美化等级的辅助函数 ---
+        // --- 辅助函数 ---
+        
+        function getScoreRange(grade) {
+            const currentGradeIndex = GRADING_SCALE.findIndex(g => g.grade === grade);
+            const min = GRADING_SCALE[currentGradeIndex].min_score;
+            if (currentGradeIndex === 0) { // 最高分
+                return `${min} - 100`;
+            }
+            const max = GRADING_SCALE[currentGradeIndex - 1].min_score - 0.01;
+            return `${min.toFixed(2)} - ${max.toFixed(2)}`;
+        }
+
         function getGradeBgColor(grade) {
             switch(grade) {
-                case 'P': return 'bg-yellow-100';
-                case 'I': return 'bg-indigo-100';
-                case 'S': return 'bg-purple-100';
-                case 'T': return 'bg-blue-100';
-                case 'A': return 'bg-green-100';
-                case 'C': return 'bg-gray-100';
-                case 'H': return 'bg-orange-100';
-                case 'O': return 'bg-red-100';
-                default: return 'bg-gray-100';
+                case 'P': return 'bg-yellow-200';
+                case 'I': return 'bg-indigo-200';
+                case 'S': return 'bg-purple-200';
+                case 'T': return 'bg-blue-200';
+                case 'A': return 'bg-green-200';
+                case 'C': return 'bg-gray-200';
+                case 'H': return 'bg-orange-200';
+                case 'O': return 'bg-red-200';
+                default: return 'bg-gray-200';
             }
         }
-        function getGradeBorderColor(grade) {
-            switch(grade) {
-                case 'P': return 'border-yellow-300';
-                case 'I': return 'border-indigo-300';
-                case 'S': return 'border-purple-300';
-                case 'T': return 'border-blue-300';
-                case 'A': return 'border-green-300';
-                case 'C': return 'border-gray-300';
-                case 'H': return 'border-orange-300';
-                case 'O': return 'border-red-300';
-                default: return 'border-gray-300';
-            }
-        }
-        function getGradeTextColor(grade, isSub=false) {
+        
+        function getGradeTextColor(grade) {
              switch(grade) {
-                case 'P': return isSub ? 'text-yellow-700' : 'text-yellow-800';
-                case 'I': return isSub ? 'text-indigo-700' : 'text-indigo-800';
-                case 'S': return isSub ? 'text-purple-700' : 'text-purple-800';
-                case 'T': return isSub ? 'text-blue-700' : 'text-blue-800';
-                case 'A': return isSub ? 'text-green-700' : 'text-green-800';
-                case 'C': return isSub ? 'text-gray-700' : 'text-gray-800';
-                case 'H': return isSub ? 'text-orange-700' : 'text-orange-800';
-                case 'O': return isSub ? 'text-red-700' : 'text-red-800';
+                case 'P': return 'text-yellow-800';
+                case 'I': return 'text-indigo-800';
+                case 'S': return 'text-purple-800';
+                case 'T': return 'text-blue-800';
+                case 'A': return 'text-green-800';
+                case 'C': return 'text-gray-800';
+                case 'H': return 'text-orange-800';
+                case 'O': return 'text-red-800';
                 default: return 'text-gray-800';
             }
         }
     </script>
 </body>
 </html>
+
