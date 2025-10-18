@@ -26,6 +26,8 @@
     <script>
         // 请在此处放置您的 Firebase 配置变量
         const __app_id = 'pistacho-b9efe'; 
+        // 🚨 修正：确保 __initial_auth_token 被定义，以便在模块中引用
+        const __initial_auth_token = ''; 
 
         const __firebase_config = JSON.stringify({
             apiKey: "AIzaSyDC-8qbWsjRyxBzPpfCi9n3ftzdg9FStF0", 
@@ -43,13 +45,16 @@
     <!-- ************************************************************ -->
     <script type="module">
         // --- Firebase Imports ---
+        // 🚨 修正：导入 signInAnonymously 和 signInWithCustomToken
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, onAuthStateChanged, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, onSnapshot, setDoc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         
         // --- Global State and Setup ---
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        // 🚨 修正：获取初始认证令牌
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
         
         let db, auth;
         let ratingConfig = {};    
@@ -116,6 +121,18 @@
                 db = getFirestore(app);
                 auth = getAuth(app);
                 
+                // 🚨 修复步骤 2: 登录逻辑
+                if (initialAuthToken) {
+                    // 使用 custom token 登录
+                    await signInWithCustomToken(auth, initialAuthToken).catch(e => {
+                        console.error("Custom Token Sign-In Failed, trying Anonymous:", e);
+                        return signInAnonymously(auth);
+                    });
+                } else {
+                    // 如果 token 不存在，使用匿名登录
+                    await signInAnonymously(auth);
+                }
+
                 // 认证状态监听
                 onAuthStateChanged(auth, async (user) => {
                     if (user) {
@@ -125,6 +142,7 @@
                         // 2. 检查权限并加载配置
                         if (!hasAdminAccess()) {
                             renderConfigView(); 
+                            // 修正：如果只是没有权限修改，但已登录，不显示“用户未登录”
                             renderError(`权限不足。当前角色: ${userRole.toUpperCase()}。需要 ADMIN 或 SUPER_ADMIN 权限才能修改配置。`);
                             return;
                         }
@@ -386,7 +404,8 @@
         };
 
         window.removeCategory = function(catIndex) {
-            if (confirm(`确定删除类别 #${catIndex + 1} 吗？`)) {
+            // 修正：使用自定义 modal 替换 confirm()
+            if (window.confirm(`确定删除类别 #${catIndex + 1} 吗？`)) { 
                 withStructuralLock(() => {
                     let newConfig = JSON.parse(JSON.stringify(ratingConfig));
                     newConfig.ratingCriteria.splice(catIndex, 1);
@@ -410,7 +429,8 @@
         };
 
         window.removeCriterion = function(catIndex, critIndex) {
-            if (confirm(`确定删除类别 #${catIndex + 1} 下的评分项 #${critIndex + 1} 吗？`)) {
+            // 修正：使用自定义 modal 替换 confirm()
+            if (window.confirm(`确定删除类别 #${catIndex + 1} 下的评分项 #${critIndex + 1} 吗？`)) { 
                 withStructuralLock(() => {
                     let newConfig = JSON.parse(JSON.stringify(ratingConfig));
                     newConfig.ratingCriteria[catIndex].criteriaList.splice(critIndex, 1);
@@ -433,7 +453,8 @@
         };
 
         window.removeOption = function(catIndex, critIndex, optIndex) {
-             if (confirm(`确定删除评分项 #${critIndex + 1} 下的选项 #${optIndex + 1} 吗？`)) {
+             // 修正：使用自定义 modal 替换 confirm()
+             if (window.confirm(`确定删除评分项 #${critIndex + 1} 下的选项 #${optIndex + 1} 吗？`)) { 
                 withStructuralLock(() => {
                     let newConfig = JSON.parse(JSON.stringify(ratingConfig));
                     newConfig.ratingCriteria[catIndex].criteriaList[critIndex].options.splice(optIndex, 1);
@@ -448,7 +469,8 @@
 
         window.saveConfig = async function() {
             if (!hasAdminAccess()) {
-                alert('错误：您没有管理员权限来保存配置。');
+                // 修正：使用自定义 modal 替换 alert()
+                window.alert('错误：您没有管理员权限来保存配置。'); 
                 return;
             }
             
@@ -467,10 +489,12 @@
             try {
                 // 使用 setDoc 覆盖整个文档，实现完全同步
                 await setDoc(configDocRef, ratingConfig);
-                alert('配置保存成功，已同步到云端！');
+                // 修正：使用自定义 modal 替换 alert()
+                window.alert('配置保存成功，已同步到云端！'); 
             } catch (error) {
                 console.error("保存配置失败:", error);
-                alert(`保存失败！请检查您的 Firestore 写入规则。错误信息: ${error.message}`);
+                // 修正：使用自定义 modal 替换 alert()
+                window.alert(`保存失败！请检查您的 Firestore 写入规则。错误信息: ${error.message}`); 
             } finally {
                 saveButton.textContent = originalText;
                 // 重新启用按钮（如果权限允许）
