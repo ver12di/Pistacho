@@ -260,7 +260,8 @@
         }
 
         function renderOption(catIndex, critIndex, optIndex, option) {
-            // 🚨 核心修复点：使用 String() 确保 description 严格转换为字符串，避免潜在的渲染问题。
+            // 🚨 最终修复点：确保 description 字段在渲染时被安全地处理
+            // 使用 String() 强制转换为字符串，以防任何 null/undefined 或非字符串值导致渲染失败。
             const safeDescription = String(option.description || ''); 
             const safeScorePct = option.scorePct || 0;
 
