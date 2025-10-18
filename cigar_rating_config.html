@@ -24,7 +24,7 @@
         const __app_id = 'pistacho-b9efe'; 
 
         const __firebase_config = JSON.stringify({
-            apiKey: "AIzaSyDC-8qbWsjRyxBzJpfCi9n3ftzdg9FStF0", 
+            apiKey: "AIzaSyDC-8qbWsjRyxBzPpfCi9n3ftzdg9FStF0", 
             authDomain: "pistacho-b9efe.firebaseapp.com",
             projectId: "pistacho-b9efe",
             storageBucket: "pistacho-b9efe.firebasestorage.app",
@@ -48,8 +48,9 @@
         let ratingConfig = {};    
         let userRole = 'unknown'; 
         
-        // 移除 Firebase 状态锁，集中解决 mutability 问题
-        
+        // 🚨 最终修复的关键：引入一个状态锁，防止 onSnapshot 在本地结构变化时覆盖本地数据
+        let isHandlingStructuralChange = false; 
+
         const CONFIG_DOC_PATH = `/artifacts/${appId}/public/data/cigar_config/latest`;
         const USERS_COLLECTION_PATH = 'users'; 
         
@@ -159,7 +160,12 @@
             
             // 实时监听配置变化
             onSnapshot(configDocRef, (docSnap) => {
-                // 不再使用状态锁，始终允许 Firebase 更新，因为本地修改应该通过不可变模式被保存
+                // 🚨 状态锁检查：如果正在进行本地结构变化，则忽略这次远程同步，防止覆盖本地修改
+                if (isHandlingStructuralChange) {
+                     console.log('[FIREBASE SYNC IGNORED] Local structural change in progress.');
+                     return;
+                }
+
                 if (docSnap.exists()) {
                     ratingConfig = docSnap.data();
                     renderConfigView(); 
@@ -341,69 +347,91 @@
         };
 
 
-        // --- 结构修改函数 (全部重构为不可变模式) ---
+        // --- 结构修改函数 (使用不可变模式 + 状态锁) ---
+
+        function withStructuralLock(action) {
+            isHandlingStructuralChange = true;
+            // 确保动作执行时使用最新的状态
+            action(); 
+            // 异步释放锁，确保 DOM 渲染周期完成后再恢复 Firebase 监听
+            setTimeout(() => {
+                isHandlingStructuralChange = false;
+                console.log('[FIREBASE SYNC UNLOCKED]');
+            }, 100); 
+        }
 
         window.addCategory = function() {
-            let newConfig = JSON.parse(JSON.stringify(ratingConfig));
-            newConfig.ratingCriteria.push({
-                category: "新类别",
-                detail: "新类别描述",
-                criteriaList: [{
-                    name: "新评分项",
-                    weight: 10,
-                    options: [{ description: "一般", scorePct: 0.5 }, { description: "优秀", scorePct: 1.0 }]
-                }]
+            withStructuralLock(() => {
+                let newConfig = JSON.parse(JSON.stringify(ratingConfig));
+                newConfig.ratingCriteria.push({
+                    category: "新类别",
+                    detail: "新类别描述",
+                    criteriaList: [{
+                        name: "新评分项",
+                        weight: 10,
+                        options: [{ description: "一般", scorePct: 0.5 }, { description: "优秀", scorePct: 1.0 }]
+                    }]
+                });
+                ratingConfig = newConfig; 
+                renderConfigView();
             });
-            ratingConfig = newConfig; // 替换全局引用
-            renderConfigView();
         };
 
         window.removeCategory = function(catIndex) {
             if (confirm(`确定删除类别 #${catIndex + 1} 吗？`)) {
-                let newConfig = JSON.parse(JSON.stringify(ratingConfig));
-                newConfig.ratingCriteria.splice(catIndex, 1);
-                ratingConfig = newConfig; // 替换全局引用
-                renderConfigView();
+                withStructuralLock(() => {
+                    let newConfig = JSON.parse(JSON.stringify(ratingConfig));
+                    newConfig.ratingCriteria.splice(catIndex, 1);
+                    ratingConfig = newConfig; 
+                    renderConfigView();
+                });
             }
         };
 
         window.addCriterion = function(catIndex) {
-            let newConfig = JSON.parse(JSON.stringify(ratingConfig));
-            newConfig.ratingCriteria[catIndex].criteriaList.push({
-                name: "新评分项",
-                weight: 10,
-                options: [{ description: "一般", scorePct: 0.5 }, { description: "优秀", scorePct: 1.0 }]
+            withStructuralLock(() => {
+                let newConfig = JSON.parse(JSON.stringify(ratingConfig));
+                newConfig.ratingCriteria[catIndex].criteriaList.push({
+                    name: "新评分项",
+                    weight: 10,
+                    options: [{ description: "一般", scorePct: 0.5 }, { description: "优秀", scorePct: 1.0 }]
+                });
+                ratingConfig = newConfig; 
+                renderConfigView();
             });
-            ratingConfig = newConfig; // 替换全局引用
-            renderConfigView();
         };
 
         window.removeCriterion = function(catIndex, critIndex) {
             if (confirm(`确定删除类别 #${catIndex + 1} 下的评分项 #${critIndex + 1} 吗？`)) {
-                let newConfig = JSON.parse(JSON.stringify(ratingConfig));
-                newConfig.ratingCriteria[catIndex].criteriaList.splice(critIndex, 1);
-                ratingConfig = newConfig; // 替换全局引用
-                renderConfigView();
+                withStructuralLock(() => {
+                    let newConfig = JSON.parse(JSON.stringify(ratingConfig));
+                    newConfig.ratingCriteria[catIndex].criteriaList.splice(critIndex, 1);
+                    ratingConfig = newConfig; 
+                    renderConfigView();
+                });
             }
         };
         
         window.addOption = function(catIndex, critIndex) {
-            // 🚨 核心修复：确保在 push 之前，先克隆整个配置，避免原地修改
-            let newConfig = JSON.parse(JSON.stringify(ratingConfig));
-            newConfig.ratingCriteria[catIndex].criteriaList[critIndex].options.push({
-                description: "新选项",
-                scorePct: 0.5
+            withStructuralLock(() => {
+                let newConfig = JSON.parse(JSON.stringify(ratingConfig));
+                newConfig.ratingCriteria[catIndex].criteriaList[critIndex].options.push({
+                    description: "新选项",
+                    scorePct: 0.5
+                });
+                ratingConfig = newConfig; 
+                renderConfigView();
             });
-            ratingConfig = newConfig; // 替换全局引用
-            renderConfigView();
         };
 
         window.removeOption = function(catIndex, critIndex, optIndex) {
              if (confirm(`确定删除评分项 #${critIndex + 1} 下的选项 #${optIndex + 1} 吗？`)) {
-                let newConfig = JSON.parse(JSON.stringify(ratingConfig));
-                newConfig.ratingCriteria[catIndex].criteriaList[critIndex].options.splice(optIndex, 1);
-                ratingConfig = newConfig; // 替换全局引用
-                renderConfigView();
+                withStructuralLock(() => {
+                    let newConfig = JSON.parse(JSON.stringify(ratingConfig));
+                    newConfig.ratingCriteria[catIndex].criteriaList[critIndex].options.splice(optIndex, 1);
+                    ratingConfig = newConfig; 
+                    renderConfigView();
+                });
              }
         };
 
