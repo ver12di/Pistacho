@@ -4,9 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>雪茄品鉴配置管理</title>
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
-        // 1. Tailwind CSS 配置
+        // 2. 样式修复：确保 Tailwind 配置块存在
         tailwind.config = {
             theme: {
                 extend: {
@@ -19,6 +20,7 @@
     </script>
     
     <script>
+        // 请在此处放置您的 Firebase 配置变量
         const __app_id = 'pistacho-b9efe'; 
 
         const __firebase_config = JSON.stringify({
@@ -258,6 +260,7 @@
         }
 
         function renderOption(catIndex, critIndex, optIndex, option) {
+            // 🚨 选项渲染检查点：确保 value 正确绑定
             return `
                 <div class="flex space-x-2 items-center bg-white p-2 rounded-md border text-sm">
                     <div class="flex-1">
@@ -280,18 +283,15 @@
 
         /**
          * 实时处理输入变更，并将数据同步到 ratingConfig 模型中
-         * 🚨 修复了评分项和选项的索引获取逻辑，并增加了安全检查 🚨
          */
         window.handleInputChange = function(element) {
             const value = element.type === 'number' ? parseFloat(element.value) : element.value;
             const type = element.getAttribute('data-type');
             const field = element.getAttribute('data-field');
             
-            // --- 关键修复：确保索引被正确获取和解析 ---
-            // 必须分别获取，因为不同类型的元素使用不同的 data-* 属性
+            // --- 索引解析逻辑：修正了评分项和选项的索引获取 ---
             let catIndex = null, critIndex = null, optIndex = null;
 
-            // 类别和应用信息
             if (field === 'appTitle' || field === 'description') {
                 // 不需要索引
             } else if (type === 'category') {
@@ -306,7 +306,7 @@
                 critIndex = parseInt(element.getAttribute('data-crit-index'));
                 optIndex = parseInt(element.getAttribute('data-index')); // 选项本身的索引
             }
-            // --- 索引修复结束 ---
+            // --- 索引解析结束 ---
 
 
             let updatePath = ''; // 用于日志记录的路径
@@ -318,7 +318,7 @@
                 ratingConfig.ratingCriteria[catIndex][field] = value;
                 updatePath = `ratingCriteria[${catIndex}].${field}`;
             } else if (type === 'criterion') {
-                // 增加安全检查以避免 'Cannot set properties of undefined' 错误
+                // 安全检查
                 if (ratingConfig.ratingCriteria[catIndex] && ratingConfig.ratingCriteria[catIndex].criteriaList) {
                     ratingConfig.ratingCriteria[catIndex].criteriaList[critIndex][field] = value;
                     updatePath = `ratingCriteria[${catIndex}].criteriaList[${critIndex}].${field}`;
@@ -327,7 +327,7 @@
                     return; 
                 }
             } else if (type === 'option') {
-                 // 增加安全检查
+                 // 安全检查
                  if (ratingConfig.ratingCriteria[catIndex] && ratingConfig.ratingCriteria[catIndex].criteriaList[critIndex] && ratingConfig.ratingCriteria[catIndex].criteriaList[critIndex].options) {
                     ratingConfig.ratingCriteria[catIndex].criteriaList[critIndex].options[optIndex][field] = value;
                     updatePath = `ratingCriteria[${catIndex}].criteriaList[${critIndex}].options[${optIndex}].${field}`;
@@ -337,7 +337,7 @@
                  }
             }
             
-            // 关键的日志输出：现在应该能看到评分项的日志了
+            // 关键的日志输出
             console.log(`[Data Sync] Updated Path: ${updatePath}, New Value: ${value}`);
         };
 
