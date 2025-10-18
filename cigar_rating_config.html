@@ -21,382 +21,627 @@
     
     <script>
         // 请在此处放置您的 Firebase 配置变量
-        const __app_id = 'pistacho-b9efe'; 
-
-        const __firebase_config = JSON.stringify({
-            apiKey: "AIzaSyDC-8qbWsjRyxBzJpfCi9n3ftzdg9FStF0", 
-            authDomain: "pistacho-b9efe.firebaseapp.com",
-            projectId: "pistacho-b9efe",
-            storageBucket: "pistacho-b9efe.firebasestorage.app",
-            messagingSenderId: "686695750713",
-            appId: "1:686695750713:web:5314331be7b46e93f401e8",
-            measurementId: "G-HQS7Q78LY7"
-        });
-
-        // 关键修复：使用 window 对象检查，以避免 const 的 Temporal Dead Zone (TDZ) 错误。
-        const __initial_auth_token = (typeof window.__initial_auth_token !== 'undefined' && window.__initial_auth_token)
-            ? window.__initial_auth_token
-            : '';
+        const __app_id = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
     </script>
 
     <script type="module">
-        // 导入 Firebase 核心和必要的服务
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { 
-            getAuth, signInAnonymously, signInWithCustomToken, 
-            onAuthStateChanged
+            getAuth, 
+            signInAnonymously, 
+            signInWithCustomToken, 
+            onAuthStateChanged,
+            signOut
         } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { 
-            getFirestore, doc, setDoc, onSnapshot, 
-            setLogLevel 
+            getFirestore, 
+            doc, 
+            setDoc, 
+            getDoc, 
+            onSnapshot, 
+            collection,
+            query
         } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
+        import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        
         // 设置 Firebase 日志级别
-        setLogLevel('debug');
+        // setLogLevel('Debug'); // 在开发环境可以取消注释以查看详细日志
 
         // 全局变量
-        const firebaseConfig = JSON.parse(__firebase_config);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const initialAuthToken = __initial_auth_token; // 在模块脚本内使用一个更容易引用的名字
-
-        let app;
-        let db;
-        let auth;
+        let app, db, auth;
         let userId = null;
-        let unsubscribeConfig = null; // 用于存储配置监听器的取消函数
+        let isAuthReady = false;
+        let currentConfig = null;
+        
+        // 确保 Firebase 配置存在
+        if (Object.keys(firebaseConfig).length > 0) {
+            app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            auth = getAuth(app);
+        } else {
+            console.error("Firebase Configuration is missing.");
+        }
+        
+        // --- Firestore 路径函数 ---
+        const getConfigDocRef = (db) => {
+            // 配置数据存储在应用的公共/全局设置中
+            return doc(db, 'artifacts', __app_id, 'public', 'settings', 'config');
+        };
 
-        // 【已更新】默认配置结构：与 index (3).html 中的配置保持一致
-        const defaultConfig = {
-            appTitle: "我的雪茄品鉴评分表",
-            description: "自定义雪茄品鉴评分的评分项和权重。",
+        // --- 默认配置（必须与主应用读取的结构完全匹配）---
+        const DEFAULT_CONFIG = {
+            appTitle: "雪茄品鉴评分主应用",
+            description: "记录和分享你的雪茄品鉴体验。管理员可以在此页面修改评分标准。",
             ratingCriteria: [
-                { id: 'appearance', label: '茄衣与茄体外观', weight: 20, description: '茄衣颜色、油性、结构、环径等。' },
-                { id: 'combustion', label: '燃烧与结构', weight: 30, description: '燃烧均匀性、烟灰保持性、抽吸阻力等。' },
-                { id: 'flavour', label: '风味与口感', weight: 40, description: '核心风味、复杂度和风味变化。' },
-                { id: 'experience', label: '整体体验', weight: 10, description: '整体愉悦感、回味和独特性。' }
-            ],
-            totalWeight: 100,
-            version: 1
+                {
+                    key: "visual",
+                    name: "外观 (Visual)",
+                    maxScore: 15,
+                    subCriteria: [
+                        { key: "wrapper", name: "茄衣", maxScore: 5 },
+                        { key: "structure", name: "结构", maxScore: 5 },
+                        { key: "cap", name: "茄帽", maxScore: 5 }
+                    ]
+                },
+                {
+                    key: "pre_light_draw",
+                    name: "点燃前品吸 (Pre-Light)",
+                    maxScore: 10,
+                    subCriteria: [
+                        { key: "aroma", name: "香气", maxScore: 5 },
+                        { key: "draw_resistance", name: "抽吸阻力", maxScore: 5 }
+                    ]
+                },
+                {
+                    key: "first_third",
+                    name: "前段 (First Third)",
+                    maxScore: 25,
+                    subCriteria: [
+                        { key: "burn_line", name: "燃烧线", maxScore: 5 },
+                        { key: "flavor_complexity", name: "风味复杂度", maxScore: 10 },
+                        { key: "strength", name: "浓度", maxScore: 10 }
+                    ]
+                },
+                {
+                    key: "mid_third",
+                    name: "中段 (Mid Third)",
+                    maxScore: 25,
+                    subCriteria: [
+                        { key: "burn_line_mid", name: "燃烧线", maxScore: 5 },
+                        { key: "flavor_complexity_mid", name: "风味复杂度", maxScore: 10 },
+                        { key: "strength_mid", name: "浓度", maxScore: 10 }
+                    ]
+                },
+                {
+                    key: "final_third",
+                    name: "尾段 (Final Third)",
+                    maxScore: 25,
+                    subCriteria: [
+                        { key: "final_burn_line", name: "燃烧线", maxScore: 5 },
+                        { key: "final_flavor", name: "最终风味", maxScore: 10 },
+                        { key: "overall_impression", name: "整体印象", maxScore: 10 }
+                    ]
+                }
+            ]
         };
 
-        const configDocPath = () => {
-            if (!userId) {
-                return `artifacts/${appId}/temp/configs/invalid`;
-            }
-            // 存储在用户的私有配置路径
-            return `artifacts/${appId}/users/${userId}/configs/cigar_rating_config`;
-        };
 
-        // UI 辅助函数
-        function showMessage(message, type = 'info') {
-            const container = document.getElementById('error-container');
-            if (container) {
-                const colors = {
-                    'error': 'bg-red-100 border-red-400 text-red-700',
-                    'success': 'bg-green-100 border-green-400 text-green-700',
-                    'info': 'bg-blue-100 border-blue-400 text-blue-700'
-                };
-                container.innerHTML = `
-                    <div class="border ${colors[type]} px-4 py-3 rounded relative mb-4" role="alert">
-                        <strong class="font-bold">${type === 'error' ? '错误' : (type === 'success' ? '成功' : '提示')}!</strong>
-                        <span class="block sm:inline ml-2">${message}</span>
-                    </div>
-                `;
-                // 3秒后自动清除信息
-                setTimeout(() => container.innerHTML = '', 3000);
-            }
-        }
-
-        // --- 核心业务逻辑：配置管理 ---
-
-        // 用于在内存中存储当前配置的变量
-        let currentConfig = defaultConfig; 
+        // --- UI 渲染函数 ---
 
         /**
-         * 仅更新总权重显示和保存按钮状态
-         * @param {object} config - 当前的配置对象
+         * 渲染子评分标准 (Sub Criteria) 的输入字段
+         * @param {Array<Object>} subCriteriaArr - 子标准数组
+         * @param {string} criteriaKey - 父标准的 key
+         * @returns {string} HTML 字符串
          */
-        function updateTotalWeightDisplay(config) {
-            const totalWeight = config.ratingCriteria.reduce((sum, item) => sum + (parseInt(item.weight) || 0), 0);
-            const isTotalWeightValid = totalWeight === 100;
+        function renderSubCriteria(subCriteriaArr, criteriaKey) {
+            if (!Array.isArray(subCriteriaArr)) subCriteriaArr = [];
             
-            const weightContainer = document.getElementById('total-weight-container');
-            const saveButton = document.getElementById('save-button');
-            
-            // 更新权重总计显示和颜色
-            if (weightContainer) {
-                weightContainer.className = `mt-6 p-4 rounded-lg font-bold transition-colors duration-300 ${isTotalWeightValid ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`;
-                weightContainer.innerHTML = `
-                    当前总权重: <span id="total-weight-display">${totalWeight}</span>% 
-                    ${isTotalWeightValid ? '(完美!)' : `(需调整至 100%)`}
-                `;
-            }
+            const subCriteriaHtml = subCriteriaArr.map((sub, index) => `
+                <div class="flex items-center space-x-3 mb-2 p-3 bg-gray-50 border border-gray-200 rounded-md" data-sub-index="${index}">
+                    <div class="flex-1">
+                        <label class="block text-xs font-medium text-gray-500">子标准名称</label>
+                        <input type="text" 
+                                class="w-full p-1 border border-gray-300 rounded-md text-sm" 
+                                value="${sub.name || ''}" 
+                                data-criteria-key="${criteriaKey}" 
+                                data-field="subCriteria.name" 
+                                data-index="${index}" 
+                                oninput="handleSubInputChange(this)">
+                    </div>
+                    <div class="w-20">
+                        <label class="block text-xs font-medium text-gray-500">键 (Key)</label>
+                        <input type="text" 
+                                class="w-full p-1 border border-gray-300 rounded-md text-sm bg-gray-100" 
+                                value="${sub.key || ''}" 
+                                data-criteria-key="${criteriaKey}" 
+                                data-field="subCriteria.key" 
+                                data-index="${index}" 
+                                oninput="handleSubInputChange(this)">
+                    </div>
+                    <div class="w-16">
+                        <label class="block text-xs font-medium text-gray-500">满分</label>
+                        <input type="number" 
+                                class="w-full p-1 border border-gray-300 rounded-md text-sm" 
+                                value="${sub.maxScore || 0}" 
+                                data-criteria-key="${criteriaKey}" 
+                                data-field="subCriteria.maxScore" 
+                                data-index="${index}" 
+                                oninput="handleSubInputChange(this)">
+                    </div>
+                    <button type="button" 
+                            class="p-2 text-red-500 hover:bg-red-100 rounded-full"
+                            onclick="removeSubCriteria('${criteriaKey}', ${index})">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                </div>
+            `).join('');
 
-            // 更新保存按钮状态
-            if (saveButton) {
-                saveButton.disabled = !isTotalWeightValid;
-                saveButton.classList.toggle('opacity-50', !isTotalWeightValid);
-                saveButton.classList.toggle('cursor-not-allowed', !isTotalWeightValid);
-            }
+            return `
+                <div class="mt-3 p-3 border border-dashed border-gray-300 rounded-lg">
+                    <h4 class="text-sm font-semibold mb-2 text-gray-600">子标准列表</h4>
+                    <div id="sub-criteria-list-${criteriaKey}" class="space-y-2">
+                        ${subCriteriaHtml}
+                    </div>
+                    <button type="button" 
+                            class="mt-3 text-sm text-indigo-600 font-medium hover:text-indigo-800 flex items-center"
+                            onclick="addSubCriteria('${criteriaKey}')">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+                        添加子标准
+                    </button>
+                </div>
+            `;
         }
 
-
         /**
-         * 渲染配置表单 (仅渲染结构变化的部分：应用信息和评分项列表)
-         * @param {object} config - 当前的配置对象
+         * 渲染配置表单的主体部分
+         * @param {Object} config - 当前的配置数据
          */
         function renderConfigForm(config) {
-            // 更改了 ID 以匹配新的 HTML 结构
-            const container = document.getElementById('criteria-list-container');
+            const container = document.getElementById('config-form-container');
             if (!container) return;
 
-            // 1. 渲染应用基本信息 (这些元素在 DOM 中是固定的，只需要更新值)
+            // 1. 填充应用基本信息
             document.getElementById('app-title-input').value = config.appTitle || '';
             document.getElementById('app-description-input').value = config.description || '';
 
-            let html = `
-                <h2 class="text-xl font-bold text-indigo-700 mb-4">评分项配置</h2>
-            `;
-
-            // 渲染所有评分项的 HTML
-            config.ratingCriteria.forEach((item, index) => {
-                // 使用唯一的 data-index 来定位元素
-                html += `
-                    <div class="criteria-item p-4 bg-gray-50 rounded-lg shadow-sm border border-gray-200" data-index="${index}">
-                        <div class="flex justify-between items-center mb-3">
-                            <h3 class="text-lg font-semibold text-gray-800">${item.label || '新评分项'}</h3>
-                            <button type="button" class="text-red-500 hover:text-red-700 transition" onclick="removeCriteria(${index})">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
-                                </svg>
+            // 2. 渲染评分标准
+            const criteriaHtml = (config.ratingCriteria || []).map((criteria, index) => {
+                const subCriteriaInputs = renderSubCriteria(criteria.subCriteria, criteria.key);
+                
+                return `
+                    <div class="p-6 bg-white rounded-xl shadow-lg border border-indigo-200" data-index="${index}" data-criteria-key="${criteria.key}">
+                        <div class="flex justify-between items-center mb-4 pb-2 border-b border-indigo-100">
+                            <h3 class="text-lg font-bold text-indigo-700">评分标准 ${index + 1}</h3>
+                            <button type="button" 
+                                    class="text-red-500 hover:bg-red-100 p-2 rounded-full transition"
+                                    onclick="removeCriteria(${index})">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                             </button>
                         </div>
-                        <label class="block mb-3">
-                            <span class="text-sm font-medium text-gray-600">名称 (Label)</span>
-                            <input type="text" class="w-full p-2 border border-gray-300 rounded-md mt-1 criteria-input" value="${item.label || ''}" 
-                                oninput="handleCriteriaChange(this, ${index}, 'label')">
-                        </label>
-                        <label class="block mb-3">
-                            <span class="text-sm font-medium text-gray-600">权重 (%)</span>
-                            <input type="number" min="1" max="100" class="w-full p-2 border border-gray-300 rounded-md mt-1 criteria-input" value="${item.weight || 1}" 
-                                oninput="handleCriteriaChange(this, ${index}, 'weight')">
-                        </label>
-                        <label class="block">
-                            <span class="text-sm font-medium text-gray-600">描述 (Description)</span>
-                            <textarea class="w-full p-2 border border-gray-300 rounded-md mt-1 criteria-input" rows="2" 
-                                oninput="handleCriteriaChange(this, ${index}, 'description')">${item.description || ''}</textarea>
-                        </label>
+                        
+                        <div class="grid grid-cols-3 gap-4 mb-4">
+                            <div>
+                                <label class="block text-gray-700 font-medium text-sm">名称 (如: 前段)</label>
+                                <input type="text" 
+                                       class="w-full p-2 border border-gray-300 rounded-md mt-1" 
+                                       value="${criteria.name || ''}" 
+                                       data-field="name" 
+                                       data-index="${index}" 
+                                       oninput="handleCriteriaInputChange(this)">
+                            </div>
+                            <div>
+                                <label class="block text-gray-700 font-medium text-sm">键 (Key)</label>
+                                <input type="text" 
+                                       class="w-full p-2 border border-gray-300 rounded-md mt-1 bg-gray-100" 
+                                       value="${criteria.key || ''}" 
+                                       data-field="key" 
+                                       data-index="${index}" 
+                                       oninput="handleCriteriaInputChange(this)">
+                            </div>
+                            <div>
+                                <label class="block text-gray-700 font-medium text-sm">总分 (Max Score)</label>
+                                <input type="number" 
+                                       class="w-full p-2 border border-gray-300 rounded-md mt-1" 
+                                       value="${criteria.maxScore || 0}" 
+                                       data-field="maxScore" 
+                                       data-index="${index}" 
+                                       oninput="handleCriteriaInputChange(this)">
+                            </div>
+                        </div>
+                        
+                        ${subCriteriaInputs}
                     </div>
                 `;
-            });
-            
-            // 底部统计和按钮已移出此容器，所以这里只放评分项列表
-            container.innerHTML = html;
-            
-            // **重要：在渲染完成后，更新总权重和按钮状态**
-            updateTotalWeightDisplay(config);
+            }).join('');
+
+            container.innerHTML = criteriaHtml;
+
+            // 添加 "添加新标准" 按钮
+            container.insertAdjacentHTML('beforeend', `
+                <div class="mt-6 text-center">
+                    <button type="button" onclick="addCriteria()" class="px-6 py-3 bg-indigo-500 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-600 transition flex items-center mx-auto">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+                        添加新的评分标准
+                    </button>
+                </div>
+            `);
         }
 
-        // --- 全局操作函数 ---
+        // --- 数据操作函数 (CRUD) ---
 
-        window.handleInputChange = (element) => {
-            const field = element.dataset.field;
-            currentConfig = { ...currentConfig, [field]: element.value };
-            // 应用标题和描述改变不影响权重，无需更新显示
-        }
-
-        // 【修复上跳问题】此函数不再调用 renderConfigForm
-        window.handleCriteriaChange = (element, index, field) => {
-            const value = element.type === 'number' ? parseInt(element.value) : element.value;
-            
-            // 1. 更新内存中的配置
-            const newCriteria = [...currentConfig.ratingCriteria];
-            newCriteria[index] = { ...newCriteria[index], [field]: value };
-            currentConfig = { ...currentConfig, ratingCriteria: newCriteria };
-
-            // 2. 避免DOM重绘：只更新总权重显示和保存按钮状态
-            updateTotalWeightDisplay(currentConfig); 
-        }
-
-        window.addCriteria = () => {
-            const newCriteria = [...currentConfig.ratingCriteria, { 
-                id: `custom_${Date.now()}`, 
-                label: '新评分项', 
-                weight: 10, 
-                description: '新的评分描述' 
-            }];
-            currentConfig = { ...currentConfig, ratingCriteria: newCriteria };
-            // 结构变化，需要调用 renderConfigForm 重绘列表
-            renderConfigForm(currentConfig); 
-        }
-
-        window.removeCriteria = (index) => {
-            const newCriteria = currentConfig.ratingCriteria.filter((_, i) => i !== index);
-            currentConfig = { ...currentConfig, ratingCriteria: newCriteria };
-            // 结构变化，需要调用 renderConfigForm 重绘列表
-            renderConfigForm(currentConfig); 
-        }
-
-
-        window.saveConfig = async () => {
-            const totalWeight = currentConfig.ratingCriteria.reduce((sum, item) => sum + (parseInt(item.weight) || 0), 0);
-            if (totalWeight !== 100) {
-                showMessage(`保存失败：总权重必须为 100%，当前为 ${totalWeight}%。`, 'error');
+        /**
+         * 加载初始配置
+         */
+        async function loadInitialConfig() {
+            if (!db || !isAuthReady) {
+                console.error("Firebase/Auth not ready.");
                 return;
             }
 
             try {
-                // 清理数据，去除空描述
-                const cleanedConfig = {
-                    ...currentConfig,
-                    ratingCriteria: currentConfig.ratingCriteria.map(c => ({
-                        ...c,
-                        description: c.description || ''
-                    }))
+                const configRef = getConfigDocRef(db);
+                const docSnap = await getDoc(configRef);
+                
+                if (docSnap.exists()) {
+                    currentConfig = { ...DEFAULT_CONFIG, ...docSnap.data() };
+                    console.log("配置从 Firestore 加载成功。", currentConfig);
+                } else {
+                    currentConfig = DEFAULT_CONFIG;
+                    // 如果文档不存在，自动创建一个默认文档
+                    await setDoc(configRef, DEFAULT_CONFIG);
+                    console.log("配置文档不存在，已使用默认配置并保存到 Firestore。", DEFAULT_CONFIG);
+                }
+            } catch (error) {
+                console.error("加载配置失败:", error);
+                // 即使加载失败，也使用默认配置
+                currentConfig = DEFAULT_CONFIG;
+                displayError("加载配置失败，将使用默认配置。请检查控制台了解详情。");
+            }
+            
+            // 渲染表单
+            renderConfigForm(currentConfig);
+            
+            document.getElementById('save-button').disabled = false;
+        }
+
+        /**
+         * 从表单收集所有数据
+         * @returns {Object} 结构化的配置对象
+         */
+        function getFormData() {
+            // 1. 获取应用基本信息
+            const newConfig = {
+                appTitle: document.getElementById('app-title-input').value.trim(),
+                description: document.getElementById('app-description-input').value.trim(),
+                ratingCriteria: []
+            };
+
+            // 2. 遍历并收集评分标准 (Criteria)
+            const criteriaContainers = document.querySelectorAll('#config-form-container > div[data-index]');
+            
+            criteriaContainers.forEach((criteriaDiv, criteriaIndex) => {
+                const criteria = {
+                    key: criteriaDiv.querySelector(`[data-field="key"]`).value.trim(),
+                    name: criteriaDiv.querySelector(`[data-field="name"]`).value.trim(),
+                    maxScore: parseInt(criteriaDiv.querySelector(`[data-field="maxScore"]`).value, 10) || 0,
+                    subCriteria: []
                 };
 
-                await setDoc(doc(db, configDocPath()), cleanedConfig);
-                showMessage('配置已成功保存!', 'success');
-            } catch (error) {
-                console.error("保存配置失败:", error);
-                showMessage(`保存配置失败。请检查 Firestore 权限或网络连接。错误: ${error.message}`, 'error');
-            }
-        }
+                // 3. 遍历并收集子标准 (Sub Criteria)
+                const subCriteriaList = criteriaDiv.querySelector(`#sub-criteria-list-${criteria.key}`);
+                if (subCriteriaList) {
+                    const subCriteriaContainers = subCriteriaList.querySelectorAll('[data-sub-index]');
 
+                    subCriteriaContainers.forEach(subDiv => {
+                        const subKeyInput = subDiv.querySelector(`[data-field="subCriteria.key"]`);
+                        const subNameInput = subDiv.querySelector(`[data-field="subCriteria.name"]`);
+                        const subMaxScoreInput = subDiv.querySelector(`[data-field="subCriteria.maxScore"]`);
 
-        // --- Firebase 初始化与认证 ---
-
-        async function initFirebaseAndAuth() {
-            try {
-                app = initializeApp(firebaseConfig);
-                db = getFirestore(app);
-                auth = getAuth(app);
-
-                // 尝试使用自定义令牌或匿名登录
-                if (initialAuthToken) { 
-                    await signInWithCustomToken(auth, initialAuthToken);
-                    console.log("使用自定义令牌登录成功。");
-                } else {
-                    await signInAnonymously(auth);
-                    console.log("匿名登录成功。");
+                        criteria.subCriteria.push({
+                            key: subKeyInput ? subKeyInput.value.trim() : '',
+                            name: subNameInput ? subNameInput.value.trim() : '',
+                            maxScore: subMaxScoreInput ? (parseInt(subMaxScoreInput.value, 10) || 0) : 0,
+                        });
+                    });
                 }
                 
-                // 监听认证状态变化
-                onAuthStateChanged(auth, (user) => {
-                    if (user) {
-                        userId = user.uid;
-                        console.log("用户已认证，UID:", userId);
-                        // 启动配置监听
-                        startConfigListener();
-                    } else {
-                        userId = null;
-                        console.log("用户未认证。");
-                        // 停止配置监听
-                        stopConfigListener();
-                        // 渲染默认配置（或显示登录提示）
-                        renderConfigForm(defaultConfig);
-                    }
-                });
+                newConfig.ratingCriteria.push(criteria);
+            });
+
+            return newConfig;
+        }
+
+        /**
+         * 保存配置到 Firestore
+         */
+        window.saveConfig = async function() {
+            if (!db || !isAuthReady) {
+                displayError("认证未就绪，无法保存。");
+                return;
+            }
+
+            const newConfig = getFormData();
+
+            // 简单的校验
+            if (newConfig.appTitle === '') {
+                 displayError("应用标题不能为空。");
+                 return;
+            }
+            if (newConfig.ratingCriteria.length === 0) {
+                 displayError("评分标准至少需要一项。");
+                 return;
+            }
+            
+            document.getElementById('save-button').textContent = '正在保存...';
+            document.getElementById('save-button').disabled = true;
+            document.getElementById('status-message').textContent = '';
+
+            try {
+                const configRef = getConfigDocRef(db);
+                await setDoc(configRef, newConfig);
+                currentConfig = newConfig; // 更新本地状态
+                
+                document.getElementById('status-message').className = 'text-green-600 font-semibold';
+                document.getElementById('status-message').textContent = '配置保存成功！';
+                console.log("配置保存成功:", newConfig);
 
             } catch (error) {
-                console.error("Firebase 初始化或认证失败:", error);
-                showMessage(`系统错误: Firebase 初始化失败。请检查控制台。错误: ${error.message}`, 'error');
+                console.error("保存配置失败:", error);
+                displayError("保存配置失败。请检查控制台了解详情。");
+            } finally {
+                document.getElementById('save-button').textContent = '保存配置';
+                document.getElementById('save-button').disabled = false;
             }
         }
         
-        function startConfigListener() {
-            if (unsubscribeConfig) {
-                unsubscribeConfig(); // 先停止旧的监听器
-            }
+        // --- 动态编辑逻辑 ---
+        
+        /**
+         * 处理应用信息和评分标准主体的输入变化
+         * @param {HTMLInputElement|HTMLTextAreaElement} inputElement - 输入元素
+         */
+        window.handleInputChange = function(inputElement) {
+            const field = inputElement.getAttribute('data-field');
+            const value = field === 'appTitle' || field === 'description' ? inputElement.value : parseInt(inputElement.value, 10) || 0;
 
-            const docRef = doc(db, configDocPath());
+            // 这里只更新 input 元素的 value，实际的 currentConfig 更新放在 getFormData/saveConfig 中处理，
+            // 以简化状态管理，避免频繁重新渲染整个表单。
+        }
+
+        /**
+         * 处理评分标准主体的输入变化
+         * @param {HTMLInputElement} inputElement - 输入元素
+         */
+        window.handleCriteriaInputChange = function(inputElement) {
+            // This is handled by getFormData() when saving.
+            // We just ensure the input value is updated.
+        }
+
+        /**
+         * 处理子评分标准的输入变化
+         * @param {HTMLInputElement} inputElement - 输入元素
+         */
+        window.handleSubInputChange = function(inputElement) {
+            // This is handled by getFormData() when saving.
+            // We just ensure the input value is updated.
+        }
+
+        /**
+         * 添加一个新的评分标准
+         */
+        window.addCriteria = function() {
+            const newCriteria = {
+                key: `new_criteria_${Date.now()}`,
+                name: "新评分标准",
+                maxScore: 20,
+                subCriteria: [
+                    { key: "sub_1", name: "子项一", maxScore: 10 },
+                ]
+            };
             
-            // 启动新的配置监听器
-            unsubscribeConfig = onSnapshot(docRef, (docSnap) => {
-                if (docSnap.exists()) {
-                    // 配置存在，加载数据
-                    currentConfig = docSnap.data();
-                    console.log("实时配置数据:", currentConfig);
-                    renderConfigForm(currentConfig);
-                } else {
-                    // 配置不存在，使用默认配置并尝试创建
-                    console.log("配置文档不存在，使用默认配置。");
-                    currentConfig = defaultConfig;
-                    renderConfigForm(currentConfig);
-                    // 首次使用时写入默认配置
-                    setDoc(docRef, defaultConfig).catch(e => console.error("尝试写入默认配置失败:", e));
-                }
-            }, (error) => {
-                 // 权限错误等会在这里捕获
-                console.error("监听配置变化失败:", error);
-                showMessage(`加载配置失败，可能需要检查 Firestore 权限。错误: ${error.message}`, 'error');
-                // 停止监听并使用默认配置作为回退
-                stopConfigListener();
-                renderConfigForm(defaultConfig);
-            });
+            if (!currentConfig.ratingCriteria) {
+                currentConfig.ratingCriteria = [];
+            }
+            currentConfig.ratingCriteria.push(newCriteria);
+            renderConfigForm(currentConfig);
         }
-        
-        function stopConfigListener() {
-            if (unsubscribeConfig) {
-                unsubscribeConfig();
-                unsubscribeConfig = null;
-                console.log("配置监听器已停止。");
+
+        /**
+         * 移除一个评分标准
+         * @param {number} index - 评分标准在数组中的索引
+         */
+        window.removeCriteria = function(index) {
+            if (currentConfig.ratingCriteria && currentConfig.ratingCriteria.length > index) {
+                const criteriaName = currentConfig.ratingCriteria[index].name;
+                if (confirmModal(`确定要删除评分标准: ${criteriaName} 吗？`)) {
+                    currentConfig.ratingCriteria.splice(index, 1);
+                    renderConfigForm(currentConfig);
+                }
             }
         }
 
+        /**
+         * 添加一个新的子评分标准
+         * @param {string} criteriaKey - 父标准的 key
+         */
+        window.addSubCriteria = function(criteriaKey) {
+            const criteriaIndex = currentConfig.ratingCriteria.findIndex(c => c.key === criteriaKey);
+            
+            if (criteriaIndex !== -1) {
+                const newSub = {
+                    key: `sub_${Date.now()}`,
+                    name: "新子标准",
+                    maxScore: 10
+                };
+                
+                if (!currentConfig.ratingCriteria[criteriaIndex].subCriteria) {
+                    currentConfig.ratingCriteria[criteriaIndex].subCriteria = [];
+                }
+                currentConfig.ratingCriteria[criteriaIndex].subCriteria.push(newSub);
+                
+                // 只重新渲染该 Criteria 的子标准列表
+                const subCriteriaListHtml = renderSubCriteria(currentConfig.ratingCriteria[criteriaIndex].subCriteria, criteriaKey);
+                const criteriaDiv = document.querySelector(`div[data-criteria-key="${criteriaKey}"]`);
+                if(criteriaDiv) {
+                    const subContainer = criteriaDiv.querySelector('.mt-3.p-3.border.border-dashed.border-gray-300.rounded-lg');
+                    if (subContainer) {
+                         // 重新渲染整个子标准部分
+                        subContainer.outerHTML = subCriteriaListHtml;
+                    }
+                } else {
+                    renderConfigForm(currentConfig); // 实在不行就全刷新
+                }
+            }
+        }
 
-        // 页面加载完成后启动
-        window.onload = initFirebaseAndAuth;
+        /**
+         * 移除一个子评分标准
+         * @param {string} criteriaKey - 父标准的 key
+         * @param {number} subIndex - 子标准在数组中的索引
+         */
+        window.removeSubCriteria = function(criteriaKey, subIndex) {
+            const criteriaIndex = currentConfig.ratingCriteria.findIndex(c => c.key === criteriaKey);
+            
+            if (criteriaIndex !== -1 && currentConfig.ratingCriteria[criteriaIndex].subCriteria) {
+                const subCriteria = currentConfig.ratingCriteria[criteriaIndex].subCriteria;
+                const subName = subCriteria[subIndex].name;
+
+                if (confirmModal(`确定要删除子标准: ${subName} 吗？`)) {
+                    subCriteria.splice(subIndex, 1);
+                    
+                    // 只重新渲染该 Criteria 的子标准列表
+                    const subCriteriaListHtml = renderSubCriteria(currentConfig.ratingCriteria[criteriaIndex].subCriteria, criteriaKey);
+                    const criteriaDiv = document.querySelector(`div[data-criteria-key="${criteriaKey}"]`);
+                    if(criteriaDiv) {
+                        const subContainer = criteriaDiv.querySelector('.mt-3.p-3.border.border-dashed.border-gray-300.rounded-lg');
+                        if (subContainer) {
+                            subContainer.outerHTML = subCriteriaListHtml;
+                        }
+                    } else {
+                        renderConfigForm(currentConfig); // 实在不行就全刷新
+                    }
+                }
+            }
+        }
+
+        // --- 认证和初始化 ---
+        
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                userId = user.uid;
+                isAuthReady = true;
+                document.getElementById('user-id-display').textContent = `用户ID: ${userId}`;
+                await loadInitialConfig();
+            } else {
+                userId = null;
+                isAuthReady = true;
+                // 对于配置页面，即使未登录/匿名用户，也应加载配置
+                document.getElementById('user-id-display').textContent = '用户ID: 匿名';
+                await loadInitialConfig();
+            }
+        });
+
+        // 初始化认证
+        window.addEventListener('load', async () => {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (error) {
+                console.error("Initial authentication failed:", error);
+                displayError("认证失败，部分功能可能无法使用。");
+                isAuthReady = true; // 确保即使认证失败，也能尝试加载默认配置
+                await loadInitialConfig();
+            }
+        });
+        
+        // --- 辅助 UI 函数 ---
+        
+        /**
+         * 显示错误消息
+         * @param {string} message - 错误文本
+         */
+        function displayError(message) {
+            const container = document.getElementById('error-container');
+            container.innerHTML = `
+                <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4 rounded-md shadow-md" role="alert">
+                    <p class="font-bold">错误</p>
+                    <p>${message}</p>
+                </div>
+            `;
+            // 同时在状态消息区域显示
+            document.getElementById('status-message').className = 'text-red-600 font-semibold';
+            document.getElementById('status-message').textContent = `保存失败: ${message.substring(0, 50)}...`;
+        }
+
+        /**
+         * 自定义确认模态框（替代 window.confirm）
+         * @param {string} message - 确认消息
+         * @returns {boolean} - true 如果用户确认
+         */
+        function confirmModal(message) {
+            // 在实际应用中，这里应该显示一个 Tailwind CSS 模态框
+            // 但为了兼容性，我们暂时使用简单的原生 API
+            return window.confirm(message);
+        }
 
     </script>
 </head>
-<body class="bg-gray-100 min-h-screen">
-    <div class="container mx-auto p-4 sm:p-8 max-w-4xl">
-        <header class="flex justify-between items-center mb-6">
-            <h1 class="text-3xl font-extrabold text-indigo-800">雪茄品鉴配置</h1>
-            <a href="index.html" class="py-2 px-4 text-sm font-medium rounded-lg bg-indigo-100 text-indigo-600 hover:bg-indigo-200 hover:text-white transition">← 返回主页</a>
+<body class="bg-gray-100 font-sans p-4 md:p-8">
+    <div class="max-w-4xl mx-auto">
+        <header class="mb-8 flex justify-between items-center">
+            <h1 class="text-3xl font-extrabold text-indigo-800">雪茄品鉴配置管理</h1>
+            <a href="index.html" class="px-4 py-2 text-sm font-medium rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition">← 返回主页</a>
         </header>
         
         <div id="error-container">
             </div>
 
+        <!-- 应用基本信息 -->
         <section class="mb-8 p-6 bg-white rounded-xl shadow-lg">
              <h2 class="text-xl font-bold text-indigo-700 mb-4">应用基本信息</h2>
+             <div class="text-xs text-gray-500 mb-4" id="user-id-display">正在认证...</div>
              <label class="block mb-4">
                  <span class="text-gray-700 font-medium">应用标题 (App Title)</span>
-                 <input type="text" id="app-title-input" class="w-full p-2 border border-gray-300 rounded-md mt-1" oninput="handleInputChange(this)" data-field="appTitle">
+                 <input type="text" id="app-title-input" class="w-full p-2 border border-gray-300 rounded-md mt-1" oninput="handleInputChange(this)" data-field="appTitle" placeholder="雪茄品鉴评分主应用">
              </label>
              <label class="block mb-4">
                  <span class="text-gray-700 font-medium">应用描述 (Description)</span>
-                 <textarea id="app-description-input" class="w-full p-2 border border-gray-300 rounded-md mt-1" rows="3" oninput="handleInputChange(this)" data-field="description"></textarea>
+                 <textarea id="app-description-input" class="w-full p-2 border border-gray-300 rounded-md mt-1" rows="3" oninput="handleInputChange(this)" data-field="description" placeholder="记录和分享你的雪茄品鉴体验。"></textarea>
              </label>
         </section>
 
-
-        <form id="config-form">
-            <!-- 评分项列表：这部分会在添加/删除时重绘 -->
-            <section id="criteria-list-container" class="space-y-6">
-                <div class="p-6 text-center text-gray-500">正在加载配置...</div>
-            </section>
+        <!-- 评分标准配置 -->
+        <section class="mb-8 p-6 bg-white rounded-xl shadow-lg">
+            <h2 class="text-xl font-bold text-indigo-700 mb-6 border-b pb-3">评分标准 (Rating Criteria)</h2>
+            <p class="text-sm text-gray-500 mb-4">您可以定义主要的评分项目及其子项，确保 **键 (Key)** 值唯一且只包含字母、数字和下划线，这是程序内部识别的关键。</p>
             
-            <!-- 权重总和与添加按钮：这部分是固定的，不会在输入时重绘，从而解决上跳问题 -->
-            <div id="summary-and-controls">
-                <div id="total-weight-container" class="mt-6 p-4 rounded-lg bg-gray-200 font-bold transition-colors duration-300">
-                    当前总权重: <span id="total-weight-display">0</span>% (正在加载...)
-                </div>
-                <div class="flex space-x-4 mt-6">
-                    <button type="button" class="flex-1 py-2 px-4 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 transition" onclick="addCriteria()">
-                        + 添加新评分项
+            <form id="config-form">
+                <section id="config-form-container" class="space-y-6">
+                    <div class="p-6 text-center text-gray-500">正在加载配置...</div>
+                </section>
+            
+                <div class="mt-8 pt-4 border-t border-gray-300 flex justify-between items-center">
+                    <button type="button" 
+                            id="save-button" 
+                            onclick="saveConfig()" 
+                            class="px-8 py-3 bg-green-600 text-white font-bold rounded-lg shadow-xl hover:bg-green-700 transition disabled:opacity-50"
+                            disabled>
+                        保存配置
                     </button>
+                    <p id="status-message" class="text-sm text-gray-600"></p>
                 </div>
-            </div>
-        
-            <div class="mt-8 pt-4 border-t border-gray-300">
-                <button type="button" id="save-button" onclick="saveConfig()" class="w-full py-3 px-4 bg-green-600 text-white font-bold rounded-lg shadow-md hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed">
-                    保存配置
-                </button>
-            </div>
-        </form>
+            </form>
+        </section>
+
+
+        <footer class="mt-8 text-center text-gray-500 text-sm">
+            <p>&copy; 2024 雪茄品鉴应用配置工具</p>
+        </footer>
     </div>
 </body>
 </html>
