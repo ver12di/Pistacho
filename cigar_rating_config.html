@@ -177,7 +177,7 @@
             const saveButton = document.getElementById('save-button');
             const isAdmin = hasAdminAccess(); 
             
-            // 🚨 最终修复点：深度克隆 ratingConfig 以确保我们操作和读取的是最新的、非缓存的数据结构。
+            // 确保我们使用的是最新的数据副本
             const currentConfig = JSON.parse(JSON.stringify(ratingConfig));
             
             // 确保渲染配置表单
@@ -267,7 +267,7 @@
             const valueToRender = String(option.description || ''); 
             const safeScorePct = option.scorePct || 0;
 
-            // 调试日志 (保留，用于最终确认)
+            // 调试日志 
             console.log(`[RENDER CHECK] Option C${catIndex}I${critIndex}O${optIndex} Description: "${valueToRender}"`);
 
             return `
@@ -294,7 +294,9 @@
          * 实时处理输入变更，并将数据同步到 ratingConfig 模型中
          */
         window.handleInputChange = function(element) {
-            const value = element.type === 'number' ? parseFloat(element.value) : element.value;
+             // 🚨 关键修复：从 DOM 元素的 .value 属性中直接读取，而不是依赖事件参数。
+            const inputValue = element.value;
+            const value = element.type === 'number' ? parseFloat(inputValue) : inputValue;
             const type = element.getAttribute('data-type');
             const field = element.getAttribute('data-field');
             
