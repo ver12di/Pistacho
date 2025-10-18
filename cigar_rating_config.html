@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>雪茄品鉴配置管理</title>
     
-    <!-- 1. 样式修复：确保 Tailwind CSS CDN 正常加载 -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         // 2. 样式修复：确保 Tailwind 配置块存在
@@ -20,16 +19,11 @@
         }
     </script>
     
-    <!-- ************************************************************ -->
-    <!-- ** 注入 Firebase 全局配置 ** -->
-    <!-- ************************************************************ -->
     <script>
         // 请在此处放置您的 Firebase 配置变量
         const __app_id = 'pistacho-b9efe'; 
-        const __initial_auth_token = ''; 
 
         const __firebase_config = JSON.stringify({
-            // 🚨 关键修正：恢复到用户提供的、在 index (1).html 中工作的 API Key
             apiKey: "AIzaSyDC-8qbWsjRyxBzJpfCi9n3ftzdg9FStF0", 
             authDomain: "pistacho-b9efe.firebaseapp.com",
             projectId: "pistacho-b9efe",
@@ -40,30 +34,21 @@
         });
     </script>
     
-    <!-- ************************************************************ -->
-    <!-- ** 配置管理应用逻辑 ** -->
-    <!-- ************************************************************ -->
     <script type="module">
         // --- Firebase Imports ---
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, onAuthStateChanged, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, onSnapshot, setDoc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         
         // --- Global State and Setup ---
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
         
         let db, auth;
         let ratingConfig = {};    
         let userRole = 'unknown'; 
         
-        // 关键：用于防止远程 onSnapshot 更新覆盖正在进行的本地结构修改
-        let isHandlingStructuralChange = false; 
-
-        // Firestore 路径：配置信息存储在公共数据区
         const CONFIG_DOC_PATH = `/artifacts/${appId}/public/data/cigar_config/latest`;
-        // 用户角色信息通常存储在顶层 users 集合中
         const USERS_COLLECTION_PATH = 'users'; 
         
         // --- Utility Functions ---
@@ -117,35 +102,24 @@
                 return;
             }
             try {
-                // 1. 初始化 Firebase App
                 const app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
                 
-                // 2. 登录逻辑：使用 custom token 或匿名登录
-                if (initialAuthToken) {
-                    await signInWithCustomToken(auth, initialAuthToken).catch(e => {
-                        console.error("Custom Token Sign-In Failed, trying Anonymous:", e);
-                        return signInAnonymously(auth);
-                    });
-                } else {
-                    await signInAnonymously(auth);
-                }
-
-                // 3. 认证状态监听
+                // 认证状态监听
                 onAuthStateChanged(auth, async (user) => {
                     if (user) {
-                        // 3a. 获取用户角色
+                        // 1. 获取用户角色
                         await fetchUserRole(user.uid); 
                         
-                        // 3b. 检查权限并加载配置
+                        // 2. 检查权限并加载配置
                         if (!hasAdminAccess()) {
                             renderConfigView(); 
                             renderError(`权限不足。当前角色: ${userRole.toUpperCase()}。需要 ADMIN 或 SUPER_ADMIN 权限才能修改配置。`);
                             return;
                         }
                         
-                        // 3c. 有权限，加载配置
+                        // 3. 有权限，加载配置
                         loadConfig();
                         
                     } else {
@@ -183,12 +157,6 @@
             
             // 实时监听配置变化
             onSnapshot(configDocRef, (docSnap) => {
-                // 状态锁检查：如果正在进行本地结构变化，则忽略这次远程同步
-                if (isHandlingStructuralChange) {
-                     console.log('[FIREBASE SYNC IGNORED] Local structural change in progress.');
-                     return;
-                }
-
                 if (docSnap.exists()) {
                     ratingConfig = docSnap.data();
                     renderConfigView(); 
@@ -209,19 +177,16 @@
             const saveButton = document.getElementById('save-button');
             const isAdmin = hasAdminAccess(); 
             
-            // 保持深度克隆，确保读取的数据是安全的
-            const currentConfig = JSON.parse(JSON.stringify(ratingConfig));
-            
             // 确保渲染配置表单
-             if (Object.keys(currentConfig).length === 0) {
+             if (Object.keys(ratingConfig).length === 0) {
                  container.innerHTML = `<div class="p-6 text-center text-gray-500">正在加载配置...</div>`;
              } else {
                 // 渲染基本信息
-                document.getElementById('app-title-input').value = currentConfig.appTitle || '';
-                document.getElementById('app-description-input').value = currentConfig.description || '';
+                document.getElementById('app-title-input').value = ratingConfig.appTitle || '';
+                document.getElementById('app-description-input').value = ratingConfig.description || '';
 
                 // 渲染评分标准 
-                container.innerHTML = currentConfig.ratingCriteria.map((category, catIndex) => `
+                container.innerHTML = ratingConfig.ratingCriteria.map((category, catIndex) => `
                     <div class="bg-white p-6 rounded-xl shadow-lg mb-6 border-l-4 border-indigo-500">
                         <div class="flex justify-between items-start mb-4">
                             <h3 class="text-xl font-bold text-indigo-700">评分类别 #${catIndex + 1}</h3>
@@ -295,9 +260,9 @@
         }
 
         function renderOption(catIndex, critIndex, optIndex, option) {
-            // 确保值为字符串
-            const valueToRender = String(option.description || ''); 
-            const safeScorePct = option.scorePct || 0;
+            // 🚨 调试日志：打印出渲染时读取到的实际值
+            const valueToRender = option.description || '';
+            console.log(`[RENDER CHECK] Option C${catIndex}I${critIndex}O${optIndex} Description: "${valueToRender}"`);
 
             return `
                 <div class="flex space-x-2 items-center bg-white p-2 rounded-md border text-sm">
@@ -307,7 +272,7 @@
                     </div>
                     <div class="w-1/4">
                         <label class="block text-xs">得分率 (0-1):</label>
-                        <input type="number" step="0.01" data-type="option" data-cat-index="${catIndex}" data-crit-index="${critIndex}" data-index="${optIndex}" data-field="scorePct" value="${safeScorePct}" class="config-input w-full p-1 border rounded-md text-xs" oninput="handleInputChange(this)">
+                        <input type="number" step="0.01" data-type="option" data-cat-index="${catIndex}" data-crit-index="${critIndex}" data-index="${optIndex}" data-field="scorePct" value="${option.scorePct || 0}" class="config-input w-full p-1 border rounded-md text-xs" oninput="handleInputChange(this)">
                     </div>
                     <button onclick="removeOption(${catIndex}, ${critIndex}, ${optIndex})" class="text-red-400 hover:text-red-600 transition text-sm flex-shrink-0">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 10-2 0v6a1 1 0 102 0V8z" clip-rule="evenodd" /></svg>
@@ -317,35 +282,34 @@
         }
 
 
-        // --- DYNAMIC DATA MANIPULATION (Immutability Enforced) ---
+        // --- DYNAMIC DATA MANIPULATION ---
 
         /**
-         * 实时处理输入变更，并将数据同步到 ratingConfig 模型中 (不可变模式)
+         * 实时处理输入变更，并将数据同步到 ratingConfig 模型中
          */
         window.handleInputChange = function(element) {
-            const inputValue = element.value;
-            const value = element.type === 'number' ? parseFloat(inputValue) : inputValue;
+            const value = element.type === 'number' ? parseFloat(element.value) : element.value;
             const type = element.getAttribute('data-type');
             const field = element.getAttribute('data-field');
             
-            // 保持不可变状态更新：创建 ratingConfig 的新副本 (深度克隆)
-            let newConfig = JSON.parse(JSON.stringify(ratingConfig));
-            
             // --- 索引解析逻辑 ---
-            let catIndex, critIndex, optIndex;
+            let catIndex = null, critIndex = null, optIndex = null;
 
             if (field === 'appTitle' || field === 'description') {
-                newConfig[field] = value;
+                ratingConfig[field] = value;
             } else if (type === 'category') {
                  catIndex = parseInt(element.getAttribute('data-index')); 
-                 newConfig.ratingCriteria[catIndex][field] = value;
+                 ratingConfig.ratingCriteria[catIndex][field] = value;
             } else if (type === 'criterion') {
                 catIndex = parseInt(element.getAttribute('data-cat-index'));
                 critIndex = parseInt(element.getAttribute('data-index'));
                 
                 // 安全检查
-                if (newConfig.ratingCriteria[catIndex] && newConfig.ratingCriteria[catIndex].criteriaList) {
-                    newConfig.ratingCriteria[catIndex].criteriaList[critIndex][field] = value;
+                if (ratingConfig.ratingCriteria[catIndex] && ratingConfig.ratingCriteria[catIndex].criteriaList) {
+                    ratingConfig.ratingCriteria[catIndex].criteriaList[critIndex][field] = value;
+                } else {
+                    console.error(`[Data Sync Error] Failed to find criterion list: catIndex=${catIndex}, critIndex=${critIndex}`);
+                    return; 
                 }
             } else if (type === 'option') {
                 catIndex = parseInt(element.getAttribute('data-cat-index'));
@@ -353,109 +317,67 @@
                 optIndex = parseInt(element.getAttribute('data-index'));
                  
                  // 安全检查
-                 if (newConfig.ratingCriteria[catIndex] && newConfig.ratingCriteria[catIndex].criteriaList[critIndex] && newConfig.ratingCriteria[catIndex].criteriaList[critIndex].options) {
+                 if (ratingConfig.ratingCriteria[catIndex] && ratingConfig.ratingCriteria[catIndex].criteriaList[critIndex] && ratingConfig.ratingCriteria[catIndex].criteriaList[critIndex].options) {
                     // 核心操作：更新选项描述或得分率
-                    newConfig.ratingCriteria[catIndex].criteriaList[critIndex].options[optIndex][field] = value;
+                    ratingConfig.ratingCriteria[catIndex].criteriaList[critIndex].options[optIndex][field] = value;
+                 } else {
+                     console.error(`[Data Sync Error] Failed to find option list: catIndex=${catIndex}, critIndex=${critIndex}, optIndex=${optIndex}`);
+                     return;
                  }
             }
             
-            // 关键：用全新的副本替换全局变量
-            ratingConfig = newConfig;
-
-            // 日志输出 (确认数据模型已更新)
+            // 日志输出 (您确认这个日志显示了正确的新值，如 "简陋2")
             console.log(`[Data Sync] Type: ${type}, Field: ${field}, New Value: ${value}`);
         };
 
-
-        // --- 结构修改函数 (使用不可变模式 + 状态锁) ---
-
-        function withStructuralLock(action) {
-            isHandlingStructuralChange = true;
-            console.log('[FIREBASE SYNC LOCKED] Structural change starting...');
-            // 确保动作执行时使用最新的状态
-            action(); 
-            // 异步释放锁，确保 DOM 渲染周期完成后再恢复 Firebase 监听
-            setTimeout(() => {
-                isHandlingStructuralChange = false;
-                console.log('[FIREBASE SYNC UNLOCKED]');
-            }, 100); 
-        }
-
         window.addCategory = function() {
-            withStructuralLock(() => {
-                let newConfig = JSON.parse(JSON.stringify(ratingConfig));
-                newConfig.ratingCriteria.push({
-                    category: "新类别",
-                    detail: "新类别描述",
-                    criteriaList: [{
-                        name: "新评分项",
-                        weight: 10,
-                        options: [{ description: "一般", scorePct: 0.5 }, { description: "优秀", scorePct: 1.0 }]
-                    }]
-                });
-                ratingConfig = newConfig; 
-                renderConfigView();
+            ratingConfig.ratingCriteria.push({
+                category: "新类别",
+                detail: "新类别描述",
+                criteriaList: [{
+                    name: "新评分项",
+                    weight: 10,
+                    options: [{ description: "一般", scorePct: 0.5 }, { description: "优秀", scorePct: 1.0 }]
+                }]
             });
+            renderConfigView();
         };
 
         window.removeCategory = function(catIndex) {
-            // 使用 window.confirm() (虽然规则建议自定义，但这里保持功能性)
-            if (window.confirm(`确定删除类别 #${catIndex + 1} 吗？`)) { 
-                withStructuralLock(() => {
-                    let newConfig = JSON.parse(JSON.stringify(ratingConfig));
-                    newConfig.ratingCriteria.splice(catIndex, 1);
-                    ratingConfig = newConfig; 
-                    renderConfigView();
-                });
+            if (confirm(`确定删除类别 #${catIndex + 1} 吗？`)) {
+                ratingConfig.ratingCriteria.splice(catIndex, 1);
+                renderConfigView();
             }
         };
 
         window.addCriterion = function(catIndex) {
-            withStructuralLock(() => {
-                let newConfig = JSON.parse(JSON.stringify(ratingConfig));
-                newConfig.ratingCriteria[catIndex].criteriaList.push({
-                    name: "新评分项",
-                    weight: 10,
-                    options: [{ description: "一般", scorePct: 0.5 }, { description: "优秀", scorePct: 1.0 }]
-                });
-                ratingConfig = newConfig; 
-                renderConfigView();
+             ratingConfig.ratingCriteria[catIndex].criteriaList.push({
+                name: "新评分项",
+                weight: 10,
+                options: [{ description: "一般", scorePct: 0.5 }, { description: "优秀", scorePct: 1.0 }]
             });
+            renderConfigView();
         };
 
         window.removeCriterion = function(catIndex, critIndex) {
-            // 使用 window.confirm()
-            if (window.confirm(`确定删除类别 #${catIndex + 1} 下的评分项 #${critIndex + 1} 吗？`)) { 
-                withStructuralLock(() => {
-                    let newConfig = JSON.parse(JSON.stringify(ratingConfig));
-                    newConfig.ratingCriteria[catIndex].criteriaList.splice(critIndex, 1);
-                    ratingConfig = newConfig; 
-                    renderConfigView();
-                });
+            if (confirm(`确定删除类别 #${catIndex + 1} 下的评分项 #${critIndex + 1} 吗？`)) {
+                 ratingConfig.ratingCriteria[catIndex].criteriaList.splice(critIndex, 1);
+                 renderConfigView();
             }
         };
         
         window.addOption = function(catIndex, critIndex) {
-            withStructuralLock(() => {
-                let newConfig = JSON.parse(JSON.stringify(ratingConfig));
-                newConfig.ratingCriteria[catIndex].criteriaList[critIndex].options.push({
-                    description: "新选项",
-                    scorePct: 0.5
-                });
-                ratingConfig = newConfig; 
-                renderConfigView();
+            ratingConfig.ratingCriteria[catIndex].criteriaList[critIndex].options.push({
+                description: "新选项",
+                scorePct: 0.5
             });
+            renderConfigView();
         };
 
         window.removeOption = function(catIndex, critIndex, optIndex) {
-             // 使用 window.confirm()
-             if (window.confirm(`确定删除评分项 #${critIndex + 1} 下的选项 #${optIndex + 1} 吗？`)) { 
-                withStructuralLock(() => {
-                    let newConfig = JSON.parse(JSON.stringify(ratingConfig));
-                    newConfig.ratingCriteria[catIndex].criteriaList[critIndex].options.splice(optIndex, 1);
-                    ratingConfig = newConfig; 
-                    renderConfigView();
-                });
+             if (confirm(`确定删除评分项 #${critIndex + 1} 下的选项 #${optIndex + 1} 吗？`)) {
+                 ratingConfig.ratingCriteria[catIndex].criteriaList[critIndex].options.splice(optIndex, 1);
+                 renderConfigView();
              }
         };
 
@@ -464,8 +386,7 @@
 
         window.saveConfig = async function() {
             if (!hasAdminAccess()) {
-                // 使用 window.alert()
-                window.alert('错误：您没有管理员权限来保存配置。'); 
+                alert('错误：您没有管理员权限来保存配置。');
                 return;
             }
             
@@ -484,12 +405,10 @@
             try {
                 // 使用 setDoc 覆盖整个文档，实现完全同步
                 await setDoc(configDocRef, ratingConfig);
-                // 使用 window.alert()
-                window.alert('配置保存成功，已同步到云端！'); 
+                alert('配置保存成功，已同步到云端！');
             } catch (error) {
                 console.error("保存配置失败:", error);
-                // 使用 window.alert()
-                window.alert(`保存失败！请检查您的 Firestore 写入规则。错误信息: ${error.message}`); 
+                alert(`保存失败！请检查您的 Firestore 写入规则。错误信息: ${error.message}`);
             } finally {
                 saveButton.textContent = originalText;
                 // 重新启用按钮（如果权限允许）
@@ -516,8 +435,7 @@
         </header>
         
         <div id="error-container">
-            <!-- 运行时权限错误将显示在这里 -->
-        </div>
+            </div>
 
         <section class="mb-8 p-6 bg-white rounded-xl shadow-lg">
              <h2 class="text-xl font-bold text-indigo-700 mb-4">应用基本信息</h2>
@@ -534,7 +452,6 @@
 
         <form id="config-form">
             <section id="config-form-container" class="space-y-6">
-                <!-- Dynamic config fields will be rendered here -->
                 <div class="p-6 text-center text-gray-500">正在加载配置...</div>
             </section>
         
