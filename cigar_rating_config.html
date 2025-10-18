@@ -375,93 +375,88 @@
             renderConfigView();
         };
 
-        // --- 9. 保存与发布逻辑 (*** 终极修复：使用 .catch() ***) ---
+        // --- 9. 保存与发布逻辑 (*** 终极 SDK Bug 修复 ***) ---
 
-        window.publishConfig = function() {
+        window.publishConfig = async function() {
             if (!hasAdminAccess()) return;
             if (!confirm("确定要将当前配置发布到实时应用吗？")) return;
             const button = document.getElementById('publish-button');
             button.textContent = '正在发布...'; button.disabled = true;
-            syncUIToModel();
-            const cleanConfig = deepCleanObject(ratingConfig);
             
-            if (!cleanConfig) {
-                alert("净化后的配置为空，无法保存。请确保至少有一个有效的评分项。");
-                button.textContent = '发布到 Live (latest)'; if (hasAdminAccess()) button.disabled = false;
-                return;
+            // (*** SDK Bug 修复 ***) 在写入前断开监听
+            if (configListenerUnsubscribe) {
+                configListenerUnsubscribe();
+                configListenerUnsubscribe = null;
             }
             
-            setDoc(doc(db, CONFIG_DOC_PATH), cleanConfig)
-                .then(() => {
-                    alert('配置发布成功！');
-                })
-                .catch(error => {
-                    console.error("【发布失败】错误详情:", error);
-                    console.error("【发布失败】原始数据:", JSON.stringify(ratingConfig, null, 2));
-                    console.error("【发布失败】尝试发送的净化后数据:", JSON.stringify(cleanConfig, null, 2));
-                    alert(`发布失败！错误: ${error.message}\n\n请按 F12 查看控制台中的详细数据。`);
-                })
-                .finally(() => {
-                    button.textContent = '发布到 Live (latest)'; 
-                    if (hasAdminAccess()) button.disabled = false;
-                });
+            syncUIToModel();
+            const cleanConfig = deepCleanObject(ratingConfig);
+            const configDocRef = doc(db, CONFIG_DOC_PATH);
+
+            try {
+                if (!cleanConfig) throw new Error("净化后的配置为空，无法保存。");
+                await setDoc(configDocRef, cleanConfig);
+                alert('配置发布成功！');
+            } catch (error) {
+                alert(`发布失败！错误: ${error.message}`);
+            } finally {
+                button.textContent = '发布到 Live (latest)'; 
+                if (hasAdminAccess()) button.disabled = false;
+                // 重新加载并附加监听器
+                loadConfigFromRef(configDocRef, currentProfileId);
+            }
         };
 
-        window.saveProfileChanges = function() {
+        window.saveProfileChanges = async function() {
             if (!hasAdminAccess() || currentProfileId === 'latest') return;
             const button = document.getElementById('save-profile-button');
             button.textContent = '正在保存...'; button.disabled = true;
-            syncUIToModel();
-            const cleanConfig = deepCleanObject(ratingConfig);
-
-            if (!cleanConfig) {
-                alert("净化后的配置为空，无法保存。");
-                button.textContent = '保存更改到方案'; if (hasAdminAccess()) button.disabled = (currentProfileId === 'latest');
-                return;
+            
+            if (configListenerUnsubscribe) {
+                configListenerUnsubscribe();
+                configListenerUnsubscribe = null;
             }
 
-            setDoc(doc(db, PROFILES_COLLECTION_PATH, currentProfileId), cleanConfig)
-                .then(() => {
-                    alert(`方案 "${currentProfileId}" 保存成功！`);
-                })
-                .catch(error => {
-                    console.error("【保存方案失败】错误详情:", error);
-                    console.error("【保存方案失败】原始数据:", JSON.stringify(ratingConfig, null, 2));
-                    console.error("【保存方案失败】尝试发送的净化后数据:", JSON.stringify(cleanConfig, null, 2));
-                    alert(`保存方案失败！错误: ${error.message}\n\n请按 F12 查看控制台中的详细数据。`);
-                })
-                .finally(() => {
-                     button.textContent = '保存更改到方案'; 
-                     if (hasAdminAccess()) button.disabled = (currentProfileId === 'latest');
-                });
+            syncUIToModel();
+            const cleanConfig = deepCleanObject(ratingConfig);
+            const profileDocRef = doc(db, PROFILES_COLLECTION_PATH, currentProfileId);
+            
+            try {
+                if (!cleanConfig) throw new Error("净化后的配置为空，无法保存。");
+                await setDoc(profileDocRef, cleanConfig);
+                alert(`方案 "${currentProfileId}" 保存成功！`);
+            } catch (error) {
+                alert(`保存方案失败！错误: ${error.message}`);
+            } finally {
+                button.textContent = '保存更改到方案'; 
+                if (hasAdminAccess()) button.disabled = (currentProfileId === 'latest');
+                loadConfigFromRef(profileDocRef, currentProfileId);
+            }
         };
 
-        window.saveAsNewProfile = function() {
+        window.saveAsNewProfile = async function() {
             if (!hasAdminAccess()) return;
             const profileName = prompt("请输入新配置方案的名称:");
             if (!profileName || profileName.trim() === '' || profileName === 'latest') return;
+
+            if (configListenerUnsubscribe) {
+                configListenerUnsubscribe();
+                configListenerUnsubscribe = null;
+            }
+            
             syncUIToModel();
             const cleanConfig = deepCleanObject(ratingConfig);
-            
-            if (!cleanConfig) {
-                alert("净化后的配置为空，无法保存。");
-                return;
-            }
-
             const newProfileDocRef = doc(db, PROFILES_COLLECTION_PATH, profileName);
             
-            setDoc(newProfileDocRef, cleanConfig)
-                .then(async () => {
-                    alert(`新方案 "${profileName}" 已保存！`);
-                    await loadProfileList();
-                    loadConfigFromRef(newProfileDocRef, profileName);
-                })
-                .catch(error => {
-                    console.error("【另存为失败】错误详情:", error);
-                    console.error("【另存为失败】原始数据:", JSON.stringify(ratingConfig, null, 2));
-                    console.error("【另存为失败】尝试发送的净化后数据:", JSON.stringify(cleanConfig, null, 2));
-                    alert(`另存为失败！错误: ${error.message}\n\n请按 F12 查看控制台中的详细数据。`);
-                });
+            try {
+                if (!cleanConfig) throw new Error("净化后的配置为空，无法保存。");
+                await setDoc(newProfileDocRef, cleanConfig);
+                alert(`新方案 "${profileName}" 已保存！`);
+                await loadProfileList();
+                loadConfigFromRef(newProfileDocRef, profileName);
+            } catch (error) {
+                alert(`另存为失败！错误: ${error.message}`);
+            }
         };
         
         window.deleteSelectedProfile = async function() {
@@ -491,12 +486,12 @@
             URL.revokeObjectURL(url);
         };
 
-        window.uploadConfigJSON = function() {
+        window.uploadConfigJSON = async function() {
             const input = document.getElementById('json-upload-input');
             const file = input.files[0];
             if (!file) return;
             const reader = new FileReader();
-            reader.onload = function(e) {
+            reader.onload = async function(e) {
                 let uploadedConfig;
                 try {
                     uploadedConfig = JSON.parse(e.target.result);
@@ -513,16 +508,15 @@
                 }
 
                 const newProfileDocRef = doc(db, PROFILES_COLLECTION_PATH, profileName);
-                setDoc(newProfileDocRef, cleanUploadedConfig)
-                    .then(async () => {
-                        alert(`新方案 "${profileName}" 已上传并保存！`);
-                        await loadProfileList();
-                        ratingConfig = cleanUploadedConfig;
-                        loadConfigFromRef(newProfileDocRef, profileName);
-                    })
-                    .catch(error => {
-                         alert(`上传新方案失败！错误: ${error.message}`);
-                    });
+                try {
+                    await setDoc(newProfileDocRef, cleanUploadedConfig);
+                    alert(`新方案 "${profileName}" 已上传并保存！`);
+                    await loadProfileList();
+                    ratingConfig = cleanUploadedConfig;
+                    loadConfigFromRef(newProfileDocRef, profileName);
+                } catch (error) {
+                     alert(`上传新方案失败！错误: ${error.message}`);
+                }
             };
             reader.readAsText(file);
             input.value = null; 
