@@ -33,8 +33,7 @@
             measurementId: "G-HQS7Q78LY7"
         });
 
-        // 【关键修复】使用 window 对象检查，以避免 const 的 Temporal Dead Zone (TDZ) 错误。
-        // 如果全局 window.initial_auth_token 存在，则使用它，否则使用空字符串。
+        // 关键修复：使用 window 对象检查，以避免 const 的 Temporal Dead Zone (TDZ) 错误。
         const __initial_auth_token = (typeof window.__initial_auth_token !== 'undefined' && window.__initial_auth_token)
             ? window.__initial_auth_token
             : '';
@@ -45,11 +44,10 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { 
             getAuth, signInAnonymously, signInWithCustomToken, 
-            onAuthStateChanged, createUserWithEmailAndPassword, 
-            signInWithEmailAndPassword, signOut 
+            onAuthStateChanged
         } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { 
-            getFirestore, doc, setDoc, onSnapshot, collection, query, where, getDocs, updateDoc,
+            getFirestore, doc, setDoc, onSnapshot, 
             setLogLevel 
         } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
@@ -57,7 +55,6 @@
         setLogLevel('debug');
 
         // 全局变量
-        // 注意：这里的 __app_id, __firebase_config, __initial_auth_token 是在上面的 <script> 块中定义的
         const firebaseConfig = JSON.parse(__firebase_config);
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         const initialAuthToken = __initial_auth_token; // 在模块脚本内使用一个更容易引用的名字
@@ -68,15 +65,15 @@
         let userId = null;
         let unsubscribeConfig = null; // 用于存储配置监听器的取消函数
 
-        // 默认配置结构
+        // 【已更新】默认配置结构：与 index (3).html 中的配置保持一致
         const defaultConfig = {
             appTitle: "我的雪茄品鉴评分表",
             description: "自定义雪茄品鉴评分的评分项和权重。",
             ratingCriteria: [
-                { id: 'appearance', label: '外观 (Appearance)', weight: 20, description: '茄衣颜色、油性、结构、环径等。' },
-                { id: 'construction', label: '结构 (Construction)', weight: 30, description: '燃烧均匀性、烟灰保持性、抽吸阻力等。' },
-                { id: 'flavor', label: '风味 (Flavor)', weight: 40, description: '核心风味、复杂度和风味变化。' },
-                { id: 'experience', label: '体验 (Experience)', weight: 10, description: '整体愉悦感、回味和独特性。' }
+                { id: 'appearance', label: '茄衣与茄体外观', weight: 20, description: '茄衣颜色、油性、结构、环径等。' },
+                { id: 'combustion', label: '燃烧与结构', weight: 30, description: '燃烧均匀性、烟灰保持性、抽吸阻力等。' },
+                { id: 'flavour', label: '风味与口感', weight: 40, description: '核心风味、复杂度和风味变化。' },
+                { id: 'experience', label: '整体体验', weight: 10, description: '整体愉悦感、回味和独特性。' }
             ],
             totalWeight: 100,
             version: 1
@@ -84,7 +81,6 @@
 
         const configDocPath = () => {
             if (!userId) {
-                // 如果没有 userId，理论上不应该调用，但为了安全返回一个无效路径
                 return `artifacts/${appId}/temp/configs/invalid`;
             }
             // 存储在用户的私有配置路径
@@ -113,23 +109,58 @@
 
         // --- 核心业务逻辑：配置管理 ---
 
+        // 用于在内存中存储当前配置的变量
+        let currentConfig = defaultConfig; 
+
         /**
-         * 渲染配置表单
+         * 仅更新总权重显示和保存按钮状态
+         * @param {object} config - 当前的配置对象
+         */
+        function updateTotalWeightDisplay(config) {
+            const totalWeight = config.ratingCriteria.reduce((sum, item) => sum + (parseInt(item.weight) || 0), 0);
+            const isTotalWeightValid = totalWeight === 100;
+            
+            const weightContainer = document.getElementById('total-weight-container');
+            const saveButton = document.getElementById('save-button');
+            
+            // 更新权重总计显示和颜色
+            if (weightContainer) {
+                weightContainer.className = `mt-6 p-4 rounded-lg font-bold transition-colors duration-300 ${isTotalWeightValid ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`;
+                weightContainer.innerHTML = `
+                    当前总权重: <span id="total-weight-display">${totalWeight}</span>% 
+                    ${isTotalWeightValid ? '(完美!)' : `(需调整至 100%)`}
+                `;
+            }
+
+            // 更新保存按钮状态
+            if (saveButton) {
+                saveButton.disabled = !isTotalWeightValid;
+                saveButton.classList.toggle('opacity-50', !isTotalWeightValid);
+                saveButton.classList.toggle('cursor-not-allowed', !isTotalWeightValid);
+            }
+        }
+
+
+        /**
+         * 渲染配置表单 (仅渲染结构变化的部分：应用信息和评分项列表)
          * @param {object} config - 当前的配置对象
          */
         function renderConfigForm(config) {
-            const container = document.getElementById('config-form-container');
+            // 更改了 ID 以匹配新的 HTML 结构
+            const container = document.getElementById('criteria-list-container');
             if (!container) return;
 
-            // 1. 渲染应用基本信息
+            // 1. 渲染应用基本信息 (这些元素在 DOM 中是固定的，只需要更新值)
             document.getElementById('app-title-input').value = config.appTitle || '';
             document.getElementById('app-description-input').value = config.description || '';
 
             let html = `
-                <h2 class="text-xl font-bold text-indigo-700 mb-4 pt-4 border-t border-gray-200">评分项配置</h2>
+                <h2 class="text-xl font-bold text-indigo-700 mb-4">评分项配置</h2>
             `;
 
+            // 渲染所有评分项的 HTML
             config.ratingCriteria.forEach((item, index) => {
+                // 使用唯一的 data-index 来定位元素
                 html += `
                     <div class="criteria-item p-4 bg-gray-50 rounded-lg shadow-sm border border-gray-200" data-index="${index}">
                         <div class="flex justify-between items-center mb-3">
@@ -158,55 +189,33 @@
                     </div>
                 `;
             });
-
-            // 底部统计和按钮
-            const totalWeight = config.ratingCriteria.reduce((sum, item) => sum + (parseInt(item.weight) || 0), 0);
-            const isTotalWeightValid = totalWeight === 100;
-
-            html += `
-                <div class="mt-6 p-4 rounded-lg ${isTotalWeightValid ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'} font-bold transition-colors duration-300">
-                    当前总权重: <span id="total-weight-display">${totalWeight}</span>% 
-                    ${isTotalWeightValid ? '(完美!)' : `(需调整至 100%)`}
-                </div>
-                <div class="flex space-x-4 mt-6">
-                    <button type="button" class="flex-1 py-2 px-4 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 transition" onclick="addCriteria()">
-                        + 添加新评分项
-                    </button>
-                </div>
-            `;
             
+            // 底部统计和按钮已移出此容器，所以这里只放评分项列表
             container.innerHTML = html;
             
-            // 更新保存按钮状态
-            const saveButton = document.getElementById('save-button');
-            if (saveButton) {
-                 saveButton.disabled = !isTotalWeightValid;
-                 saveButton.classList.toggle('opacity-50', !isTotalWeightValid);
-                 saveButton.classList.toggle('cursor-not-allowed', !isTotalWeightValid);
-            }
+            // **重要：在渲染完成后，更新总权重和按钮状态**
+            updateTotalWeightDisplay(config);
         }
 
-        // --- 数据操作和状态管理 ---
+        // --- 全局操作函数 ---
 
-        // 用于在内存中存储当前配置的变量
-        let currentConfig = defaultConfig; 
-
-        // 全局操作函数
         window.handleInputChange = (element) => {
             const field = element.dataset.field;
             currentConfig = { ...currentConfig, [field]: element.value };
+            // 应用标题和描述改变不影响权重，无需更新显示
         }
 
+        // 【修复上跳问题】此函数不再调用 renderConfigForm
         window.handleCriteriaChange = (element, index, field) => {
             const value = element.type === 'number' ? parseInt(element.value) : element.value;
             
-            // 更新内存中的配置
+            // 1. 更新内存中的配置
             const newCriteria = [...currentConfig.ratingCriteria];
             newCriteria[index] = { ...newCriteria[index], [field]: value };
             currentConfig = { ...currentConfig, ratingCriteria: newCriteria };
 
-            // 重新渲染以更新总权重显示
-            renderConfigForm(currentConfig);
+            // 2. 避免DOM重绘：只更新总权重显示和保存按钮状态
+            updateTotalWeightDisplay(currentConfig); 
         }
 
         window.addCriteria = () => {
@@ -217,13 +226,15 @@
                 description: '新的评分描述' 
             }];
             currentConfig = { ...currentConfig, ratingCriteria: newCriteria };
-            renderConfigForm(currentConfig);
+            // 结构变化，需要调用 renderConfigForm 重绘列表
+            renderConfigForm(currentConfig); 
         }
 
         window.removeCriteria = (index) => {
             const newCriteria = currentConfig.ratingCriteria.filter((_, i) => i !== index);
             currentConfig = { ...currentConfig, ratingCriteria: newCriteria };
-            renderConfigForm(currentConfig);
+            // 结构变化，需要调用 renderConfigForm 重绘列表
+            renderConfigForm(currentConfig); 
         }
 
 
@@ -262,7 +273,6 @@
                 auth = getAuth(app);
 
                 // 尝试使用自定义令牌或匿名登录
-                // 这里的 initialAuthToken 就是上面安全获取到的 __initial_auth_token 的值
                 if (initialAuthToken) { 
                     await signInWithCustomToken(auth, initialAuthToken);
                     console.log("使用自定义令牌登录成功。");
@@ -364,9 +374,22 @@
 
 
         <form id="config-form">
-            <section id="config-form-container" class="space-y-6">
+            <!-- 评分项列表：这部分会在添加/删除时重绘 -->
+            <section id="criteria-list-container" class="space-y-6">
                 <div class="p-6 text-center text-gray-500">正在加载配置...</div>
             </section>
+            
+            <!-- 权重总和与添加按钮：这部分是固定的，不会在输入时重绘，从而解决上跳问题 -->
+            <div id="summary-and-controls">
+                <div id="total-weight-container" class="mt-6 p-4 rounded-lg bg-gray-200 font-bold transition-colors duration-300">
+                    当前总权重: <span id="total-weight-display">0</span>% (正在加载...)
+                </div>
+                <div class="flex space-x-4 mt-6">
+                    <button type="button" class="flex-1 py-2 px-4 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 transition" onclick="addCriteria()">
+                        + 添加新评分项
+                    </button>
+                </div>
+            </div>
         
             <div class="mt-8 pt-4 border-t border-gray-300">
                 <button type="button" id="save-button" onclick="saveConfig()" class="w-full py-3 px-4 bg-green-600 text-white font-bold rounded-lg shadow-md hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed">
