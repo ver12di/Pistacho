@@ -26,12 +26,11 @@
     <script>
         // 请在此处放置您的 Firebase 配置变量
         const __app_id = 'pistacho-b9efe'; 
-        // 确保 __initial_auth_token 被定义
         const __initial_auth_token = ''; 
 
         const __firebase_config = JSON.stringify({
-            // 🚨 关键修正：API Key 留空，让环境自动注入有效的密钥。
-            apiKey: "", 
+            // 🚨 关键修正：恢复到用户提供的、在 index (1).html 中工作的 API Key
+            apiKey: "AIzaSyDC-8qbWsjRyxBzJpfCi9n3ftzdg9FStF0", 
             authDomain: "pistacho-b9efe.firebaseapp.com",
             projectId: "pistacho-b9efe",
             storageBucket: "pistacho-b9efe.firebasestorage.app",
@@ -59,10 +58,12 @@
         let ratingConfig = {};    
         let userRole = 'unknown'; 
         
-        // 关键：引入一个状态锁，防止 onSnapshot 在本地结构变化时覆盖本地数据
+        // 关键：用于防止远程 onSnapshot 更新覆盖正在进行的本地结构修改
         let isHandlingStructuralChange = false; 
 
+        // Firestore 路径：配置信息存储在公共数据区
         const CONFIG_DOC_PATH = `/artifacts/${appId}/public/data/cigar_config/latest`;
+        // 用户角色信息通常存储在顶层 users 集合中
         const USERS_COLLECTION_PATH = 'users'; 
         
         // --- Utility Functions ---
@@ -116,11 +117,12 @@
                 return;
             }
             try {
+                // 1. 初始化 Firebase App
                 const app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
                 
-                // 登录逻辑：优先使用 custom token，否则使用匿名登录
+                // 2. 登录逻辑：使用 custom token 或匿名登录
                 if (initialAuthToken) {
                     await signInWithCustomToken(auth, initialAuthToken).catch(e => {
                         console.error("Custom Token Sign-In Failed, trying Anonymous:", e);
@@ -130,20 +132,20 @@
                     await signInAnonymously(auth);
                 }
 
-                // 认证状态监听
+                // 3. 认证状态监听
                 onAuthStateChanged(auth, async (user) => {
                     if (user) {
-                        // 1. 获取用户角色
+                        // 3a. 获取用户角色
                         await fetchUserRole(user.uid); 
                         
-                        // 2. 检查权限并加载配置
+                        // 3b. 检查权限并加载配置
                         if (!hasAdminAccess()) {
                             renderConfigView(); 
                             renderError(`权限不足。当前角色: ${userRole.toUpperCase()}。需要 ADMIN 或 SUPER_ADMIN 权限才能修改配置。`);
                             return;
                         }
                         
-                        // 3. 有权限，加载配置
+                        // 3c. 有权限，加载配置
                         loadConfig();
                         
                     } else {
@@ -181,7 +183,7 @@
             
             // 实时监听配置变化
             onSnapshot(configDocRef, (docSnap) => {
-                // 状态锁检查：如果正在进行本地结构变化，则忽略这次远程同步，防止覆盖本地修改
+                // 状态锁检查：如果正在进行本地结构变化，则忽略这次远程同步
                 if (isHandlingStructuralChange) {
                      console.log('[FIREBASE SYNC IGNORED] Local structural change in progress.');
                      return;
@@ -397,7 +399,7 @@
         };
 
         window.removeCategory = function(catIndex) {
-            // 使用 window.confirm()
+            // 使用 window.confirm() (虽然规则建议自定义，但这里保持功能性)
             if (window.confirm(`确定删除类别 #${catIndex + 1} 吗？`)) { 
                 withStructuralLock(() => {
                     let newConfig = JSON.parse(JSON.stringify(ratingConfig));
