@@ -33,9 +33,11 @@
             measurementId: "G-HQS7Q78LY7"
         });
 
-        // 【修复 ReferenceError】确保 __initial_auth_token 在模块脚本前被声明
-        // 如果环境提供了它，就使用它；否则使用空字符串。
-        const __initial_auth_token = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : '';
+        // 【关键修复】使用 window 对象检查，以避免 const 的 Temporal Dead Zone (TDZ) 错误。
+        // 如果全局 window.initial_auth_token 存在，则使用它，否则使用空字符串。
+        const __initial_auth_token = (typeof window.__initial_auth_token !== 'undefined' && window.__initial_auth_token)
+            ? window.__initial_auth_token
+            : '';
     </script>
 
     <script type="module">
@@ -55,8 +57,10 @@
         setLogLevel('debug');
 
         // 全局变量
+        // 注意：这里的 __app_id, __firebase_config, __initial_auth_token 是在上面的 <script> 块中定义的
         const firebaseConfig = JSON.parse(__firebase_config);
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const initialAuthToken = __initial_auth_token; // 在模块脚本内使用一个更容易引用的名字
 
         let app;
         let db;
@@ -258,8 +262,9 @@
                 auth = getAuth(app);
 
                 // 尝试使用自定义令牌或匿名登录
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    await signInWithCustomToken(auth, __initial_auth_token);
+                // 这里的 initialAuthToken 就是上面安全获取到的 __initial_auth_token 的值
+                if (initialAuthToken) { 
+                    await signInWithCustomToken(auth, initialAuthToken);
                     console.log("使用自定义令牌登录成功。");
                 } else {
                     await signInAnonymously(auth);
