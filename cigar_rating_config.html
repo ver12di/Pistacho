@@ -180,7 +180,6 @@
                  container.innerHTML = `<div class="p-6 text-center text-gray-500">正在加载配置...</div>`;
              } else {
                 // 渲染基本信息
-                // 这些输入框现在使用 oninput 实时同步
                 document.getElementById('app-title-input').value = ratingConfig.appTitle || '';
                 document.getElementById('app-description-input').value = ratingConfig.description || '';
 
@@ -281,16 +280,35 @@
 
         /**
          * 实时处理输入变更，并将数据同步到 ratingConfig 模型中
-         * 🚨 已添加 console.log 用于调试数据是否成功写入模型 🚨
+         * 🚨 修复了评分项和选项的索引获取逻辑，并增加了安全检查 🚨
          */
         window.handleInputChange = function(element) {
             const value = element.type === 'number' ? parseFloat(element.value) : element.value;
             const type = element.getAttribute('data-type');
             const field = element.getAttribute('data-field');
-            const catIndex = parseInt(element.getAttribute('data-index') || element.getAttribute('data-cat-index'));
-            const critIndex = parseInt(element.getAttribute('data-crit-index'));
-            const optIndex = parseInt(element.getAttribute('data-index')); 
             
+            // --- 关键修复：确保索引被正确获取和解析 ---
+            // 必须分别获取，因为不同类型的元素使用不同的 data-* 属性
+            let catIndex = null, critIndex = null, optIndex = null;
+
+            // 类别和应用信息
+            if (field === 'appTitle' || field === 'description') {
+                // 不需要索引
+            } else if (type === 'category') {
+                 catIndex = parseInt(element.getAttribute('data-index')); 
+            } else if (type === 'criterion') {
+                // 评分项
+                catIndex = parseInt(element.getAttribute('data-cat-index'));
+                critIndex = parseInt(element.getAttribute('data-index')); // 评分项本身的索引
+            } else if (type === 'option') {
+                // 选项
+                catIndex = parseInt(element.getAttribute('data-cat-index'));
+                critIndex = parseInt(element.getAttribute('data-crit-index'));
+                optIndex = parseInt(element.getAttribute('data-index')); // 选项本身的索引
+            }
+            // --- 索引修复结束 ---
+
+
             let updatePath = ''; // 用于日志记录的路径
             
             if (field === 'appTitle' || field === 'description') {
@@ -300,14 +318,26 @@
                 ratingConfig.ratingCriteria[catIndex][field] = value;
                 updatePath = `ratingCriteria[${catIndex}].${field}`;
             } else if (type === 'criterion') {
-                ratingConfig.ratingCriteria[catIndex].criteriaList[critIndex][field] = value;
-                updatePath = `ratingCriteria[${catIndex}].criteriaList[${critIndex}].${field}`;
+                // 增加安全检查以避免 'Cannot set properties of undefined' 错误
+                if (ratingConfig.ratingCriteria[catIndex] && ratingConfig.ratingCriteria[catIndex].criteriaList) {
+                    ratingConfig.ratingCriteria[catIndex].criteriaList[critIndex][field] = value;
+                    updatePath = `ratingCriteria[${catIndex}].criteriaList[${critIndex}].${field}`;
+                } else {
+                    console.error(`[Data Sync Error] Failed to find criterion list: catIndex=${catIndex}, critIndex=${critIndex}`);
+                    return; 
+                }
             } else if (type === 'option') {
-                ratingConfig.ratingCriteria[catIndex].criteriaList[critIndex].options[optIndex][field] = value;
-                updatePath = `ratingCriteria[${catIndex}].criteriaList[${critIndex}].options[${optIndex}].${field}`;
+                 // 增加安全检查
+                 if (ratingConfig.ratingCriteria[catIndex] && ratingConfig.ratingCriteria[catIndex].criteriaList[critIndex] && ratingConfig.ratingCriteria[catIndex].criteriaList[critIndex].options) {
+                    ratingConfig.ratingCriteria[catIndex].criteriaList[critIndex].options[optIndex][field] = value;
+                    updatePath = `ratingCriteria[${catIndex}].criteriaList[${critIndex}].options[${optIndex}].${field}`;
+                 } else {
+                     console.error(`[Data Sync Error] Failed to find option list: catIndex=${catIndex}, critIndex=${critIndex}, optIndex=${optIndex}`);
+                     return;
+                 }
             }
             
-            // 🚨 关键的日志输出：如果这个日志出现，就证明数据已同步到 JS 对象
+            // 关键的日志输出：现在应该能看到评分项的日志了
             console.log(`[Data Sync] Updated Path: ${updatePath}, New Value: ${value}`);
         };
 
