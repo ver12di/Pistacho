@@ -172,6 +172,7 @@
                 });
             } catch (e) {
                 console.error("加载配置方案列表失败: ", e);
+                // 解决 Firestore 规则问题后，此 alert 应该不会再触发
                 alert("加载配置方案列表失败: " + e.message);
             }
         }
@@ -326,15 +327,26 @@
 
 
         // --- 8. 数据操作 (增删改) ---
-        // handleInputChange (已修复版本), addCategory, removeCategory, 
-        // addCriterion, removeCriterion, addOption, removeOption
-        // ... (这些函数与你之前修复后的版本完全相同，此处折叠) ...
 
         /**
-         * 实时处理输入变更 (已修复版本)
+         * 实时处理输入变更 (已修复 NaN 漏洞)
          */
         window.handleInputChange = function(element) {
-            const value = element.type === 'number' ? parseFloat(element.value) : element.value;
+            
+            // =================================================================
+            // 修复：处理 NaN (Not a Number)
+            // 错误: parseFloat(element.value) 在 input 为空时返回 NaN
+            // 修复: 使用 || 0 来捕获 NaN 并将其转换回 0
+            // =================================================================
+            let value;
+            if (element.type === 'number') {
+                // 如果 parseFloat 失败并返回 NaN，(NaN || 0) 会使 value 变为 0。
+                value = parseFloat(element.value) || 0; 
+            } else {
+                value = element.value;
+            }
+            // =================================================================
+
             const type = element.getAttribute('data-type');
             const field = element.getAttribute('data-field');
             let catIndex = null, critIndex = null, optIndex = null;
