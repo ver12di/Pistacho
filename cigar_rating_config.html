@@ -4,9 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>雪茄品鉴配置管理</title>
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
-        // 1. Tailwind CSS 配置
+        // 2. 样式修复：确保 Tailwind 配置块存在
         tailwind.config = {
             theme: {
                 extend: {
@@ -19,6 +20,7 @@
     </script>
     
     <script>
+        // 请在此处放置您的 Firebase 配置变量
         const __app_id = 'pistacho-b9efe'; 
 
         const __firebase_config = JSON.stringify({
@@ -258,15 +260,20 @@
         }
 
         function renderOption(catIndex, critIndex, optIndex, option) {
+            // 🚨 最终修复点：确保 description 字段在渲染时被安全地处理
+            // 使用 String() 强制转换为字符串，以防任何 null/undefined 或非字符串值导致渲染失败。
+            const safeDescription = String(option.description || ''); 
+            const safeScorePct = option.scorePct || 0;
+
             return `
                 <div class="flex space-x-2 items-center bg-white p-2 rounded-md border text-sm">
                     <div class="flex-1">
                         <label class="block text-xs">描述:</label>
-                        <input type="text" data-type="option" data-cat-index="${catIndex}" data-crit-index="${critIndex}" data-index="${optIndex}" data-field="description" value="${option.description || ''}" class="config-input w-full p-1 border rounded-md text-xs" oninput="handleInputChange(this)">
+                        <input type="text" data-type="option" data-cat-index="${catIndex}" data-crit-index="${critIndex}" data-index="${optIndex}" data-field="description" value="${safeDescription}" class="config-input w-full p-1 border rounded-md text-xs" oninput="handleInputChange(this)">
                     </div>
                     <div class="w-1/4">
                         <label class="block text-xs">得分率 (0-1):</label>
-                        <input type="number" step="0.01" data-type="option" data-cat-index="${catIndex}" data-crit-index="${critIndex}" data-index="${optIndex}" data-field="scorePct" value="${option.scorePct || 0}" class="config-input w-full p-1 border rounded-md text-xs" oninput="handleInputChange(this)">
+                        <input type="number" step="0.01" data-type="option" data-cat-index="${catIndex}" data-crit-index="${critIndex}" data-index="${optIndex}" data-field="scorePct" value="${safeScorePct}" class="config-input w-full p-1 border rounded-md text-xs" oninput="handleInputChange(this)">
                     </div>
                     <button onclick="removeOption(${catIndex}, ${critIndex}, ${optIndex})" class="text-red-400 hover:text-red-600 transition text-sm flex-shrink-0">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 10-2 0v6a1 1 0 102 0V8z" clip-rule="evenodd" /></svg>
@@ -280,45 +287,38 @@
 
         /**
          * 实时处理输入变更，并将数据同步到 ratingConfig 模型中
-         * 🚨 修复了评分项和选项的索引获取逻辑，并增加了安全检查 🚨
+         * (已修复版本)
          */
         window.handleInputChange = function(element) {
             const value = element.type === 'number' ? parseFloat(element.value) : element.value;
-            const type = element.getAttribute('data-type');
+            const type = element.getAttribute('data-type'); // 顶层字段 (appTitle) 的 type 为 null
             const field = element.getAttribute('data-field');
             
-            // --- 关键修复：确保索引被正确获取和解析 ---
-            // 必须分别获取，因为不同类型的元素使用不同的 data-* 属性
             let catIndex = null, critIndex = null, optIndex = null;
-
-            // 类别和应用信息
-            if (field === 'appTitle' || field === 'description') {
-                // 不需要索引
-            } else if (type === 'category') {
-                 catIndex = parseInt(element.getAttribute('data-index')); 
-            } else if (type === 'criterion') {
-                // 评分项
-                catIndex = parseInt(element.getAttribute('data-cat-index'));
-                critIndex = parseInt(element.getAttribute('data-index')); // 评分项本身的索引
-            } else if (type === 'option') {
-                // 选项
-                catIndex = parseInt(element.getAttribute('data-cat-index'));
-                critIndex = parseInt(element.getAttribute('data-crit-index'));
-                optIndex = parseInt(element.getAttribute('data-index')); // 选项本身的索引
-            }
-            // --- 索引修复结束 ---
-
-
             let updatePath = ''; // 用于日志记录的路径
             
-            if (field === 'appTitle' || field === 'description') {
-                ratingConfig[field] = value;
-                updatePath = field;
-            } else if (type === 'category') {
+            // =================================================================
+            // 修复：重构逻辑，使用 type 作为主要分支，避免 field 名称冲突
+            // =================================================================
+
+            if (type === null) {
+                // 情况 1: 顶层应用字段 (appTitle, description)
+                if (field === 'appTitle' || field === 'description') {
+                    ratingConfig[field] = value;
+                    updatePath = field;
+                }
+            } 
+            else if (type === 'category') {
+                // 情况 2: 评分类别 (category, detail)
+                catIndex = parseInt(element.getAttribute('data-index')); 
                 ratingConfig.ratingCriteria[catIndex][field] = value;
                 updatePath = `ratingCriteria[${catIndex}].${field}`;
-            } else if (type === 'criterion') {
-                // 增加安全检查以避免 'Cannot set properties of undefined' 错误
+            } 
+            else if (type === 'criterion') {
+                // 情况 3: 评分项 (name, weight)
+                catIndex = parseInt(element.getAttribute('data-cat-index'));
+                critIndex = parseInt(element.getAttribute('data-index')); 
+                
                 if (ratingConfig.ratingCriteria[catIndex] && ratingConfig.ratingCriteria[catIndex].criteriaList) {
                     ratingConfig.ratingCriteria[catIndex].criteriaList[critIndex][field] = value;
                     updatePath = `ratingCriteria[${catIndex}].criteriaList[${critIndex}].${field}`;
@@ -326,8 +326,13 @@
                     console.error(`[Data Sync Error] Failed to find criterion list: catIndex=${catIndex}, critIndex=${critIndex}`);
                     return; 
                 }
-            } else if (type === 'option') {
-                 // 增加安全检查
+            } 
+            else if (type === 'option') {
+                // 情况 4: 选项 (description, scorePct)
+                catIndex = parseInt(element.getAttribute('data-cat-index'));
+                critIndex = parseInt(element.getAttribute('data-crit-index'));
+                optIndex = parseInt(element.getAttribute('data-index')); 
+                 
                  if (ratingConfig.ratingCriteria[catIndex] && ratingConfig.ratingCriteria[catIndex].criteriaList[critIndex] && ratingConfig.ratingCriteria[catIndex].criteriaList[critIndex].options) {
                     ratingConfig.ratingCriteria[catIndex].criteriaList[critIndex].options[optIndex][field] = value;
                     updatePath = `ratingCriteria[${catIndex}].criteriaList[${critIndex}].options[${optIndex}].${field}`;
@@ -337,9 +342,10 @@
                  }
             }
             
-            // 关键的日志输出：现在应该能看到评分项的日志了
+            // 关键的日志输出
             console.log(`[Data Sync] Updated Path: ${updatePath}, New Value: ${value}`);
         };
+
 
         window.addCategory = function() {
             ratingConfig.ratingCriteria.push({
@@ -394,7 +400,8 @@
 
 
         // --- SAVE TO FIREBASE ---
-
+        
+        // (已修复版本)
         window.saveConfig = async function() {
             if (!hasAdminAccess()) {
                 alert('错误：您没有管理员权限来保存配置。');
@@ -409,12 +416,17 @@
 
             const configDocRef = doc(db, CONFIG_DOC_PATH);
             
-            // 确保同步最新的顶层字段 
-            ratingConfig.appTitle = document.getElementById('app-title-input').value;
-            ratingConfig.description = document.getElementById('app-description-input').value;
+            // =================================================================
+            // 修复：删除以下两行多余的代码。
+            // handleInputChange 现已正确处理所有字段，
+            // ratingConfig 对象已是最新状态，无需从 DOM 重新读取。
+            // ratingConfig.appTitle = document.getElementById('app-title-input').value;
+            // ratingConfig.description = document.getElementById('app-description-input').value;
+            // =================================================================
 
             try {
                 // 使用 setDoc 覆盖整个文档，实现完全同步
+                // ratingConfig 对象现在包含所有正确的最新数据
                 await setDoc(configDocRef, ratingConfig);
                 alert('配置保存成功，已同步到云端！');
             } catch (error) {
