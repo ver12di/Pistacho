@@ -177,7 +177,7 @@
             const saveButton = document.getElementById('save-button');
             const isAdmin = hasAdminAccess(); 
             
-            // 确保我们使用的是最新的数据副本
+            // 保持深度克隆，确保读取的数据是安全的
             const currentConfig = JSON.parse(JSON.stringify(ratingConfig));
             
             // 确保渲染配置表单
@@ -267,7 +267,7 @@
             const valueToRender = String(option.description || ''); 
             const safeScorePct = option.scorePct || 0;
 
-            // 调试日志 
+            // 调试日志 (用于最终确认模型状态)
             console.log(`[RENDER CHECK] Option C${catIndex}I${critIndex}O${optIndex} Description: "${valueToRender}"`);
 
             return `
@@ -291,33 +291,32 @@
         // --- DYNAMIC DATA MANIPULATION ---
 
         /**
-         * 实时处理输入变更，并将数据同步到 ratingConfig 模型中
+         * 实时处理输入变更，并将数据同步到 ratingConfig 模型中 (使用不可变模式)
          */
         window.handleInputChange = function(element) {
-             // 🚨 关键修复：从 DOM 元素的 .value 属性中直接读取，而不是依赖事件参数。
             const inputValue = element.value;
             const value = element.type === 'number' ? parseFloat(inputValue) : inputValue;
             const type = element.getAttribute('data-type');
             const field = element.getAttribute('data-field');
             
+            // 🚨 关键修复步骤 1: 创建 ratingConfig 的新副本 (深度克隆)
+            let newConfig = JSON.parse(JSON.stringify(ratingConfig));
+            
             // --- 索引解析逻辑 ---
-            let catIndex = null, critIndex = null, optIndex = null;
+            let catIndex, critIndex, optIndex;
 
             if (field === 'appTitle' || field === 'description') {
-                ratingConfig[field] = value;
+                newConfig[field] = value;
             } else if (type === 'category') {
                  catIndex = parseInt(element.getAttribute('data-index')); 
-                 ratingConfig.ratingCriteria[catIndex][field] = value;
+                 newConfig.ratingCriteria[catIndex][field] = value;
             } else if (type === 'criterion') {
                 catIndex = parseInt(element.getAttribute('data-cat-index'));
                 critIndex = parseInt(element.getAttribute('data-index'));
                 
                 // 安全检查
-                if (ratingConfig.ratingCriteria[catIndex] && ratingConfig.ratingCriteria[catIndex].criteriaList) {
-                    ratingConfig.ratingCriteria[catIndex].criteriaList[critIndex][field] = value;
-                } else {
-                    console.error(`[Data Sync Error] Failed to find criterion list: catIndex=${catIndex}, critIndex=${critIndex}`);
-                    return; 
+                if (newConfig.ratingCriteria[catIndex] && newConfig.ratingCriteria[catIndex].criteriaList) {
+                    newConfig.ratingCriteria[catIndex].criteriaList[critIndex][field] = value;
                 }
             } else if (type === 'option') {
                 catIndex = parseInt(element.getAttribute('data-cat-index'));
@@ -325,15 +324,15 @@
                 optIndex = parseInt(element.getAttribute('data-index'));
                  
                  // 安全检查
-                 if (ratingConfig.ratingCriteria[catIndex] && ratingConfig.ratingCriteria[catIndex].criteriaList[critIndex] && ratingConfig.ratingCriteria[catIndex].criteriaList[critIndex].options) {
+                 if (newConfig.ratingCriteria[catIndex] && newConfig.ratingCriteria[catIndex].criteriaList[critIndex] && newConfig.ratingCriteria[catIndex].criteriaList[critIndex].options) {
                     // 核心操作：更新选项描述或得分率
-                    ratingConfig.ratingCriteria[catIndex].criteriaList[critIndex].options[optIndex][field] = value;
-                 } else {
-                     console.error(`[Data Sync Error] Failed to find option list: catIndex=${catIndex}, critIndex=${critIndex}, optIndex=${optIndex}`);
-                     return;
+                    newConfig.ratingCriteria[catIndex].criteriaList[critIndex].options[optIndex][field] = value;
                  }
             }
             
+            // 🚨 关键修复步骤 2: 用全新的副本替换全局变量
+            ratingConfig = newConfig;
+
             // 日志输出 (确认数据模型已更新)
             console.log(`[Data Sync] Type: ${type}, Field: ${field}, New Value: ${value}`);
         };
