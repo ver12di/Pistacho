@@ -7,7 +7,7 @@
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
-        // 2. 样式修复：确保 Tailwind 配置块存在
+        // 样式配置
         tailwind.config = {
             theme: {
                 extend: {
@@ -20,7 +20,7 @@
     </script>
     
     <script>
-        // 请在此处放置您的 Firebase 配置变量
+        // --- 1. Firebase 配置 (保持不变) ---
         const __app_id = 'pistacho-b9efe'; 
 
         const __firebase_config = JSON.stringify({
@@ -35,66 +35,105 @@
     </script>
     
     <script type="module">
-        // --- Firebase Imports ---
+        // --- 2. Firebase Imports ---
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, onSnapshot, setDoc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { 
+            getFirestore, doc, onSnapshot, setDoc, getDoc,
+            collection, getDocs, deleteDoc 
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         
-        // --- Global State and Setup ---
+        // --- 3. 全局状态和 Firestore 路径 ---
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
         
         let db, auth;
-        let ratingConfig = {};    
+        let ratingConfig = {};
         let userRole = 'unknown'; 
-        
+        let configListenerUnsubscribe = null;
+        let currentProfileId = 'latest';
+
         const CONFIG_DOC_PATH = `/artifacts/${appId}/public/data/cigar_config/latest`;
+        const PROFILES_COLLECTION_PATH = `/artifacts/${appId}/public/data/cigar_config_profiles`;
         const USERS_COLLECTION_PATH = 'users'; 
         
-        // --- Utility Functions ---
-
-        /**
-         * 检查当前用户角色是否有权限修改配置
-         */
+        // --- 4. 权限和工具函数 ---
+        
         function hasAdminAccess() {
             return userRole === 'admin' || userRole === 'super_admin';
         }
 
-        /**
-         * 从 Firestore 获取用户角色
-         */
         async function fetchUserRole(uid) {
             const roleDocRef = doc(db, USERS_COLLECTION_PATH, uid);
             let roleDisplayElement = document.getElementById('role-display');
-
             try {
                 const docSnap = await getDoc(roleDocRef);
-                
                 if (docSnap.exists() && docSnap.data().role) {
                     const fetchedRole = docSnap.data().role;
-                    console.log(`[Role Check SUCCESS] UID: ${uid}, Fetched Role: ${fetchedRole}`);
-                    userRole = fetchedRole; // 立即更新全局变量
-                    roleDisplayElement.textContent = `当前用户角色: ${userRole.toUpperCase()} (从 Firestore 读取)`;
+                    userRole = fetchedRole; 
+                    roleDisplayElement.textContent = `当前用户角色: ${userRole.toUpperCase()}`;
                     return fetchedRole; 
                 } 
-                
-                // 文档不存在或没有角色字段
-                console.warn(`[Role Check WARNING] UID: ${uid}, User document not found or role missing. Defaulting to 'general'.`);
                 userRole = 'general';
                 roleDisplayElement.textContent = `当前用户角色: ${userRole.toUpperCase()} (默认)`;
                 return 'general'; 
-
             } catch (e) {
-                // 读取失败，通常是权限被拒绝！
-                console.error(`[Role Check ERROR] Failed to fetch user role, possibly PERMISSION_DENIED. Defaulting to 'general'. Error: ${e.message}`);
-                renderError(`❗️ 角色读取失败 (可能是 Firestore 权限问题)。默认为 GENERAL 角色。`);
+                renderError(`❗️ 角色读取失败。`);
                 userRole = 'general';
                 roleDisplayElement.textContent = `当前用户角色: ${userRole.toUpperCase()} (读取失败)`;
                 return 'general';
             }
         }
+
+        function syncUIToModel() {
+            if (document.getElementById('app-title-input')) {
+                ratingConfig.appTitle = document.getElementById('app-title-input').value;
+            }
+            if (document.getElementById('app-description-input')) {
+                ratingConfig.description = document.getElementById('app-description-input').value;
+            }
+        }
         
-        // --- FIREBASE INITIALIZATION ---
+        // (*** 终极修复：深度净化函数 ***)
+        function deepCleanObject(obj) {
+            // 1. 使用 JSON.parse(JSON.stringify(...)) 来移除 undefined, NaN, Infinity
+            const partiallyCleaned = JSON.parse(JSON.stringify(obj));
+
+            // 2. 递归地移除所有空数组和空对象
+            function recursiveClean(current) {
+                if (Array.isArray(current)) {
+                    // 过滤掉数组中的 null 值 (JSON.stringify(NaN) 的产物)
+                    // 并对每个元素进行递归净化
+                    const cleanedArray = current
+                        .filter(item => item !== null)
+                        .map(item => recursiveClean(item));
+                    
+                    // 如果数组在净化后变为空，则返回 undefined 以便被移除
+                    return cleanedArray.length > 0 ? cleanedArray : undefined;
+                }
+                
+                if (typeof current === 'object' && current !== null) {
+                    const newObj = {};
+                    let keyCount = 0;
+                    for (const key in current) {
+                        const value = recursiveClean(current[key]);
+                        // 只添加非 undefined 的值
+                        if (value !== undefined) {
+                            newObj[key] = value;
+                            keyCount++;
+                        }
+                    }
+                    // 如果对象在净化后变为空，则返回 undefined 以便被移除
+                    return keyCount > 0 ? newObj : undefined;
+                }
+                
+                return current;
+            }
+
+            return recursiveClean(partiallyCleaned);
+        }
+
+        // --- 5. Firebase 初始化 ---
 
         async function initFirebase() {
             if (Object.keys(firebaseConfig).length === 0 || !firebaseConfig.projectId) {
@@ -106,21 +145,20 @@
                 db = getFirestore(app);
                 auth = getAuth(app);
                 
-                // 认证状态监听
                 onAuthStateChanged(auth, async (user) => {
                     if (user) {
-                        // 1. 获取用户角色
                         await fetchUserRole(user.uid); 
                         
-                        // 2. 检查权限并加载配置
                         if (!hasAdminAccess()) {
                             renderConfigView(); 
-                            renderError(`权限不足。当前角色: ${userRole.toUpperCase()}。需要 ADMIN 或 SUPER_ADMIN 权限才能修改配置。`);
+                            renderError(`权限不足。需要 ADMIN 或 SUPER_ADMIN 权限。`);
+                            document.querySelectorAll('.admin-feature').forEach(el => el.disabled = true);
                             return;
                         }
                         
-                        // 3. 有权限，加载配置
-                        loadConfig();
+                        await loadProfileList();
+                        const latestConfigRef = doc(db, CONFIG_DOC_PATH);
+                        loadConfigFromRef(latestConfigRef, 'latest');
                         
                     } else {
                         renderError('用户未登录。请返回主页登录。');
@@ -128,7 +166,6 @@
                 });
 
             } catch (error) {
-                console.error("Firebase Initialization Failed:", error);
                 renderError(`❌ Firebase 初始化失败：${error.message}`);
             }
         }
@@ -136,100 +173,118 @@
         function renderError(message) {
             const errorContainer = document.getElementById('error-container');
             if (errorContainer) {
-                 errorContainer.innerHTML = `
-                    <div class="p-4 text-red-700 bg-red-100 border border-red-300 rounded-lg max-w-2xl mx-auto mt-4 shadow-sm">
-                        <p class="font-bold text-sm mb-1">权限/加载错误</p>
-                        <p class="text-sm">${message}</p>
-                    </div>`;
+                 errorContainer.innerHTML = `<div class="p-4 text-red-700 bg-red-100 border border-red-300 rounded-lg max-w-2xl mx-auto mt-4 shadow-sm"><p class="font-bold text-sm mb-1">错误</p><p class="text-sm">${message}</p></div>`;
             } else {
-                 document.getElementById('main-container').innerHTML = `
-                    <div class="p-6 text-red-700 bg-red-100 border border-red-300 rounded-lg max-w-2xl mx-auto mt-10 shadow-lg">
-                        <p class="font-bold text-lg mb-2">系统错误/权限检查</p>
-                        <p>${message}</p>
-                        <a href="index.html" class="mt-4 inline-block text-indigo-600 hover:text-indigo-800 underline">返回主页</a>
-                    </div>`;
+                 document.getElementById('main-container').innerHTML = `<div class="p-6 text-red-700 bg-red-100 rounded-lg max-w-2xl mx-auto mt-10"><p class="font-bold text-lg mb-2">系统错误</p><p>${message}</p><a href="index.html" class="mt-4 inline-block text-indigo-600 underline">返回主页</a></div>`;
             }
         }
 
+        // --- 6. 配置方案加载逻辑 ---
 
-        async function loadConfig() {
-            const configDocRef = doc(db, CONFIG_DOC_PATH);
+        window.loadProfileList = async function() {
+            const selector = document.getElementById('profile-selector');
+            selector.innerHTML = '<option value="latest">--- 实时配置 (latest) ---</option>';
+            try {
+                const profilesCollectionRef = collection(db, PROFILES_COLLECTION_PATH);
+                const querySnapshot = await getDocs(profilesCollectionRef);
+                querySnapshot.forEach((doc) => {
+                    selector.innerHTML += `<option value="${doc.id}">${doc.id}</option>`;
+                });
+            } catch (e) {
+                alert("加载配置方案列表失败: " + e.message);
+            }
+        }
+
+        window.loadSelectedProfile = function() {
+            const selector = document.getElementById('profile-selector');
+            const profileId = selector.value;
+            let configDocRef;
+
+            if (profileId === 'latest') {
+                configDocRef = doc(db, CONFIG_DOC_PATH);
+            } else {
+                configDocRef = doc(db, PROFILES_COLLECTION_PATH, profileId);
+            }
             
-            // 实时监听配置变化
-            onSnapshot(configDocRef, (docSnap) => {
+            loadConfigFromRef(configDocRef, profileId);
+        }
+
+        function loadConfigFromRef(configDocRef, profileId) {
+            if (configListenerUnsubscribe) {
+                configListenerUnsubscribe();
+            }
+
+            currentProfileId = profileId;
+            document.getElementById('current-profile-name').textContent = profileId;
+            document.getElementById('profile-selector').value = profileId;
+            
+            configListenerUnsubscribe = onSnapshot(configDocRef, (docSnap) => {
                 if (docSnap.exists()) {
                     ratingConfig = docSnap.data();
-                    renderConfigView(); 
                 } else {
-                    ratingConfig = { appTitle: "新的雪茄评分体系", description: "新的描述", ratingCriteria: [] };
-                    renderConfigView();
+                    alert(`配置方案 "${profileId}" 不存在或为空。`);
+                    ratingConfig = { appTitle: "新配置", description: "", ratingCriteria: [] };
                 }
+                renderConfigView(); 
             }, (error) => {
-                console.error("Error loading config:", error);
-                renderError('配置实时加载失败，请检查 Firestore 规则 (read)');
+                renderError(`配置实时加载失败 (ID: ${profileId})。`);
             });
         }
 
-        // --- UI RENDERING & INTERACTION ---
+        // --- 7. UI 渲染 ---
 
         function renderConfigView() {
             const container = document.getElementById('config-form-container');
-            const saveButton = document.getElementById('save-button');
-            const isAdmin = hasAdminAccess(); 
+            const publishButton = document.getElementById('publish-button');
+            const saveProfileButton = document.getElementById('save-profile-button');
+            const deleteProfileButton = document.getElementById('delete-profile-button');
+            const isAdmin = hasAdminAccess();
             
-            // 确保渲染配置表单
-             if (Object.keys(ratingConfig).length === 0) {
-                 container.innerHTML = `<div class="p-6 text-center text-gray-500">正在加载配置...</div>`;
-             } else {
-                // 渲染基本信息
-                document.getElementById('app-title-input').value = ratingConfig.appTitle || '';
-                document.getElementById('app-description-input').value = ratingConfig.description || '';
-
-                // 渲染评分标准 
-                container.innerHTML = ratingConfig.ratingCriteria.map((category, catIndex) => `
-                    <div class="bg-white p-6 rounded-xl shadow-lg mb-6 border-l-4 border-indigo-500">
-                        <div class="flex justify-between items-start mb-4">
-                            <h3 class="text-xl font-bold text-indigo-700">评分类别 #${catIndex + 1}</h3>
-                            <button onclick="removeCategory(${catIndex})" class="text-red-500 hover:text-red-700 transition">删除类别</button>
-                        </div>
-                        
-                        <label class="block mb-2">类别名称:</label>
-                        <input type="text" data-type="category" data-index="${catIndex}" data-field="category" value="${category.category || ''}" class="config-input w-full p-2 border rounded-md mb-3" oninput="handleInputChange(this)">
-                        
-                        <label class="block mb-4">描述:</label>
-                        <textarea data-type="category" data-index="${catIndex}" data-field="detail" class="config-input w-full p-2 border rounded-md mb-3" oninput="handleInputChange(this)">${category.detail || ''}</textarea>
-                        
-                        <h4 class="text-lg font-semibold mt-6 mb-3 border-t pt-4">评分项:</h4>
-                        
-                        <div class="space-y-4">
-                            ${category.criteriaList.map((criterion, critIndex) => renderCriterion(catIndex, critIndex, criterion)).join('')}
-                        </div>
-                        
-                        <button onclick="addCriterion(${catIndex})" class="mt-4 w-full py-2 border border-dashed border-indigo-300 text-indigo-500 hover:bg-indigo-50 rounded-md transition">
-                            + 添加评分项
-                        </button>
-                    </div>
-                `).join('');
-                
-                 // 添加类别按钮
-                 container.innerHTML += `<button onclick="addCategory()" class="mt-6 w-full py-3 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 transition duration-150 shadow-md">
-                    + 添加新类别
-                </button>`;
-             }
-            
-            // ==========================================================
-            // 按钮启用/禁用逻辑 (核心)
-            // ==========================================================
             if (isAdmin) {
-                saveButton.disabled = false;
-                saveButton.className = 'w-full py-3 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition duration-150';
-                saveButton.textContent = '保存并同步到云端';
+                publishButton.disabled = false;
+                publishButton.className = 'w-full py-3 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition duration-150';
+                
+                if (currentProfileId === 'latest') {
+                    saveProfileButton.disabled = true;
+                    saveProfileButton.className = 'w-full py-3 bg-gray-400 text-gray-700 font-semibold rounded-lg cursor-not-allowed';
+                    deleteProfileButton.disabled = true;
+                } else {
+                    saveProfileButton.disabled = false;
+                    saveProfileButton.className = 'w-full py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition duration-150';
+                    deleteProfileButton.disabled = false;
+                }
             } else {
-                saveButton.disabled = true;
-                saveButton.className = 'w-full py-3 bg-gray-400 text-gray-700 font-semibold rounded-lg cursor-not-allowed';
-                saveButton.textContent = `权限不足 (${userRole.toUpperCase()})，无法保存`;
+                publishButton.disabled = true;
+                saveProfileButton.disabled = true;
+                deleteProfileButton.disabled = true;
             }
-            // ==========================================================
+            
+            if (Object.keys(ratingConfig).length === 0) {
+                 container.innerHTML = `<div class="p-6 text-center text-gray-500">正在加载配置...</div>`;
+                 return;
+            }
+            
+            document.getElementById('app-title-input').value = ratingConfig.appTitle || '';
+            document.getElementById('app-description-input').value = ratingConfig.description || '';
+            
+            container.innerHTML = (ratingConfig.ratingCriteria || []).map((category, catIndex) => `
+                <div class="bg-white p-6 rounded-xl shadow-lg mb-6 border-l-4 border-indigo-500">
+                    <div class="flex justify-between items-start mb-4">
+                        <h3 class="text-xl font-bold text-indigo-700">评分类别 #${catIndex + 1}</h3>
+                        <button onclick="removeCategory(${catIndex})" class="text-red-500 hover:text-red-700 transition">删除类别</button>
+                    </div>
+                    <label class="block mb-2">类别名称:</label>
+                    <input type="text" data-type="category" data-index="${catIndex}" data-field="category" value="${category.category || ''}" class="config-input w-full p-2 border rounded-md mb-3" oninput="handleInputChange(this)">
+                    <label class="block mb-4">描述:</label>
+                    <textarea data-type="category" data-index="${catIndex}" data-field="detail" class="config-input w-full p-2 border rounded-md mb-3" oninput="handleInputChange(this)">${category.detail || ''}</textarea>
+                    <h4 class="text-lg font-semibold mt-6 mb-3 border-t pt-4">评分项:</h4>
+                    <div class="space-y-4">
+                        ${(category.criteriaList || []).map((criterion, critIndex) => renderCriterion(catIndex, critIndex, criterion)).join('')}
+                    </div>
+                    <button onclick="addCriterion(${catIndex})" class="mt-4 w-full py-2 border border-dashed border-indigo-300 text-indigo-500 hover:bg-indigo-50 rounded-md transition">+ 添加评分项</button>
+                </div>
+            `).join('');
+             container.innerHTML += `<button onclick="addCategory()" class="mt-6 w-full py-3 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 transition duration-150 shadow-md">+ 添加新类别</button>`;
         }
 
         function renderCriterion(catIndex, critIndex, criterion) {
@@ -237,34 +292,24 @@
                 <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
                     <div class="flex justify-between items-center mb-3">
                         <h5 class="font-medium text-gray-800">评分项 #${critIndex + 1}</h5>
-                        <button onclick="removeCriterion(${catIndex}, ${critIndex})" class="text-red-400 hover:text-red-600 transition text-sm">删除评分项</button>
+                        <button onclick="removeCriterion(${catIndex}, ${critIndex})" class="text-red-400 hover:text-red-600 transition text-sm">删除</button>
                     </div>
-
                     <label class="block text-sm">名称:</label>
                     <input type="text" data-type="criterion" data-cat-index="${catIndex}" data-index="${critIndex}" data-field="name" value="${criterion.name || ''}" class="config-input w-full p-1 border rounded-md mb-2 text-sm" oninput="handleInputChange(this)">
-                    
                     <label class="block text-sm">权重 (分数):</label>
                     <input type="number" data-type="criterion" data-cat-index="${catIndex}" data-index="${critIndex}" data-field="weight" value="${criterion.weight || 0}" class="config-input w-full p-1 border rounded-md mb-3 text-sm" oninput="handleInputChange(this)">
-                    
                     <h6 class="text-sm font-semibold mb-2 mt-3">选项:</h6>
-                    
                     <div class="space-y-2">
-                        ${criterion.options.map((option, optIndex) => renderOption(catIndex, critIndex, optIndex, option)).join('')}
+                        ${(criterion.options || []).map((option, optIndex) => renderOption(catIndex, critIndex, optIndex, option)).join('')}
                     </div>
-                    
-                    <button onclick="addOption(${catIndex}, ${critIndex})" class="mt-3 w-full py-1 border border-dashed border-gray-300 text-gray-500 hover:bg-gray-100 rounded-md transition text-sm">
-                        + 添加选项
-                    </button>
+                    <button onclick="addOption(${catIndex}, ${critIndex})" class="mt-3 w-full py-1 border border-dashed text-gray-500 hover:bg-gray-100 rounded-md transition text-sm">+ 添加选项</button>
                 </div>
             `;
         }
 
         function renderOption(catIndex, critIndex, optIndex, option) {
-            // 🚨 最终修复点：确保 description 字段在渲染时被安全地处理
-            // 使用 String() 强制转换为字符串，以防任何 null/undefined 或非字符串值导致渲染失败。
             const safeDescription = String(option.description || ''); 
             const safeScorePct = option.scorePct || 0;
-
             return `
                 <div class="flex space-x-2 items-center bg-white p-2 rounded-md border text-sm">
                     <div class="flex-1">
@@ -282,167 +327,203 @@
             `;
         }
 
+        // --- 8. 数据操作 (增删改) ---
 
-        // --- DYNAMIC DATA MANIPULATION ---
-
-        /**
-         * 实时处理输入变更，并将数据同步到 ratingConfig 模型中
-         * (已修复版本)
-         */
         window.handleInputChange = function(element) {
-            const value = element.type === 'number' ? parseFloat(element.value) : element.value;
-            const type = element.getAttribute('data-type'); // 顶层字段 (appTitle) 的 type 为 null
+            let value;
+            if (element.type === 'number') {
+                value = parseFloat(element.value) || 0; 
+            } else {
+                value = element.value;
+            }
+            const type = element.getAttribute('data-type');
             const field = element.getAttribute('data-field');
-            
             let catIndex = null, critIndex = null, optIndex = null;
-            let updatePath = ''; // 用于日志记录的路径
             
-            // =================================================================
-            // 修复：重构逻辑，使用 type 作为主要分支，避免 field 名称冲突
-            // =================================================================
-
             if (type === null) {
-                // 情况 1: 顶层应用字段 (appTitle, description)
-                if (field === 'appTitle' || field === 'description') {
-                    ratingConfig[field] = value;
-                    updatePath = field;
-                }
+                ratingConfig[field] = value;
             } 
             else if (type === 'category') {
-                // 情况 2: 评分类别 (category, detail)
                 catIndex = parseInt(element.getAttribute('data-index')); 
                 ratingConfig.ratingCriteria[catIndex][field] = value;
-                updatePath = `ratingCriteria[${catIndex}].${field}`;
             } 
             else if (type === 'criterion') {
-                // 情况 3: 评分项 (name, weight)
                 catIndex = parseInt(element.getAttribute('data-cat-index'));
                 critIndex = parseInt(element.getAttribute('data-index')); 
-                
-                if (ratingConfig.ratingCriteria[catIndex] && ratingConfig.ratingCriteria[catIndex].criteriaList) {
-                    ratingConfig.ratingCriteria[catIndex].criteriaList[critIndex][field] = value;
-                    updatePath = `ratingCriteria[${catIndex}].criteriaList[${critIndex}].${field}`;
-                } else {
-                    console.error(`[Data Sync Error] Failed to find criterion list: catIndex=${catIndex}, critIndex=${critIndex}`);
-                    return; 
-                }
+                ratingConfig.ratingCriteria[catIndex].criteriaList[critIndex][field] = value;
             } 
             else if (type === 'option') {
-                // 情况 4: 选项 (description, scorePct)
                 catIndex = parseInt(element.getAttribute('data-cat-index'));
                 critIndex = parseInt(element.getAttribute('data-crit-index'));
                 optIndex = parseInt(element.getAttribute('data-index')); 
-                 
-                 if (ratingConfig.ratingCriteria[catIndex] && ratingConfig.ratingCriteria[catIndex].criteriaList[critIndex] && ratingConfig.ratingCriteria[catIndex].criteriaList[critIndex].options) {
-                    ratingConfig.ratingCriteria[catIndex].criteriaList[critIndex].options[optIndex][field] = value;
-                    updatePath = `ratingCriteria[${catIndex}].criteriaList[${critIndex}].options[${optIndex}].${field}`;
-                 } else {
-                     console.error(`[Data Sync Error] Failed to find option list: catIndex=${catIndex}, critIndex=${critIndex}, optIndex=${optIndex}`);
-                     return;
-                 }
+                ratingConfig.ratingCriteria[catIndex].criteriaList[critIndex].options[optIndex][field] = value;
             }
-            
-            // 关键的日志输出
-            console.log(`[Data Sync] Updated Path: ${updatePath}, New Value: ${value}`);
         };
-
 
         window.addCategory = function() {
+            if (!ratingConfig.ratingCriteria) ratingConfig.ratingCriteria = [];
             ratingConfig.ratingCriteria.push({
-                category: "新类别",
-                detail: "新类别描述",
-                criteriaList: [{
-                    name: "新评分项",
-                    weight: 10,
-                    options: [{ description: "一般", scorePct: 0.5 }, { description: "优秀", scorePct: 1.0 }]
-                }]
+                category: "新类别", detail: "",
+                criteriaList: [{ name: "新评分项", weight: 10, options: [{ description: "一般", scorePct: 0.5 }] }]
             });
             renderConfigView();
         };
-
         window.removeCategory = function(catIndex) {
-            if (confirm(`确定删除类别 #${catIndex + 1} 吗？`)) {
-                ratingConfig.ratingCriteria.splice(catIndex, 1);
-                renderConfigView();
-            }
+            ratingConfig.ratingCriteria.splice(catIndex, 1);
+            renderConfigView();
         };
-
         window.addCriterion = function(catIndex) {
+            if (!ratingConfig.ratingCriteria[catIndex].criteriaList) ratingConfig.ratingCriteria[catIndex].criteriaList = [];
              ratingConfig.ratingCriteria[catIndex].criteriaList.push({
-                name: "新评分项",
-                weight: 10,
-                options: [{ description: "一般", scorePct: 0.5 }, { description: "优秀", scorePct: 1.0 }]
+                name: "新评分项", weight: 10, options: [{ description: "一般", scorePct: 0.5 }]
             });
             renderConfigView();
         };
-
         window.removeCriterion = function(catIndex, critIndex) {
-            if (confirm(`确定删除类别 #${catIndex + 1} 下的评分项 #${critIndex + 1} 吗？`)) {
-                 ratingConfig.ratingCriteria[catIndex].criteriaList.splice(critIndex, 1);
-                 renderConfigView();
-            }
+            ratingConfig.ratingCriteria[catIndex].criteriaList.splice(critIndex, 1);
+            renderConfigView();
         };
-        
         window.addOption = function(catIndex, critIndex) {
-            ratingConfig.ratingCriteria[catIndex].criteriaList[critIndex].options.push({
-                description: "新选项",
-                scorePct: 0.5
-            });
+            if (!ratingConfig.ratingCriteria[catIndex].criteriaList[critIndex].options) ratingConfig.ratingCriteria[catIndex].criteriaList[critIndex].options = [];
+            ratingConfig.ratingCriteria[catIndex].criteriaList[critIndex].options.push({ description: "新选项", scorePct: 0.5 });
+            renderConfigView();
+        };
+        window.removeOption = function(catIndex, critIndex, optIndex) {
+            ratingConfig.ratingCriteria[catIndex].criteriaList[critIndex].options.splice(optIndex, 1);
             renderConfigView();
         };
 
-        window.removeOption = function(catIndex, critIndex, optIndex) {
-             if (confirm(`确定删除评分项 #${critIndex + 1} 下的选项 #${optIndex + 1} 吗？`)) {
-                 ratingConfig.ratingCriteria[catIndex].criteriaList[critIndex].options.splice(optIndex, 1);
-                 renderConfigView();
-             }
-        };
+        // --- 9. 保存与发布逻辑 ---
 
-
-        // --- SAVE TO FIREBASE ---
-        
-        // (已修复版本)
-        window.saveConfig = async function() {
-            if (!hasAdminAccess()) {
-                alert('错误：您没有管理员权限来保存配置。');
-                return;
-            }
-            
-            const saveButton = document.getElementById('save-button');
-            const originalText = saveButton.textContent;
-            
-            saveButton.textContent = '正在保存...';
-            saveButton.disabled = true;
-
-            const configDocRef = doc(db, CONFIG_DOC_PATH);
-            
-            // =================================================================
-            // 修复：删除以下两行多余的代码。
-            // handleInputChange 现已正确处理所有字段，
-            // ratingConfig 对象已是最新状态，无需从 DOM 重新读取。
-            // ratingConfig.appTitle = document.getElementById('app-title-input').value;
-            // ratingConfig.description = document.getElementById('app-description-input').value;
-            // =================================================================
-
+        window.publishConfig = async function() {
+            if (!hasAdminAccess()) return;
+            if (!confirm("确定要将当前配置发布到实时应用吗？")) return;
+            const button = document.getElementById('publish-button');
+            button.textContent = '正在发布...'; button.disabled = true;
+            syncUIToModel();
+            const cleanConfig = deepCleanObject(ratingConfig);
             try {
-                // 使用 setDoc 覆盖整个文档，实现完全同步
-                // ratingConfig 对象现在包含所有正确的最新数据
-                await setDoc(configDocRef, ratingConfig);
-                alert('配置保存成功，已同步到云端！');
-            } catch (error) {
-                console.error("保存配置失败:", error);
-                alert(`保存失败！请检查您的 Firestore 写入规则。错误信息: ${error.message}`);
-            } finally {
-                saveButton.textContent = originalText;
-                // 重新启用按钮（如果权限允许）
-                if(hasAdminAccess()) {
-                    saveButton.disabled = false;
+                // 如果净化后对象为空，则不允许保存
+                if (!cleanConfig) {
+                    throw new Error("净化后的配置为空，无法保存。请确保至少有一个有效的评分项。");
                 }
+                await setDoc(doc(db, CONFIG_DOC_PATH), cleanConfig);
+                alert('配置发布成功！');
+            } catch (error) {
+                console.error("【发布失败】错误详情:", error);
+                console.error("【发布失败】原始数据:", JSON.stringify(ratingConfig, null, 2));
+                console.error("【发布失败】尝试发送的净化后数据:", JSON.stringify(cleanConfig, null, 2));
+                alert(`发布失败！错误: ${error.message}\n\n请按 F12 查看控制台中的详细数据。`);
+            } finally {
+                button.textContent = '发布到 Live (latest)'; if (hasAdminAccess()) button.disabled = false;
             }
         };
 
+        window.saveProfileChanges = async function() {
+            if (!hasAdminAccess() || currentProfileId === 'latest') return;
+            const button = document.getElementById('save-profile-button');
+            button.textContent = '正在保存...'; button.disabled = true;
+            syncUIToModel();
+            const cleanConfig = deepCleanObject(ratingConfig);
+            try {
+                if (!cleanConfig) {
+                    throw new Error("净化后的配置为空，无法保存。");
+                }
+                await setDoc(doc(db, PROFILES_COLLECTION_PATH, currentProfileId), cleanConfig);
+                alert(`方案 "${currentProfileId}" 保存成功！`);
+            } catch (error) {
+                console.error("【保存方案失败】错误详情:", error);
+                console.error("【保存方案失败】原始数据:", JSON.stringify(ratingConfig, null, 2));
+                console.error("【保存方案失败】尝试发送的净化后数据:", JSON.stringify(cleanConfig, null, 2));
+                alert(`保存方案失败！错误: ${error.message}\n\n请按 F12 查看控制台中的详细数据。`);
+            } finally {
+                button.textContent = '保存更改到方案'; if (hasAdminAccess()) button.disabled = (currentProfileId === 'latest');
+            }
+        };
 
-        // --- Initialize on load ---
+        window.saveAsNewProfile = async function() {
+            if (!hasAdminAccess()) return;
+            const profileName = prompt("请输入新配置方案的名称:");
+            if (!profileName || profileName.trim() === '' || profileName === 'latest') return;
+            syncUIToModel();
+            const cleanConfig = deepCleanObject(ratingConfig);
+            const newProfileDocRef = doc(db, PROFILES_COLLECTION_PATH, profileName);
+            try {
+                if (!cleanConfig) {
+                    throw new Error("净化后的配置为空，无法保存。");
+                }
+                await setDoc(newProfileDocRef, cleanConfig);
+                alert(`新方案 "${profileName}" 已保存！`);
+                await loadProfileList();
+                loadConfigFromRef(newProfileDocRef, profileName);
+            } catch (error) {
+                console.error("【另存为失败】错误详情:", error);
+                console.error("【另存为失败】原始数据:", JSON.stringify(ratingConfig, null, 2));
+                console.error("【另存为失败】尝试发送的净化后数据:", JSON.stringify(cleanConfig, null, 2));
+                alert(`另存为失败！错误: ${error.message}\n\n请按 F12 查看控制台中的详细数据。`);
+            }
+        };
+        
+        window.deleteSelectedProfile = async function() {
+             if (!hasAdminAccess() || currentProfileId === 'latest') return;
+             if (!confirm(`确定要永久删除方案 "${currentProfileId}" 吗？`)) return;
+            try {
+                await deleteDoc(doc(db, PROFILES_COLLECTION_PATH, currentProfileId));
+                alert(`方案 "${currentProfileId}" 已删除。`);
+                await loadProfileList();
+                loadConfigFromRef(doc(db, CONFIG_DOC_PATH), 'latest');
+            } catch (error) {
+                alert(`删除方案失败！错误: ${error.message}`);
+            }
+        };
+
+        // --- 10. 导入 / 导出功能 ---
+
+        window.downloadConfigJSON = function() {
+            syncUIToModel();
+            const cleanConfig = deepCleanObject(ratingConfig);
+            const jsonString = JSON.stringify(cleanConfig, null, 2);
+            const blob = new Blob([jsonString], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = `${currentProfileId}_config.json`;
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        };
+
+        window.uploadConfigJSON = function() {
+            const input = document.getElementById('json-upload-input');
+            const file = input.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                let uploadedConfig;
+                try {
+                    uploadedConfig = JSON.parse(e.target.result);
+                } catch (err) { return alert(`文件解析失败！\n错误: ${err.message}`); }
+                if (!uploadedConfig.ratingCriteria) return alert("JSON 格式无效。");
+                
+                const cleanUploadedConfig = deepCleanObject(uploadedConfig);
+                const profileName = prompt(`文件已读取。\n请输入新配置方案的名称:`);
+                if (!profileName || profileName.trim() === '' || profileName === 'latest') return;
+                const newProfileDocRef = doc(db, PROFILES_COLLECTION_PATH, profileName);
+                try {
+                    if (!cleanUploadedConfig) {
+                        throw new Error("净化后的配置为空，无法保存。");
+                    }
+                    await setDoc(newProfileDocRef, cleanUploadedConfig);
+                    alert(`新方案 "${profileName}" 已上传并保存！`);
+                    await loadProfileList();
+                    ratingConfig = cleanUploadedConfig;
+                    loadConfigFromRef(newProfileDocRef, profileName);
+                } catch (error) {
+                    alert(`上传新方案失败！错误: ${error.message}`);
+                }
+            };
+            reader.readAsText(file);
+            input.value = null; 
+        };
+
         window.onload = initFirebase;
     </script>
 </head>
@@ -451,36 +532,72 @@
     <div id="main-container" class="max-w-4xl mx-auto p-4 md:p-8">
 
         <header class="mb-8 p-6 bg-indigo-700 text-white rounded-xl shadow-2xl relative">
-            <h1 class="text-3xl font-extrabold mb-1">雪茄评分体系配置</h1>
-            <p class="text-indigo-200 text-sm mb-2">在此处修改和管理评分标准。所有更改将实时同步到主应用。</p>
+            <h1 class="text-3xl font-extrabold mb-1">雪茄品鉴配置管理</h1>
+            <p class="text-indigo-200 text-sm mb-2">管理评分标准，所有更改在发布后将实时同步到主应用。</p>
             <div id="role-display" class="text-xs text-yellow-300">正在检查权限...</div>
             <a href="index.html" class="absolute top-4 right-4 text-indigo-200 hover:text-white transition">← 返回主页</a>
         </header>
         
-        <div id="error-container">
-            </div>
+        <div id="error-container"></div>
+
+        <section class="mb-8 p-6 bg-white rounded-xl shadow-lg">
+             <h2 class="text-xl font-bold text-indigo-700 mb-4">配置方案管理</h2>
+             <p class="text-sm text-gray-600 mb-2">
+                 当前加载: <strong id="current-profile-name" class="text-indigo-800">...</strong>
+             </p>
+             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                 <div>
+                    <label for="profile-selector" class="block text-sm font-medium text-gray-700 mb-1">选择方案:</label>
+                    <select id="profile-selector" class="admin-feature w-full p-2 border border-gray-300 rounded-md">
+                        <option>正在加载...</option>
+                    </select>
+                 </div>
+                 <div class="flex items-end space-x-2">
+                    <button onclick="loadSelectedProfile()" class="admin-feature flex-1 py-2 px-3 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition text-sm">加载</button>
+                    <button onclick="saveAsNewProfile()" class="admin-feature flex-1 py-2 px-3 bg-green-500 text-white rounded-md hover:bg-green-600 transition text-sm">另存为</button>
+                    <button id="delete-profile-button" onclick="deleteSelectedProfile()" class="admin-feature flex-1 py-2 px-3 bg-red-500 text-white rounded-md hover:bg-red-600 transition text-sm" disabled>删除</button>
+                 </div>
+             </div>
+        </section>
+
+        <section class="mb-8 p-6 bg-gray-50 rounded-xl shadow-lg border">
+             <h2 class="text-xl font-bold text-gray-700 mb-4">导入 / 导出</h2>
+             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">从文件上传 (JSON):</label>
+                    <input type="file" id="json-upload-input" accept=".json" class="admin-feature w-full text-sm">
+                    <button onclick="uploadConfigJSON()" class="admin-feature w-full mt-2 py-2 px-3 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition text-sm">上传并另存为</button>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">下载当前配置 (JSON):</label>
+                     <button onclick="downloadConfigJSON()" class="admin-feature w-full mt-2 py-2 px-3 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition text-sm">下载编辑器内容</button>
+                </div>
+             </div>
+        </section>
 
         <section class="mb-8 p-6 bg-white rounded-xl shadow-lg">
              <h2 class="text-xl font-bold text-indigo-700 mb-4">应用基本信息</h2>
              <label class="block mb-4">
-                 <span class="text-gray-700 font-medium">应用标题 (App Title)</span>
-                 <input type="text" id="app-title-input" class="w-full p-2 border border-gray-300 rounded-md mt-1" oninput="handleInputChange(this)" data-field="appTitle">
+                 <span class="text-gray-700 font-medium">应用标题</span>
+                 <input type="text" id="app-title-input" class="w-full p-2 border rounded-md mt-1" oninput="handleInputChange(this)" data-field="appTitle">
              </label>
              <label class="block mb-4">
-                 <span class="text-gray-700 font-medium">应用描述 (Description)</span>
-                 <textarea id="app-description-input" class="w-full p-2 border border-gray-300 rounded-md mt-1" rows="3" oninput="handleInputChange(this)" data-field="description"></textarea>
+                 <span class="text-gray-700 font-medium">应用描述</span>
+                 <textarea id="app-description-input" class="w-full p-2 border rounded-md mt-1" rows="3" oninput="handleInputChange(this)" data-field="description"></textarea>
              </label>
         </section>
 
-
         <form id="config-form">
             <section id="config-form-container" class="space-y-6">
-                <div class="p-6 text-center text-gray-500">正在加载配置...</div>
+                <!-- JS will render criteria here -->
             </section>
         
-            <div class="mt-8 pt-4 border-t border-gray-300">
-                <button type="button" id="save-button" onclick="saveConfig()" class="w-full py-3 bg-gray-400 text-gray-700 font-semibold rounded-lg cursor-not-allowed">
-                    正在检查权限...
+            <div class="mt-8 pt-4 border-t border-gray-300 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <button type="button" id="save-profile-button" onclick="saveProfileChanges()" class="w-full py-3 font-semibold rounded-lg cursor-not-allowed bg-gray-400 text-gray-700" disabled>
+                    保存更改到方案
+                </button>
+                <button type="button" id="publish-button" onclick="publishConfig()" class="w-full py-3 font-semibold rounded-lg cursor-not-allowed bg-gray-400 text-gray-700">
+                    发布到 Live (latest)
                 </button>
             </div>
         </form>
