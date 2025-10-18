@@ -94,6 +94,45 @@
             }
         }
         
+        // (*** 终极修复：深度净化函数 ***)
+        function deepCleanObject(obj) {
+            // 1. 使用 JSON.parse(JSON.stringify(...)) 来移除 undefined, NaN, Infinity
+            const partiallyCleaned = JSON.parse(JSON.stringify(obj));
+
+            // 2. 递归地移除所有空数组和空对象
+            function recursiveClean(current) {
+                if (Array.isArray(current)) {
+                    // 过滤掉数组中的 null 值 (JSON.stringify(NaN) 的产物)
+                    // 并对每个元素进行递归净化
+                    const cleanedArray = current
+                        .filter(item => item !== null)
+                        .map(item => recursiveClean(item));
+                    
+                    // 如果数组在净化后变为空，则返回 undefined 以便被移除
+                    return cleanedArray.length > 0 ? cleanedArray : undefined;
+                }
+                
+                if (typeof current === 'object' && current !== null) {
+                    const newObj = {};
+                    let keyCount = 0;
+                    for (const key in current) {
+                        const value = recursiveClean(current[key]);
+                        // 只添加非 undefined 的值
+                        if (value !== undefined) {
+                            newObj[key] = value;
+                            keyCount++;
+                        }
+                    }
+                    // 如果对象在净化后变为空，则返回 undefined 以便被移除
+                    return keyCount > 0 ? newObj : undefined;
+                }
+                
+                return current;
+            }
+
+            return recursiveClean(partiallyCleaned);
+        }
+
         // --- 5. Firebase 初始化 ---
 
         async function initFirebase() {
@@ -201,8 +240,6 @@
             const deleteProfileButton = document.getElementById('delete-profile-button');
             const isAdmin = hasAdminAccess();
             
-            // (*** 灰色按钮修复 ***)
-            // 按钮状态更新逻辑现在位于函数顶部，确保每次都执行
             if (isAdmin) {
                 publishButton.disabled = false;
                 publishButton.className = 'w-full py-3 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition duration-150';
@@ -364,14 +401,18 @@
             const button = document.getElementById('publish-button');
             button.textContent = '正在发布...'; button.disabled = true;
             syncUIToModel();
-            const cleanConfig = JSON.parse(JSON.stringify(ratingConfig));
+            const cleanConfig = deepCleanObject(ratingConfig);
             try {
+                // 如果净化后对象为空，则不允许保存
+                if (!cleanConfig) {
+                    throw new Error("净化后的配置为空，无法保存。请确保至少有一个有效的评分项。");
+                }
                 await setDoc(doc(db, CONFIG_DOC_PATH), cleanConfig);
                 alert('配置发布成功！');
             } catch (error) {
-                // (*** 增强调试 ***)
                 console.error("【发布失败】错误详情:", error);
-                console.error("【发布失败】尝试发送的数据:", JSON.stringify(cleanConfig, null, 2));
+                console.error("【发布失败】原始数据:", JSON.stringify(ratingConfig, null, 2));
+                console.error("【发布失败】尝试发送的净化后数据:", JSON.stringify(cleanConfig, null, 2));
                 alert(`发布失败！错误: ${error.message}\n\n请按 F12 查看控制台中的详细数据。`);
             } finally {
                 button.textContent = '发布到 Live (latest)'; if (hasAdminAccess()) button.disabled = false;
@@ -383,14 +424,17 @@
             const button = document.getElementById('save-profile-button');
             button.textContent = '正在保存...'; button.disabled = true;
             syncUIToModel();
-            const cleanConfig = JSON.parse(JSON.stringify(ratingConfig));
+            const cleanConfig = deepCleanObject(ratingConfig);
             try {
+                if (!cleanConfig) {
+                    throw new Error("净化后的配置为空，无法保存。");
+                }
                 await setDoc(doc(db, PROFILES_COLLECTION_PATH, currentProfileId), cleanConfig);
                 alert(`方案 "${currentProfileId}" 保存成功！`);
             } catch (error) {
-                // (*** 增强调试 ***)
                 console.error("【保存方案失败】错误详情:", error);
-                console.error("【保存方案失败】尝试发送的数据:", JSON.stringify(cleanConfig, null, 2));
+                console.error("【保存方案失败】原始数据:", JSON.stringify(ratingConfig, null, 2));
+                console.error("【保存方案失败】尝试发送的净化后数据:", JSON.stringify(cleanConfig, null, 2));
                 alert(`保存方案失败！错误: ${error.message}\n\n请按 F12 查看控制台中的详细数据。`);
             } finally {
                 button.textContent = '保存更改到方案'; if (hasAdminAccess()) button.disabled = (currentProfileId === 'latest');
@@ -402,17 +446,20 @@
             const profileName = prompt("请输入新配置方案的名称:");
             if (!profileName || profileName.trim() === '' || profileName === 'latest') return;
             syncUIToModel();
-            const cleanConfig = JSON.parse(JSON.stringify(ratingConfig));
+            const cleanConfig = deepCleanObject(ratingConfig);
             const newProfileDocRef = doc(db, PROFILES_COLLECTION_PATH, profileName);
             try {
+                if (!cleanConfig) {
+                    throw new Error("净化后的配置为空，无法保存。");
+                }
                 await setDoc(newProfileDocRef, cleanConfig);
                 alert(`新方案 "${profileName}" 已保存！`);
                 await loadProfileList();
                 loadConfigFromRef(newProfileDocRef, profileName);
             } catch (error) {
-                // (*** 增强调试 ***)
                 console.error("【另存为失败】错误详情:", error);
-                console.error("【另存为失败】尝试发送的数据:", JSON.stringify(cleanConfig, null, 2));
+                console.error("【另存为失败】原始数据:", JSON.stringify(ratingConfig, null, 2));
+                console.error("【另存为失败】尝试发送的净化后数据:", JSON.stringify(cleanConfig, null, 2));
                 alert(`另存为失败！错误: ${error.message}\n\n请按 F12 查看控制台中的详细数据。`);
             }
         };
@@ -424,7 +471,6 @@
                 await deleteDoc(doc(db, PROFILES_COLLECTION_PATH, currentProfileId));
                 alert(`方案 "${currentProfileId}" 已删除。`);
                 await loadProfileList();
-                // (*** 拼写错误修复 ***)
                 loadConfigFromRef(doc(db, CONFIG_DOC_PATH), 'latest');
             } catch (error) {
                 alert(`删除方案失败！错误: ${error.message}`);
@@ -435,7 +481,7 @@
 
         window.downloadConfigJSON = function() {
             syncUIToModel();
-            const cleanConfig = JSON.parse(JSON.stringify(ratingConfig));
+            const cleanConfig = deepCleanObject(ratingConfig);
             const jsonString = JSON.stringify(cleanConfig, null, 2);
             const blob = new Blob([jsonString], { type: "application/json" });
             const url = URL.createObjectURL(blob);
@@ -457,11 +503,14 @@
                 } catch (err) { return alert(`文件解析失败！\n错误: ${err.message}`); }
                 if (!uploadedConfig.ratingCriteria) return alert("JSON 格式无效。");
                 
-                const cleanUploadedConfig = JSON.parse(JSON.stringify(uploadedConfig));
+                const cleanUploadedConfig = deepCleanObject(uploadedConfig);
                 const profileName = prompt(`文件已读取。\n请输入新配置方案的名称:`);
                 if (!profileName || profileName.trim() === '' || profileName === 'latest') return;
                 const newProfileDocRef = doc(db, PROFILES_COLLECTION_PATH, profileName);
                 try {
+                    if (!cleanUploadedConfig) {
+                        throw new Error("净化后的配置为空，无法保存。");
+                    }
                     await setDoc(newProfileDocRef, cleanUploadedConfig);
                     alert(`新方案 "${profileName}" 已上传并保存！`);
                     await loadProfileList();
