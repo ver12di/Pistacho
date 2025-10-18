@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>雪茄品鉴配置管理</title>
     
+    <!-- 1. 样式修复：确保 Tailwind CSS CDN 正常加载 -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         // 2. 样式修复：确保 Tailwind 配置块存在
@@ -19,6 +20,9 @@
         }
     </script>
     
+    <!-- ************************************************************ -->
+    <!-- ** 注入 Firebase 全局配置 ** -->
+    <!-- ************************************************************ -->
     <script>
         // 请在此处放置您的 Firebase 配置变量
         const __app_id = 'pistacho-b9efe'; 
@@ -34,6 +38,9 @@
         });
     </script>
     
+    <!-- ************************************************************ -->
+    <!-- ** 配置管理应用逻辑 ** -->
+    <!-- ************************************************************ -->
     <script type="module">
         // --- Firebase Imports ---
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
@@ -351,6 +358,7 @@
 
         function withStructuralLock(action) {
             isHandlingStructuralChange = true;
+            console.log('[FIREBASE SYNC LOCKED] Structural change starting...');
             // 确保动作执行时使用最新的状态
             action(); 
             // 异步释放锁，确保 DOM 渲染周期完成后再恢复 Firebase 监听
@@ -489,7 +497,8 @@
         </header>
         
         <div id="error-container">
-            </div>
+            <!-- 运行时权限错误将显示在这里 -->
+        </div>
 
         <section class="mb-8 p-6 bg-white rounded-xl shadow-lg">
              <h2 class="text-xl font-bold text-indigo-700 mb-4">应用基本信息</h2>
@@ -506,6 +515,7 @@
 
         <form id="config-form">
             <section id="config-form-container" class="space-y-6">
+                <!-- Dynamic config fields will be rendered here -->
                 <div class="p-6 text-center text-gray-500">正在加载配置...</div>
             </section>
         
