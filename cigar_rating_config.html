@@ -260,20 +260,19 @@
         }
 
         function renderOption(catIndex, critIndex, optIndex, option) {
-            // 🚨 最终修复点：确保 description 字段在渲染时被安全地处理
-            // 使用 String() 强制转换为字符串，以防任何 null/undefined 或非字符串值导致渲染失败。
-            const safeDescription = String(option.description || ''); 
-            const safeScorePct = option.scorePct || 0;
+            // 🚨 调试日志：打印出渲染时读取到的实际值
+            const valueToRender = option.description || '';
+            console.log(`[RENDER CHECK] Option C${catIndex}I${critIndex}O${optIndex} Description: "${valueToRender}"`);
 
             return `
                 <div class="flex space-x-2 items-center bg-white p-2 rounded-md border text-sm">
                     <div class="flex-1">
                         <label class="block text-xs">描述:</label>
-                        <input type="text" data-type="option" data-cat-index="${catIndex}" data-crit-index="${critIndex}" data-index="${optIndex}" data-field="description" value="${safeDescription}" class="config-input w-full p-1 border rounded-md text-xs" oninput="handleInputChange(this)">
+                        <input type="text" data-type="option" data-cat-index="${catIndex}" data-crit-index="${critIndex}" data-index="${optIndex}" data-field="description" value="${valueToRender}" class="config-input w-full p-1 border rounded-md text-xs" oninput="handleInputChange(this)">
                     </div>
                     <div class="w-1/4">
                         <label class="block text-xs">得分率 (0-1):</label>
-                        <input type="number" step="0.01" data-type="option" data-cat-index="${catIndex}" data-crit-index="${critIndex}" data-index="${optIndex}" data-field="scorePct" value="${safeScorePct}" class="config-input w-full p-1 border rounded-md text-xs" oninput="handleInputChange(this)">
+                        <input type="number" step="0.01" data-type="option" data-cat-index="${catIndex}" data-crit-index="${critIndex}" data-index="${optIndex}" data-field="scorePct" value="${option.scorePct || 0}" class="config-input w-full p-1 border rounded-md text-xs" oninput="handleInputChange(this)">
                     </div>
                     <button onclick="removeOption(${catIndex}, ${critIndex}, ${optIndex})" class="text-red-400 hover:text-red-600 transition text-sm flex-shrink-0">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 10-2 0v6a1 1 0 102 0V8z" clip-rule="evenodd" /></svg>
@@ -297,52 +296,38 @@
             let catIndex = null, critIndex = null, optIndex = null;
 
             if (field === 'appTitle' || field === 'description') {
-                // 不需要索引
+                ratingConfig[field] = value;
             } else if (type === 'category') {
                  catIndex = parseInt(element.getAttribute('data-index')); 
+                 ratingConfig.ratingCriteria[catIndex][field] = value;
             } else if (type === 'criterion') {
-                // 评分项
                 catIndex = parseInt(element.getAttribute('data-cat-index'));
-                critIndex = parseInt(element.getAttribute('data-index')); // 评分项本身的索引
-            } else if (type === 'option') {
-                // 选项
-                catIndex = parseInt(element.getAttribute('data-cat-index'));
-                critIndex = parseInt(element.getAttribute('data-crit-index'));
-                optIndex = parseInt(element.getAttribute('data-index')); // 选项本身的索引
-            }
-            // --- 索引解析结束 ---
-
-
-            let updatePath = ''; // 用于日志记录的路径
-            
-            if (field === 'appTitle' || field === 'description') {
-                ratingConfig[field] = value;
-                updatePath = field;
-            } else if (type === 'category') {
-                ratingConfig.ratingCriteria[catIndex][field] = value;
-                updatePath = `ratingCriteria[${catIndex}].${field}`;
-            } else if (type === 'criterion') {
+                critIndex = parseInt(element.getAttribute('data-index'));
+                
                 // 安全检查
                 if (ratingConfig.ratingCriteria[catIndex] && ratingConfig.ratingCriteria[catIndex].criteriaList) {
                     ratingConfig.ratingCriteria[catIndex].criteriaList[critIndex][field] = value;
-                    updatePath = `ratingCriteria[${catIndex}].criteriaList[${critIndex}].${field}`;
                 } else {
                     console.error(`[Data Sync Error] Failed to find criterion list: catIndex=${catIndex}, critIndex=${critIndex}`);
                     return; 
                 }
             } else if (type === 'option') {
+                catIndex = parseInt(element.getAttribute('data-cat-index'));
+                critIndex = parseInt(element.getAttribute('data-crit-index'));
+                optIndex = parseInt(element.getAttribute('data-index'));
+                 
                  // 安全检查
                  if (ratingConfig.ratingCriteria[catIndex] && ratingConfig.ratingCriteria[catIndex].criteriaList[critIndex] && ratingConfig.ratingCriteria[catIndex].criteriaList[critIndex].options) {
+                    // 核心操作：更新选项描述或得分率
                     ratingConfig.ratingCriteria[catIndex].criteriaList[critIndex].options[optIndex][field] = value;
-                    updatePath = `ratingCriteria[${catIndex}].criteriaList[${critIndex}].options[${optIndex}].${field}`;
                  } else {
                      console.error(`[Data Sync Error] Failed to find option list: catIndex=${catIndex}, critIndex=${critIndex}, optIndex=${optIndex}`);
                      return;
                  }
             }
             
-            // 关键的日志输出
-            console.log(`[Data Sync] Updated Path: ${updatePath}, New Value: ${value}`);
+            // 日志输出 (您确认这个日志显示了正确的新值，如 "简陋2")
+            console.log(`[Data Sync] Type: ${type}, Field: ${field}, New Value: ${value}`);
         };
 
         window.addCategory = function() {
