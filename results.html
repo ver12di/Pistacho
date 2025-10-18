@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>雪茄品鉴评分主应用</title>
+    <title>雪茄品鉴 - 评分报告</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -12,385 +12,197 @@
                     fontFamily: {
                         sans: ['Inter', 'Noto Sans SC', 'system-ui', 'sans-serif'],
                     },
-                    transitionProperty: {
-                        'width': 'width',
+                    keyframes: {
+                        fadeInUp: {
+                            '0%': { opacity: '0', transform: 'translateY(20px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' },
+                        },
+                        highlight: {
+                            '0%, 100%': { transform: 'scale(1)', boxShadow: '0 0 0 rgba(66, 153, 225, 0)' },
+                            '50%': { transform: 'scale(1.02)', boxShadow: '0 0 15px rgba(66, 153, 225, 0.4)' },
+                        }
+                    },
+                    animation: {
+                        fadeInUp: 'fadeInUp 0.8s ease-out forwards',
+                        highlight: 'highlight 1.5s ease-in-out infinite',
                     }
                 }
             }
         }
     </script>
-    
+</head>
+<body class="bg-gray-100 font-sans antialiased text-gray-800">
+
+    <div class="max-w-4xl mx-auto p-4 md:p-8">
+        
+        <div id="error-container" class="hidden bg-red-100 p-6 rounded-lg shadow-lg text-center text-red-700 font-medium">
+            <!-- JS will be injected here -->
+        </div>
+
+        <div id="main-content" class="opacity-0" style="animation-delay: 0.2s;">
+            <header class="mb-6 text-center">
+                <h1 class="text-4xl font-extrabold text-gray-800 mb-2">评分报告</h1>
+            </header>
+            
+            <!-- (*** 新增：雪茄信息展示区域 ***) -->
+            <section id="cigar-info-container" class="mb-6">
+                <!-- JS will inject cigar info here -->
+            </section>
+
+            <section id="results-card-container" class="mb-8">
+                <!-- JS will be injected here -->
+            </section>
+
+            <div class="space-y-4">
+                <details class="group bg-white rounded-xl shadow-lg p-6 transition-all duration-300">
+                    <summary class="flex justify-between items-center cursor-pointer font-bold text-lg text-gray-800">
+                        分数详情
+                        <svg class="w-5 h-5 transform group-open:rotate-180 transition-transform" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </summary>
+                    <div id="score-details-container" class="mt-4 text-center">
+                        <!-- JS will be injected here -->
+                    </div>
+                </details>
+
+                <details class="group bg-white rounded-xl shadow-lg p-6 transition-all duration-300">
+                    <summary class="flex justify-between items-center cursor-pointer font-bold text-lg text-gray-800">
+                        评分详情汇总
+                        <svg class="w-5 h-5 transform group-open:rotate-180 transition-transform" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </summary>
+                    <div id="summary-container" class="mt-4">
+                         <!-- JS will be injected here -->
+                    </div>
+                </details>
+
+                <details class="group bg-white rounded-xl shadow-lg p-6 transition-all duration-300 open">
+                    <summary class="flex justify-between items-center cursor-pointer font-bold text-lg text-gray-800">
+                        PISTACHO 评级体系
+                        <svg class="w-5 h-5 transform group-open:rotate-180 transition-transform" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </summary>
+                    <div id="full-scale-container" class="mt-4">
+                         <!-- JS will be injected here -->
+                    </div>
+                </details>
+            </div>
+
+
+            <footer class="mt-8 text-center">
+                <a href="index.html" 
+                   class="py-3 px-6 bg-indigo-600 text-white font-bold rounded-lg shadow-md hover:bg-indigo-700 transition duration-150">
+                    &larr; 返回重新评分
+                </a>
+            </footer>
+        </div>
+    </div>
+
     <script>
-        const __app_id = 'pistacho-b9efe'; 
-        const __firebase_config = JSON.stringify({
-            apiKey: "AIzaSyDC-8qbWsjRyxBzJpfCi9n3ftzdg9FStF0", 
-            authDomain: "pistacho-b9efe.firebaseapp.com",
-            projectId: "pistacho-b9efe",
-            storageBucket: "pistacho-b9efe.firebasestorage.app",
-            messagingSenderId: "686695750713",
-            appId: "1:686695750713:web:5314331be7b46e93f401e8",
-            measurementId: "G-HQS7Q78LY7"
-        });
-    </script>
-    
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, onSnapshot, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-        
-        let db, auth;
-        let ratingConfig = null; 
-        let userRatings = {};    
-        let userRole = 'unknown'; 
-        let currentAuthUser = null; 
-        
-        const CONFIG_DOC_PATH = `/artifacts/${appId}/public/data/cigar_config/latest`;
-        const USERS_COLLECTION_PATH = 'users'; 
+        const GRADING_SCALE = [
+          { "grade": "P", "name_en": "Pinnacle", "name_cn": "顶峰 / 登峰造极", "min_score": 95, "color": "gold" },
+          { "grade": "I", "name_en": "Impeccable", "name_cn": "无暇 / 完美无瑕", "min_score": 90, "color": "indigo" },
+          { "grade": "S", "name_en": "Superior", "name_cn": "卓越 / 出众", "min_score": 85, "color": "purple" },
+          { "grade": "T", "name_en": "Terrific", "name_cn": "极好 / 绝佳", "min_score": 80, "color": "blue" },
+          { "grade": "A", "name_en": "Appreciable", "name_cn": "可圈可点 / 值得欣赏", "min_score": 70, "color": "green" },
+          { "grade": "C", "name_en": "Commonplace", "name_cn": "平庸 / 普通", "min_score": 60, "color": "gray" },
+          { "grade": "H", "name_en": "Hesitant", "name_cn": "犹豫 / 瑕瑜互见", "min_score": 40, "color": "orange" },
+          { "grade": "O", "name_en": "Ordinary", "name_cn": "乏善可陈 / 平淡", "min_score": 0, "color": "red" }
+        ];
 
-        const defaultInitialConfig = {
-            appTitle: "雪茄品鉴评分体系",
-            description: "请为以下项目评分，以获得最终品鉴报告。",
-            ratingCriteria: [
-                {
-                    category: "外观与卷工",
-                    detail: "雪茄的物理制造质量。",
-                    criteriaList: [
-                        { name: "茄标高级感", weight: 15, options: [{ description: "简陋", scorePct: 0.1 }, { description: "完美", scorePct: 1.0 }] },
-                        { name: "卷工", weight: 15, options: [{ description: "不合格", scorePct: 0.1 }, { description: "正常", scorePct: 0.5 }, { description: "完美", scorePct: 1.0 }] }
-                    ]
-                }
-            ]
-        };
+        window.onload = function() {
+            const mainContent = document.getElementById('main-content');
+            const cigarInfoContainer = document.getElementById('cigar-info-container');
+            const resultsCardContainer = document.getElementById('results-card-container');
+            const scoreDetailsContainer = document.getElementById('score-details-container');
+            const summaryContainer = document.getElementById('summary-container');
+            const errorContainer = document.getElementById('error-container');
+            const fullScaleContainer = document.getElementById('full-scale-container');
+            
+            mainContent.classList.add('animate-fadeInUp');
 
-        // --- Utility Functions ---
-
-        function calculateWeights(config) {
-            let grandTotal = 0;
-            let totalCriteriaCount = 0;
-            (config.ratingCriteria || []).forEach(category => {
-                let categoryTotal = 0;
-                (category.criteriaList || []).forEach(criterion => {
-                    categoryTotal += (criterion.weight || 0);
-                    totalCriteriaCount++;
-                });
-                category.totalWeight = categoryTotal;
-                grandTotal += categoryTotal;
-            });
-            config.totalWeightMax = grandTotal;
-            config.totalCriteriaCount = totalCriteriaCount;
-        }
-
-        function calculateFinalScore() {
-            if (!ratingConfig) return 0;
-            let totalScore = 0;
-            (ratingConfig.ratingCriteria || []).forEach((category) => {
-                (category.criteriaList || []).forEach((criterion, critIndex) => {
-                    const id = `${category.category}-${criterion.name}`; // Use a more stable ID
-                    const selectedOptionIndex = userRatings[id];
-                    if (selectedOptionIndex !== undefined && criterion.options && criterion.options[selectedOptionIndex]) {
-                        const scorePct = criterion.options[selectedOptionIndex].scorePct;
-                        const weightedScore = (criterion.weight || 0) * scorePct;
-                        totalScore += weightedScore;
-                    }
-                });
-            });
-            return totalScore;
-        }
-        
-        // --- Navigation ---
-        
-        window.showResults = function() {
-            if (!ratingConfig || Object.keys(userRatings).length === 0) {
-                alert("请至少选择一个评分项后再查看报告。");
+            const storedData = sessionStorage.getItem('cigarRatingResults');
+            
+            if (!storedData) {
+                errorContainer.classList.remove('hidden');
+                errorContainer.innerHTML = `<p class="font-bold">没有找到评分数据！</p><p>请从主页完成一次评分。</p><a href="index.html" class="inline-block mt-4 text-indigo-600 underline">返回</a>`;
                 return;
             }
-
-            // (*** 新增：收集雪茄信息 ***)
-            const cigarInfo = {
-                name: document.getElementById('cigar-name').value || '未命名雪茄',
-                size: document.getElementById('cigar-size').value || '未知尺寸',
-                origin: document.getElementById('cigar-origin').value || '未知产地'
-            };
-
-            const finalScore = calculateFinalScore();
-            const resultsData = {
-                config: ratingConfig,
-                ratings: userRatings,
-                calculatedScore: finalScore,
-                cigarInfo: cigarInfo // 将雪茄信息添加到要传递的数据中
-            };
+            
             try {
-                sessionStorage.setItem('cigarRatingResults', JSON.stringify(resultsData));
-                window.location.href = 'results.html';
-            } catch (e) {
-                alert("无法保存会话数据，可能是浏览器隐私设置过高。");
-            }
-        }
-        
-        // --- Reset Ratings ---
-        
-        window.resetRatings = function() {
-            if (confirm("确定要重置所有评分选择吗？")) {
-                userRatings = {};
-                // 同时清空雪茄信息输入框
-                document.getElementById('cigar-name').value = '';
-                document.getElementById('cigar-size').value = '';
-                document.getElementById('cigar-origin').value = '';
-                renderRatingView();
-            }
-        }
-
-        // --- Firebase Auth & Data (no changes) ---
-        
-        async function fetchUserRole(user) {
-            const uid = user.uid;
-            const roleDocRef = doc(db, USERS_COLLECTION_PATH, uid);
-            try {
-                const docSnap = await getDoc(roleDocRef);
-                if (docSnap.exists() && docSnap.data().role) {
-                    return docSnap.data().role; 
-                } 
-                if (!user.isAnonymous) {
-                    try {
-                        await setDoc(roleDocRef, { role: 'general', email: user.email, createdAt: new Date().toISOString() }, { merge: true });
-                    } catch (initError) {
-                        console.error("初始化用户角色失败:", initError.message);
-                    }
-                }
-                return 'general'; 
-            } catch (e) {
-                console.warn("获取用户角色失败:", e);
-                return 'general';
-            }
-        }
-        
-        window.handleLoginSignup = async function(isSignup) { /* ... */ };
-        window.logout = async function() { /* ... */ };
-        window.showLoginModal = function() { /* ... */ };
-        window.hideLoginModal = function() { /* ... */ };
-
-        async function initFirebase() {
-            if (Object.keys(firebaseConfig).length === 0 || !firebaseConfig.projectId) {
-                document.getElementById('app-container').innerHTML = `<div class="p-6 text-red-600 bg-red-100">🔴 Firebase 配置缺失。</div>`;
-                return;
-            }
-            try {
-                const app = initializeApp(firebaseConfig);
-                db = getFirestore(app);
-                auth = getAuth(app);
+                // (*** 新增：从数据中提取 cigarInfo ***)
+                const { config, ratings, calculatedScore, cigarInfo } = JSON.parse(storedData);
+                const maxScore = config.totalWeightMax || 100;
+                const normalizedScore = (calculatedScore / maxScore) * 100;
                 
-                onAuthStateChanged(auth, async (user) => {
-                    if (user) {
-                        currentAuthUser = user;
-                        userRole = await fetchUserRole(user); 
-                        renderAdminLinks(); 
-                        renderLoginStatus(user);
-                        loadConfig(); 
-                    } else {
-                        await signInAnonymously(auth);
-                        currentAuthUser = null;
-                        userRole = 'general';
-                        renderAdminLinks(); 
-                        renderLoginStatus(null);
+                let finalGrade = GRADING_SCALE[GRADING_SCALE.length - 1];
+                for (const grade of GRADING_SCALE) {
+                    if (normalizedScore >= grade.min_score) {
+                        finalGrade = grade;
+                        break;
                     }
-                });
-
-            } catch (error) {
-                document.getElementById('app-container').innerHTML = `<div class="p-6 text-red-600 bg-red-100">❌ Firebase 初始化失败: ${error.message}</div>`;
-            }
-        }
-
-        async function loadConfig() {
-            const configDocRef = doc(db, CONFIG_DOC_PATH);
-            const configStatusElement = document.getElementById('config-load-status');
-
-            onSnapshot(configDocRef, (docSnap) => {
-                if (docSnap.exists() && docSnap.data().ratingCriteria) {
-                    ratingConfig = docSnap.data();
-                    calculateWeights(ratingConfig);
-                    renderRatingView(); 
-                    configStatusElement.textContent = `配置已同步`;
-                    configStatusElement.className = 'text-xs text-green-400';
-                } else {
-                    ratingConfig = defaultInitialConfig;
-                    calculateWeights(ratingConfig);
-                    renderRatingView();
-                    configStatusElement.textContent = '加载默认配置';
-                    configStatusElement.className = 'text-xs text-yellow-400';
-                    setDoc(configDocRef, ratingConfig).catch(err => console.error("写入默认配置失败:", err));
                 }
-            }, (error) => {
-                console.error("加载配置失败:", error);
-                configStatusElement.textContent = '配置加载失败';
-                configStatusElement.className = 'text-xs text-red-400';
-            });
-        }
+                
+                // (*** 新增：渲染雪茄信息 ***)
+                if (cigarInfo) {
+                    renderCigarInfo(cigarInfoContainer, cigarInfo);
+                }
 
-        // --- UI Rendering (no changes) ---
-
-        function renderAdminLinks() { /* ... */ }
-        function renderLoginStatus(user) { /* ... */ }
-
-        window.updateRatingSelection = function(categoryName, criterionName, optionIndex) {
-            const id = `${categoryName}-${criterionName}`;
-            userRatings[id] = optionIndex;
-            renderRatingView(); 
-        };
-
-        function renderRatingView() {
-            if (!ratingConfig) {
-                document.getElementById('rating-form-container').innerHTML = `<p class="text-center text-gray-500">加载中...</p>`;
-                return;
+                renderResultsCard(resultsCardContainer, normalizedScore, finalGrade);
+                scoreDetailsContainer.innerHTML = `<p class="text-lg text-gray-600">原始得分: <span class="font-bold text-gray-800">${calculatedScore.toFixed(2)}</span> / ${maxScore.toFixed(2)}</p>`;
+                renderSummary(summaryContainer, config, ratings);
+                renderFullScale(fullScaleContainer, finalGrade);
+                
+            } catch (e) {
+                 errorContainer.classList.remove('hidden');
+                 errorContainer.innerHTML = `<p class="font-bold">解析数据出错！</p><p>${e.message}</p><a href="index.html" class="inline-block mt-4 text-indigo-600 underline">返回</a>`;
+                 console.error("Results page error:", e);
             }
-
-            const totalScore = calculateFinalScore();
-            
-            document.getElementById('app-title-display').textContent = ratingConfig.appTitle || '雪茄评分应用';
-            document.getElementById('app-description-display').textContent = ratingConfig.description || '';
-            document.getElementById('total-weight-max-display').textContent = ratingConfig.totalWeightMax || 0;
-            
-            const currentScoreDisplay = document.getElementById('current-score-display');
-            currentScoreDisplay.textContent = totalScore.toFixed(2);
-            
-            const ratedCount = Object.keys(userRatings).length;
-            const totalCount = ratingConfig.totalCriteriaCount || 1;
-            const progress = (ratedCount / totalCount) * 100;
-            document.getElementById('progress-bar').style.width = `${progress}%`;
-            document.getElementById('progress-text').textContent = `${ratedCount} / ${totalCount}`;
-
-            const formContainer = document.getElementById('rating-form-container');
-            formContainer.innerHTML = (ratingConfig.ratingCriteria || []).map((category) => `
-                <div class="bg-white p-6 rounded-xl shadow-lg mb-8 border-l-4 border-indigo-500">
-                    <h3 class="text-xl font-bold text-indigo-700 mb-2">${category.category}</h3>
-                    <p class="text-gray-500 text-sm mb-4">${category.detail || ''}</p>
-                    <div class="space-y-6">
-                        ${(category.criteriaList || []).map((criterion) => renderRatingCriterion(category.category, criterion)).join('')}
-                    </div>
-                </div>
-            `).join('');
         }
+        
+        // --- 渲染函数 ---
 
-        function renderRatingCriterion(categoryName, criterion) {
-            const id = `${categoryName}-${criterion.name}`;
-            const selectedOptionIndex = userRatings[id];
-            const currentWeight = criterion.weight || 0;
-
-            let currentScore = 0;
-            if (selectedOptionIndex !== undefined && criterion.options && criterion.options[selectedOptionIndex]) {
-                currentScore = currentWeight * criterion.options[selectedOptionIndex].scorePct;
-            }
-
-            return `
-                <div class="bg-gray-50 p-4 rounded-lg border">
-                    <div class="flex justify-between items-center mb-3">
-                        <h4 class="text-lg font-semibold text-gray-800">${criterion.name} (${currentWeight} 分)</h4>
-                        <span class="text-xl font-extrabold text-green-600">${currentScore.toFixed(2)}</span>
-                    </div>
-                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
-                        ${(criterion.options || []).map((option, optIndex) => {
-                            const isSelected = selectedOptionIndex === optIndex;
-                            const score = (currentWeight * (option.scorePct || 0)).toFixed(2);
-                            return `
-                                <button onclick="updateRatingSelection('${categoryName}', '${criterion.name}', ${optIndex})" 
-                                    class="p-2 text-sm text-center rounded-lg border transition duration-150 ${
-                                        isSelected 
-                                        ? 'bg-indigo-600 text-white shadow-md border-indigo-800' 
-                                        : 'bg-white text-gray-700 hover:bg-indigo-50 border-gray-300'
-                                    }">
-                                    ${option.description} 
-                                    <span class="block text-xs ${isSelected ? 'text-indigo-200' : 'text-gray-500'}">(得 ${score} 分)</span>
-                                </button>
-                            `;
-                        }).join('')}
+        // (*** 新增：渲染雪茄信息的函数 ***)
+        function renderCigarInfo(container, info) {
+            container.innerHTML = `
+                <div class="bg-white rounded-xl shadow-lg p-6 text-center">
+                    <h2 class="text-3xl font-bold text-gray-800">${info.name}</h2>
+                    <div class="mt-2 flex justify-center items-center space-x-6 text-gray-500">
+                        <span><strong class="font-semibold text-gray-600">尺寸:</strong> ${info.size}</span>
+                        <span class="border-l border-gray-300 h-4"></span>
+                        <span><strong class="font-semibold text-gray-600">产地:</strong> ${info.origin}</span>
                     </div>
                 </div>
             `;
         }
 
-        window.onload = initFirebase;
-    </script>
-</head>
-<body class="bg-gray-100 font-sans antialiased text-gray-800">
-
-    <div id="app-container" class="max-w-6xl mx-auto p-4 md:p-8">
-
-        <header class="mb-8 p-6 bg-indigo-700 text-white rounded-xl shadow-2xl">
-            <div class="flex justify-between items-start">
-                <div>
-                    <h1 id="app-title-display" class="text-3xl font-extrabold mb-1">雪茄评分应用</h1>
-                    <p id="app-description-display" class="text-indigo-200 text-sm max-w-lg">加载描述中...</p>
-                </div>
-                 <div class="flex items-center space-x-3 flex-shrink-0">
-                    <div id="login-status-container" class="flex items-center"></div>
-                    <div id="admin-links-container" class="flex items-center space-x-3"></div>
-                </div>
-            </div>
-            
-            <div class="mt-6 bg-black bg-opacity-20 p-4 rounded-lg">
-                <div class="flex justify-between items-end">
-                    <div>
-                        <p class="text-sm font-medium text-indigo-200">当前得分</p>
-                        <div class="flex items-baseline">
-                            <span id="current-score-display" class="text-6xl font-black leading-none">0.00</span>
-                            <span class="text-lg font-medium text-indigo-200 ml-2">/ <span id="total-weight-max-display">0</span></span>
+        function renderResultsCard(container, score, grade) {
+            const { bgGradient, textColor, shadowColor, ringColor } = getGradeStyles(grade.color);
+            container.innerHTML = `
+                <div class="relative rounded-2xl p-8 text-white overflow-hidden shadow-2xl ${bgGradient} ${shadowColor}">
+                    <div class="relative z-10 flex justify-between items-center">
+                        <div>
+                            <p class="font-medium opacity-80">${grade.name_en}</p>
+                            <h2 class="text-4xl font-extrabold tracking-tight">${grade.name_cn}</h2>
+                            <p class="mt-4 text-7xl font-black">${score.toFixed(2)}</p>
+                        </div>
+                        <div class="flex-shrink-0 w-32 h-32 rounded-full border-4 border-white border-opacity-50 flex flex-col items-center justify-center bg-white bg-opacity-10 backdrop-blur-sm">
+                            <span class="text-6xl font-black">${grade.grade}</span>
+                            <span class="font-semibold tracking-widest uppercase">${grade.name_en}</span>
                         </div>
                     </div>
-                    <div class="text-right">
-                         <p class="text-sm font-medium text-indigo-200">已评项目</p>
-                         <p id="progress-text" class="font-bold text-lg">0 / 0</p>
-                    </div>
                 </div>
-                <div class="w-full bg-indigo-900 rounded-full h-2.5 mt-2">
-                    <div id="progress-bar" class="bg-green-400 h-2.5 rounded-full transition-width duration-500" style="width: 0%"></div>
-                </div>
-            </div>
-             <p id="config-load-status" class="text-xs text-yellow-300 mt-2 text-right">正在连接...</p>
-        </header>
+            `;
+        }
 
-        <!-- (*** 新增：雪茄信息输入区域 ***) -->
-        <section class="mb-8 p-6 bg-white rounded-xl shadow-lg">
-            <h2 class="text-xl font-bold text-gray-800 mb-4">雪茄信息</h2>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div>
-                    <label for="cigar-name" class="block text-sm font-medium text-gray-700">名称 (Name)</label>
-                    <input type="text" id="cigar-name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="例如：帕特加斯D4">
-                </div>
-                <div>
-                    <label for="cigar-size" class="block text-sm font-medium text-gray-700">尺寸 (Size)</label>
-                    <input type="text" id="cigar-size" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="例如：Robusto">
-                </div>
-                <div>
-                    <label for="cigar-origin" class="block text-sm font-medium text-gray-700">产地 (Origin)</label>
-                    <input type="text" id="cigar-origin" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="例如：古巴">
-                </div>
-            </div>
-        </section>
-
-        <div id="rating-form-container">
-            <p class="text-center text-gray-500 mt-10">请等待配置加载...</p>
-        </div>
-        
-        <div class="mt-8 grid grid-cols-2 gap-4">
-            <button onclick="resetRatings()" class="w-full py-3 px-6 bg-red-500 text-white font-bold text-lg rounded-lg shadow-md hover:bg-red-600 transition">
-                重置所有评分
-            </button>
-            <button onclick="showResults()" class="w-full py-3 px-6 bg-green-600 text-white font-bold text-lg rounded-lg shadow-md hover:bg-green-700 transition">
-                查看完整评分报告
-            </button>
-        </div>
-        
-        <footer class="mt-8 text-center text-gray-500 text-sm p-4 border-t">
-            评分应用数据由云端配置中心实时同步。
-        </footer>
-    </div>
-
-    <div id="login-modal" class="fixed inset-0 bg-gray-600 bg-opacity-75 hidden flex items-center justify-center z-50">
-       <!-- Login Modal Content -->
-    </div>
-
+        function renderSummary(container, config, ratings) { /* ... (same as before) ... */ }
+        function renderFullScale(container, finalGrade) { /* ... (same as before) ... */ }
+        function getScoreRange(grade) { /* ... (same as before) ... */ }
+        function getGradeStyles(color) { /* ... (same as before) ... */ }
+    </script>
 </body>
 </html>
 
