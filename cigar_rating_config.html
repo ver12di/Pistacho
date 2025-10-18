@@ -181,6 +181,7 @@
                  container.innerHTML = `<div class="p-6 text-center text-gray-500">正在加载配置...</div>`;
              } else {
                 // 渲染基本信息
+                // 注意：这里我们只设置 value，输入监听在 oninput 中处理
                 document.getElementById('app-title-input').value = ratingConfig.appTitle || '';
                 document.getElementById('app-description-input').value = ratingConfig.description || '';
 
@@ -193,10 +194,10 @@
                         </div>
                         
                         <label class="block mb-2">类别名称:</label>
-                        <input type="text" data-type="category" data-index="${catIndex}" data-field="category" value="${category.category || ''}" class="config-input w-full p-2 border rounded-md mb-3" onchange="handleInputChange(this)">
+                        <input type="text" data-type="category" data-index="${catIndex}" data-field="category" value="${category.category || ''}" class="config-input w-full p-2 border rounded-md mb-3" oninput="handleInputChange(this)">
                         
                         <label class="block mb-4">描述:</label>
-                        <textarea data-type="category" data-index="${catIndex}" data-field="detail" class="config-input w-full p-2 border rounded-md mb-3" onchange="handleInputChange(this)">${category.detail || ''}</textarea>
+                        <textarea data-type="category" data-index="${catIndex}" data-field="detail" class="config-input w-full p-2 border rounded-md mb-3" oninput="handleInputChange(this)">${category.detail || ''}</textarea>
                         
                         <h4 class="text-lg font-semibold mt-6 mb-3 border-t pt-4">评分项:</h4>
                         
@@ -240,10 +241,10 @@
                     </div>
 
                     <label class="block text-sm">名称:</label>
-                    <input type="text" data-type="criterion" data-cat-index="${catIndex}" data-index="${critIndex}" data-field="name" value="${criterion.name || ''}" class="config-input w-full p-1 border rounded-md mb-2 text-sm" onchange="handleInputChange(this)">
+                    <input type="text" data-type="criterion" data-cat-index="${catIndex}" data-index="${critIndex}" data-field="name" value="${criterion.name || ''}" class="config-input w-full p-1 border rounded-md mb-2 text-sm" oninput="handleInputChange(this)">
                     
                     <label class="block text-sm">权重 (分数):</label>
-                    <input type="number" data-type="criterion" data-cat-index="${catIndex}" data-index="${critIndex}" data-field="weight" value="${criterion.weight || 0}" class="config-input w-full p-1 border rounded-md mb-3 text-sm" onchange="handleInputChange(this)">
+                    <input type="number" data-type="criterion" data-cat-index="${catIndex}" data-index="${critIndex}" data-field="weight" value="${criterion.weight || 0}" class="config-input w-full p-1 border rounded-md mb-3 text-sm" oninput="handleInputChange(this)">
                     
                     <h6 class="text-sm font-semibold mb-2 mt-3">选项:</h6>
                     
@@ -263,11 +264,11 @@
                 <div class="flex space-x-2 items-center bg-white p-2 rounded-md border text-sm">
                     <div class="flex-1">
                         <label class="block text-xs">描述:</label>
-                        <input type="text" data-type="option" data-cat-index="${catIndex}" data-crit-index="${critIndex}" data-index="${optIndex}" data-field="description" value="${option.description || ''}" class="config-input w-full p-1 border rounded-md text-xs" onchange="handleInputChange(this)">
+                        <input type="text" data-type="option" data-cat-index="${catIndex}" data-crit-index="${critIndex}" data-index="${optIndex}" data-field="description" value="${option.description || ''}" class="config-input w-full p-1 border rounded-md text-xs" oninput="handleInputChange(this)">
                     </div>
                     <div class="w-1/4">
                         <label class="block text-xs">得分率 (0-1):</label>
-                        <input type="number" step="0.01" data-type="option" data-cat-index="${catIndex}" data-crit-index="${critIndex}" data-index="${optIndex}" data-field="scorePct" value="${option.scorePct || 0}" class="config-input w-full p-1 border rounded-md text-xs" onchange="handleInputChange(this)">
+                        <input type="number" step="0.01" data-type="option" data-cat-index="${catIndex}" data-crit-index="${critIndex}" data-index="${optIndex}" data-field="scorePct" value="${option.scorePct || 0}" class="config-input w-full p-1 border rounded-md text-xs" oninput="handleInputChange(this)">
                     </div>
                     <button onclick="removeOption(${catIndex}, ${critIndex}, ${optIndex})" class="text-red-400 hover:text-red-600 transition text-sm flex-shrink-0">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 10-2 0v6a1 1 0 102 0V8z" clip-rule="evenodd" /></svg>
@@ -283,6 +284,8 @@
             const value = element.type === 'number' ? parseFloat(element.value) : element.value;
             const type = element.getAttribute('data-type');
             const field = element.getAttribute('data-field');
+            // 注意：因为这里的输入框在重绘后会被新的 DOM 元素取代，我们依赖 oninput 来实时更新 model (ratingConfig)
+            // 确保在 renderConfigView 之前，所有修改都已同步到 ratingConfig。
             const catIndex = parseInt(element.getAttribute('data-index') || element.getAttribute('data-cat-index'));
             const critIndex = parseInt(element.getAttribute('data-crit-index'));
             const optIndex = parseInt(element.getAttribute('data-index')); 
@@ -366,7 +369,7 @@
 
             const configDocRef = doc(db, CONFIG_DOC_PATH);
             
-            // 确保同步最新的顶层字段
+            // 确保同步最新的顶层字段 (虽然 oninput 已经同步了，这里做一下双重保险)
             ratingConfig.appTitle = document.getElementById('app-title-input').value;
             ratingConfig.description = document.getElementById('app-description-input').value;
 
@@ -409,11 +412,11 @@
              <h2 class="text-xl font-bold text-indigo-700 mb-4">应用基本信息</h2>
              <label class="block mb-4">
                  <span class="text-gray-700 font-medium">应用标题 (App Title)</span>
-                 <input type="text" id="app-title-input" class="w-full p-2 border border-gray-300 rounded-md mt-1" onchange="handleInputChange(this)" data-field="appTitle">
+                 <input type="text" id="app-title-input" class="w-full p-2 border border-gray-300 rounded-md mt-1" oninput="handleInputChange(this)" data-field="appTitle">
              </label>
              <label class="block mb-4">
                  <span class="text-gray-700 font-medium">应用描述 (Description)</span>
-                 <textarea id="app-description-input" class="w-full p-2 border border-gray-300 rounded-md mt-1" rows="3" onchange="handleInputChange(this)" data-field="description"></textarea>
+                 <textarea id="app-description-input" class="w-full p-2 border border-gray-300 rounded-md mt-1" rows="3" oninput="handleInputChange(this)" data-field="description"></textarea>
              </label>
         </section>
 
