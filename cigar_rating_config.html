@@ -107,12 +107,11 @@
                 // 认证状态监听
                 onAuthStateChanged(auth, async (user) => {
                     if (user) {
-                        // 1. 获取用户角色 (这个函数现在会更新 userRole 全局变量)
+                        // 1. 获取用户角色
                         await fetchUserRole(user.uid); 
                         
                         // 2. 检查权限并加载配置
                         if (!hasAdminAccess()) {
-                            // 即使权限不足，也要渲染配置视图，但按钮是禁用的
                             renderConfigView(); 
                             renderError(`权限不足。当前角色: ${userRole.toUpperCase()}。需要 ADMIN 或 SUPER_ADMIN 权限才能修改配置。`);
                             return;
@@ -181,7 +180,7 @@
                  container.innerHTML = `<div class="p-6 text-center text-gray-500">正在加载配置...</div>`;
              } else {
                 // 渲染基本信息
-                // 注意：这里我们只设置 value，输入监听在 oninput 中处理
+                // 这些输入框现在使用 oninput 实时同步
                 document.getElementById('app-title-input').value = ratingConfig.appTitle || '';
                 document.getElementById('app-description-input').value = ratingConfig.description || '';
 
@@ -280,25 +279,36 @@
 
         // --- DYNAMIC DATA MANIPULATION ---
 
+        /**
+         * 实时处理输入变更，并将数据同步到 ratingConfig 模型中
+         * 🚨 已添加 console.log 用于调试数据是否成功写入模型 🚨
+         */
         window.handleInputChange = function(element) {
             const value = element.type === 'number' ? parseFloat(element.value) : element.value;
             const type = element.getAttribute('data-type');
             const field = element.getAttribute('data-field');
-            // 注意：因为这里的输入框在重绘后会被新的 DOM 元素取代，我们依赖 oninput 来实时更新 model (ratingConfig)
-            // 确保在 renderConfigView 之前，所有修改都已同步到 ratingConfig。
             const catIndex = parseInt(element.getAttribute('data-index') || element.getAttribute('data-cat-index'));
             const critIndex = parseInt(element.getAttribute('data-crit-index'));
             const optIndex = parseInt(element.getAttribute('data-index')); 
             
+            let updatePath = ''; // 用于日志记录的路径
+            
             if (field === 'appTitle' || field === 'description') {
                 ratingConfig[field] = value;
+                updatePath = field;
             } else if (type === 'category') {
                 ratingConfig.ratingCriteria[catIndex][field] = value;
+                updatePath = `ratingCriteria[${catIndex}].${field}`;
             } else if (type === 'criterion') {
                 ratingConfig.ratingCriteria[catIndex].criteriaList[critIndex][field] = value;
+                updatePath = `ratingCriteria[${catIndex}].criteriaList[${critIndex}].${field}`;
             } else if (type === 'option') {
                 ratingConfig.ratingCriteria[catIndex].criteriaList[critIndex].options[optIndex][field] = value;
+                updatePath = `ratingCriteria[${catIndex}].criteriaList[${critIndex}].options[${optIndex}].${field}`;
             }
+            
+            // 🚨 关键的日志输出：如果这个日志出现，就证明数据已同步到 JS 对象
+            console.log(`[Data Sync] Updated Path: ${updatePath}, New Value: ${value}`);
         };
 
         window.addCategory = function() {
@@ -369,7 +379,7 @@
 
             const configDocRef = doc(db, CONFIG_DOC_PATH);
             
-            // 确保同步最新的顶层字段 (虽然 oninput 已经同步了，这里做一下双重保险)
+            // 确保同步最新的顶层字段 
             ratingConfig.appTitle = document.getElementById('app-title-input').value;
             ratingConfig.description = document.getElementById('app-description-input').value;
 
