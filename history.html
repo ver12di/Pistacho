@@ -31,79 +31,157 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, query, where, getDocs, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firestore.js";
+        import { getFirestore, collection, query, where, getDocs, orderBy, doc, getDoc, updateDoc, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-        
-        let db, auth;
-        const RATINGS_COLLECTION_PATH = `/artifacts/${appId}/public/data/ratings`;
+        // (*** 已修复：将所有逻辑包裹在 window.onload 中 ***)
+        window.onload = function() {
+            const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+            const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+            
+            let db, auth;
+            let userRole = 'unknown';
+            const RATINGS_COLLECTION_PATH = `/artifacts/${appId}/public/data/ratings`;
+            const CERTIFIED_COLLECTION_PATH = `/artifacts/${appId}/public/data/certified_ratings`;
+            const USERS_COLLECTION_PATH = 'users';
 
-        async function fetchAndRenderHistory(user) {
-            const container = document.getElementById('history-container');
-            if (!user || user.isAnonymous) {
-                container.innerHTML = `<div class="text-center p-6 bg-white rounded-lg shadow"><p>请<a href="index.html" class="text-indigo-600 underline">登录</a>以查看您的评分历史。</p></div>`;
-                return;
+            async function fetchUserRole(user) {
+                if (!user) return 'general';
+                const roleDocRef = doc(db, USERS_COLLECTION_PATH, user.uid);
+                try {
+                    const docSnap = await getDoc(roleDocRef);
+                    if (docSnap.exists() && docSnap.data().role) {
+                        return docSnap.data().role;
+                    }
+                } catch(e) { console.error("获取角色失败:", e); }
+                return 'general';
             }
 
-            container.innerHTML = `<div class="text-center p-6"><p>正在加载历史记录...</p></div>`;
-            
-            try {
-                const ratingsCollection = collection(db, RATINGS_COLLECTION_PATH);
-                const q = query(ratingsCollection, where("userId", "==", user.uid), orderBy("timestamp", "desc"));
-                
-                const querySnapshot = await getDocs(q);
+            window.certifyRating = async function(ratingId) {
+                const button = document.querySelector(`button[onclick="certifyRating('${ratingId}')"]`);
+                button.textContent = '认证中...';
+                button.disabled = true;
 
-                if (querySnapshot.empty) {
-                    container.innerHTML = `<div class="text-center p-6 bg-white rounded-lg shadow"><p>您还没有任何评分记录。</p></div>`;
+                try {
+                    const ratingDocRef = doc(db, RATINGS_COLLECTION_PATH, ratingId);
+                    const ratingSnap = await getDoc(ratingDocRef);
+
+                    if (!ratingSnap.exists()) {
+                        throw new Error("原始评分记录不存在。");
+                    }
+                    
+                    const ratingData = ratingSnap.data();
+
+                    // 1. 在 certified_ratings 集合中创建一个新文档
+                    await addDoc(collection(db, CERTIFIED_COLLECTION_PATH), {
+                        ...ratingData,
+                        originalRatingId: ratingId,
+                        certifiedAt: serverTimestamp()
+                    });
+
+                    // 2. 更新原始评分记录，添加 certified 标记
+                    await updateDoc(ratingDocRef, {
+                        certified: true
+                    });
+                    
+                    button.textContent = "已认证";
+                    button.classList.remove('bg-green-500', 'hover:bg-green-600');
+                    button.classList.add('bg-gray-400', 'cursor-not-allowed');
+
+                } catch (error) {
+                    console.error("认证失败:", error);
+                    alert(`认证失败: ${error.message}`);
+                    button.textContent = "认证";
+                    button.disabled = false;
+                }
+            }
+
+            async function fetchAndRenderHistory(user) {
+                const container = document.getElementById('history-container');
+                const title = document.getElementById('history-title');
+
+                if (!user || user.isAnonymous) {
+                    title.textContent = "评分历史";
+                    container.innerHTML = `<div class="text-center p-6 bg-white rounded-lg shadow"><p>请<a href="index.html" class="text-indigo-600 underline">登录</a>以查看您的评分历史。</p></div>`;
                     return;
                 }
 
-                let historyHtml = '<div class="space-y-4">';
-                querySnapshot.forEach(doc => {
-                    const data = doc.data();
-                    const date = data.timestamp?.toDate ? data.timestamp.toDate().toLocaleDateString('zh-CN') : '未知日期';
-                    
-                    // (*** 已修复：添加安全检查 ***)
-                    // 检查 normalizedScore 是否存在，如果不存在则显示 'N/A'
-                    const scoreDisplay = data.normalizedScore !== undefined ? data.normalizedScore.toFixed(2) : 'N/A';
-                    
-                    // 检查 finalGrade 对象是否存在，如果不存在则显示 '未评级'
-                    const gradeDisplay = data.finalGrade ? `${data.finalGrade.grade} - ${data.finalGrade.name_cn}` : '未评级';
+                container.innerHTML = `<div class="text-center p-6"><p>正在加载历史记录...</p></div>`;
+                
+                try {
+                    const ratingsCollection = collection(db, RATINGS_COLLECTION_PATH);
+                    let q;
 
-                    historyHtml += `
-                        <div class="bg-white p-4 rounded-lg shadow-md flex justify-between items-center">
-                            <div>
-                                <p class="text-lg font-bold text-gray-800">${data.cigarInfo.name}</p>
-                                <p class="text-sm text-gray-500">${data.cigarInfo.size} | ${data.cigarInfo.origin} | ${date}</p>
+                    if (userRole === 'super_admin') {
+                        title.textContent = "所有用户的评分历史";
+                        q = query(ratingsCollection, orderBy("timestamp", "desc"));
+                    } else {
+                        title.textContent = "我的评分历史";
+                        q = query(ratingsCollection, where("userId", "==", user.uid), orderBy("timestamp", "desc"));
+                    }
+                    
+                    const querySnapshot = await getDocs(q);
+
+                    if (querySnapshot.empty) {
+                        container.innerHTML = `<div class="text-center p-6 bg-white rounded-lg shadow"><p>还没有任何评分记录。</p></div>`;
+                        return;
+                    }
+
+                    let historyHtml = '<div class="space-y-4">';
+                    querySnapshot.forEach(doc => {
+                        const data = doc.data();
+                        const ratingId = doc.id;
+                        const date = data.timestamp?.toDate ? data.timestamp.toDate().toLocaleDateString('zh-CN') : '未知日期';
+                        
+                        const scoreDisplay = data.normalizedScore !== undefined ? data.normalizedScore.toFixed(2) : 'N/A';
+                        const gradeDisplay = data.finalGrade ? `${data.finalGrade.grade} - ${data.finalGrade.name_cn}` : '未评级';
+
+                        let certifyButtonHtml = '';
+                        if (userRole === 'super_admin') {
+                            if (data.certified) {
+                                certifyButtonHtml = `<button class="mt-2 w-full text-sm py-1 px-3 bg-gray-400 text-white rounded-md cursor-not-allowed" disabled>已认证</button>`;
+                            } else {
+                                certifyButtonHtml = `<button onclick="certifyRating('${ratingId}')" class="mt-2 w-full text-sm py-1 px-3 bg-green-500 text-white rounded-md hover:bg-green-600 transition">认证</button>`;
+                            }
+                        }
+
+                        historyHtml += `
+                            <div class="bg-white p-4 rounded-lg shadow-md">
+                                <div class="flex justify-between items-center">
+                                    <div>
+                                        <p class="text-lg font-bold text-gray-800">${data.cigarInfo.name}</p>
+                                        <p class="text-sm text-gray-500">${data.cigarInfo.size} | ${data.cigarInfo.origin} | ${date}</p>
+                                        ${ userRole === 'super_admin' ? `<p class="text-xs text-gray-400 pt-1">用户: ${data.userEmail || data.userId}</p>` : '' }
+                                    </div>
+                                    <div class="text-right flex-shrink-0 ml-4">
+                                        <p class="text-2xl font-black text-indigo-600">${scoreDisplay}</p>
+                                        <p class="font-bold text-gray-600">${gradeDisplay}</p>
+                                    </div>
+                                </div>
+                                ${certifyButtonHtml ? `<div class="mt-2 border-t pt-2">${certifyButtonHtml}</div>` : ''}
                             </div>
-                            <div class="text-right">
-                                <p class="text-2xl font-black text-indigo-600">${scoreDisplay}</p>
-                                <p class="font-bold text-gray-600">${gradeDisplay}</p>
-                            </div>
-                        </div>
-                    `;
+                        `;
+                    });
+                    historyHtml += '</div>';
+                    container.innerHTML = historyHtml;
+
+                } catch (error) {
+                    console.error("获取历史记录失败:", error);
+                    container.innerHTML = `<div class="text-center p-6 bg-red-100 text-red-700 rounded-lg shadow"><p>加载历史记录失败: ${error.message}</p></div>`;
+                }
+            }
+
+            try {
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+                onAuthStateChanged(auth, async (user) => {
+                    userRole = await fetchUserRole(user);
+                    fetchAndRenderHistory(user);
                 });
-                historyHtml += '</div>';
-                container.innerHTML = historyHtml;
-
-            } catch (error) {
-                console.error("获取历史记录失败:", error);
-                container.innerHTML = `<div class="text-center p-6 bg-red-100 text-red-700 rounded-lg shadow"><p>加载历史记录失败: ${error.message}</p></div>`;
+            } catch(e) {
+                document.getElementById('history-container').innerHTML = `<div class="p-6 bg-red-100 text-red-700">Firebase 初始化失败: ${e.message}</div>`;
             }
         }
-
-        try {
-            const app = initializeApp(firebaseConfig);
-            db = getFirestore(app);
-            auth = getAuth(app);
-            onAuthStateChanged(auth, (user) => {
-                fetchAndRenderHistory(user);
-            });
-        } catch(e) {
-            document.getElementById('history-container').innerHTML = `<div class="p-6 bg-red-100 text-red-700">Firebase 初始化失败: ${e.message}</div>`;
-        }
-
     </script>
 </head>
 <body class="bg-gray-100 font-sans">
@@ -116,7 +194,7 @@
              </div>
         </nav>
         <header class="mb-6">
-            <h1 class="text-4xl font-extrabold text-gray-800">我的评分历史</h1>
+            <h1 id="history-title" class="text-4xl font-extrabold text-gray-800">评分历史</h1>
         </header>
         <div id="history-container">
             <!-- History items will be rendered here -->
