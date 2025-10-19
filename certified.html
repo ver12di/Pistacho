@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pistacho 认证评分</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        const __app_id = 'pistacho-b9efe'; 
+        const __firebase_config = JSON.stringify({
+            apiKey: "AIzaSyDC-8qbWsjRyxBzJpfCi9n3ftzdg9FStF0", 
+            authDomain: "pistacho-b9efe.firebaseapp.com",
+            projectId: "pistacho-b9efe",
+            storageBucket: "pistacho-b9efe.firebasestorage.app",
+            messagingSenderId: "686695750713",
+            appId: "1:686695750713:web:5314331be7b46e93f401e8",
+            measurementId: "G-HQS7Q78LY7"
+        });
+    </script>
+</head>
+<body class="bg-gray-100">
+    <div class="max-w-6xl mx-auto p-4 md:p-8">
+        <nav class="mb-4 flex justify-between items-center bg-white p-3 rounded-lg shadow-sm">
+             <a href="index.html" class="text-xl font-bold text-indigo-600">Pistacho评分</a>
+             <div class="space-x-4">
+                 <a href="history.html" class="text-gray-600 hover:text-indigo-600">历史记录</a>
+                 <a href="certified.html" class="text-indigo-600 font-semibold">认证评分</a>
+             </div>
+        </nav>
+
+        <header class="mb-6 text-center py-10 bg-white rounded-lg shadow-md">
+            <h1 class="text-4xl font-bold text-yellow-600">Pistacho 认证评分</h1>
+            <p class="text-gray-600 mt-2">由我们的专家团队精选的卓越品鉴记录</p>
+        </header>
+
+        <main id="certified-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <p class="text-center text-gray-500 py-10 col-span-full">正在加载认证评分...</p>
+        </main>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getFirestore, collection, query, getDocs, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = JSON.parse(__firebase_config);
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        
+        const CERTIFIED_COLLECTION_PATH = `/artifacts/${appId}/public/data/certified_ratings`;
+
+        async function loadCertifiedRatings() {
+            const container = document.getElementById('certified-container');
+            const certifiedQuery = query(collection(db, CERTIFIED_COLLECTION_PATH), orderBy('timestamp', 'desc'));
+
+            try {
+                const querySnapshot = await getDocs(certifiedQuery);
+                if (querySnapshot.empty) {
+                    container.innerHTML = '<p class="text-center text-gray-500 py-10 col-span-full">目前还没有认证评分。</p>';
+                    return;
+                }
+                
+                let html = '';
+                querySnapshot.forEach(doc => {
+                    const rating = doc.data();
+                    const date = rating.timestamp?.toDate().toLocaleDateString('zh-CN') || 'N/A';
+                    const score = rating.calculatedScore;
+                    
+                    html += `
+                        <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-yellow-400 transform hover:scale-105 transition-transform duration-300">
+                            <div class="flex justify-between items-baseline">
+                                <h3 class="font-bold text-xl text-gray-800">${rating.cigarInfo.name}</h3>
+                                <p class="text-3xl font-black text-yellow-600">${score.toFixed(2)}</p>
+                            </div>
+                            <p class="text-sm text-gray-500 mt-1">${rating.cigarInfo.size} | ${rating.cigarInfo.origin}</p>
+                            <p class="mt-4 text-gray-700 h-24 overflow-hidden text-ellipsis">${rating.cigarReview}</p>
+                            <div class="mt-4 pt-4 border-t text-xs text-gray-400 flex justify-between">
+                                <span>认证于: ${date}</span>
+                                <span>品鉴人: ${rating.userEmail}</span>
+                            </div>
+                        </div>
+                    `;
+                });
+                container.innerHTML = html;
+
+            } catch (error) {
+                console.error("加载认证评分失败:", error);
+                container.innerHTML = `<p class="text-red-500 text-center col-span-full">加载认证评分失败: ${error.message}</p>`;
+            }
+        }
+        
+        loadCertifiedRatings();
+    </script>
+</body>
+</html>
