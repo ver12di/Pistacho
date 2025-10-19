@@ -135,7 +135,6 @@
                     
                     if (cigarInfo) document.getElementById('cigar-info-container').innerHTML = `<div class="bg-white rounded-xl p-6 text-center"><h2 class="text-3xl font-bold">${cigarInfo.name}</h2><div class="mt-2 flex justify-center space-x-6 text-gray-500"><span><strong>尺寸:</strong> ${cigarInfo.size}</span><span><strong>产地:</strong> ${cigarInfo.origin}</span></div></div>`;
                     
-                    // (*** 新增：生成并显示综合评价 ***)
                     const narrativeSummary = generateNarrativeSummary(cigarInfo, config, ratings, finalGrade);
                     document.getElementById('narrative-summary-container').innerHTML = narrativeSummary;
                     
@@ -158,7 +157,6 @@
             });
         }
         
-        // (*** 新增：生成叙事性总结的函数 ***)
         function generateNarrativeSummary(cigarInfo, config, ratings, finalGrade) {
             let summary = `<p class="text-base text-gray-700 leading-relaxed">`;
             summary += `本次品鉴的雪茄是来自<strong class="font-semibold">${cigarInfo.origin}</strong>的<strong class="font-semibold">${cigarInfo.name}</strong>，尺寸为<strong class="font-semibold">${cigarInfo.size}</strong>。`;
@@ -179,7 +177,9 @@
                 summary += ` 品鉴过程中，我们观察到：${observations.join('；')}。`;
             }
 
-            summary += ` 综合来看，本次品鉴的最终评级为<strong class="font-semibold text-indigo-600">“${finalGrade.grade} - ${finalGrade.name_cn}”</strong>。`;
+            // (*** 已修改：更新结尾格式 ***)
+            const gradeHierarchy = GRADING_SCALE.map(g => g.name_en).join('-');
+            summary += ` 综合来看，本次基于Pistacho Cigar Rating System（Pistacho雪茄评分）的最终评级为<strong class="font-semibold text-indigo-600">“${finalGrade.name_en} - ${finalGrade.name_cn}”</strong>。${gradeHierarchy}`;
             summary += `</p>`;
             return summary;
         }
@@ -273,7 +273,6 @@
 
             <section id="results-card-container" class="mb-8"></section>
             <div class="space-y-4">
-                <!-- (*** 新增：综合评价栏目 ***) -->
                 <details class="group bg-white rounded-xl shadow-lg p-6 transition-all duration-300" open>
                     <summary class="flex justify-between items-center cursor-pointer font-bold text-lg text-gray-800">
                         综合评价
