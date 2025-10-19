@@ -64,14 +64,11 @@
 
         window.saveRating = async function() {
             if (!currentAuthUser || currentAuthUser.isAnonymous) {
-                alert("请登录后保存您的评分记录。");
-                return;
+                return alert("请登录后保存您的评分记录。");
             }
             if (!resultsData) {
-                alert("没有可保存的评分数据。");
-                return;
+                return alert("没有可保存的评分数据。");
             }
-
             const saveButton = document.getElementById('save-rating-button');
             saveButton.textContent = "正在保存...";
             saveButton.disabled = true;
@@ -83,7 +80,6 @@
                     timestamp: serverTimestamp(),
                     cigarInfo: resultsData.cigarInfo,
                     cigarReview: resultsData.cigarReview,
-                    cigarImageURL: resultsData.cigarImageURL,
                     calculatedScore: resultsData.calculatedScore,
                     normalizedScore: normalizedScore, 
                     finalGrade: finalGrade,           
@@ -92,11 +88,9 @@
                 };
                 await addDoc(collection(db, RATINGS_COLLECTION_PATH), ratingToSave);
                 saveButton.textContent = "已保存";
-                saveButton.classList.remove('bg-green-600', 'hover:bg-green-700');
                 saveButton.classList.add('bg-gray-400', 'cursor-not-allowed');
                 alert("评分已成功保存到您的历史记录！");
             } catch (error) {
-                console.error("保存评分失败:", error);
                 alert(`保存失败: ${error.message}`);
                 saveButton.textContent = "保存为我的评分记录";
                 saveButton.disabled = false;
@@ -104,22 +98,24 @@
         };
 
         window.onload = function() {
-            const mainContent = document.getElementById('main-content');
-            const errorContainer = document.getElementById('error-container');
-            
             onAuthStateChanged(auth, (user) => {
                 currentAuthUser = user;
                 const storedData = sessionStorage.getItem('cigarRatingResults');
-                if (!storedData) {
-                    errorContainer.classList.remove('hidden');
-                    errorContainer.innerHTML = `<p class="font-bold">没有找到评分数据！</p><a href="index.html" class="underline">返回评分</a>`;
-                    mainContent.style.display = 'none';
-                    return;
+                const errorContainer = document.getElementById('error-container');
+                const mainContent = document.getElementById('main-content');
+                
+                if (!storedData) { 
+                    if (errorContainer) {
+                        errorContainer.innerHTML = `<p class="font-bold text-center">没有找到评分数据！<a href="index.html" class="text-indigo-600 underline">返回评分</a></p>`;
+                        errorContainer.classList.remove('hidden');
+                    }
+                    if (mainContent) mainContent.style.display = 'none';
+                    return; 
                 }
 
                 try {
                     resultsData = JSON.parse(storedData);
-                    const { config, ratings, calculatedScore, cigarInfo, cigarReview, cigarImageURL, isDraft } = resultsData;
+                    const { config, ratings, calculatedScore, cigarInfo, cigarReview, isDraft } = resultsData;
                     
                     const maxScore = config.totalWeightMax || 100;
                     normalizedScore = maxScore > 0 ? (calculatedScore / maxScore) * 100 : 0;
@@ -134,31 +130,24 @@
 
                     const saveButtonContainer = document.getElementById('save-button-container');
                     if (user && !user.isAnonymous && isDraft) {
-                        if (saveButtonContainer) {
-                            saveButtonContainer.classList.remove('hidden');
-                        }
-                    }
-
-                    if (cigarImageURL) {
-                        const imageDisplay = document.getElementById('cigar-image-display');
-                        const imageEl = document.getElementById('cigar-image');
-                        imageEl.src = cigarImageURL;
-                        imageDisplay.classList.remove('hidden');
+                        saveButtonContainer?.classList.remove('hidden');
                     }
                     
-                    if (cigarInfo) document.getElementById('cigar-info-container').innerHTML = `<div class="bg-white rounded-xl shadow-lg p-6 text-center"><h2 class="text-3xl font-bold">${cigarInfo.name}</h2><div class="mt-2 flex justify-center space-x-6 text-gray-500"><span><strong>尺寸:</strong> ${cigarInfo.size}</span><span><strong>产地:</strong> ${cigarInfo.origin}</span></div></div>`;
+                    if (cigarInfo) document.getElementById('cigar-info-container').innerHTML = `<div class="bg-white rounded-xl p-6 text-center"><h2 class="text-3xl font-bold">${cigarInfo.name}</h2><div class="mt-2 flex justify-center space-x-6 text-gray-500"><span><strong>尺寸:</strong> ${cigarInfo.size}</span><span><strong>产地:</strong> ${cigarInfo.origin}</span></div></div>`;
                     if (cigarReview) document.getElementById('cigar-review-container').textContent = cigarReview;
                     
                     renderResultsCard(document.getElementById('results-card-container'), normalizedScore, finalGrade);
-                    document.getElementById('score-details-container').innerHTML = `<p class="text-lg text-gray-600">原始得分: <span class="font-bold">${calculatedScore.toFixed(2)}</span> / ${maxScore.toFixed(2)}</p>`;
+                    document.getElementById('score-details-container').innerHTML = `<p class="text-lg">原始得分: <span class="font-bold">${calculatedScore.toFixed(2)}</span> / ${maxScore.toFixed(2)}</p>`;
                     renderSummary(document.getElementById('summary-container'), config, ratings);
                     renderFullScale(document.getElementById('full-scale-container'), finalGrade);
 
                     mainContent.classList.add('animate-fadeInUp');
-                } catch (e) {
-                     errorContainer.classList.remove('hidden');
-                     mainContent.style.display = 'none';
-                     errorContainer.innerHTML = `<p class="font-bold">解析数据出错！</p><p>${e.message}</p><a href="index.html" class="underline">返回</a>`;
+                } catch (e) { 
+                     if(errorContainer){
+                        errorContainer.innerHTML = `<p class="font-bold text-center">解析数据出错！<a href="index.html" class="text-indigo-600 underline">返回重试</a></p><p class="text-sm text-gray-600">${e.message}</p>`;
+                        errorContainer.classList.remove('hidden');
+                     }
+                     if (mainContent) mainContent.style.display = 'none';
                      console.error("Results page error:", e);
                 }
             });
@@ -167,12 +156,15 @@
         function getRatingId(category, criterion) {
             return `${String(category).trim()}-${String(criterion).trim()}`;
         }
+
         function renderResultsCard(container, score, grade) {
-            if (!grade || !grade.color) return;
+            if (!container || !grade || !grade.color) return;
             const styles = getGradeStyles(grade.color);
             container.innerHTML = `<div class="relative rounded-2xl p-8 text-white overflow-hidden shadow-2xl ${styles.bgGradient} ${styles.shadowColor}"><div class="relative z-10 flex justify-between items-center"><div><p class="font-medium opacity-80">${grade.name_en}</p><h2 class="text-4xl font-extrabold tracking-tight">${grade.name_cn}</h2><p class="mt-4 text-7xl font-black">${score.toFixed(2)}</p></div><div class="flex-shrink-0 w-32 h-32 rounded-full border-4 border-white border-opacity-50 flex flex-col items-center justify-center bg-white bg-opacity-10 backdrop-blur-sm"><span class="text-6xl font-black">${grade.grade}</span><span class="font-semibold tracking-widest uppercase text-sm">${grade.name_en}</span></div></div></div>`;
         }
+
         function renderSummary(container, config, ratings) {
+            if (!container) return;
             let summaryHtml = '';
             (config.ratingCriteria || []).forEach((category) => {
                 summaryHtml += `<div class="mb-4"><h4 class="text-md font-semibold text-gray-600 mb-2 border-b pb-1">${category.category}</h4><ul class="list-none space-y-1 text-sm">`;
@@ -189,7 +181,9 @@
             });
             container.innerHTML = summaryHtml;
         }
+
         function renderFullScale(container, finalGrade) {
+            if (!container) return;
             let scaleHtml = '<div class="space-y-3">';
             GRADING_SCALE.forEach(grade => {
                 const isCurrentGrade = grade.grade === finalGrade.grade;
@@ -200,12 +194,15 @@
             scaleHtml += '</div>';
             container.innerHTML = scaleHtml;
         }
+
         function getScoreRange(grade) {
             const index = GRADING_SCALE.findIndex(g => g.grade === grade);
+            if (index === -1) return '';
             const min = GRADING_SCALE[index].min_score;
             const max = index === 0 ? 100 : GRADING_SCALE[index - 1].min_score - 0.01;
             return index === 0 ? `${min}-100` : `${min.toFixed(0)}-${max.toFixed(2)}`;
         }
+
         function getGradeStyles(color) {
             const stylesMap = {
                 'gold':   { bgColor: 'bg-yellow-400', textColor: 'text-yellow-800', bgGradient: 'bg-gradient-to-br from-yellow-400 to-amber-500', shadowColor: 'shadow-yellow-500/50' },
@@ -223,7 +220,7 @@
 </head>
 <body class="bg-gray-100 font-sans antialiased text-gray-800">
     <div class="max-w-4xl mx-auto p-4 md:p-8">
-        <div id="error-container" class="hidden"></div>
+        <div id="error-container" class="hidden bg-red-100 p-6 rounded-lg shadow-lg text-red-700 font-medium"></div>
         <div id="main-content" class="opacity-0">
             <nav class="mb-4 flex justify-between items-center bg-white p-3 rounded-lg shadow-sm">
                  <a href="index.html" class="text-xl font-bold text-indigo-600">Pistacho评分</a>
@@ -235,11 +232,6 @@
             <header class="mb-6 text-center">
                 <h1 class="text-4xl font-extrabold text-gray-800 mb-2">评分报告</h1>
             </header>
-            
-            <section id="cigar-image-display" class="hidden mb-6">
-                <img id="cigar-image" src="" alt="雪茄图片" class="max-h-96 w-full object-contain rounded-lg bg-gray-200 shadow-md">
-            </section>
-            
             <section id="cigar-info-container" class="mb-6"></section>
             
             <div id="save-button-container" class="hidden mb-6">

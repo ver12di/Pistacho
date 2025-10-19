@@ -47,7 +47,6 @@
                 event.stopPropagation();
                 if (!confirm("确定要取消这条记录的 Pistacho 认证吗？")) return;
 
-                // (*** 已修复：直接使用 event.target 获取按钮 ***)
                 const button = event.target;
                 button.textContent = '取消中...';
                 button.disabled = true;
@@ -55,7 +54,7 @@
                 try {
                     const batch = writeBatch(db);
                     batch.delete(doc(db, CERTIFIED_COLLECTION_PATH, certifiedId));
-                    if (originalId) {
+                    if (originalId && originalId !== 'undefined') { // Safety check
                         batch.update(doc(db, RATINGS_COLLECTION_PATH, originalId), {
                             certified: false,
                             certifiedRatingId: null
@@ -106,9 +105,7 @@
 
                         let uncertifyButtonHtml = '';
                         if (userRole === 'super_admin' && data.originalRatingId) {
-                            uncertifyButtonHtml = `<div class="mt-2 border-t pt-2">
-                                <button onclick="uncertifyRating('${certifiedId}', '${data.originalRatingId}', event)" class="w-full text-sm py-1 px-3 bg-red-500 text-white rounded-md hover:bg-red-600 transition">取消认证</button>
-                            </div>`;
+                            uncertifyButtonHtml = `<div class="mt-2 border-t pt-2"><button onclick="uncertifyRating('${certifiedId}', '${data.originalRatingId}', event)" class="w-full text-sm py-1 px-3 bg-red-500 text-white rounded-md hover:bg-red-600 transition">取消认证</button></div>`;
                         }
 
                         certifiedHtml += `
@@ -116,7 +113,7 @@
                                 <div class="flex justify-between items-center">
                                     <div>
                                         <p class="text-lg font-bold text-gray-800">${data.cigarInfo.name}</p>
-                                        <p class="text-sm text-gray-500">${data.cigarInfo.size} | ${data.cigarInfo.origin} | ${date}</p>
+                                        <p class="text-sm text-gray-500">${data.cigarInfo.size} | ${data.cigarInfo.origin} | By: ${data.userEmail || 'N/A'}</p>
                                         <p class="text-xs text-gray-400 pt-1">认证于: ${certifiedDate}</p>
                                     </div>
                                     <div class="text-right flex-shrink-0 ml-4">

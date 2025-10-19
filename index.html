@@ -33,19 +33,17 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, onSnapshot, setDoc, getDoc, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
         
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
         
-        let db, auth, storage;
+        let db, auth;
         let ratingConfig = null; 
         let userRatings = {};    
         let userRole = 'unknown'; 
         let currentAuthUser = null; 
         let configUnsubscribe = null;
-        let selectedImageFile = null;
-
+        
         const CONFIG_DOC_PATH = `/artifacts/${appId}/public/data/cigar_config/latest`;
         const USERS_COLLECTION_PATH = 'users';
         const RATINGS_COLLECTION_PATH = `/artifacts/${appId}/public/data/ratings`;
@@ -57,45 +55,6 @@
                 { category: "1. 外观与结构", detail: "评估雪茄的视觉吸引力和物理构造。", criteriaList: [{ name: "茄衣外观", weight: 10, options: [{ description: "粗糙", scorePct: 0.2 }, { description: "中等", scorePct: 0.6 }, { description: "光滑油润", scorePct: 1.0 }] }] }
             ]
         };
-
-        window.previewImage = function(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-            selectedImageFile = file;
-            const reader = new FileReader();
-            reader.onload = e => {
-                document.getElementById('image-preview').src = e.target.result;
-                document.getElementById('image-preview').classList.remove('hidden');
-                document.getElementById('image-placeholder').classList.add('hidden');
-            };
-            reader.readAsDataURL(file);
-        }
-
-        function compressImage(file, maxWidth = 800) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = event => {
-                    const img = new Image();
-                    img.onload = () => {
-                        const canvas = document.createElement('canvas');
-                        let { width, height } = img;
-                        if (width > height) {
-                            if (width > maxWidth) { height *= maxWidth / width; width = maxWidth; }
-                        } else {
-                            if (height > maxWidth) { width *= maxWidth / height; height = maxWidth; }
-                        }
-                        canvas.width = width;
-                        canvas.height = height;
-                        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
-                        canvas.toBlob(blob => resolve(blob), 'image/jpeg', 0.8);
-                    };
-                    img.onerror = reject;
-                    img.src = event.target.result;
-                };
-                reader.onerror = reject;
-                reader.readAsDataURL(file);
-            });
-        }
 
         function getRatingId(category, criterion) { return `${String(category).trim()}-${String(criterion).trim()}`; }
         function calculateWeights(config) {
@@ -127,7 +86,7 @@
             return totalScore;
         }
         
-        window.showResults = async function() {
+        window.showResults = function() {
             if (!ratingConfig || Object.keys(userRatings).length === 0) {
                 return alert("请至少选择一个评分项后再查看报告。");
             }
@@ -138,40 +97,21 @@
             };
             const cigarReview = document.getElementById('cigar-review').value || '无';
             const finalScore = calculateFinalScore();
-            let cigarImageURL = null;
+
+            const resultsData = {
+                config: ratingConfig,
+                ratings: userRatings,
+                calculatedScore: finalScore,
+                cigarInfo: cigarInfo,
+                cigarReview: cigarReview,
+                isDraft: true 
+            };
             
-            const saveButton = document.querySelector('button[onclick="showResults()"]');
-            saveButton.textContent = "处理中...";
-            saveButton.disabled = true;
-
             try {
-                if (selectedImageFile && currentAuthUser && !currentAuthUser.isAnonymous) {
-                    saveButton.textContent = "正在压缩图片...";
-                    const compressedBlob = await compressImage(selectedImageFile);
-                    saveButton.textContent = "正在上传图片...";
-                    const imageRef = ref(storage, `ratings/${currentAuthUser.uid}/${Date.now()}.jpg`);
-                    const snapshot = await uploadBytes(imageRef, compressedBlob);
-                    cigarImageURL = await getDownloadURL(snapshot.ref);
-                }
-
-                const resultsData = {
-                    config: ratingConfig,
-                    ratings: userRatings,
-                    calculatedScore: finalScore,
-                    cigarInfo: cigarInfo,
-                    cigarReview: cigarReview,
-                    cigarImageURL: cigarImageURL,
-                    isDraft: true 
-                };
-                
                 sessionStorage.setItem('cigarRatingResults', JSON.stringify(resultsData));
                 window.location.href = 'results.html';
-            } catch (error) {
-                console.error("处理评分或上传失败:", error);
-                alert(`处理失败: ${error.message}`);
-            } finally {
-                saveButton.textContent = "查看完整评分报告";
-                saveButton.disabled = false;
+            } catch (e) {
+                alert("无法保存会话数据。");
             }
         }
         
@@ -182,10 +122,6 @@
                 document.getElementById('cigar-size').value = '';
                 document.getElementById('cigar-origin').value = '';
                 document.getElementById('cigar-review').value = '';
-                document.getElementById('cigar-image-upload').value = null;
-                document.getElementById('image-preview').classList.add('hidden');
-                document.getElementById('image-placeholder').classList.remove('hidden');
-                selectedImageFile = null;
                 renderRatingView();
             }
         }
@@ -229,7 +165,6 @@
                 const app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
-                storage = getStorage(app);
                 onAuthStateChanged(auth, async (user) => {
                     if (user) {
                         currentAuthUser = user;
@@ -385,32 +320,15 @@
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
                     <label for="cigar-name" class="block text-sm font-medium text-gray-700">名称</label>
-                    <input type="text" id="cigar-name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" placeholder="例如：帕特加斯D4">
+                    <input type="text" id="cigar-name" autocomplete="off" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" placeholder="例如：帕特加斯D4">
                 </div>
                 <div>
                     <label for="cigar-size" class="block text-sm font-medium text-gray-700">尺寸</label>
-                    <input type="text" id="cigar-size" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" placeholder="例如：Robusto">
+                    <input type="text" id="cigar-size" autocomplete="off" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" placeholder="例如：Robusto">
                 </div>
                 <div>
                     <label for="cigar-origin" class="block text-sm font-medium text-gray-700">产地</label>
-                    <input type="text" id="cigar-origin" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" placeholder="例如：古巴">
-                </div>
-            </div>
-            <div class="mt-6">
-                <label class="block text-sm font-medium text-gray-700">雪茄图片</label>
-                <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
-                    <div class="space-y-1 text-center">
-                        <svg id="image-placeholder" class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48"><path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
-                        <img id="image-preview" class="hidden mx-auto h-32 rounded-md" src="" alt="雪茄图片预览"/>
-                        <div class="flex text-sm text-gray-600">
-                            <label for="cigar-image-upload" class="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500">
-                                <span>上传图片</span>
-                                <input id="cigar-image-upload" type="file" class="sr-only" accept="image/*" onchange="previewImage(event)">
-                            </label>
-                            <p class="pl-1">或拖拽</p>
-                        </div>
-                        <p class="text-xs text-gray-500">PNG, JPG, up to 5MB</p>
-                    </div>
+                    <input type="text" id="cigar-origin" autocomplete="off" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" placeholder="例如：古巴">
                 </div>
             </div>
         </section>
@@ -430,8 +348,8 @@
     <div id="login-modal" class="fixed inset-0 bg-gray-600 bg-opacity-75 hidden flex items-center justify-center z-50">
        <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-sm">
             <h3 class="text-xl font-bold mb-4 text-indigo-700">登录或注册</h3>
-            <label class="block mb-3"><span class="text-gray-700 text-sm">邮箱</span><input type="email" id="login-email" class="mt-1 block w-full rounded-md p-2"></label>
-            <label class="block mb-4"><span class="text-gray-700 text-sm">密码</span><input type="password" id="login-password" class="mt-1 block w-full rounded-md p-2"></label>
+            <label class="block mb-3"><span class="text-gray-700 text-sm">邮箱</span><input type="email" id="login-email" autocomplete="email" class="mt-1 block w-full rounded-md p-2"></label>
+            <label class="block mb-4"><span class="text-gray-700 text-sm">密码</span><input type="password" id="login-password" autocomplete="current-password" class="mt-1 block w-full rounded-md p-2"></label>
             <div class="flex space-x-3">
                 <button onclick="handleLoginSignup(false)" class="flex-1 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">登录</button>
                 <button onclick="handleLoginSignup(true)" class="flex-1 py-2 bg-gray-200 text-indigo-600 rounded-lg hover:bg-gray-300">注册</button>
