@@ -47,7 +47,8 @@
 
             window.certifyRating = async function(ratingId, event) {
                 event.stopPropagation();
-                const button = document.querySelector(`button[onclick*="certifyRating('${ratingId}')"]`);
+                // (*** 已修复：直接使用 event.target 获取按钮 ***)
+                const button = event.target;
                 button.textContent = '认证中...';
                 button.disabled = true;
 
@@ -82,7 +83,8 @@
                 event.stopPropagation();
                 if (!confirm("确定要取消这条记录的 Pistacho 认证吗？")) return;
 
-                const button = document.querySelector(`button[onclick*="uncertifyRating('${ratingId}')"]`);
+                // (*** 已修复：直接使用 event.target 获取按钮 ***)
+                const button = event.target;
                 button.textContent = '取消中...';
                 button.disabled = true;
 
