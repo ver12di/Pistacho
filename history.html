@@ -19,11 +19,11 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, query, where, getDocs, orderBy, doc, getDoc, updateDoc, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, query, where, getDocs, orderBy, doc, getDoc, updateDoc, addDoc, serverTimestamp, deleteDoc, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         window.onload = function() {
             const appId = 'pistacho-b9efe';
-            const firebaseConfig = JSON.parse('{"apiKey":"AIzaSyDC-8qbWsjRyxBzJpfCi9n3ftzdg9FStF0","authDomain":"pistacho-b9efe.firebaseapp.com","projectId":"pistacho-b9efe","storageBucket":"pistacho-b9efe.appspot.com","messagingSenderId":"686695750713","appId":"1:686695750713:web:5314331be7b46e93f401e8","measurementId":"G-HQS7Q78LY7"}');
+            const firebaseConfig = JSON.parse('{"apiKey":"AIzaSyDC-8qbWsjRyxBzJpfCi9n3ftzdg9FStF0","authDomain":"pistacho-b9efe.firebaseapp.com","projectId":"pistacho-b9efe"}');
             
             let db, auth;
             let userRole = 'unknown';
@@ -47,7 +47,7 @@
 
             window.certifyRating = async function(ratingId, event) {
                 event.stopPropagation();
-                const button = document.querySelector(`button[onclick="certifyRating('${ratingId}', event)"]`);
+                const button = document.querySelector(`button[onclick*="certifyRating('${ratingId}')"]`);
                 button.textContent = '认证中...';
                 button.disabled = true;
 
@@ -58,21 +58,50 @@
                     
                     const ratingData = ratingSnap.data();
                     
-                    await addDoc(collection(db, CERTIFIED_COLLECTION_PATH), {
+                    const newCertifiedDocRef = await addDoc(collection(db, CERTIFIED_COLLECTION_PATH), {
                         ...ratingData,
                         originalRatingId: ratingId,
                         certifiedAt: serverTimestamp()
                     });
                     
-                    await updateDoc(ratingDocRef, { certified: true });
+                    await updateDoc(ratingDocRef, { 
+                        certified: true,
+                        certifiedRatingId: newCertifiedDocRef.id
+                    });
                     
-                    button.textContent = "已认证";
-                    button.classList.remove('bg-green-500', 'hover:bg-green-600');
-                    button.classList.add('bg-gray-400', 'cursor-not-allowed');
+                    fetchAndRenderHistory(auth.currentUser);
                 } catch (error) {
                     console.error("认证失败:", error);
                     alert(`认证失败: ${error.message}`);
                     button.textContent = "认证";
+                    button.disabled = false;
+                }
+            }
+
+            window.uncertifyRating = async function(ratingId, certifiedRatingId, event) {
+                event.stopPropagation();
+                if (!confirm("确定要取消这条记录的 Pistacho 认证吗？")) return;
+
+                const button = document.querySelector(`button[onclick*="uncertifyRating('${ratingId}')"]`);
+                button.textContent = '取消中...';
+                button.disabled = true;
+
+                try {
+                    const batch = writeBatch(db);
+                    const certifiedDocRef = doc(db, CERTIFIED_COLLECTION_PATH, certifiedRatingId);
+                    batch.delete(certifiedDocRef);
+                    const ratingDocRef = doc(db, RATINGS_COLLECTION_PATH, ratingId);
+                    batch.update(ratingDocRef, {
+                        certified: false,
+                        certifiedRatingId: null
+                    });
+
+                    await batch.commit();
+                    fetchAndRenderHistory(auth.currentUser);
+                } catch (error) {
+                    console.error("取消认证失败:", error);
+                    alert(`取消认证失败: ${error.message}`);
+                    button.textContent = "取消认证";
                     button.disabled = false;
                 }
             }
@@ -130,8 +159,8 @@
 
                         let certifyButtonHtml = '';
                         if (userRole === 'super_admin') {
-                            if (data.certified) {
-                                certifyButtonHtml = `<button class="mt-2 w-full text-sm py-1 px-3 bg-gray-400 text-white rounded-md cursor-not-allowed" disabled>已认证</button>`;
+                            if (data.certified && data.certifiedRatingId) {
+                                certifyButtonHtml = `<button onclick="uncertifyRating('${ratingId}', '${data.certifiedRatingId}', event)" class="mt-2 w-full text-sm py-1 px-3 bg-red-500 text-white rounded-md hover:bg-red-600 transition">取消认证</button>`;
                             } else {
                                 certifyButtonHtml = `<button onclick="certifyRating('${ratingId}', event)" class="mt-2 w-full text-sm py-1 px-3 bg-green-500 text-white rounded-md hover:bg-green-600 transition">认证</button>`;
                             }
