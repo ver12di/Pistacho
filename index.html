@@ -72,6 +72,9 @@
         };
 
         // --- Utility Functions ---
+        function getRatingId(category, criterion) {
+            return `${String(category).trim()}-${String(criterion).trim()}`;
+        }
         function calculateWeights(config) {
             let grandTotal = 0;
             let totalCriteriaCount = 0;
@@ -92,7 +95,7 @@
             let totalScore = 0;
             (ratingConfig.ratingCriteria || []).forEach((category) => {
                 (category.criteriaList || []).forEach((criterion) => {
-                    const id = `${category.category}-${criterion.name}`;
+                    const id = getRatingId(category.category, criterion.name);
                     const selectedOptionIndex = userRatings[id];
                     if (selectedOptionIndex !== undefined && criterion.options && criterion.options[selectedOptionIndex]) {
                         const scorePct = criterion.options[selectedOptionIndex].scorePct;
@@ -110,7 +113,6 @@
                 alert("请至少选择一个评分项后再查看报告。");
                 return;
             }
-
             const cigarInfo = {
                 name: document.getElementById('cigar-name').value || '未命名雪茄',
                 size: document.getElementById('cigar-size').value || '未知尺寸',
@@ -118,7 +120,6 @@
             };
             const cigarReview = document.getElementById('cigar-review').value || '无';
             const finalScore = calculateFinalScore();
-            
             const resultsData = {
                 config: ratingConfig,
                 ratings: userRatings,
@@ -126,13 +127,10 @@
                 cigarInfo: cigarInfo,
                 cigarReview: cigarReview
             };
-            
             const saveButton = document.querySelector('button[onclick="showResults()"]');
-            
             if (currentAuthUser && !currentAuthUser.isAnonymous) {
                 saveButton.textContent = "正在保存...";
                 saveButton.disabled = true;
-
                 try {
                     const ratingToSave = {
                         userId: currentAuthUser.uid,
@@ -149,7 +147,6 @@
                     return;
                 }
             }
-            
             try {
                 sessionStorage.setItem('cigarRatingResults', JSON.stringify(resultsData));
                 window.location.href = 'results.html';
@@ -203,8 +200,6 @@
             const password = document.getElementById('login-password').value;
             const loginStatus = document.getElementById('login-modal-status');
             loginStatus.textContent = isSignup ? '正在注册...' : '正在登录...';
-            loginStatus.className = 'text-sm text-yellow-600 mt-2';
-
             try {
                 if (isSignup) {
                     await createUserWithEmailAndPassword(auth, email, password);
@@ -212,41 +207,25 @@
                     await signInWithEmailAndPassword(auth, email, password);
                 }
                 document.getElementById('login-modal').classList.add('hidden');
-                loginStatus.textContent = '';
             } catch (error) {
-                const errorCode = error.code;
-                let errorMessage = errorCode.replace('auth/', '').replace(/-/g, ' ').toUpperCase();
-                loginStatus.textContent = `失败: ${errorMessage}`;
-                loginStatus.className = 'text-sm text-red-600 mt-2';
+                loginStatus.textContent = `失败: ${error.message.replace('Firebase: ','')}`;
             }
         }
 
-        window.logout = async function() {
-            try {
-                await signOut(auth);
-            } catch (error) {
-                console.error("Logout Error:", error);
-            }
+        window.logout = async function() { 
+            try { await signOut(auth); } catch(e) { console.error(e); }
         }
-
-        window.showLoginModal = function() {
+        window.showLoginModal = function() { 
             document.getElementById('login-modal').classList.remove('hidden');
             document.getElementById('login-modal-status').textContent = '';
         }
-        window.hideLoginModal = function() {
-            document.getElementById('login-modal').classList.add('hidden');
-        }
+        window.hideLoginModal = function() { document.getElementById('login-modal').classList.add('hidden'); }
 
         async function initFirebase() {
-            if (Object.keys(firebaseConfig).length === 0 || !firebaseConfig.projectId) {
-                document.getElementById('app-container').innerHTML = `<div class="p-6 text-red-600 bg-red-100">🔴 Firebase 配置缺失。</div>`;
-                return;
-            }
             try {
                 const app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
-                
                 onAuthStateChanged(auth, async (user) => {
                     if (user) {
                         currentAuthUser = user;
@@ -256,10 +235,6 @@
                         loadConfig(); 
                     } else {
                         await signInAnonymously(auth);
-                        currentAuthUser = null;
-                        userRole = 'general';
-                        renderAdminLinks(); 
-                        renderLoginStatus(null);
                     }
                 });
             } catch (error) {
@@ -268,43 +243,31 @@
         }
 
         function loadConfig() {
-            if (configUnsubscribe) {
-                configUnsubscribe();
-            }
+            if (configUnsubscribe) configUnsubscribe();
             const configDocRef = doc(db, CONFIG_DOC_PATH);
-            const configStatusElement = document.getElementById('config-load-status');
             configUnsubscribe = onSnapshot(configDocRef, (docSnap) => {
                 if (docSnap.exists() && docSnap.data().ratingCriteria) {
                     ratingConfig = docSnap.data();
-                    calculateWeights(ratingConfig);
-                    userRatings = {}; 
-                    renderRatingView(); 
-                    configStatusElement.textContent = `配置已同步`;
-                    configStatusElement.className = 'text-xs text-green-400';
                 } else {
                     ratingConfig = defaultInitialConfig;
-                    calculateWeights(ratingConfig);
-                    userRatings = {};
-                    renderRatingView();
-                    configStatusElement.textContent = '加载默认配置';
-                    configStatusElement.className = 'text-xs text-yellow-400';
                     setDoc(configDocRef, ratingConfig).catch(err => console.error("写入默认配置失败:", err));
                 }
+                calculateWeights(ratingConfig);
+                userRatings = {}; 
+                renderRatingView(); 
+                document.getElementById('config-load-status').textContent = `配置已同步`;
             }, (error) => {
                 console.error("加载配置失败:", error);
-                configStatusElement.textContent = '配置加载失败';
-                configStatusElement.className = 'text-xs text-red-400';
+                document.getElementById('config-load-status').textContent = '配置加载失败';
             });
         }
         
         document.addEventListener('visibilitychange', () => {
-            if (document.visibilityState === 'visible' && db) {
-                loadConfig();
-            }
+            if (document.visibilityState === 'visible' && db) loadConfig();
         });
 
         // --- UI Rendering ---
-        function renderAdminLinks() {
+        function renderAdminLinks() { 
             const adminLinksContainer = document.getElementById('admin-links-container');
             let linksHtml = '';
             if (userRole === 'admin' || userRole === 'super_admin') {
@@ -315,8 +278,7 @@
             }
             adminLinksContainer.innerHTML = linksHtml;
         }
-        
-        function renderLoginStatus(user) {
+        function renderLoginStatus(user) { 
             const container = document.getElementById('login-status-container');
             if (user && user.email) {
                 container.innerHTML = `<span class="text-sm font-medium text-yellow-300 mr-2 hidden sm:inline">${user.email}</span><button onclick="logout()" class="px-3 py-1 text-xs font-medium rounded-full bg-red-500 text-white hover:bg-red-600">退出</button>`;
@@ -326,25 +288,21 @@
         }
 
         window.updateRatingSelection = function(categoryName, criterionName, optionIndex) {
-            const id = `${categoryName}-${criterionName}`;
+            const id = getRatingId(categoryName, criterionName);
             userRatings[id] = optionIndex;
             renderRatingView(); 
         };
 
         function renderRatingView() {
-            if (!ratingConfig) {
-                document.getElementById('rating-form-container').innerHTML = `<p class="text-center text-gray-500">加载中...</p>`;
-                return;
-            }
+            if (!ratingConfig) return;
             const totalScore = calculateFinalScore();
-            document.getElementById('app-title-display').textContent = ratingConfig.appTitle || '雪茄评分应用';
-            document.getElementById('app-description-display').textContent = ratingConfig.description || '';
-            document.getElementById('total-weight-max-display').textContent = ratingConfig.totalWeightMax || 0;
+            document.getElementById('app-title-display').textContent = ratingConfig.appTitle;
+            document.getElementById('app-description-display').textContent = ratingConfig.description;
+            document.getElementById('total-weight-max-display').textContent = ratingConfig.totalWeightMax;
             document.getElementById('current-score-display').textContent = totalScore.toFixed(2);
             const ratedCount = Object.keys(userRatings).length;
             const totalCount = ratingConfig.totalCriteriaCount || 1;
-            const progress = (ratedCount / totalCount) * 100;
-            document.getElementById('progress-bar').style.width = `${progress}%`;
+            document.getElementById('progress-bar').style.width = `${(ratedCount / totalCount) * 100}%`;
             document.getElementById('progress-text').textContent = `${ratedCount} / ${totalCount}`;
             const formContainer = document.getElementById('rating-form-container');
             formContainer.innerHTML = (ratingConfig.ratingCriteria || []).map((category) => `
@@ -356,7 +314,7 @@
         }
 
         function renderRatingCriterion(categoryName, criterion) {
-            const id = `${categoryName}-${criterion.name}`;
+            const id = getRatingId(categoryName, criterion.name);
             const selectedOptionIndex = userRatings[id];
             const currentWeight = criterion.weight || 0;
             let currentScore = 0;
@@ -373,7 +331,7 @@
                             const isSelected = selectedOptionIndex === optIndex;
                             const score = (currentWeight * (option.scorePct || 0)).toFixed(2);
                             return `<button onclick="updateRatingSelection('${categoryName}', '${criterion.name}', ${optIndex})" 
-                                    class="p-2 text-sm text-center rounded-lg border transition duration-150 ${ isSelected ? 'bg-indigo-600 text-white shadow-md border-indigo-800' : 'bg-white text-gray-700 hover:bg-indigo-50 border-gray-300' }">
+                                    class="p-2 text-sm text-center rounded-lg border transition duration-150 ${ isSelected ? 'bg-indigo-600 text-white shadow-md' : 'bg-white hover:bg-indigo-50' }">
                                     ${option.description} 
                                     <span class="block text-xs ${isSelected ? 'text-indigo-200' : 'text-gray-500'}">(得 ${score} 分)</span>
                                 </button>`;
@@ -429,15 +387,15 @@
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
                     <label for="cigar-name" class="block text-sm font-medium text-gray-700">名称 (Name)</label>
-                    <input type="text" id="cigar-name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="例如：帕特加斯D4">
+                    <input type="text" id="cigar-name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" placeholder="例如：帕特加斯D4">
                 </div>
                 <div>
                     <label for="cigar-size" class="block text-sm font-medium text-gray-700">尺寸 (Size)</label>
-                    <input type="text" id="cigar-size" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="例如：Robusto">
+                    <input type="text" id="cigar-size" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" placeholder="例如：Robusto">
                 </div>
                 <div>
                     <label for="cigar-origin" class="block text-sm font-medium text-gray-700">产地 (Origin)</label>
-                    <input type="text" id="cigar-origin" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="例如：古巴">
+                    <input type="text" id="cigar-origin" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" placeholder="例如：古巴">
                 </div>
             </div>
         </section>
@@ -448,7 +406,7 @@
             <h2 class="text-xl font-bold text-gray-800 mb-4">文字评价</h2>
             <div>
                 <label for="cigar-review" class="sr-only">在此处输入您的详细品吸感受</label>
-                <textarea id="cigar-review" rows="5" class="w-full p-3 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500" placeholder="在此处输入您的详细品吸感受，例如风味变化、燃烧情况等..."></textarea>
+                <textarea id="cigar-review" rows="5" class="w-full p-3 border border-gray-300 rounded-md" placeholder="在此处输入您的详细品吸感受..."></textarea>
             </div>
         </section>
         <div class="mt-8 grid grid-cols-2 gap-4">
@@ -460,26 +418,20 @@
             </button>
         </div>
         <footer class="mt-8 text-center text-gray-500 text-sm p-4 border-t">
-            评分应用数据由云端配置中心实时同步。
+            <!-- Footer content... -->
         </footer>
     </div>
     <div id="login-modal" class="fixed inset-0 bg-gray-600 bg-opacity-75 hidden flex items-center justify-center z-50">
        <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-sm">
             <h3 class="text-xl font-bold mb-4 text-indigo-700">登录或注册</h3>
-            <label class="block mb-3">
-                <span class="text-gray-700 text-sm">邮箱 (Email)</span>
-                <input type="email" id="login-email" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" placeholder="user@example.com">
-            </label>
-            <label class="block mb-4">
-                <span class="text-gray-700 text-sm">密码 (Password)</span>
-                <input type="password" id="login-password" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2">
-            </label>
+            <label class="block mb-3"><span class="text-gray-700 text-sm">邮箱</span><input type="email" id="login-email" class="mt-1 block w-full rounded-md border-gray-300 p-2"></label>
+            <label class="block mb-4"><span class="text-gray-700 text-sm">密码</span><input type="password" id="login-password" class="mt-1 block w-full rounded-md border-gray-300 p-2"></label>
             <div class="flex space-x-3">
-                <button onclick="handleLoginSignup(false)" class="flex-1 py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700">登录</button>
-                <button onclick="handleLoginSignup(true)" class="flex-1 py-2 bg-gray-200 text-indigo-600 font-semibold rounded-lg hover:bg-gray-300">注册</button>
+                <button onclick="handleLoginSignup(false)" class="flex-1 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">登录</button>
+                <button onclick="handleLoginSignup(true)" class="flex-1 py-2 bg-gray-200 text-indigo-600 rounded-lg hover:bg-gray-300">注册</button>
             </div>
             <p id="login-modal-status" class="text-center mt-3"></p>
-            <button onclick="hideLoginModal()" class="mt-4 text-sm text-gray-500 hover:text-gray-700 w-full">取消</button>
+            <button onclick="hideLoginModal()" class="mt-4 text-sm text-gray-500 w-full">取消</button>
         </div>
     </div>
 </body>
