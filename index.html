@@ -46,6 +46,7 @@
         let userRatings = {};    
         let userRole = 'unknown'; 
         let currentAuthUser = null; 
+        let configUnsubscribe = null; // (*** 新增：用于管理监听器 ***)
         
         const CONFIG_DOC_PATH = `/artifacts/${appId}/public/data/cigar_config/latest`;
         const USERS_COLLECTION_PATH = 'users'; 
@@ -226,20 +227,31 @@
             }
         }
 
-        async function loadConfig() {
+        // (*** 已修改：重构以安全地刷新 ***)
+        function loadConfig() {
+            // 如果已存在监听器，先断开它
+            if (configUnsubscribe) {
+                configUnsubscribe();
+            }
+
             const configDocRef = doc(db, CONFIG_DOC_PATH);
             const configStatusElement = document.getElementById('config-load-status');
 
-            onSnapshot(configDocRef, (docSnap) => {
+            // 附加新的监听器，并保存其 "unsubscribe" 函数
+            configUnsubscribe = onSnapshot(configDocRef, (docSnap) => {
+                console.log("onSnapshot fired: New config data received."); // 调试日志
                 if (docSnap.exists() && docSnap.data().ratingCriteria) {
                     ratingConfig = docSnap.data();
                     calculateWeights(ratingConfig);
+                    // 刷新时重置之前的评分，因为评分项可能已改变
+                    userRatings = {}; 
                     renderRatingView(); 
                     configStatusElement.textContent = `配置已同步`;
                     configStatusElement.className = 'text-xs text-green-400';
                 } else {
                     ratingConfig = defaultInitialConfig;
                     calculateWeights(ratingConfig);
+                    userRatings = {};
                     renderRatingView();
                     configStatusElement.textContent = '加载默认配置';
                     configStatusElement.className = 'text-xs text-yellow-400';
@@ -251,6 +263,16 @@
                 configStatusElement.className = 'text-xs text-red-400';
             });
         }
+        
+        // (*** 新增：页面可见性事件监听器 ***)
+        document.addEventListener('visibilitychange', () => {
+            // 当页面从隐藏变为可见，并且 Firebase 已初始化时
+            if (document.visibilityState === 'visible' && db) {
+                console.log("Tab is visible again, forcing config reload.");
+                loadConfig(); // 强制重新加载配置
+            }
+        });
+
 
         // --- UI Rendering ---
 
