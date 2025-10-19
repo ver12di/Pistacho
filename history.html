@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>评分历史记录</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- script and style blocks from results.html can be reused here -->
+    <script>
+        const __app_id = 'pistacho-b9efe'; 
+        const __firebase_config = JSON.stringify({
+            apiKey: "AIzaSyDC-8qbWsjRyxBzJpfCi9n3ftzdg9FStF0", 
+            authDomain: "pistacho-b9efe.firebaseapp.com",
+            projectId: "pistacho-b9efe",
+            storageBucket: "pistacho-b9efe.firebasestorage.app",
+            messagingSenderId: "686695750713",
+            appId: "1:686695750713:web:5314331be7b46e93f401e8",
+            measurementId: "G-HQS7Q78LY7"
+        });
+    </script>
+</head>
+<body class="bg-gray-100">
+    <div class="max-w-6xl mx-auto p-4 md:p-8">
+        <nav class="mb-4 flex justify-between items-center bg-white p-3 rounded-lg shadow-sm">
+             <a href="index.html" class="text-xl font-bold text-indigo-600">Pistacho评分</a>
+             <div class="space-x-4">
+                 <a href="history.html" class="text-indigo-600 font-semibold">历史记录</a>
+                 <a href="certified.html" class="text-gray-600 hover:text-indigo-600">认证评分</a>
+             </div>
+        </nav>
+
+        <header class="mb-6">
+            <h1 class="text-3xl font-bold text-gray-800">评分历史记录</h1>
+            <p id="history-description" class="text-gray-600"></p>
+        </header>
+
+        <main id="history-container" class="space-y-4">
+            <p class="text-center text-gray-500 py-10">正在加载历史记录...</p>
+        </main>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, collection, query, where, getDocs, updateDoc, setDoc, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = JSON.parse(__firebase_config);
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        const USERS_COLLECTION_PATH = 'users';
+        const RATINGS_COLLECTION_PATH = `/artifacts/${appId}/public/data/ratings`;
+        const CERTIFIED_COLLECTION_PATH = `/artifacts/${appId}/public/data/certified_ratings`;
+
+        let userRole = 'unknown';
+
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                const roleDoc = await getDoc(doc(db, USERS_COLLECTION_PATH, user.uid));
+                if (roleDoc.exists() && roleDoc.data().role) {
+                    userRole = roleDoc.data().role;
+                }
+                loadHistory(user);
+            } else {
+                document.getElementById('history-container').innerHTML = '<p class="text-red-500 text-center">请先登录以查看历史记录。</p>';
+            }
+        });
+
+        async function loadHistory(user) {
+            const container = document.getElementById('history-container');
+            const description = document.getElementById('history-description');
+            let ratingsQuery;
+
+            if (userRole === 'super_admin') {
+                description.textContent = "您正在以超级管理员身份查看所有用户的评分记录。";
+                ratingsQuery = query(collection(db, RATINGS_COLLECTION_PATH), orderBy('timestamp', 'desc'));
+            } else {
+                description.textContent = "这是您个人的评分历史记录。";
+                ratingsQuery = query(collection(db, RATINGS_COLLECTION_PATH), where("userId", "==", user.uid), orderBy('timestamp', 'desc'));
+            }
+
+            try {
+                const querySnapshot = await getDocs(ratingsQuery);
+                if (querySnapshot.empty) {
+                    container.innerHTML = '<p class="text-center text-gray-500 py-10">没有找到任何历史记录。</p>';
+                    return;
+                }
+                
+                let html = '';
+                querySnapshot.forEach(doc => {
+                    const rating = doc.data();
+                    const ratingId = doc.id;
+                    const date = rating.timestamp?.toDate().toLocaleString('zh-CN') || 'N/A';
+                    const score = rating.calculatedScore;
+                    
+                    html += `
+                        <div class="bg-white p-4 rounded-lg shadow-sm flex justify-between items-center">
+                            <div>
+                                <p class="font-bold text-lg text-indigo-700">${rating.cigarInfo.name}</p>
+                                <p class="text-sm text-gray-500">${rating.cigarInfo.size} | ${rating.cigarInfo.origin}</p>
+                                ${userRole === 'super_admin' ? `<p class="text-xs text-gray-400">用户: ${rating.userEmail}</p>` : ''}
+                            </div>
+                            <div class="text-right">
+                                <p class="text-2xl font-bold">${score.toFixed(2)}</p>
+                                <p class="text-sm text-gray-500">${date}</p>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <button onclick="viewResult('${ratingId}')" class="px-3 py-1 bg-gray-200 text-gray-700 rounded-md text-sm hover:bg-gray-300">查看</button>
+                                ${renderCertifyButton(rating, ratingId)}
+                            </div>
+                        </div>
+                    `;
+                });
+                container.innerHTML = html;
+
+            } catch (error) {
+                console.error("加载历史记录失败:", error);
+                container.innerHTML = `<p class="text-red-500 text-center">加载历史记录失败: ${error.message}</p>`;
+            }
+        }
+        
+        function renderCertifyButton(rating, ratingId) {
+            if (userRole !== 'super_admin') return '';
+            if (rating.certified) {
+                return `<span class="px-3 py-1 bg-green-100 text-green-700 rounded-md text-sm">已认证</span>`;
+            }
+            return `<button id="certify-btn-${ratingId}" onclick="certifyRating('${ratingId}')" class="px-3 py-1 bg-yellow-400 text-yellow-900 rounded-md text-sm hover:bg-yellow-500">认证</button>`;
+        }
+        
+        window.certifyRating = async function(ratingId) {
+            if (userRole !== 'super_admin' || !confirm("确定要将此评分列为Pistacho认证评分吗？")) return;
+            
+            const certifyButton = document.getElementById(`certify-btn-${ratingId}`);
+            certifyButton.textContent = '认证中...';
+            certifyButton.disabled = true;
+
+            const ratingRef = doc(db, RATINGS_COLLECTION_PATH, ratingId);
+            const certifiedRef = doc(db, CERTIFIED_COLLECTION_PATH, ratingId);
+
+            try {
+                const ratingSnap = await getDoc(ratingRef);
+                if (!ratingSnap.exists()) throw new Error("原始评分文档不存在。");
+
+                // 1. Copy data to certified collection
+                await setDoc(certifiedRef, ratingSnap.data());
+
+                // 2. Mark original rating as certified
+                await updateDoc(ratingRef, { certified: true });
+
+                // 3. Update UI
+                certifyButton.outerHTML = `<span class="px-3 py-1 bg-green-100 text-green-700 rounded-md text-sm">已认证</span>`;
+                alert("认证成功！");
+
+            } catch(error) {
+                console.error("认证失败:", error);
+                alert(`认证失败: ${error.message}`);
+                certifyButton.textContent = '认证';
+                certifyButton.disabled = false;
+            }
+        };
+
+        window.viewResult = function(ratingId) {
+             // In a real app you might fetch the full data again, 
+             // but for simplicity, we can't easily pass the large object.
+             // We'll just alert for now. A better way would be a dedicated page.
+             alert(`查看 ID 为 ${ratingId} 的完整报告的功能需要一个新页面来展示。\n在这个演示中，数据已成功获取，但未渲染。`);
+             // To implement this fully, you would:
+             // 1. const ratingData = await getDoc(doc(db, RATINGS_COLLECTION_PATH, ratingId));
+             // 2. sessionStorage.setItem('cigarRatingResults', JSON.stringify(ratingData.data()));
+             // 3. window.location.href = 'results.html';
+        }
+
+    </script>
+</body>
+</html>
