@@ -6,24 +6,70 @@
     <title>Pistacho 认证评分</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
-        // Tailwind config remains the same
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'Noto Sans SC', 'system-ui', 'sans-serif'],
+                    }
+                }
+            }
+        }
     </script>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getFirestore, collection, query, getDocs, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, query, getDocs, orderBy, doc, getDoc, updateDoc, deleteDoc, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         window.onload = function() {
             const appId = 'pistacho-b9efe';
-            const firebaseConfig = JSON.parse('{"apiKey":"AIzaSyDC-8qbWsjRyxBzJpfCi9n3ftzdg9FStF0","authDomain":"pistacho-b9efe.firebaseapp.com","projectId":"pistacho-b9efe","storageBucket":"pistacho-b9efe.appspot.com","messagingSenderId":"686695750713","appId":"1:686695750713:web:5314331be7b46e93f401e8","measurementId":"G-HQS7Q78LY7"}');
+            const firebaseConfig = JSON.parse('{"apiKey":"AIzaSyDC-8qbWsjRyxBzJpfCi9n3ftzdg9FStF0","authDomain":"pistacho-b9efe.firebaseapp.com","projectId":"pistacho-b9efe"}');
             
-            let db;
+            let db, auth;
+            let userRole = 'unknown';
             let historicalRatings = {}; 
-
+            
+            const USERS_COLLECTION_PATH = 'users';
+            const RATINGS_COLLECTION_PATH = `/artifacts/${appId}/public/data/ratings`;
             const CERTIFIED_COLLECTION_PATH = `/artifacts/${appId}/public/data/certified_ratings`;
+            
+            async function fetchUserRole(user) {
+                if (!user) return 'general';
+                const roleDocRef = doc(db, USERS_COLLECTION_PATH, user.uid);
+                try {
+                    const docSnap = await getDoc(roleDocRef);
+                    if (docSnap.exists() && docSnap.data().role) return docSnap.data().role;
+                } catch(e) { console.error("获取角色失败:", e); }
+                return 'general';
+            }
 
-            // (*** 已修复：函数名拼写错误 ***)
-            // 错误: viewRatingDetails
-            // 正确: window.viewRatingDetails
+            window.uncertifyRating = async function(certifiedId, originalId, event) {
+                event.stopPropagation();
+                if (!confirm("确定要取消这条记录的 Pistacho 认证吗？")) return;
+
+                const button = document.querySelector(`button[onclick*="uncertifyRating('${certifiedId}')"]`);
+                button.textContent = '取消中...';
+                button.disabled = true;
+
+                try {
+                    const batch = writeBatch(db);
+                    batch.delete(doc(db, CERTIFIED_COLLECTION_PATH, certifiedId));
+                    if (originalId) {
+                        batch.update(doc(db, RATINGS_COLLECTION_PATH, originalId), {
+                            certified: false,
+                            certifiedRatingId: null
+                        });
+                    }
+                    await batch.commit();
+                    fetchAndRenderCertified(db);
+                } catch (error) {
+                    console.error("取消认证失败:", error);
+                    alert(`取消认证失败: ${error.message}`);
+                    button.textContent = "取消认证";
+                    button.disabled = false;
+                }
+            }
+
             window.viewRatingDetails = function(ratingId) {
                 const ratingData = historicalRatings[ratingId];
                 if (ratingData) {
@@ -39,11 +85,8 @@
                 container.innerHTML = `<div class="text-center p-6"><p>正在加载认证评分...</p></div>`;
                 
                 try {
-                    const certifiedCollection = collection(db, CERTIFIED_COLLECTION_PATH);
-                    const q = query(certifiedCollection, orderBy("certifiedAt", "desc"));
-                    
+                    const q = query(collection(db, CERTIFIED_COLLECTION_PATH), orderBy("certifiedAt", "desc"));
                     const querySnapshot = await getDocs(q);
-
                     if (querySnapshot.empty) {
                         container.innerHTML = `<div class="text-center p-6 bg-white rounded-lg shadow"><p>还没有任何认证评分。</p></div>`;
                         return;
@@ -52,17 +95,23 @@
                     let certifiedHtml = '<div class="space-y-4">';
                     querySnapshot.forEach(doc => {
                         const data = doc.data();
-                        const ratingId = doc.id;
-                        historicalRatings[ratingId] = data; 
-
+                        const certifiedId = doc.id;
+                        historicalRatings[certifiedId] = data; 
+                        
                         const date = data.timestamp?.toDate ? data.timestamp.toDate().toLocaleDateString('zh-CN') : '未知日期';
                         const certifiedDate = data.certifiedAt?.toDate ? data.certifiedAt.toDate().toLocaleDateString('zh-CN') : '未知日期';
-                        
                         const scoreDisplay = data.normalizedScore !== undefined ? data.normalizedScore.toFixed(2) : 'N/A';
                         const gradeDisplay = data.finalGrade ? `${data.finalGrade.grade} - ${data.finalGrade.name_cn}` : '未评级';
 
+                        let uncertifyButtonHtml = '';
+                        if (userRole === 'super_admin' && data.originalRatingId) {
+                            uncertifyButtonHtml = `<div class="mt-2 border-t pt-2">
+                                <button onclick="uncertifyRating('${certifiedId}', '${data.originalRatingId}', event)" class="w-full text-sm py-1 px-3 bg-red-500 text-white rounded-md hover:bg-red-600 transition">取消认证</button>
+                            </div>`;
+                        }
+
                         certifiedHtml += `
-                            <a href="#" onclick="viewRatingDetails('${ratingId}'); return false;" class="block bg-white p-4 rounded-lg shadow-md hover:shadow-lg transition-shadow">
+                            <a href="#" onclick="viewRatingDetails('${certifiedId}'); return false;" class="block bg-white p-4 rounded-lg shadow-md hover:shadow-lg transition-shadow">
                                 <div class="flex justify-between items-center">
                                     <div>
                                         <p class="text-lg font-bold text-gray-800">${data.cigarInfo.name}</p>
@@ -74,12 +123,12 @@
                                         <p class="font-bold text-gray-600">${gradeDisplay}</p>
                                     </div>
                                 </div>
+                                ${uncertifyButtonHtml}
                             </a>
                         `;
                     });
                     certifiedHtml += '</div>';
                     container.innerHTML = certifiedHtml;
-
                 } catch (error) {
                     console.error("获取认证评分失败:", error);
                     container.innerHTML = `<div class="text-center p-6 bg-red-100 text-red-700 rounded-lg shadow"><p>加载认证评分失败: ${error.message}</p></div>`;
@@ -89,9 +138,16 @@
             try {
                 const app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
-                fetchAndRenderCertified(db);
+                auth = getAuth(app);
+                onAuthStateChanged(auth, async (user) => {
+                    userRole = await fetchUserRole(user);
+                    fetchAndRenderCertified(db);
+                });
             } catch(e) {
-                document.getElementById('certified-container').innerHTML = `<div class="p-6 bg-red-100 text-red-700">Firebase 初始化失败: ${e.message}</div>`;
+                const container = document.getElementById('certified-container');
+                if (container) {
+                    container.innerHTML = `<div class="p-6 bg-red-100 text-red-700">Firebase 初始化失败: ${e.message}</div>`;
+                }
             }
         }
     </script>
