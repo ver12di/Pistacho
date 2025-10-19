@@ -32,7 +32,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, onSnapshot, setDoc, getDoc, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, onSnapshot, setDoc, getDoc, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
@@ -99,7 +99,7 @@
         }
         
         // --- Navigation ---
-        window.showResults = function() { // No longer async
+        window.showResults = function() {
             if (!ratingConfig || Object.keys(userRatings).length === 0) {
                 alert("请至少选择一个评分项后再查看报告。");
                 return;
@@ -112,13 +112,13 @@
             const cigarReview = document.getElementById('cigar-review').value || '无';
             const finalScore = calculateFinalScore();
             
-            // (*** 已修改：不再保存到云端，只传递到下一页 ***)
             const resultsData = {
                 config: ratingConfig,
                 ratings: userRatings,
                 calculatedScore: finalScore,
                 cigarInfo: cigarInfo,
-                cigarReview: cigarReview
+                cigarReview: cigarReview,
+                isDraft: true 
             };
             
             try {
@@ -128,7 +128,7 @@
                 alert("无法保存会话数据。");
             }
         }
-        
+
         // --- Reset Ratings ---
         window.resetRatings = function() {
             if (confirm("确定要重置所有评分选择吗？")) {
@@ -229,9 +229,7 @@
         // --- UI Rendering ---
         function renderAdminLinks() { 
             const adminLinksContainer = document.getElementById('admin-links-container');
-            // (*** 已修复：添加 null 检查以防止 DOM 加载竞争条件下的错误 ***)
             if (!adminLinksContainer) return;
-
             let linksHtml = '';
             if (userRole === 'admin' || userRole === 'super_admin') {
                 linksHtml += `<a href="cigar_rating_config.html" class="flex items-center px-3 py-1.5 border border-white text-xs font-medium rounded-full text-white bg-indigo-600 hover:bg-indigo-500 transition">标准修改</a>`;
@@ -243,9 +241,7 @@
         }
         function renderLoginStatus(user) { 
             const container = document.getElementById('login-status-container');
-            // (*** 已修复：添加 null 检查以防止 DOM 加载竞争条件下的错误 ***)
             if (!container) return;
-            
             if (user && user.email) {
                 container.innerHTML = `<span class="text-sm font-medium text-yellow-300 mr-2 hidden sm:inline">${user.email}</span><button onclick="logout()" class="px-3 py-1 text-xs font-medium rounded-full bg-red-500 text-white hover:bg-red-600">退出</button>`;
             } else {
