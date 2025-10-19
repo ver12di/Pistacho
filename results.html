@@ -83,6 +83,7 @@
                     timestamp: serverTimestamp(),
                     cigarInfo: resultsData.cigarInfo,
                     cigarReview: resultsData.cigarReview,
+                    cigarImageURL: resultsData.cigarImageURL,
                     calculatedScore: resultsData.calculatedScore,
                     normalizedScore: normalizedScore, 
                     finalGrade: finalGrade,           
@@ -118,7 +119,7 @@
 
                 try {
                     resultsData = JSON.parse(storedData);
-                    const { config, ratings, calculatedScore, cigarInfo, cigarReview, isDraft } = resultsData;
+                    const { config, ratings, calculatedScore, cigarInfo, cigarReview, cigarImageURL, isDraft } = resultsData;
                     
                     const maxScore = config.totalWeightMax || 100;
                     normalizedScore = maxScore > 0 ? (calculatedScore / maxScore) * 100 : 0;
@@ -137,6 +138,13 @@
                             saveButtonContainer.classList.remove('hidden');
                         }
                     }
+
+                    if (cigarImageURL) {
+                        const imageDisplay = document.getElementById('cigar-image-display');
+                        const imageEl = document.getElementById('cigar-image');
+                        imageEl.src = cigarImageURL;
+                        imageDisplay.classList.remove('hidden');
+                    }
                     
                     if (cigarInfo) document.getElementById('cigar-info-container').innerHTML = `<div class="bg-white rounded-xl shadow-lg p-6 text-center"><h2 class="text-3xl font-bold">${cigarInfo.name}</h2><div class="mt-2 flex justify-center space-x-6 text-gray-500"><span><strong>尺寸:</strong> ${cigarInfo.size}</span><span><strong>产地:</strong> ${cigarInfo.origin}</span></div></div>`;
                     if (cigarReview) document.getElementById('cigar-review-container').textContent = cigarReview;
@@ -151,11 +159,11 @@
                      errorContainer.classList.remove('hidden');
                      mainContent.style.display = 'none';
                      errorContainer.innerHTML = `<p class="font-bold">解析数据出错！</p><p>${e.message}</p><a href="index.html" class="underline">返回</a>`;
+                     console.error("Results page error:", e);
                 }
             });
         }
         
-        // (*** 已恢复：所有渲染函数 ***)
         function getRatingId(category, criterion) {
             return `${String(category).trim()}-${String(criterion).trim()}`;
         }
@@ -227,6 +235,11 @@
             <header class="mb-6 text-center">
                 <h1 class="text-4xl font-extrabold text-gray-800 mb-2">评分报告</h1>
             </header>
+            
+            <section id="cigar-image-display" class="hidden mb-6">
+                <img id="cigar-image" src="" alt="雪茄图片" class="max-h-96 w-full object-contain rounded-lg bg-gray-200 shadow-md">
+            </section>
+            
             <section id="cigar-info-container" class="mb-6"></section>
             
             <div id="save-button-container" class="hidden mb-6">
