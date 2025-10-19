@@ -46,7 +46,7 @@
         let userRatings = {};    
         let userRole = 'unknown'; 
         let currentAuthUser = null; 
-        let configUnsubscribe = null; // (*** 新增：用于管理监听器 ***)
+        let configUnsubscribe = null;
         
         const CONFIG_DOC_PATH = `/artifacts/${appId}/public/data/cigar_config/latest`;
         const USERS_COLLECTION_PATH = 'users'; 
@@ -106,12 +106,16 @@
                 origin: document.getElementById('cigar-origin').value || '未知产地'
             };
 
+            // (*** 新增：收集文字评价 ***)
+            const cigarReview = document.getElementById('cigar-review').value || '无';
+
             const finalScore = calculateFinalScore();
             const resultsData = {
                 config: ratingConfig,
                 ratings: userRatings,
                 calculatedScore: finalScore,
-                cigarInfo: cigarInfo
+                cigarInfo: cigarInfo,
+                cigarReview: cigarReview // (*** 新增：将评价加入数据包 ***)
             };
             try {
                 sessionStorage.setItem('cigarRatingResults', JSON.stringify(resultsData));
@@ -124,11 +128,12 @@
         // --- Reset Ratings ---
         
         window.resetRatings = function() {
-            if (confirm("确定要重置所有评分选择吗？")) {
+            if (confirm("确定要重置所有评分选择和评价吗？")) {
                 userRatings = {};
                 document.getElementById('cigar-name').value = '';
                 document.getElementById('cigar-size').value = '';
                 document.getElementById('cigar-origin').value = '';
+                document.getElementById('cigar-review').value = ''; // (*** 新增：重置文字评价 ***)
                 renderRatingView();
             }
         }
@@ -227,9 +232,7 @@
             }
         }
 
-        // (*** 已修改：重构以安全地刷新 ***)
         function loadConfig() {
-            // 如果已存在监听器，先断开它
             if (configUnsubscribe) {
                 configUnsubscribe();
             }
@@ -237,13 +240,11 @@
             const configDocRef = doc(db, CONFIG_DOC_PATH);
             const configStatusElement = document.getElementById('config-load-status');
 
-            // 附加新的监听器，并保存其 "unsubscribe" 函数
             configUnsubscribe = onSnapshot(configDocRef, (docSnap) => {
-                console.log("onSnapshot fired: New config data received."); // 调试日志
+                console.log("onSnapshot fired: New config data received.");
                 if (docSnap.exists() && docSnap.data().ratingCriteria) {
                     ratingConfig = docSnap.data();
                     calculateWeights(ratingConfig);
-                    // 刷新时重置之前的评分，因为评分项可能已改变
                     userRatings = {}; 
                     renderRatingView(); 
                     configStatusElement.textContent = `配置已同步`;
@@ -264,15 +265,12 @@
             });
         }
         
-        // (*** 新增：页面可见性事件监听器 ***)
         document.addEventListener('visibilitychange', () => {
-            // 当页面从隐藏变为可见，并且 Firebase 已初始化时
             if (document.visibilityState === 'visible' && db) {
                 console.log("Tab is visible again, forcing config reload.");
-                loadConfig(); // 强制重新加载配置
+                loadConfig();
             }
         });
-
 
         // --- UI Rendering ---
 
@@ -439,6 +437,15 @@
         <div id="rating-form-container">
             <p class="text-center text-gray-500 mt-10">请等待配置加载...</p>
         </div>
+
+        <!-- (*** 新增：文字评价区域 ***) -->
+        <section class="mt-8 p-6 bg-white rounded-xl shadow-lg">
+            <h2 class="text-xl font-bold text-gray-800 mb-4">文字评价</h2>
+            <div>
+                <label for="cigar-review" class="sr-only">在此处输入您的详细品吸感受</label>
+                <textarea id="cigar-review" rows="5" class="w-full p-3 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500" placeholder="在此处输入您的详细品吸感受，例如风味变化、燃烧情况等..."></textarea>
+            </div>
+        </section>
         
         <div class="mt-8 grid grid-cols-2 gap-4">
             <button onclick="resetRatings()" class="w-full py-3 px-6 bg-red-500 text-white font-bold text-lg rounded-lg shadow-md hover:bg-red-600 transition">
