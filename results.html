@@ -53,6 +53,19 @@
             </section>
 
             <div class="space-y-4">
+                <!-- (*** 新增：文字评价展示区域 ***) -->
+                <details class="group bg-white rounded-xl shadow-lg p-6 transition-all duration-300" open>
+                    <summary class="flex justify-between items-center cursor-pointer font-bold text-lg text-gray-800">
+                        文字评价
+                        <svg class="w-5 h-5 transform group-open:rotate-180 transition-transform" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </summary>
+                    <div id="cigar-review-container" class="mt-4 text-gray-700 prose max-w-none">
+                        <!-- JS will inject cigar review here -->
+                    </div>
+                </details>
+
                 <details class="group bg-white rounded-xl shadow-lg p-6 transition-all duration-300">
                     <summary class="flex justify-between items-center cursor-pointer font-bold text-lg text-gray-800">
                         分数详情
@@ -115,6 +128,7 @@
         window.onload = function() {
             const mainContent = document.getElementById('main-content');
             const cigarInfoContainer = document.getElementById('cigar-info-container');
+            const cigarReviewContainer = document.getElementById('cigar-review-container'); // (*** 新增 ***)
             const resultsCardContainer = document.getElementById('results-card-container');
             const scoreDetailsContainer = document.getElementById('score-details-container');
             const summaryContainer = document.getElementById('summary-container');
@@ -132,7 +146,7 @@
             }
             
             try {
-                const { config, ratings, calculatedScore, cigarInfo } = JSON.parse(storedData);
+                const { config, ratings, calculatedScore, cigarInfo, cigarReview } = JSON.parse(storedData); // (*** 新增：解构 cigarReview ***)
                 const maxScore = config.totalWeightMax || 100;
                 const normalizedScore = (calculatedScore / maxScore) * 100;
                 
@@ -146,6 +160,11 @@
                 
                 if (cigarInfo) {
                     renderCigarInfo(cigarInfoContainer, cigarInfo);
+                }
+                
+                // (*** 新增：渲染文字评价 ***)
+                if(cigarReview) {
+                    cigarReviewContainer.textContent = cigarReview;
                 }
 
                 renderResultsCard(resultsCardContainer, normalizedScore, finalGrade);
@@ -176,7 +195,6 @@
         }
 
         function renderResultsCard(container, score, grade) {
-            // 添加一个安全检查，以防 grade 对象无效
             if (!grade || !grade.color) {
                 console.error("无法渲染结果卡片，无效的 grade 对象:", grade);
                 container.innerHTML = `<div class="p-4 bg-red-100 text-red-700 rounded-lg">无法显示评级卡片。</div>`;
@@ -267,7 +285,6 @@
             return index === 0 ? `${min}-100` : `${min.toFixed(0)}-${max.toFixed(2)}`;
         }
 
-        // (*** 已修复：重写为更健壮的实现 ***)
         function getGradeStyles(color) {
             const stylesMap = {
                 'gold':   { bgColor: 'bg-yellow-400', textColor: 'text-yellow-800', bgGradient: 'bg-gradient-to-br from-yellow-400 to-amber-500', shadowColor: 'shadow-yellow-500/50' },
@@ -279,7 +296,6 @@
                 'orange': { bgColor: 'bg-orange-300', textColor: 'text-orange-800', bgGradient: 'bg-gradient-to-br from-orange-500 to-amber-600',  shadowColor: 'shadow-orange-500/50' },
                 'red':    { bgColor: 'bg-red-300',    textColor: 'text-red-800',    bgGradient: 'bg-gradient-to-br from-red-500 to-rose-600',     shadowColor: 'shadow-red-500/50' }
             };
-            // 如果找不到指定的颜色，则返回默认的灰色样式
             return stylesMap[color] || stylesMap['gray'];
         }
     </script>
