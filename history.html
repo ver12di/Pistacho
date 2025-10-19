@@ -31,7 +31,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, query, where, getDocs, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, query, where, getDocs, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firestore.js";
 
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
@@ -50,7 +50,6 @@
             
             try {
                 const ratingsCollection = collection(db, RATINGS_COLLECTION_PATH);
-                // (*** 已修改：使用 where 查询来获取当前用户的记录 ***)
                 const q = query(ratingsCollection, where("userId", "==", user.uid), orderBy("timestamp", "desc"));
                 
                 const querySnapshot = await getDocs(q);
@@ -65,6 +64,13 @@
                     const data = doc.data();
                     const date = data.timestamp?.toDate ? data.timestamp.toDate().toLocaleDateString('zh-CN') : '未知日期';
                     
+                    // (*** 已修复：添加安全检查 ***)
+                    // 检查 normalizedScore 是否存在，如果不存在则显示 'N/A'
+                    const scoreDisplay = data.normalizedScore !== undefined ? data.normalizedScore.toFixed(2) : 'N/A';
+                    
+                    // 检查 finalGrade 对象是否存在，如果不存在则显示 '未评级'
+                    const gradeDisplay = data.finalGrade ? `${data.finalGrade.grade} - ${data.finalGrade.name_cn}` : '未评级';
+
                     historyHtml += `
                         <div class="bg-white p-4 rounded-lg shadow-md flex justify-between items-center">
                             <div>
@@ -72,8 +78,8 @@
                                 <p class="text-sm text-gray-500">${data.cigarInfo.size} | ${data.cigarInfo.origin} | ${date}</p>
                             </div>
                             <div class="text-right">
-                                <p class="text-2xl font-black text-indigo-600">${data.normalizedScore.toFixed(2)}</p>
-                                <p class="font-bold text-gray-600">${data.finalGrade.grade} - ${data.finalGrade.name_cn}</p>
+                                <p class="text-2xl font-black text-indigo-600">${scoreDisplay}</p>
+                                <p class="font-bold text-gray-600">${gradeDisplay}</p>
                             </div>
                         </div>
                     `;
