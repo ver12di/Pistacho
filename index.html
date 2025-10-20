@@ -114,7 +114,6 @@
         let userRatings = {};    
         let currentAuthUser = null; 
         
-        // Authing 配置 (硬编码，因为它们是公开的)
         const AUTHING_APP_ID = '68f5b0b6875017c02b3bfdb3';
         const AUTHING_HOST = 'https://xfvu647mcdbk-demo.authing.cn';
 
@@ -123,19 +122,14 @@
         // ---------------------------------------------------
         window.login = function() {
             const redirectUri = window.location.origin;
-            console.log("发起认证，回调地址为:", redirectUri); // 添加日志
-
-            // 手动构建授权 URL
             const authorizeUrl = new URL('/oidc/auth', AUTHING_HOST);
             authorizeUrl.search = new URLSearchParams({
                 client_id: AUTHING_APP_ID,
                 redirect_uri: redirectUri,
                 response_type: 'code',
-                scope: 'openid profile email phone roles', // 获取我们需要的全部信息
-                state: Math.random().toString(36).substring(2) // 随机 state 防止 CSRF
+                scope: 'openid profile email phone', // Authing V2 roles are in id_token, not /me endpoint
+                state: Math.random().toString(36).substring(2)
             }).toString();
-            
-            // 跳转到 Authing 登录页
             window.location.href = authorizeUrl.toString();
         }
 
@@ -144,8 +138,8 @@
              logoutUrl.search = new URLSearchParams({
                 post_logout_redirect_uri: window.location.origin
              }).toString();
-             // 清除前端会话
              sessionStorage.removeItem('userInfo');
+             sessionStorage.removeItem('accessToken'); // 清除 token
              window.location.href = logoutUrl.toString();
         }
 
@@ -163,48 +157,19 @@
             const adminLinksContainer = document.getElementById('admin-links-container');
             adminLinksContainer.innerHTML = '';
             if (!adminLinksContainer || !currentAuthUser) return;
-            // FIX: The user role check needs to come from our database role, not Authing's.
-            // We need to call a new API endpoint to get the current user's role from our DB.
-            // For now, let's assume `currentAuthUser.db_role` exists.
-            const userRole = currentAuthUser.db_role;
-
+            
+            const userRole = currentAuthUser.db_role; // 使用我们数据库的角色
             const isAdmin = userRole === 'admin' || userRole === 'super_admin';
             const isSuperAdmin = userRole === 'super_admin';
 
-            let linksHtml = '';
             if (isAdmin) {
-                // This link is kept from the previous logic
-                linksHtml += `<a href="cigar_rating_config.html" class="flex items-center px-3 py-1.5 border text-xs font-medium rounded-full text-white bg-indigo-600 hover:bg-indigo-500">标准修改</a>`;
+                 adminLinksContainer.innerHTML += `<a href="cigar_rating_config.html" class="flex items-center px-3 py-1.5 border text-xs font-medium rounded-full text-white bg-blue-600 hover:bg-blue-500">评分配置</a>`;
             }
             if (isSuperAdmin) {
-                // The old logic for super_admin link is now separated and correctly placed
-                linksHtml += `<a href="role_management.html" class="flex items-center px-3 py-1.5 border text-xs font-medium rounded-full text-yellow-100 bg-purple-600 hover:bg-purple-500 ml-2">用户管理</a>`;
-            }
-            
-            // New logic to add the links as requested
-            if (isSuperAdmin) {
-                // Adding the new "评分配置" link for super admins
-                adminLinksContainer.innerHTML += `<a href="cigar_rating_config.html" class="flex items-center px-3 py-1.5 border text-xs font-medium rounded-full text-white bg-blue-600 hover:bg-blue-500">评分配置</a>`;
-                // Adding the new "用户管理" link for super admins, with some margin
                 adminLinksContainer.innerHTML += `<a href="role_management.html" class="flex items-center px-3 py-1.5 border text-xs font-medium rounded-full text-yellow-100 bg-purple-600 hover:bg-purple-500 ml-2">用户管理</a>`;
-            } else if (isAdmin) {
-                // Admins (not super) only see the "评分配置" link
-                adminLinksContainer.innerHTML += `<a href="cigar_rating_config.html" class="flex items-center px-3 py-1.5 border text-xs font-medium rounded-full text-white bg-blue-600 hover:bg-blue-500">评分配置</a>`;
             }
         }
         
-        // ---------------------------------------------------
-        // 3. 配置加载
-        // ---------------------------------------------------
-        async function loadConfig() {
-            /* ... (与之前版本相同，此处省略以保持简洁) ... */
-        }
-        
-        // ---------------------------------------------------
-        // 4. 评分逻辑 (与之前版本相同)
-        // ---------------------------------------------------
-        /* ... (所有评分逻辑函数与之前版本相同，此处省略以保持简洁) ... */
-
         // ---------------------------------------------------
         // 5. 启动函数
         // ---------------------------------------------------
@@ -225,16 +190,17 @@
                 
                 currentAuthUser = await response.json();
                 
-                // 将用户信息存入 sessionStorage，这样其他页面也能知道登录状态
+                // 将用户信息和 token 存入 sessionStorage
                 sessionStorage.setItem('userInfo', JSON.stringify(currentAuthUser));
+                sessionStorage.setItem('accessToken', currentAuthUser.accessToken);
 
             } catch (e) {
                 console.error('认证回调处理失败:', e);
                 alert(`登录失败: ${e.message}`);
                 currentAuthUser = null;
                 sessionStorage.removeItem('userInfo');
+                sessionStorage.removeItem('accessToken');
             } finally {
-                // 清理 URL, 避免刷新时重复处理
                 window.history.replaceState({}, document.title, window.location.pathname);
                 document.getElementById('main-content').style.opacity = '1';
             }
@@ -245,23 +211,18 @@
             const code = urlParams.get('code');
 
             if (code) {
-                // 如果 URL 中有 code，说明是从 Authing 跳转回来的
                 await handleOidcCallback(code);
             } else {
-                // 否则，尝试从 sessionStorage 恢复登录状态
                 const storedUser = sessionStorage.getItem('userInfo');
                 if (storedUser) {
                     currentAuthUser = JSON.parse(storedUser);
-                } else {
-                    currentAuthUser = null;
                 }
             }
             
-            // 渲染 UI 并加载应用配置
             renderLoginStatus(currentAuthUser);
             renderAdminLinks();
             
-            // --- 这里是之前省略的 loadConfig 和评分逻辑的完整代码 ---
+            // --- 完整评分逻辑 ---
             async function loadConfig() {
                 document.getElementById('config-load-status').textContent = '正在从 Cloudflare 同步配置...';
                 try {
@@ -388,5 +349,4 @@
     </script>
 </body>
 </html>
-
 
