@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>雪茄品鉴评分主应用</title>
+    <!-- 1. Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -17,7 +18,7 @@
             }
         }
     </script>
-    <!-- 1. 引入 Authing.cn JS SDK (请使用您从 Authing 官方文档获取的最新版本) -->
+    <!-- 2. Authing.cn JS SDK (请使用您从 Authing 官方文档获取的最新版本) -->
     <script src="https://cdn.authing.cn/packages/authing-js-sdk/5.1.5/authing-js-sdk.min.js"></script>
 </head>
 <body class="bg-gray-100 font-sans antialiased text-gray-800">
@@ -109,57 +110,57 @@
     </div>
 
     <!-- 2. 新的 Javascript "大脑" -->
-    <script>
+    <script type="module">
         // ---------------------------------------------------
         // 1. 全局变量
         // ---------------------------------------------------
         let ratingConfig = null; 
         let userRatings = {};    
         let currentAuthUser = null; 
+        let authingClient = null;
 
         // ---------------------------------------------------
-        // 2. Authing.cn 认证
+        // 2. Authing.cn 认证函数
         // ---------------------------------------------------
-        const authingClient = new authing.AuthenticationClient({
-            appId: '68f5b0b6875017c02b3bfdb3', // 您的 App ID
-            appHost: 'https://xfvu647mcdbk-demo.authing.cn', // 您的 App Host
-            redirectUri: window.location.origin, // 重要: 必须和 Authing 仪表板中的 "登录回调 URL" 完全一致
-        });
-
-        // 新的: 登录函数
+        // 登录函数
         window.login = function() {
-            authingClient.loginWithRedirect();
+            if (authingClient) {
+                // 跳转到 Authing 托管的登录页面
+                authingClient.loginWithRedirect();
+            } else {
+                alert("认证服务尚未初始化，请稍后重试。");
+            }
         }
 
-        // 新的: 登出函数
-        window.logout = async function() {
-            try {
-                // Authing SDK 登出并重定向回主页
-                const logoutUrl = authingClient.buildLogoutUrl({
-                    redirectUri: window.location.origin 
-                });
-                window.location.href = logoutUrl;
-            } catch(e) { console.error("登出失败:", e); }
+        // 登出函数
+        window.logout = function() {
+            if (authingClient) {
+                try {
+                    // 生成登出链接并跳转
+                    const logoutUrl = authingClient.buildLogoutUrl({
+                        redirectUri: window.location.origin 
+                    });
+                    window.location.href = logoutUrl;
+                } catch(e) { console.error("登出失败:", e); }
+            }
         }
 
-        // 新的: 渲染登录状态
+        // 渲染登录状态 UI
         function renderLoginStatus(user) { 
             const container = document.getElementById('login-status-container');
             if (!container) return;
             if (user) {
-                // 注意: Authing 的 user 对象字段可能不同 (例如 user.email, user.name)
                 container.innerHTML = `<span class="text-sm font-medium text-yellow-300 mr-2 hidden sm:inline">${user.email || user.name || '已登录'}</span><button onclick="logout()" class="px-3 py-1 text-xs font-medium rounded-full bg-red-500 text-white hover:bg-red-600">退出</button>`;
             } else {
                 container.innerHTML = `<span class="text-sm font-medium text-indigo-300 mr-2 hidden sm:inline">未登录</span><button onclick="login()" class="px-3 py-1 text-xs font-medium rounded-full bg-green-500 text-white hover:bg-green-600">登录/注册</button>`;
             }
         }
 
-        // 新的: 渲染管理员链接
+        // 渲染管理员专属链接
         function renderAdminLinks() { 
             const adminLinksContainer = document.getElementById('admin-links-container');
             if (!adminLinksContainer || !currentAuthUser) return;
             
-            // 检查 Authing 用户对象中的角色
             const userRoles = (currentAuthUser.roles || []).map(r => r.code); 
             const is_admin = userRoles.includes('admin');
             const is_super_admin = userRoles.includes('super_admin');
@@ -180,19 +181,16 @@
         async function loadConfig() {
             document.getElementById('config-load-status').textContent = '正在从 Cloudflare 同步配置...';
             try {
-                // 调用您创建的后端 API
                 const response = await fetch('/api/config/latest');
                 if (!response.ok) {
                     throw new Error(`服务器错误: ${response.statusText}`);
                 }
                 ratingConfig = await response.json();
                 
-                // --- 您的原始逻辑 (保留) ---
                 calculateWeights(ratingConfig); 
                 userRatings = {}; 
                 renderRatingView(); 
                 document.getElementById('config-load-status').textContent = `配置已同步`;
-                // --- 结束 ---
             } catch (error) {
                 console.error("加载配置失败:", error);
                 document.getElementById('config-load-status').textContent = '配置加载失败';
@@ -200,7 +198,7 @@
         }
         
         // ---------------------------------------------------
-        // 4. 评分逻辑 (不变, 完整保留)
+        // 4. 评分逻辑 (保留您的全部原有功能)
         // ---------------------------------------------------
         function getRatingId(category, criterion) { return `${String(category).trim()}-${String(criterion).trim()}`; }
         
@@ -223,7 +221,7 @@
         function calculateFinalScore() {
             if (!ratingConfig) return 0;
             let totalScore = 0;
-            (ratingConfig.ratingCriteria || []).forEach(category => {
+            (config.ratingCriteria || []).forEach(category => {
                 (category.criteriaList || []).forEach(criterion => {
                     const id = getRatingId(category.category, criterion.name);
                     const selectedOptionIndex = userRatings[id];
@@ -332,28 +330,58 @@
         // 5. 启动函数 (替换 initFirebase)
         // ---------------------------------------------------
         window.onload = async function() {
+            // **FIX**: Helper function to wait for the Authing SDK to be ready
+            const waitForAuthing = (timeout = 5000) => {
+                return new Promise((resolve, reject) => {
+                    if (window.authing) { return resolve(); }
+                    const interval = setInterval(() => {
+                        if (window.authing) {
+                            clearInterval(interval);
+                            clearTimeout(timer);
+                            resolve();
+                        }
+                    }, 100);
+                    const timer = setTimeout(() => {
+                        clearInterval(interval);
+                        reject(new Error("认证服务(Authing SDK)加载超时。"));
+                    }, timeout);
+                });
+            };
+
             try {
-                // 检查 URL 是否是 Authing 登录后的回调
+                // Wait for the SDK to load before using it
+                await waitForAuthing();
+
+                // Initialize AuthingClient *after* ensuring the SDK is loaded
+                authingClient = new window.authing.AuthenticationClient({
+                    appId: '68f5b0b6875017c02b3bfdb3',
+                    appHost: 'https://xfvu647mcdbk-demo.authing.cn',
+                    redirectUri: window.location.origin,
+                });
+
+                // Check URL for Authing login redirect
                 if (await authingClient.isRedirectCallback()) {
-                    // 从 URL 中处理回调，获取 token 和用户信息
                     const { userInfo } = await authingClient.handleRedirectCallback();
                     currentAuthUser = userInfo;
                 } else {
-                    // 如果不是回调，就检查是否已经有登录会话
+                    // Check for an existing login session
                     const session = await authingClient.getLoginState();
                     currentAuthUser = session ? session.userInfo : null;
                 }
             } catch (e) {
-                // 任何认证错误
+                // Handle both SDK timeout and other auth errors
                 console.error('认证过程中出错:', e);
                 currentAuthUser = null;
+                document.getElementById('config-load-status').textContent = '认证服务加载失败';
+                alert('认证服务加载失败，请检查您的网络连接并刷新页面。');
             }
             
-            // 无论是否登录，都执行以下操作
-            renderLoginStatus(currentAuthUser); // 更新UI
-            renderAdminLinks(); // 根据角色显示/隐藏管理员链接
-            await loadConfig(); // 调用我们新的 API 来加载配置
+            // Render UI and load config regardless of login status
+            renderLoginStatus(currentAuthUser);
+            renderAdminLinks();
+            await loadConfig();
         };
     </script>
 </body>
 </html>
+
