@@ -1,42 +1,125 @@
-/*
- * 文件: /functions/api/config/[profileId].js
- * 作用: 从 D1 数据库中获取指定的配置方案 (profile)
- * (例如 /api/config/latest)
- */
-export async function onRequestGet(context) {
-  // context.env.DB 来自您在 Cloudflare 设置中绑定的 D1
-  const { env, params } = context;
-  
-  // params.profileId 会自动获取 URL 中方括号[]对应的部分 (例如 "latest")
-  const profileId = params.profileId; 
-  
-  try {
-    // 准备 D1 SQL 查询
-    const stmt = env.DB.prepare("SELECT configData FROM config_profiles WHERE profileId = ?").bind(profileId);
-    
-    // 执行查询并获取第一个结果
-    const result = await stmt.first();
+// ---------------------------------------------------
+// 文件: /functions/api/config/[profileId].js
+// 作用: 处理单个配置方案的获取(GET)、保存/更新(POST)、删除(DELETE)
+// ---------------------------------------------------
 
-    if (!result) {
-      // 如果数据库里没有 'latest'，返回 404 错误
-      return new Response(JSON.stringify({ error: `Profile '${profileId}' not found.` }), { 
-        status: 404,
-        headers: { 'Content-Type': 'application/json' },
-      });
+// 帮助函数，用于验证 Authing Token 并检查角色
+async function validateAdminToken(request, env) {
+    const authHeader = request.headers.get('Authorization') || '';
+    const token = authHeader.replace('Bearer ', '');
+    if (!token) {
+        return { authorized: false, error: "Missing token" };
+    }
+
+    try {
+        // 调用 Authing 的用户信息端点来验证 token
+        const userInfoUrl = `${env.AUTHING_ISSUER}/me`;
+        const response = await fetch(userInfoUrl, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (!response.ok) {
+            throw new Error('Invalid token');
+        }
+        const userInfo = await response.json();
+
+        // 检查用户角色
+        const userRoles = (userInfo.roles || []).map(r => r.code);
+        const isAdmin = userRoles.includes('admin') || userRoles.includes('super_admin');
+
+        if (!isAdmin) {
+            return { authorized: false, error: "Permission denied. Admin role required." };
+        }
+
+        return { authorized: true, user: userInfo };
+
+    } catch (e) {
+        return { authorized: false, error: e.message };
+    }
+}
+
+
+// --- API 方法 ---
+
+// 1. 处理 GET 请求 (获取特定配置)
+export async function onRequestGet(context) {
+    const { env, params } = context;
+    const profileId = params.profileId; 
+  
+    try {
+        const stmt = env.DB.prepare("SELECT configData FROM config_profiles WHERE profileId = ?").bind(profileId);
+        const result = await stmt.first();
+
+        if (!result) {
+            return new Response(JSON.stringify({ error: `Profile '${profileId}' not found.` }), { status: 404 });
+        }
+        return new Response(result.configData, { headers: { 'Content-Type': 'application/json' } });
+    } catch (e) {
+        return new Response(JSON.stringify({ error: e.message }), { status: 500 });
+    }
+}
+
+// 2. 处理 POST 请求 (创建或更新配置)
+export async function onRequestPost(context) {
+    const { request, env, params } = context;
+    const profileId = params.profileId;
+
+    // **安全检查**: 必须是管理员才能写入
+    const { authorized, error } = await validateAdminToken(request, env);
+    if (!authorized) {
+        return new Response(JSON.stringify({ error: `Unauthorized: ${error}` }), { status: 403 });
+    }
+
+    try {
+        const configData = await request.json();
+        if (!configData || !configData.ratingCriteria) {
+            return new Response(JSON.stringify({ error: 'Invalid config data provided' }), { status: 400 });
+        }
+
+        const stmt = env.DB.prepare(
+            `INSERT INTO config_profiles (profileId, configData, lastModified) 
+             VALUES (?, ?, ?)
+             ON CONFLICT(profileId) DO UPDATE SET 
+             configData=excluded.configData, lastModified=excluded.lastModified`
+        ).bind(
+            profileId,
+            JSON.stringify(configData),
+            new Date().toISOString()
+        );
+        await stmt.run();
+
+        return new Response(JSON.stringify({ success: true, profileId: profileId }), { status: 200 });
+    } catch (e) {
+        return new Response(JSON.stringify({ error: e.message }), { status: 500 });
+    }
+}
+
+// 3. 处理 DELETE 请求 (删除配置)
+export async function onRequestDelete(context) {
+    const { request, env, params } = context;
+    const profileId = params.profileId;
+
+    // **安全检查**: 必须是管理员才能删除
+    const { authorized, error } = await validateAdminToken(request, env);
+    if (!authorized) {
+        return new Response(JSON.stringify({ error: `Unauthorized: ${error}` }), { status: 403 });
     }
     
-    // 查询成功
-    // result.configData 是您存储在 D1 里的 JSON 字符串
-    // 我们将其原样返回
-    return new Response(result.configData, {
-      headers: { 'Content-Type': 'application/json' },
-    });
+    // **安全限制**: 不允许通过 API 删除 'latest' 配置
+    if (profileId === 'latest') {
+        return new Response(JSON.stringify({ error: "Cannot delete the 'latest' profile via API." }), { status: 400 });
+    }
 
-  } catch (e) {
-    // 捕获 D1 数据库可能发生的其他错误
-    return new Response(JSON.stringify({ error: e.message }), { 
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
-  }
+    try {
+        const stmt = env.DB.prepare("DELETE FROM config_profiles WHERE profileId = ?").bind(profileId);
+        const result = await stmt.run();
+
+        if (result.changes > 0) {
+            return new Response(JSON.stringify({ success: true, profileId: profileId }), { status: 200 });
+        } else {
+            return new Response(JSON.stringify({ error: `Profile '${profileId}' not found.` }), { status: 404 });
+        }
+    } catch (e) {
+        return new Response(JSON.stringify({ error: e.message }), { status: 500 });
+    }
 }
