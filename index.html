@@ -228,13 +228,10 @@
                 return null;
             }
         }
-
-        // **FIX**: Central function to update user state and render dependent UI
+        
         function setUser(user) {
             currentAuthUser = user;
             renderLoginStatus(currentAuthUser);
-            // Use setTimeout to ensure the DOM update happens after the current execution stack is clear.
-            // This is a robust way to prevent race conditions with UI rendering.
             setTimeout(() => {
                 renderAdminLinks();
             }, 0);
@@ -242,5 +239,151 @@
 
         window.onload = async function() {
             const urlParams = new URLSearchParams(window.location.search);
-// ... existing code ... -->
+            const code = urlParams.get('code');
+            let user = null;
+
+            if (code) {
+                user = await handleOidcCallback(code);
+            } else {
+                user = await validateSessionAndGetUser();
+            }
+            
+            setUser(user);
+            
+            console.log("Current User Object for role check:", currentAuthUser);
+            
+            // --- 完整评分逻辑 ---
+            async function loadConfig() {
+                document.getElementById('config-load-status').textContent = '正在从 Cloudflare 同步配置...';
+                try {
+                    const apiUrl = new URL('/api/config/latest', window.location.origin);
+                    const response = await fetch(apiUrl);
+                    if (!response.ok) throw new Error(`服务器错误: ${response.statusText}`);
+                    ratingConfig = await response.json();
+                    calculateWeights(ratingConfig); 
+                    userRatings = {}; 
+                    renderRatingView(); 
+                    document.getElementById('config-load-status').textContent = `配置已同步`;
+                } catch (error) {
+                    console.error("加载配置失败:", error);
+                    document.getElementById('config-load-status').textContent = '配置加载失败';
+                    // **FIX**: Add an alert for explicit error feedback
+                    alert(`加载应用核心配置失败，请刷新页面重试。\n错误详情: ${error.message}`);
+                }
+            }
+
+            function getRatingId(category, criterion) { return `${String(category).trim()}-${String(criterion).trim()}`; }
+            function calculateWeights(config) {
+                if (!config) return;
+                let grandTotal = 0, totalCriteriaCount = 0;
+                (config.ratingCriteria || []).forEach(category => {
+                    let categoryTotal = 0;
+                    (category.criteriaList || []).forEach(criterion => {
+                        categoryTotal += (criterion.weight || 0);
+                        totalCriteriaCount++;
+                    });
+                    category.totalWeight = categoryTotal;
+                    grandTotal += categoryTotal;
+                });
+                config.totalWeightMax = grandTotal;
+                config.totalCriteriaCount = totalCriteriaCount;
+            }
+            function calculateFinalScore() {
+                if (!ratingConfig) return 0;
+                let totalScore = 0;
+                (ratingConfig.ratingCriteria || []).forEach(category => {
+                    (category.criteriaList || []).forEach(criterion => {
+                        const id = getRatingId(category.category, criterion.name);
+                        const selectedOptionIndex = userRatings[id];
+                        if (selectedOptionIndex !== undefined && criterion.options?.[selectedOptionIndex]) {
+                            totalScore += (criterion.weight || 0) * (criterion.options[selectedOptionIndex].scorePct || 0);
+                        }
+                    });
+                });
+                return totalScore;
+            }
+            window.showResults = function() {
+                if (!ratingConfig || Object.keys(userRatings).length === 0) return alert("请至少选择一个评分项后再查看报告。");
+                const cigarInfo = { name: document.getElementById('cigar-name').value || '未命名雪茄', size: document.getElementById('cigar-size').value || '未知尺寸', origin: document.getElementById('cigar-origin').value || '未知产地' };
+                const cigarReview = document.getElementById('cigar-review').value || '无';
+                const finalScore = calculateFinalScore();
+                const resultsData = { config: ratingConfig, ratings: userRatings, calculatedScore: finalScore, cigarInfo: cigarInfo, cigarReview: cigarReview, isDraft: true };
+                try {
+                    sessionStorage.setItem('cigarRatingResults', JSON.stringify(resultsData));
+                    window.location.href = 'results.html';
+                } catch (e) {
+                    alert("无法保存会话数据。");
+                }
+            }
+            window.resetRatings = function() {
+                if (confirm("确定要重置所有评分选择吗？")) {
+                    userRatings = {};
+                    document.getElementById('cigar-name').value = '';
+                    document.getElementById('cigar-size').value = '';
+                    document.getElementById('cigar-origin').value = '';
+                    document.getElementById('cigar-review').value = '';
+                    renderRatingView();
+                }
+            }
+            window.updateRatingSelection = function(categoryName, criterionName, optionIndex) {
+                const id = getRatingId(categoryName, criterionName);
+                userRatings[id] = optionIndex;
+                renderRatingView(); 
+            };
+            function renderRatingView() {
+                if (!ratingConfig) {
+                    // If config is null, render an empty state or an error message in the form container
+                    const formContainer = document.getElementById('rating-form-container');
+                    formContainer.innerHTML = `<div class="text-center p-6 bg-white rounded-lg shadow"><p>无法加载评分标准。</p></div>`;
+                    return;
+                };
+                const totalScore = calculateFinalScore();
+                document.getElementById('app-title-display').textContent = ratingConfig.appTitle;
+                document.getElementById('app-description-display').textContent = ratingConfig.description;
+                document.getElementById('total-weight-max-display').textContent = ratingConfig.totalWeightMax;
+                document.getElementById('current-score-display').textContent = totalScore.toFixed(2);
+                const ratedCount = Object.keys(userRatings).length;
+                const totalCount = ratingConfig.totalCriteriaCount || 1;
+                document.getElementById('progress-bar').style.width = `${(ratedCount / totalCount) * 100}%`;
+                document.getElementById('progress-text').textContent = `${ratedCount} / ${totalCount}`;
+                const formContainer = document.getElementById('rating-form-container');
+                formContainer.innerHTML = (ratingConfig.ratingCriteria || []).map((category) => `
+                    <div class="bg-white p-6 rounded-xl shadow-lg mb-8 border-l-4 border-indigo-500">
+                        <h3 class="text-xl font-bold text-indigo-700 mb-2">${category.category}</h3>
+                        <p class="text-gray-500 text-sm mb-4">${category.detail || ''}</p>
+                        <div class="space-y-6">${(category.criteriaList || []).map((criterion) => renderRatingCriterion(category.category, criterion)).join('')}</div>
+                    </div>`).join('');
+            }
+            function renderRatingCriterion(categoryName, criterion) {
+                const id = getRatingId(categoryName, criterion.name);
+                const selectedOptionIndex = userRatings[id];
+                const currentWeight = criterion.weight || 0;
+                let currentScore = 0;
+                if (selectedOptionIndex !== undefined && criterion.options?.[selectedOptionIndex]) {
+                    currentScore = currentWeight * (criterion.options[selectedOptionIndex].scorePct || 0);
+                }
+                return `<div class="bg-gray-50 p-4 rounded-lg border">
+                        <div class="flex justify-between items-center mb-3">
+                            <h4 class="text-lg font-semibold text-gray-800">${criterion.name} (${currentWeight} 分)</h4>
+                            <span class="text-xl font-extrabold text-green-600">${currentScore.toFixed(2)}</span>
+                        </div>
+                        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
+                            ${(criterion.options || []).map((option, optIndex) => {
+                                const isSelected = selectedOptionIndex === optIndex;
+                                const score = (currentWeight * (option.scorePct || 0)).toFixed(2);
+                                return `<button onclick="updateRatingSelection('${categoryName}', '${criterion.name}', ${optIndex})" 
+                                        class="p-2 text-sm text-center rounded-lg border transition ${ isSelected ? 'bg-indigo-600 text-white shadow-md' : 'bg-white hover:bg-indigo-50' }">
+                                        ${option.description} 
+                                        <span class="block text-xs ${isSelected ? 'text-indigo-200' : 'text-gray-500'}">(得 ${score} 分)</span>
+                                    </button>`;
+                            }).join('')}
+                        </div>
+                    </div>`;
+            }
+            
+            await loadConfig();
+        };
+    </script>
+</body>
+</html>
 
