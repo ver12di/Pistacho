@@ -6,13 +6,14 @@
 
 /**
  * 从我们自己的 D1 数据库中获取用户角色。
- * 如果用户不存在，则创建为普通用户。
+ * 如果用户不存在，则根据规则创建。
  * @param {D1Database} db - D1 数据库实例
  * @param {object} userInfo - 从 Authing 获取的用户信息
- * @returns {Promise<string>} - 用户的角色
+ * @returns {Promise<string>} - 用户的角色 ('super_admin' 或 'general')
  */
 async function getRoleFromDatabase(db, userInfo) {
-    const userId = userInfo.sub;
+    const userId = userInfo.sub; // Authing 的用户唯一 ID
+    const username = userInfo.preferred_username || userInfo.username;
 
     // 1. 尝试从我们的 users 表中查找用户
     const stmt = db.prepare("SELECT role FROM users WHERE userId = ?").bind(userId);
@@ -22,8 +23,13 @@ async function getRoleFromDatabase(db, userInfo) {
         // 如果用户已存在，直接返回他的角色
         return user.role;
     } else {
-        // 2. 如果用户不存在，默认创建为 'general' 用户
-        const assignedRole = 'general';
+        // 2. 如果用户不存在，执行初始角色分配逻辑
+        let assignedRole = 'general'; // 默认为普通用户
+
+        // **初始超管引导逻辑**
+        if (username === 'ver11') {
+            assignedRole = 'super_admin';
+        }
 
         // 3. 将新用户及其角色写入数据库
         const insertStmt = db.prepare(
@@ -47,6 +53,8 @@ export async function onRequestPost(context) {
         // --- 步骤 1: 用 code 换取 access_token ---
         const tokenUrl = new URL('/oidc/token', env.AUTHING_ISSUER);
         
+        // **FIX**: Construct the redirect_uri from the request headers
+        // This is more reliable than relying on the client-sent origin
         const requestUrl = new URL(request.url);
         const redirectUri = `${requestUrl.protocol}//${requestUrl.hostname}`;
 
@@ -88,8 +96,8 @@ export async function onRequestPost(context) {
         // --- 步骤 4: 将 Authing 信息和 D1 角色合并 ---
         const fullUserProfile = {
             ...authingUserInfo,
-            db_role: dbRole,
-            accessToken: accessToken
+            db_role: dbRole, // 关键：添加我们数据库中的角色
+            accessToken: accessToken // 将 token 也返回给前端，以便后续 API 调用
         };
         
         return new Response(JSON.stringify(fullUserProfile), {
