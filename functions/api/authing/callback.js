@@ -53,6 +53,10 @@ export async function onRequestPost(context) {
         // --- 步骤 1: 用 code 换取 access_token ---
         const tokenUrl = new URL('/oidc/token', env.AUTHING_ISSUER);
         
+        // **FIX**: Construct the redirect_uri from the request URL to ensure it matches.
+        const requestUrl = new URL(request.url);
+        const redirectUri = `${requestUrl.protocol}//${requestUrl.hostname}`;
+
         const tokenResponse = await fetch(tokenUrl.toString(), {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -61,7 +65,7 @@ export async function onRequestPost(context) {
                 client_secret: env.AUTHING_APP_SECRET,
                 grant_type: 'authorization_code',
                 code: code,
-                redirect_uri: new URL(request.headers.get('Origin')).toString()
+                redirect_uri: redirectUri
             })
         });
 
