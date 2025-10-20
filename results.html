@@ -30,224 +30,9 @@
             }
         }
     </script>
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        
-        const appId = 'pistacho-b9efe';
-        const firebaseConfig = JSON.parse('{"apiKey":"AIzaSyDC-8qbWsjRyxBzJpfCi9n3ftzdg9FStF0","authDomain":"pistacho-b9efe.firebaseapp.com","projectId":"pistacho-b9efe","storageBucket":"pistacho-b9efe.appspot.com","messagingSenderId":"686695750713","appId":"1:686695750713:web:5314331be7b46e93f401e8","measurementId":"G-HQS7Q78LY7"}');
+    <!-- 引入 Authing.cn JS SDK -->
+    <script src="https://cdn.authing.cn/packages/authing-js-sdk/5.1.5/authing-js-sdk.min.js"></script>
 
-        const GRADING_SCALE = [
-          { "grade": "P", "name_en": "Pinnacle", "name_cn": "顶峰 / 登峰造极", "min_score": 95, "color": "gold" },
-          { "grade": "I", "name_en": "Impeccable", "name_cn": "无暇 / 完美无瑕", "min_score": 90, "color": "indigo" },
-          { "grade": "S", "name_en": "Superior", "name_cn": "卓越 / 出众", "min_score": 85, "color": "purple" },
-          { "grade": "T", "name_en": "Terrific", "name_cn": "极好 / 绝佳", "min_score": 80, "color": "blue" },
-          { "grade": "A", "name_en": "Appreciable", "name_cn": "可圈可点 / 值得欣赏", "min_score": 70, "color": "green" },
-          { "grade": "C", "name_en": "Commonplace", "name_cn": "平庸 / 普通", "min_score": 60, "color": "gray" },
-          { "grade": "H", "name_en": "Hesitant", "name_cn": "犹豫 / 瑕瑜互见", "min_score": 40, "color": "orange" },
-          { "grade": "O", "name_en": "Ordinary", "name_cn": "乏善可陈 / 平淡", "min_score": 0, "color": "red" }
-        ];
-
-        let db, auth;
-        let currentAuthUser = null;
-        let resultsData = null; 
-        let normalizedScore = 0;
-        let finalGrade = null;
-        const RATINGS_COLLECTION_PATH = `/artifacts/${appId}/public/data/ratings`;
-
-        try {
-            const app = initializeApp(firebaseConfig);
-            db = getFirestore(app);
-            auth = getAuth(app);
-        } catch (e) { console.error("Firebase init failed", e); }
-
-        window.saveRating = async function() {
-            if (!currentAuthUser || currentAuthUser.isAnonymous) {
-                return alert("请登录后保存您的评分记录。");
-            }
-            if (!resultsData) {
-                return alert("没有可保存的评分数据。");
-            }
-            const saveButton = document.getElementById('save-rating-button');
-            saveButton.textContent = "正在保存...";
-            saveButton.disabled = true;
-
-            try {
-                const ratingToSave = {
-                    userId: currentAuthUser.uid,
-                    userEmail: currentAuthUser.email,
-                    timestamp: serverTimestamp(),
-                    cigarInfo: resultsData.cigarInfo,
-                    cigarReview: resultsData.cigarReview,
-                    calculatedScore: resultsData.calculatedScore,
-                    normalizedScore: normalizedScore, 
-                    finalGrade: finalGrade,           
-                    ratings: resultsData.ratings,
-                    config: resultsData.config,
-                };
-                await addDoc(collection(db, RATINGS_COLLECTION_PATH), ratingToSave);
-                saveButton.textContent = "已保存";
-                saveButton.classList.add('bg-gray-400', 'cursor-not-allowed');
-                alert("评分已成功保存到您的历史记录！");
-            } catch (error) {
-                alert(`保存失败: ${error.message}`);
-                saveButton.textContent = "保存为我的评分记录";
-                saveButton.disabled = false;
-            }
-        };
-
-        window.onload = function() {
-            onAuthStateChanged(auth, (user) => {
-                currentAuthUser = user;
-                const storedData = sessionStorage.getItem('cigarRatingResults');
-                const errorContainer = document.getElementById('error-container');
-                const mainContent = document.getElementById('main-content');
-                
-                if (!storedData) { 
-                    if (errorContainer) {
-                        errorContainer.innerHTML = `<p class="font-bold text-center">没有找到评分数据！<a href="index.html" class="text-indigo-600 underline">返回评分</a></p>`;
-                        errorContainer.classList.remove('hidden');
-                    }
-                    if (mainContent) mainContent.style.display = 'none';
-                    return; 
-                }
-
-                try {
-                    resultsData = JSON.parse(storedData);
-                    const { config, ratings, calculatedScore, cigarInfo, cigarReview, isDraft } = resultsData;
-                    
-                    const maxScore = config.totalWeightMax || 100;
-                    normalizedScore = maxScore > 0 ? (calculatedScore / maxScore) * 100 : 0;
-                    
-                    finalGrade = GRADING_SCALE[GRADING_SCALE.length - 1];
-                    for (const grade of GRADING_SCALE) {
-                        if (normalizedScore >= grade.min_score) {
-                            finalGrade = grade;
-                            break;
-                        }
-                    }
-
-                    const saveButtonContainer = document.getElementById('save-button-container');
-                    if (user && !user.isAnonymous && isDraft) {
-                        saveButtonContainer?.classList.remove('hidden');
-                    }
-                    
-                    if (cigarInfo) document.getElementById('cigar-info-container').innerHTML = `<div class="bg-white rounded-xl p-6 text-center"><h2 class="text-3xl font-bold">${cigarInfo.name}</h2><div class="mt-2 flex justify-center space-x-6 text-gray-500"><span><strong>尺寸:</strong> ${cigarInfo.size}</span><span><strong>产地:</strong> ${cigarInfo.origin}</span></div></div>`;
-                    
-                    const narrativeSummary = generateNarrativeSummary(cigarInfo, config, ratings, finalGrade);
-                    document.getElementById('narrative-summary-container').innerHTML = narrativeSummary;
-                    
-                    if (cigarReview) document.getElementById('cigar-review-container').textContent = cigarReview;
-                    
-                    renderResultsCard(document.getElementById('results-card-container'), normalizedScore, finalGrade);
-                    document.getElementById('score-details-container').innerHTML = `<p class="text-lg">原始得分: <span class="font-bold">${calculatedScore.toFixed(2)}</span> / ${maxScore.toFixed(2)}</p>`;
-                    renderSummary(document.getElementById('summary-container'), config, ratings);
-                    renderFullScale(document.getElementById('full-scale-container'), finalGrade);
-
-                    mainContent.classList.add('animate-fadeInUp');
-                } catch (e) { 
-                     if(errorContainer){
-                        errorContainer.innerHTML = `<p class="font-bold text-center">解析数据出错！<a href="index.html" class="text-indigo-600 underline">返回重试</a></p><p class="text-sm text-gray-600">${e.message}</p>`;
-                        errorContainer.classList.remove('hidden');
-                     }
-                     if (mainContent) mainContent.style.display = 'none';
-                     console.error("Results page error:", e);
-                }
-            });
-        }
-        
-        function generateNarrativeSummary(cigarInfo, config, ratings, finalGrade) {
-            let summary = `<p class="text-base text-gray-700 leading-relaxed">`;
-            summary += `本次品鉴的雪茄是来自<strong class="font-semibold">${cigarInfo.origin}</strong>的<strong class="font-semibold">${cigarInfo.name}</strong>，尺寸为<strong class="font-semibold">${cigarInfo.size}</strong>。`;
-            
-            let observations = [];
-            (config.ratingCriteria || []).forEach(category => {
-                (category.criteriaList || []).forEach(criterion => {
-                    const id = getRatingId(category.category, criterion.name);
-                    const selectedOptionIndex = ratings[id];
-                    if (selectedOptionIndex !== undefined && criterion.options?.[selectedOptionIndex]) {
-                        const option = criterion.options[selectedOptionIndex];
-                        observations.push(`在<strong class="font-semibold">${criterion.name}</strong>方面，其表现为“${option.description}”`);
-                    }
-                });
-            });
-
-            if (observations.length > 0) {
-                summary += ` 品鉴过程中，我们观察到：${observations.join('；')}。`;
-            }
-
-            // (*** 已修改：更新结尾格式 ***)
-            const gradeHierarchy = GRADING_SCALE.map(g => g.name_en).join('-');
-            summary += ` 综合来看，本次基于Pistacho Cigar Rating System（Pistacho雪茄评分）的最终评级为<strong class="font-semibold text-indigo-600">“${finalGrade.name_en} - ${finalGrade.name_cn}”</strong>。${gradeHierarchy}`;
-            summary += `</p>`;
-            return summary;
-        }
-
-        function getRatingId(category, criterion) {
-            return `${String(category).trim()}-${String(criterion).trim()}`;
-        }
-
-        function renderResultsCard(container, score, grade) {
-            if (!container || !grade || !grade.color) return;
-            const styles = getGradeStyles(grade.color);
-            container.innerHTML = `<div class="relative rounded-2xl p-8 text-white overflow-hidden shadow-2xl ${styles.bgGradient} ${styles.shadowColor}"><div class="relative z-10 flex justify-between items-center"><div><p class="font-medium opacity-80">${grade.name_en}</p><h2 class="text-4xl font-extrabold tracking-tight">${grade.name_cn}</h2><p class="mt-4 text-7xl font-black">${score.toFixed(2)}</p></div><div class="flex-shrink-0 w-32 h-32 rounded-full border-4 border-white border-opacity-50 flex flex-col items-center justify-center bg-white bg-opacity-10 backdrop-blur-sm"><span class="text-6xl font-black">${grade.grade}</span><span class="font-semibold tracking-widest uppercase text-sm">${grade.name_en}</span></div></div></div>`;
-        }
-
-        function renderSummary(container, config, ratings) {
-            if (!container) return;
-            let summaryHtml = '';
-            (config.ratingCriteria || []).forEach((category) => {
-                summaryHtml += `<div class="mb-4"><h4 class="text-md font-semibold text-gray-600 mb-2 border-b pb-1">${category.category}</h4><ul class="list-none space-y-1 text-sm">`;
-                (category.criteriaList || []).forEach((criterion) => {
-                    const id = getRatingId(category.category, criterion.name);
-                    const selectedOptionIndex = ratings[id];
-                    if (selectedOptionIndex !== undefined && criterion.options && criterion.options[selectedOptionIndex]) {
-                        const option = criterion.options[selectedOptionIndex];
-                        const weightedScore = (criterion.weight || 0) * (option.scorePct || 0);
-                        summaryHtml += `<li class="flex justify-between items-center p-1"><div><span class="font-medium text-gray-700">${criterion.name}:</span><span class="text-gray-500 ml-2">${option.description}</span></div><span class="font-semibold text-green-600">+${weightedScore.toFixed(2)}</span></li>`;
-                    }
-                });
-                summaryHtml += `</ul></div>`;
-            });
-            container.innerHTML = summaryHtml;
-        }
-
-        function renderFullScale(container, finalGrade) {
-            if (!container) return;
-            let scaleHtml = '<div class="space-y-3">';
-            GRADING_SCALE.forEach(grade => {
-                const isCurrentGrade = grade.grade === finalGrade.grade;
-                const styles = getGradeStyles(grade.color);
-                const highlightClasses = isCurrentGrade ? `border-blue-500 bg-blue-50 ring-2 ring-blue-200 animate-highlight` : 'border-gray-200 bg-white hover:bg-gray-50';
-                scaleHtml += `<div class="p-4 rounded-lg border-2 transition-all duration-300 ${highlightClasses}"><div class="flex items-center space-x-4"><div class="w-8 h-8 flex-shrink-0 rounded-full flex items-center justify-center font-black text-xl ${styles.textColor} ${styles.bgColor}">${grade.grade}</div><div class="flex-grow"><p class="font-bold text-lg ${styles.textColor}">${grade.name_cn}</p><p class="text-sm text-gray-500">${grade.name_en}</p></div><p class="font-mono font-semibold text-gray-700 text-right">${getScoreRange(grade.grade)}</p></div></div>`;
-            });
-            scaleHtml += '</div>';
-            container.innerHTML = scaleHtml;
-        }
-
-        function getScoreRange(grade) {
-            const index = GRADING_SCALE.findIndex(g => g.grade === grade);
-            if (index === -1) return '';
-            const min = GRADING_SCALE[index].min_score;
-            const max = index === 0 ? 100 : GRADING_SCALE[index - 1].min_score - 0.01;
-            return index === 0 ? `${min}-100` : `${min.toFixed(0)}-${max.toFixed(2)}`;
-        }
-
-        function getGradeStyles(color) {
-            const stylesMap = {
-                'gold':   { bgColor: 'bg-yellow-400', textColor: 'text-yellow-800', bgGradient: 'bg-gradient-to-br from-yellow-400 to-amber-500', shadowColor: 'shadow-yellow-500/50' },
-                'indigo': { bgColor: 'bg-indigo-300', textColor: 'text-indigo-800', bgGradient: 'bg-gradient-to-br from-indigo-500 to-purple-600', shadowColor: 'shadow-indigo-500/50' },
-                'purple': { bgColor: 'bg-purple-300', textColor: 'text-purple-800', bgGradient: 'bg-gradient-to-br from-purple-500 to-violet-600', shadowColor: 'shadow-purple-500/50' },
-                'blue':   { bgColor: 'bg-blue-300',   textColor: 'text-blue-800',   bgGradient: 'bg-gradient-to-br from-blue-500 to-cyan-600',   shadowColor: 'shadow-blue-500/50' },
-                'green':  { bgColor: 'bg-green-300',  textColor: 'text-green-800',  bgGradient: 'bg-gradient-to-br from-green-500 to-lime-600',   shadowColor: 'shadow-green-500/50' },
-                'gray':   { bgColor: 'bg-gray-300',   textColor: 'text-gray-800',   bgGradient: 'bg-gradient-to-br from-gray-500 to-slate-600',    shadowColor: 'shadow-gray-500/50' },
-                'orange': { bgColor: 'bg-orange-300', textColor: 'text-orange-800', bgGradient: 'bg-gradient-to-br from-orange-500 to-amber-600',  shadowColor: 'shadow-orange-500/50' },
-                'red':    { bgColor: 'bg-red-300',    textColor: 'text-red-800',    bgGradient: 'bg-gradient-to-br from-red-500 to-rose-600',     shadowColor: 'shadow-red-500/50' }
-            };
-            return stylesMap[color] || stylesMap['gray'];
-        }
-    </script>
 </head>
 <body class="bg-gray-100 font-sans antialiased text-gray-800">
     <div class="max-w-4xl mx-auto p-4 md:p-8">
@@ -319,6 +104,251 @@
             </footer>
         </div>
     </div>
+    <script type="module">
+        // --- 全局变量和常量 ---
+        const GRADING_SCALE = [
+          { "grade": "P", "name_en": "Pinnacle", "name_cn": "顶峰 / 登峰造极", "min_score": 95, "color": "gold" },
+          { "grade": "I", "name_en": "Impeccable", "name_cn": "无暇 / 完美无瑕", "min_score": 90, "color": "indigo" },
+          { "grade": "S", "name_en": "Superior", "name_cn": "卓越 / 出众", "min_score": 85, "color": "purple" },
+          { "grade": "T", "name_en": "Terrific", "name_cn": "极好 / 绝佳", "min_score": 80, "color": "blue" },
+          { "grade": "A", "name_en": "Appreciable", "name_cn": "可圈可点 / 值得欣赏", "min_score": 70, "color": "green" },
+          { "grade": "C", "name_en": "Commonplace", "name_cn": "平庸 / 普通", "min_score": 60, "color": "gray" },
+          { "grade": "H", "name_en": "Hesitant", "name_cn": "犹豫 / 瑕瑜互见", "min_score": 40, "color": "orange" },
+          { "grade": "O", "name_en": "Ordinary", "name_cn": "乏善可陈 / 平淡", "min_score": 0, "color": "red" }
+        ];
+
+        let currentAuthUser = null;
+        let resultsData = null; 
+        let normalizedScore = 0;
+        let finalGrade = null;
+        let authingClient = null;
+        
+        // --- 核心功能: 保存评分 ---
+        window.saveRating = async function() {
+            if (!authingClient) {
+                return alert("认证服务未就绪，无法保存。");
+            }
+            if (!currentAuthUser) {
+                return alert("请登录后保存您的评分记录。");
+            }
+            if (!resultsData) {
+                return alert("没有可保存的评分数据。");
+            }
+            const saveButton = document.getElementById('save-rating-button');
+            saveButton.textContent = "正在保存...";
+            saveButton.disabled = true;
+
+            try {
+                const loginState = await authingClient.getLoginState();
+                if (!loginState || !loginState.accessToken) {
+                    throw new Error("无法获取认证 Token，请重新登录。");
+                }
+                const token = loginState.accessToken;
+
+                const ratingToSave = {
+                    ...resultsData,
+                    normalizedScore: normalizedScore, 
+                    finalGrade: finalGrade,
+                };
+                
+                const apiUrl = new URL('/api/ratings', window.location.origin);
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(ratingToSave)
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || `服务器错误: ${response.status}`);
+                }
+
+                saveButton.textContent = "已保存";
+                saveButton.classList.add('bg-gray-400', 'cursor-not-allowed');
+                alert("评分已成功保存到您的历史记录！");
+
+            } catch (error) {
+                alert(`保存失败: ${error.message}`);
+                saveButton.textContent = "保存为我的评分记录";
+                saveButton.disabled = false;
+            }
+        };
+
+        // --- 页面加载逻辑 ---
+        window.onload = async function() {
+            const storedData = sessionStorage.getItem('cigarRatingResults');
+            const errorContainer = document.getElementById('error-container');
+            const mainContent = document.getElementById('main-content');
+
+            const waitForAuthing = (timeout = 10000) => {
+                return new Promise((resolve, reject) => {
+                    if (window.authing) { return resolve(); }
+                    const interval = setInterval(() => {
+                        if (window.authing) {
+                            clearInterval(interval);
+                            clearTimeout(timer);
+                            resolve();
+                        }
+                    }, 100);
+                    const timer = setTimeout(() => {
+                        clearInterval(interval);
+                        reject(new Error("认证服务(Authing SDK)加载超时。"));
+                    }, timeout);
+                });
+            };
+
+            try {
+                await waitForAuthing();
+                authingClient = new window.authing.AuthenticationClient({
+                    appId: '68f5b0b6875017c02b3bfdb3',
+                    appHost: 'https://xfvu647mcdbk-demo.authing.cn',
+                    redirectUri: window.location.origin,
+                });
+                const session = await authingClient.getLoginState();
+                currentAuthUser = session ? session.userInfo : null;
+            } catch(e) {
+                console.error("检查登录状态失败:", e);
+                currentAuthUser = null;
+                errorContainer.innerHTML = `<p class="font-bold text-center">无法加载认证服务。(${e.message})</p>`;
+                errorContainer.classList.remove('hidden');
+            }
+            
+            if (!storedData) { 
+                errorContainer.innerHTML = `<p class="font-bold text-center">没有找到评分数据！<a href="index.html" class="text-indigo-600 underline">返回评分</a></p>`;
+                errorContainer.classList.remove('hidden');
+                if (mainContent) mainContent.style.display = 'none';
+                return; 
+            }
+            
+            try {
+                resultsData = JSON.parse(storedData);
+                const { config, ratings, calculatedScore, cigarInfo, cigarReview, isDraft } = resultsData;
+                
+                const maxScore = config.totalWeightMax || 100;
+                normalizedScore = maxScore > 0 ? (calculatedScore / maxScore) * 100 : 0;
+                
+                finalGrade = GRADING_SCALE.find(g => normalizedScore >= g.min_score) || GRADING_SCALE[GRADING_SCALE.length - 1];
+
+                const saveButtonContainer = document.getElementById('save-button-container');
+                if (currentAuthUser && isDraft) {
+                    saveButtonContainer?.classList.remove('hidden');
+                }
+                
+                if (cigarInfo) document.getElementById('cigar-info-container').innerHTML = `<div class="bg-white rounded-xl p-6 text-center"><h2 class="text-3xl font-bold">${cigarInfo.name}</h2><div class="mt-2 flex justify-center space-x-6 text-gray-500"><span><strong>尺寸:</strong> ${cigarInfo.size}</span><span><strong>产地:</strong> ${cigarInfo.origin}</span></div></div>`;
+                
+                const narrativeSummary = generateNarrativeSummary(cigarInfo, config, ratings, finalGrade);
+                document.getElementById('narrative-summary-container').innerHTML = narrativeSummary;
+                
+                if (cigarReview) document.getElementById('cigar-review-container').textContent = cigarReview;
+                
+                renderResultsCard(document.getElementById('results-card-container'), normalizedScore, finalGrade);
+                document.getElementById('score-details-container').innerHTML = `<p class="text-lg">原始得分: <span class="font-bold">${calculatedScore.toFixed(2)}</span> / ${maxScore.toFixed(2)}</p>`;
+                renderSummary(document.getElementById('summary-container'), config, ratings);
+                renderFullScale(document.getElementById('full-scale-container'), finalGrade);
+
+                mainContent.classList.add('animate-fadeInUp');
+            } catch (e) { 
+                 errorContainer.innerHTML = `<p class="font-bold text-center">解析数据出错！<a href="index.html" class="text-indigo-600 underline">返回重试</a></p><p class="text-sm text-gray-600">${e.message}</p>`;
+                 errorContainer.classList.remove('hidden');
+                 if (mainContent) mainContent.style.display = 'none';
+                 console.error("Results page error:", e);
+            }
+        };
+        
+        // --- 渲染和工具函数 (未改变) ---
+        function generateNarrativeSummary(cigarInfo, config, ratings, finalGrade) {
+            let summary = `<p class="text-base text-gray-700 leading-relaxed">`;
+            summary += `本次品鉴的雪茄是来自<strong class="font-semibold">${cigarInfo.origin}</strong>的<strong class="font-semibold">${cigarInfo.name}</strong>，尺寸为<strong class="font-semibold">${cigarInfo.size}</strong>。`;
+            
+            let observations = [];
+            (config.ratingCriteria || []).forEach(category => {
+                (category.criteriaList || []).forEach(criterion => {
+                    const id = getRatingId(category.category, criterion.name);
+                    const selectedOptionIndex = ratings[id];
+                    if (selectedOptionIndex !== undefined && criterion.options?.[selectedOptionIndex]) {
+                        const option = criterion.options[selectedOptionIndex];
+                        observations.push(`在<strong class="font-semibold">${criterion.name}</strong>方面，其表现为“${option.description}”`);
+                    }
+                });
+            });
+
+            if (observations.length > 0) {
+                summary += ` 品鉴过程中，我们观察到：${observations.join('；')}。`;
+            }
+
+            const gradeHierarchy = GRADING_SCALE.map(g => g.name_en).join('-');
+            summary += ` 综合来看，本次基于Pistacho Cigar Rating System（Pistacho雪茄评分）的最终评级为<strong class="font-semibold text-indigo-600">“${finalGrade.name_en} - ${finalGrade.name_cn}”</strong>。${gradeHierarchy}`;
+            summary += `</p>`;
+            return summary;
+        }
+
+        function getRatingId(category, criterion) {
+            return `${String(category).trim()}-${String(criterion).trim()}`;
+        }
+
+        function renderResultsCard(container, score, grade) {
+            if (!container || !grade || !grade.color) return;
+            const styles = getGradeStyles(grade.color);
+            container.innerHTML = `<div class="relative rounded-2xl p-8 text-white overflow-hidden shadow-2xl ${styles.bgGradient} ${styles.shadowColor}"><div class="relative z-10 flex justify-between items-center"><div><p class="font-medium opacity-80">${grade.name_en}</p><h2 class="text-4xl font-extrabold tracking-tight">${grade.name_cn}</h2><p class="mt-4 text-7xl font-black">${score.toFixed(2)}</p></div><div class="flex-shrink-0 w-32 h-32 rounded-full border-4 border-white border-opacity-50 flex flex-col items-center justify-center bg-white bg-opacity-10 backdrop-blur-sm"><span class="text-6xl font-black">${grade.grade}</span><span class="font-semibold tracking-widest uppercase text-sm">${grade.name_en}</span></div></div></div>`;
+        }
+
+        function renderSummary(container, config, ratings) {
+            if (!container) return;
+            let summaryHtml = '';
+            (config.ratingCriteria || []).forEach((category) => {
+                summaryHtml += `<div class="mb-4"><h4 class="text-md font-semibold text-gray-600 mb-2 border-b pb-1">${category.category}</h4><ul class="list-none space-y-1 text-sm">`;
+                (category.criteriaList || []).forEach((criterion) => {
+                    const id = getRatingId(category.category, criterion.name);
+                    const selectedOptionIndex = ratings[id];
+                    if (selectedOptionIndex !== undefined && criterion.options && criterion.options[selectedOptionIndex]) {
+                        const option = criterion.options[selectedOptionIndex];
+                        const weightedScore = (criterion.weight || 0) * (option.scorePct || 0);
+                        summaryHtml += `<li class="flex justify-between items-center p-1"><div><span class="font-medium text-gray-700">${criterion.name}:</span><span class="text-gray-500 ml-2">${option.description}</span></div><span class="font-semibold text-green-600">+${weightedScore.toFixed(2)}</span></li>`;
+                    }
+                });
+                summaryHtml += `</ul></div>`;
+            });
+            container.innerHTML = summaryHtml;
+        }
+
+        function renderFullScale(container, finalGrade) {
+            if (!container) return;
+            let scaleHtml = '<div class="space-y-3">';
+            GRADING_SCALE.forEach(grade => {
+                const isCurrentGrade = grade.grade === finalGrade.grade;
+                const styles = getGradeStyles(grade.color);
+                const highlightClasses = isCurrentGrade ? `border-blue-500 bg-blue-50 ring-2 ring-blue-200 animate-highlight` : 'border-gray-200 bg-white hover:bg-gray-50';
+                scaleHtml += `<div class="p-4 rounded-lg border-2 transition-all duration-300 ${highlightClasses}"><div class="flex items-center space-x-4"><div class="w-8 h-8 flex-shrink-0 rounded-full flex items-center justify-center font-black text-xl ${styles.textColor} ${styles.bgColor}">${grade.grade}</div><div class="flex-grow"><p class="font-bold text-lg ${styles.textColor}">${grade.name_cn}</p><p class="text-sm text-gray-500">${grade.name_en}</p></div><p class="font-mono font-semibold text-gray-700 text-right">${getScoreRange(grade.grade)}</p></div></div>`;
+            });
+            scaleHtml += '</div>';
+            container.innerHTML = scaleHtml;
+        }
+
+        function getScoreRange(grade) {
+            const index = GRADING_SCALE.findIndex(g => g.grade === grade);
+            if (index === -1) return '';
+            const min = GRADING_SCALE[index].min_score;
+            const max = index === 0 ? 100 : GRADING_SCALE[index - 1].min_score - 0.01;
+            return index === 0 ? `${min}-100` : `${min.toFixed(0)}-${max.toFixed(2)}`;
+        }
+
+        function getGradeStyles(color) {
+            const stylesMap = {
+                'gold':   { bgColor: 'bg-yellow-400', textColor: 'text-yellow-800', bgGradient: 'bg-gradient-to-br from-yellow-400 to-amber-500', shadowColor: 'shadow-yellow-500/50' },
+                'indigo': { bgColor: 'bg-indigo-300', textColor: 'text-indigo-800', bgGradient: 'bg-gradient-to-br from-indigo-500 to-purple-600', shadowColor: 'shadow-indigo-500/50' },
+                'purple': { bgColor: 'bg-purple-300', textColor: 'text-purple-800', bgGradient: 'bg-gradient-to-br from-purple-500 to-violet-600', shadowColor: 'shadow-purple-500/50' },
+                'blue':   { bgColor: 'bg-blue-300',   textColor: 'text-blue-800',   bgGradient: 'bg-gradient-to-br from-blue-500 to-cyan-600',   shadowColor: 'shadow-blue-500/50' },
+                'green':  { bgColor: 'bg-green-300',  textColor: 'text-green-800',  bgGradient: 'bg-gradient-to-br from-green-500 to-lime-600',   shadowColor: 'shadow-green-500/50' },
+                'gray':   { bgColor: 'bg-gray-300',   textColor: 'text-gray-800',   bgGradient: 'bg-gradient-to-br from-gray-500 to-slate-600',    shadowColor: 'shadow-gray-500/50' },
+                'orange': { bgColor: 'bg-orange-300', textColor: 'text-orange-800', bgGradient: 'bg-gradient-to-br from-orange-500 to-amber-600',  shadowColor: 'shadow-orange-500/50' },
+                'red':    { bgColor: 'bg-red-300',    textColor: 'text-red-800',    bgGradient: 'bg-gradient-to-br from-red-500 to-rose-600',     shadowColor: 'shadow-red-500/50' }
+            };
+            return stylesMap[color] || stylesMap['gray'];
+        }
+    </script>
 </body>
 </html>
 
