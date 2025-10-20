@@ -114,7 +114,6 @@
         let userRatings = {};    
         let currentAuthUser = null; 
         
-        // Authing 配置 (硬编码，因为它们是公开的)
         const AUTHING_APP_ID = '68f5b0b6875017c02b3bfdb3';
         const AUTHING_HOST = 'https://xfvu647mcdbk-demo.authing.cn';
 
@@ -123,19 +122,14 @@
         // ---------------------------------------------------
         window.login = function() {
             const redirectUri = window.location.origin;
-            console.log("发起认证，回调地址为:", redirectUri); // 添加日志
-
-            // 手动构建授权 URL
             const authorizeUrl = new URL('/oidc/auth', AUTHING_HOST);
             authorizeUrl.search = new URLSearchParams({
                 client_id: AUTHING_APP_ID,
                 redirect_uri: redirectUri,
                 response_type: 'code',
-                scope: 'openid profile email phone roles', // 获取我们需要的全部信息
-                state: Math.random().toString(36).substring(2) // 随机 state 防止 CSRF
+                scope: 'openid profile email phone', 
+                state: Math.random().toString(36).substring(2)
             }).toString();
-            
-            // 跳转到 Authing 登录页
             window.location.href = authorizeUrl.toString();
         }
 
@@ -144,8 +138,8 @@
              logoutUrl.search = new URLSearchParams({
                 post_logout_redirect_uri: window.location.origin
              }).toString();
-             // 清除前端会话
              sessionStorage.removeItem('userInfo');
+             sessionStorage.removeItem('accessToken');
              window.location.href = logoutUrl.toString();
         }
 
@@ -163,48 +157,19 @@
             const adminLinksContainer = document.getElementById('admin-links-container');
             adminLinksContainer.innerHTML = '';
             if (!adminLinksContainer || !currentAuthUser) return;
-            // FIX: The user role check needs to come from our database role, not Authing's.
-            // We need to call a new API endpoint to get the current user's role from our DB.
-            // For now, let's assume `currentAuthUser.db_role` exists.
-            const userRole = currentAuthUser.db_role;
-
+            
+            const userRole = currentAuthUser.db_role; 
             const isAdmin = userRole === 'admin' || userRole === 'super_admin';
             const isSuperAdmin = userRole === 'super_admin';
 
-            let linksHtml = '';
             if (isAdmin) {
-                // This link is kept from the previous logic
-                linksHtml += `<a href="cigar_rating_config.html" class="flex items-center px-3 py-1.5 border text-xs font-medium rounded-full text-white bg-indigo-600 hover:bg-indigo-500">标准修改</a>`;
+                 adminLinksContainer.innerHTML += `<a href="cigar_rating_config.html" class="flex items-center px-3 py-1.5 border text-xs font-medium rounded-full text-white bg-blue-600 hover:bg-blue-500">评分配置</a>`;
             }
             if (isSuperAdmin) {
-                // The old logic for super_admin link is now separated and correctly placed
-                linksHtml += `<a href="role_management.html" class="flex items-center px-3 py-1.5 border text-xs font-medium rounded-full text-yellow-100 bg-purple-600 hover:bg-purple-500 ml-2">用户管理</a>`;
-            }
-            
-            // New logic to add the links as requested
-            if (isSuperAdmin) {
-                // Adding the new "评分配置" link for super admins
-                adminLinksContainer.innerHTML += `<a href="cigar_rating_config.html" class="flex items-center px-3 py-1.5 border text-xs font-medium rounded-full text-white bg-blue-600 hover:bg-blue-500">评分配置</a>`;
-                // Adding the new "用户管理" link for super admins, with some margin
                 adminLinksContainer.innerHTML += `<a href="role_management.html" class="flex items-center px-3 py-1.5 border text-xs font-medium rounded-full text-yellow-100 bg-purple-600 hover:bg-purple-500 ml-2">用户管理</a>`;
-            } else if (isAdmin) {
-                // Admins (not super) only see the "评分配置" link
-                adminLinksContainer.innerHTML += `<a href="cigar_rating_config.html" class="flex items-center px-3 py-1.5 border text-xs font-medium rounded-full text-white bg-blue-600 hover:bg-blue-500">评分配置</a>`;
             }
         }
         
-        // ---------------------------------------------------
-        // 3. 配置加载
-        // ---------------------------------------------------
-        async function loadConfig() {
-            /* ... (与之前版本相同，此处省略以保持简洁) ... */
-        }
-        
-        // ---------------------------------------------------
-        // 4. 评分逻辑 (与之前版本相同)
-        // ---------------------------------------------------
-        /* ... (所有评分逻辑函数与之前版本相同，此处省略以保持简洁) ... */
-
         // ---------------------------------------------------
         // 5. 启动函数
         // ---------------------------------------------------
@@ -212,14 +177,30 @@
             document.getElementById('main-content').style.opacity = '0.5';
             document.getElementById('config-load-status').textContent = '正在验证登录...';
             try {
-// ... existing code ... -->
-                // 将用户信息存入 sessionStorage，这样其他页面也能知道登录状态
+                const response = await fetch('/api/authing/callback', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code: code })
+                });
+
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.error || '认证回调失败');
+                }
+                
+                currentAuthUser = await response.json();
+                
                 sessionStorage.setItem('userInfo', JSON.stringify(currentAuthUser));
+                sessionStorage.setItem('accessToken', currentAuthUser.accessToken);
 
             } catch (e) {
                 console.error('认证回调处理失败:', e);
                 alert(`登录失败: ${e.message}`);
-// ... existing code ... -->
+                currentAuthUser = null;
+                sessionStorage.removeItem('userInfo');
+                sessionStorage.removeItem('accessToken');
+            } finally {
+                window.history.replaceState({}, document.title, window.location.pathname);
                 document.getElementById('main-content').style.opacity = '1';
             }
         }
@@ -229,25 +210,144 @@
             const code = urlParams.get('code');
 
             if (code) {
-                // 如果 URL 中有 code，说明是从 Authing 跳转回来的
                 await handleOidcCallback(code);
             } else {
-                // 否则，尝试从 sessionStorage 恢复登录状态
                 const storedUser = sessionStorage.getItem('userInfo');
                 if (storedUser) {
                     currentAuthUser = JSON.parse(storedUser);
                 }
             }
             
-            // --- 诊断日志 ---
-            // 这将在浏览器的开发者工具控制台中打印出最终的用户对象
             console.log("Current User Object for role check:", currentAuthUser);
-            // --- 结束诊断 ---
 
             renderLoginStatus(currentAuthUser);
             renderAdminLinks();
             
             // --- 完整评分逻辑 ---
             async function loadConfig() {
-// ... existing code ... -->
+                document.getElementById('config-load-status').textContent = '正在从 Cloudflare 同步配置...';
+                try {
+                    const apiUrl = new URL('/api/config/latest', window.location.origin);
+                    const response = await fetch(apiUrl);
+                    if (!response.ok) throw new Error(`服务器错误: ${response.statusText}`);
+                    ratingConfig = await response.json();
+                    calculateWeights(ratingConfig); 
+                    userRatings = {}; 
+                    renderRatingView(); 
+                    document.getElementById('config-load-status').textContent = `配置已同步`;
+                } catch (error) {
+                    console.error("加载配置失败:", error);
+                    document.getElementById('config-load-status').textContent = '配置加载失败';
+                }
+            }
+
+            function getRatingId(category, criterion) { return `${String(category).trim()}-${String(criterion).trim()}`; }
+            function calculateWeights(config) {
+                if (!config) return;
+                let grandTotal = 0, totalCriteriaCount = 0;
+                (config.ratingCriteria || []).forEach(category => {
+                    let categoryTotal = 0;
+                    (category.criteriaList || []).forEach(criterion => {
+                        categoryTotal += (criterion.weight || 0);
+                        totalCriteriaCount++;
+                    });
+                    category.totalWeight = categoryTotal;
+                    grandTotal += categoryTotal;
+                });
+                config.totalWeightMax = grandTotal;
+                config.totalCriteriaCount = totalCriteriaCount;
+            }
+            function calculateFinalScore() {
+                if (!ratingConfig) return 0;
+                let totalScore = 0;
+                (ratingConfig.ratingCriteria || []).forEach(category => {
+                    (category.criteriaList || []).forEach(criterion => {
+                        const id = getRatingId(category.category, criterion.name);
+                        const selectedOptionIndex = userRatings[id];
+                        if (selectedOptionIndex !== undefined && criterion.options?.[selectedOptionIndex]) {
+                            totalScore += (criterion.weight || 0) * (criterion.options[selectedOptionIndex].scorePct || 0);
+                        }
+                    });
+                });
+                return totalScore;
+            }
+            window.showResults = function() {
+                if (!ratingConfig || Object.keys(userRatings).length === 0) return alert("请至少选择一个评分项后再查看报告。");
+                const cigarInfo = { name: document.getElementById('cigar-name').value || '未命名雪茄', size: document.getElementById('cigar-size').value || '未知尺寸', origin: document.getElementById('cigar-origin').value || '未知产地' };
+                const cigarReview = document.getElementById('cigar-review').value || '无';
+                const finalScore = calculateFinalScore();
+                const resultsData = { config: ratingConfig, ratings: userRatings, calculatedScore: finalScore, cigarInfo: cigarInfo, cigarReview: cigarReview, isDraft: true };
+                try {
+                    sessionStorage.setItem('cigarRatingResults', JSON.stringify(resultsData));
+                    window.location.href = 'results.html';
+                } catch (e) {
+                    alert("无法保存会话数据。");
+                }
+            }
+            window.resetRatings = function() {
+                if (confirm("确定要重置所有评分选择吗？")) {
+                    userRatings = {};
+                    document.getElementById('cigar-name').value = '';
+                    document.getElementById('cigar-size').value = '';
+                    document.getElementById('cigar-origin').value = '';
+                    document.getElementById('cigar-review').value = '';
+                    renderRatingView();
+                }
+            }
+            window.updateRatingSelection = function(categoryName, criterionName, optionIndex) {
+                const id = getRatingId(categoryName, criterionName);
+                userRatings[id] = optionIndex;
+                renderRatingView(); 
+            };
+            function renderRatingView() {
+                if (!ratingConfig) return;
+                const totalScore = calculateFinalScore();
+                document.getElementById('app-title-display').textContent = ratingConfig.appTitle;
+                document.getElementById('app-description-display').textContent = ratingConfig.description;
+                document.getElementById('total-weight-max-display').textContent = ratingConfig.totalWeightMax;
+                document.getElementById('current-score-display').textContent = totalScore.toFixed(2);
+                const ratedCount = Object.keys(userRatings).length;
+                const totalCount = ratingConfig.totalCriteriaCount || 1;
+                document.getElementById('progress-bar').style.width = `${(ratedCount / totalCount) * 100}%`;
+                document.getElementById('progress-text').textContent = `${ratedCount} / ${totalCount}`;
+                const formContainer = document.getElementById('rating-form-container');
+                formContainer.innerHTML = (ratingConfig.ratingCriteria || []).map((category) => `
+                    <div class="bg-white p-6 rounded-xl shadow-lg mb-8 border-l-4 border-indigo-500">
+                        <h3 class="text-xl font-bold text-indigo-700 mb-2">${category.category}</h3>
+                        <p class="text-gray-500 text-sm mb-4">${category.detail || ''}</p>
+                        <div class="space-y-6">${(category.criteriaList || []).map((criterion) => renderRatingCriterion(category.category, criterion)).join('')}</div>
+                    </div>`).join('');
+            }
+            function renderRatingCriterion(categoryName, criterion) {
+                const id = getRatingId(categoryName, criterion.name);
+                const selectedOptionIndex = userRatings[id];
+                const currentWeight = criterion.weight || 0;
+                let currentScore = 0;
+                if (selectedOptionIndex !== undefined && criterion.options?.[selectedOptionIndex]) {
+                    currentScore = currentWeight * (criterion.options[selectedOptionIndex].scorePct || 0);
+                }
+                return `<div class="bg-gray-50 p-4 rounded-lg border">
+                        <div class="flex justify-between items-center mb-3">
+                            <h4 class="text-lg font-semibold text-gray-800">${criterion.name} (${currentWeight} 分)</h4>
+                            <span class="text-xl font-extrabold text-green-600">${currentScore.toFixed(2)}</span>
+                        </div>
+                        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
+                            ${(criterion.options || []).map((option, optIndex) => {
+                                const isSelected = selectedOptionIndex === optIndex;
+                                const score = (currentWeight * (option.scorePct || 0)).toFixed(2);
+                                return `<button onclick="updateRatingSelection('${categoryName}', '${criterion.name}', ${optIndex})" 
+                                        class="p-2 text-sm text-center rounded-lg border transition ${ isSelected ? 'bg-indigo-600 text-white shadow-md' : 'bg-white hover:bg-indigo-50' }">
+                                        ${option.description} 
+                                        <span class="block text-xs ${isSelected ? 'text-indigo-200' : 'text-gray-500'}">(得 ${score} 分)</span>
+                                    </button>`;
+                            }).join('')}
+                        </div>
+                    </div>`;
+            }
+            
+            await loadConfig();
+        };
+    </script>
+</body>
+</html>
 
