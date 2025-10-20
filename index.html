@@ -163,13 +163,33 @@
             const adminLinksContainer = document.getElementById('admin-links-container');
             adminLinksContainer.innerHTML = '';
             if (!adminLinksContainer || !currentAuthUser) return;
-            const userRoles = (currentAuthUser.roles || []).map(r => r.code); 
-            const isAdmin = userRoles.includes('admin') || userRoles.includes('super_admin');
+            // FIX: The user role check needs to come from our database role, not Authing's.
+            // We need to call a new API endpoint to get the current user's role from our DB.
+            // For now, let's assume `currentAuthUser.db_role` exists.
+            const userRole = currentAuthUser.db_role;
+
+            const isAdmin = userRole === 'admin' || userRole === 'super_admin';
+            const isSuperAdmin = userRole === 'super_admin';
+
+            let linksHtml = '';
             if (isAdmin) {
-                adminLinksContainer.innerHTML += `<a href="cigar_rating_config.html" class="flex items-center px-3 py-1.5 border text-xs font-medium rounded-full text-white bg-indigo-600 hover:bg-indigo-500">标准修改</a>`;
+                // This link is kept from the previous logic
+                linksHtml += `<a href="cigar_rating_config.html" class="flex items-center px-3 py-1.5 border text-xs font-medium rounded-full text-white bg-indigo-600 hover:bg-indigo-500">标准修改</a>`;
             }
-            if (userRoles.includes('super_admin')) {
-                adminLinksContainer.innerHTML += `<a href="role_management.html" class="flex items-center px-3 py-1.5 border text-xs font-medium rounded-full text-yellow-100 bg-purple-600 hover:bg-purple-500">角色管理</a>`;
+            if (isSuperAdmin) {
+                // The old logic for super_admin link is now separated and correctly placed
+                linksHtml += `<a href="role_management.html" class="flex items-center px-3 py-1.5 border text-xs font-medium rounded-full text-yellow-100 bg-purple-600 hover:bg-purple-500 ml-2">用户管理</a>`;
+            }
+            
+            // New logic to add the links as requested
+            if (isSuperAdmin) {
+                // Adding the new "评分配置" link for super admins
+                adminLinksContainer.innerHTML += `<a href="cigar_rating_config.html" class="flex items-center px-3 py-1.5 border text-xs font-medium rounded-full text-white bg-blue-600 hover:bg-blue-500">评分配置</a>`;
+                // Adding the new "用户管理" link for super admins, with some margin
+                adminLinksContainer.innerHTML += `<a href="role_management.html" class="flex items-center px-3 py-1.5 border text-xs font-medium rounded-full text-yellow-100 bg-purple-600 hover:bg-purple-500 ml-2">用户管理</a>`;
+            } else if (isAdmin) {
+                // Admins (not super) only see the "评分配置" link
+                adminLinksContainer.innerHTML += `<a href="cigar_rating_config.html" class="flex items-center px-3 py-1.5 border text-xs font-medium rounded-full text-white bg-blue-600 hover:bg-blue-500">评分配置</a>`;
             }
         }
         
@@ -368,4 +388,5 @@
     </script>
 </body>
 </html>
+
 
