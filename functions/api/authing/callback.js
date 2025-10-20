@@ -16,6 +16,11 @@ export async function onRequestPost(context) {
         // --- 步骤 1: 用 code 换取 access_token ---
         const tokenUrl = new URL('/oidc/token', env.AUTHING_ISSUER);
         
+        // **FIX**: Use a more reliable way to determine the redirect URI
+        // Instead of request.headers.get('Origin'), we construct the origin from the request URL itself.
+        const requestUrl = new URL(request.url);
+        const redirectUri = requestUrl.origin;
+
         const tokenResponse = await fetch(tokenUrl.toString(), {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -24,12 +29,14 @@ export async function onRequestPost(context) {
                 client_secret: env.AUTHING_APP_SECRET,
                 grant_type: 'authorization_code',
                 code: code,
-                redirect_uri: new URL(request.headers.get('Origin')).toString() // 使用请求来源作为回调地址
+                redirect_uri: redirectUri 
             })
         });
 
         if (!tokenResponse.ok) {
             const errorData = await tokenResponse.json();
+            // Provide more detailed error logging on the server side
+            console.error("Authing token exchange failed:", JSON.stringify(errorData, null, 2));
             throw new Error(`Failed to exchange token: ${errorData.error_description || tokenResponse.statusText}`);
         }
 
@@ -49,16 +56,16 @@ export async function onRequestPost(context) {
         const userInfo = await userInfoResponse.json();
 
         // --- 步骤 3: 将干净的用户信息返回给前端 ---
-        // 注意：我们只返回用户信息，不返回 token，保证安全。
         return new Response(JSON.stringify(userInfo), {
             headers: { 'Content-Type': 'application/json' }
         });
 
     } catch (e) {
-        console.error("Authing callback error:", e);
+        console.error("Authing callback error:", e.message);
         return new Response(JSON.stringify({ error: e.message }), { 
             status: 500,
             headers: { 'Content-Type': 'application/json' }
         });
     }
 }
+
