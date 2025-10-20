@@ -17,47 +17,195 @@
             }
         }
     </script>
+    <!-- 1. 引入 Authing.cn JS SDK (请使用您从 Authing 官方文档获取的最新版本) -->
+    <script src="https://cdn.authing.cn/packages/authing-js-sdk/5.1.5/authing-js-sdk.min.js"></script>
+</head>
+<body class="bg-gray-100 font-sans antialiased text-gray-800">
+    <div id="app-container" class="max-w-6xl mx-auto p-4 md:p-8">
+        <!-- 导航栏 (Navbar) -->
+        <nav class="mb-4 flex justify-between items-center bg-white p-3 rounded-lg shadow-sm">
+             <a href="index.html" class="text-xl font-bold text-indigo-600">Pistacho评分</a>
+             <div class="space-x-4">
+                 <a href="history.html" class="text-gray-600 hover:text-indigo-600">历史记录</a>
+                 <a href="certified.html" class="text-gray-600 hover:text-indigo-600">认证评分</a>
+             </div>
+        </nav>
+
+        <!-- 头部计分板 (Header Scoreboard) -->
+        <header class="mb-8 p-6 bg-indigo-700 text-white rounded-xl shadow-2xl">
+            <div class="flex justify-between items-start">
+                <div>
+                    <h1 id="app-title-display" class="text-3xl font-extrabold mb-1">雪茄评分应用</h1>
+                    <p id="app-description-display" class="text-indigo-200 text-sm max-w-lg">正在加载描述...</p>
+                </div>
+                 <div class="flex items-center space-x-3 flex-shrink-0">
+                    <!-- 登录状态将由 JS 动态渲染到这里 -->
+                    <div id="login-status-container" class="flex items-center"></div>
+                    <!-- 管理员链接将由 JS 动态渲染到这里 -->
+                    <div id="admin-links-container" class="flex items-center space-x-3"></div>
+                </div>
+            </div>
+            <div class="mt-6 bg-black bg-opacity-20 p-4 rounded-lg">
+                <div class="flex justify-between items-end">
+                    <div>
+                        <p class="text-sm font-medium text-indigo-200">当前得分</p>
+                        <div class="flex items-baseline">
+                            <span id="current-score-display" class="text-6xl font-black leading-none">0.00</span>
+                            <span class="text-lg font-medium text-indigo-200 ml-2">/ <span id="total-weight-max-display">0</span></span>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                         <p class="text-sm font-medium text-indigo-200">已评项目</p>
+                         <p id="progress-text" class="font-bold text-lg">0 / 0</p>
+                    </div>
+                </div>
+                <div class="w-full bg-indigo-900 rounded-full h-2.5 mt-2">
+                    <div id="progress-bar" class="bg-green-400 h-2.5 rounded-full transition-width duration-500" style="width: 0%"></div>
+                </div>
+            </div>
+             <p id="config-load-status" class="text-xs text-yellow-300 mt-2 text-right">正在连接...</p>
+        </header>
+
+        <!-- 雪茄信息输入区 (Cigar Info Section) -->
+        <section class="mb-8 p-6 bg-white rounded-xl shadow-lg">
+            <h2 class="text-xl font-bold text-gray-800 mb-4">雪茄信息</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                    <label for="cigar-name" class="block text-sm font-medium text-gray-700">名称</label>
+                    <input type="text" id="cigar-name" autocomplete="off" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" placeholder="例如：帕特加斯D4">
+                </div>
+                <div>
+                    <label for="cigar-size" class="block text-sm font-medium text-gray-700">尺寸</label>
+                    <input type="text" id="cigar-size" autocomplete="off" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" placeholder="例如：Robusto">
+                </div>
+                <div>
+                    <label for="cigar-origin" class="block text-sm font-medium text-gray-700">产地</label>
+                    <input type="text" id="cigar-origin" autocomplete="off" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" placeholder="例如：古巴">
+                </div>
+            </div>
+        </section>
+
+        <!-- 动态评分表单容器 (Rating Form Container) -->
+        <div id="rating-form-container">
+            <!-- 评分项将由 JS 动态渲染到这里 -->
+        </div>
+
+        <!-- 文字评价区 (Review Section) -->
+        <section class="mt-8 p-6 bg-white rounded-xl shadow-lg">
+            <h2 class="text-xl font-bold text-gray-800 mb-4">文字评价</h2>
+            <div>
+                <textarea id="cigar-review" rows="5" class="w-full p-3 border rounded-md" placeholder="在此处输入您的详细品吸感受..."></textarea>
+            </div>
+        </section>
+
+        <!-- 操作按钮 (Action Buttons) -->
+        <div class="mt-8 grid grid-cols-2 gap-4">
+            <button onclick="resetRatings()" class="w-full py-3 px-6 bg-red-500 text-white font-bold text-lg rounded-lg shadow-md hover:bg-red-600">重置</button>
+            <button onclick="showResults()" class="w-full py-3 px-6 bg-green-600 text-white font-bold text-lg rounded-lg shadow-md hover:bg-green-700">查看报告</button>
+        </div>
+
+        <!-- 页脚 (Footer) -->
+        <footer class="mt-8 text-center text-gray-500 text-sm p-4 border-t">评分应用数据由云端配置中心实时同步。</footer>
+    </div>
+
+    <!-- 2. 新的 Javascript "大脑" -->
     <script>
-        const __app_id = 'pistacho-b9efe'; 
-        const __firebase_config = JSON.stringify({
-            apiKey: "AIzaSyDC-8qbWsjRyxBzJpfCi9n3ftzdg9FStF0", 
-            authDomain: "pistacho-b9efe.firebaseapp.com",
-            projectId: "pistacho-b9efe",
-            storageBucket: "pistacho-b9efe.appspot.com",
-            messagingSenderId: "686695750713",
-            appId: "1:686695750713:web:5314331be7b46e93f401e8",
-            measurementId: "G-HQS7Q78LY7"
-        });
-    </script>
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, onSnapshot, setDoc, getDoc, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-        
-        let db, auth;
+        // ---------------------------------------------------
+        // 1. 全局变量
+        // ---------------------------------------------------
         let ratingConfig = null; 
         let userRatings = {};    
-        let userRole = 'unknown'; 
         let currentAuthUser = null; 
-        let configUnsubscribe = null;
+
+        // ---------------------------------------------------
+        // 2. Authing.cn 认证
+        // ---------------------------------------------------
+        const authingClient = new authing.AuthenticationClient({
+            appId: '68f5b0b6875017c02b3bfdb3', // 您的 App ID
+            appHost: 'https://xfvu647mcdbk-demo.authing.cn', // 您的 App Host
+            redirectUri: window.location.origin, // 重要: 必须和 Authing 仪表板中的 "登录回调 URL" 完全一致
+        });
+
+        // 新的: 登录函数
+        window.login = function() {
+            authingClient.loginWithRedirect();
+        }
+
+        // 新的: 登出函数
+        window.logout = async function() {
+            try {
+                // Authing SDK 登出并重定向回主页
+                const logoutUrl = authingClient.buildLogoutUrl({
+                    redirectUri: window.location.origin 
+                });
+                window.location.href = logoutUrl;
+            } catch(e) { console.error("登出失败:", e); }
+        }
+
+        // 新的: 渲染登录状态
+        function renderLoginStatus(user) { 
+            const container = document.getElementById('login-status-container');
+            if (!container) return;
+            if (user) {
+                // 注意: Authing 的 user 对象字段可能不同 (例如 user.email, user.name)
+                container.innerHTML = `<span class="text-sm font-medium text-yellow-300 mr-2 hidden sm:inline">${user.email || user.name || '已登录'}</span><button onclick="logout()" class="px-3 py-1 text-xs font-medium rounded-full bg-red-500 text-white hover:bg-red-600">退出</button>`;
+            } else {
+                container.innerHTML = `<span class="text-sm font-medium text-indigo-300 mr-2 hidden sm:inline">未登录</span><button onclick="login()" class="px-3 py-1 text-xs font-medium rounded-full bg-green-500 text-white hover:bg-green-600">登录/注册</button>`;
+            }
+        }
+
+        // 新的: 渲染管理员链接
+        function renderAdminLinks() { 
+            const adminLinksContainer = document.getElementById('admin-links-container');
+            if (!adminLinksContainer || !currentAuthUser) return;
+            
+            // 检查 Authing 用户对象中的角色
+            const userRoles = (currentAuthUser.roles || []).map(r => r.code); 
+            const is_admin = userRoles.includes('admin');
+            const is_super_admin = userRoles.includes('super_admin');
+
+            let linksHtml = '';
+            if (is_admin || is_super_admin) {
+                linksHtml += `<a href="cigar_rating_config.html" class="flex items-center px-3 py-1.5 border text-xs font-medium rounded-full text-white bg-indigo-600 hover:bg-indigo-500">标准修改</a>`;
+            }
+            if (is_super_admin) {
+                linksHtml += `<a href="role_management.html" class="flex items-center px-3 py-1.5 border text-xs font-medium rounded-full text-yellow-100 bg-purple-600 hover:bg-purple-500">角色管理</a>`;
+            }
+            adminLinksContainer.innerHTML = linksHtml;
+        }
         
-        const CONFIG_DOC_PATH = `/artifacts/${appId}/public/data/cigar_config/latest`;
-        const USERS_COLLECTION_PATH = 'users';
-        const RATINGS_COLLECTION_PATH = `/artifacts/${appId}/public/data/ratings`;
-
-        const defaultInitialConfig = {
-            appTitle: "雪茄品鉴评分体系 (默认)",
-            description: "这是一个默认的评分配置。管理员可以修改评分标准。",
-            ratingCriteria: [
-                { category: "1. 外观与结构", detail: "评估雪茄的视觉吸引力和物理构造。", criteriaList: [{ name: "茄衣外观", weight: 10, options: [{ description: "粗糙", scorePct: 0.2 }, { description: "中等", scorePct: 0.6 }, { description: "光滑油润", scorePct: 1.0 }] }] }
-            ]
-        };
-
+        // ---------------------------------------------------
+        // 3. 配置加载 (通过 Fetch 调用 Cloudflare Function)
+        // ---------------------------------------------------
+        async function loadConfig() {
+            document.getElementById('config-load-status').textContent = '正在从 Cloudflare 同步配置...';
+            try {
+                // 调用您创建的后端 API
+                const response = await fetch('/api/config/latest');
+                if (!response.ok) {
+                    throw new Error(`服务器错误: ${response.statusText}`);
+                }
+                ratingConfig = await response.json();
+                
+                // --- 您的原始逻辑 (保留) ---
+                calculateWeights(ratingConfig); 
+                userRatings = {}; 
+                renderRatingView(); 
+                document.getElementById('config-load-status').textContent = `配置已同步`;
+                // --- 结束 ---
+            } catch (error) {
+                console.error("加载配置失败:", error);
+                document.getElementById('config-load-status').textContent = '配置加载失败';
+            }
+        }
+        
+        // ---------------------------------------------------
+        // 4. 评分逻辑 (不变, 完整保留)
+        // ---------------------------------------------------
         function getRatingId(category, criterion) { return `${String(category).trim()}-${String(criterion).trim()}`; }
+        
         function calculateWeights(config) {
+            if (!config) return;
             let grandTotal = 0, totalCriteriaCount = 0;
             (config.ratingCriteria || []).forEach(category => {
                 let categoryTotal = 0;
@@ -71,6 +219,7 @@
             config.totalWeightMax = grandTotal;
             config.totalCriteriaCount = totalCriteriaCount;
         }
+        
         function calculateFinalScore() {
             if (!ratingConfig) return 0;
             let totalScore = 0;
@@ -111,7 +260,7 @@
                 sessionStorage.setItem('cigarRatingResults', JSON.stringify(resultsData));
                 window.location.href = 'results.html';
             } catch (e) {
-                alert("无法保存会话数据。");
+                alert("无法保存会话数据，您的浏览器可能已禁用此功能。");
             }
         }
         
@@ -123,100 +272,6 @@
                 document.getElementById('cigar-origin').value = '';
                 document.getElementById('cigar-review').value = '';
                 renderRatingView();
-            }
-        }
-
-        async function fetchUserRole(user) {
-            const uid = user.uid;
-            const roleDocRef = doc(db, USERS_COLLECTION_PATH, uid);
-            try {
-                const docSnap = await getDoc(roleDocRef);
-                if (docSnap.exists() && docSnap.data().role) return docSnap.data().role;
-                if (!user.isAnonymous) {
-                    await setDoc(roleDocRef, { role: 'general', email: user.email, createdAt: new Date().toISOString() }, { merge: true });
-                }
-                return 'general'; 
-            } catch (e) {
-                console.warn("获取用户角色失败:", e);
-                return 'general';
-            }
-        }
-        
-        window.handleLoginSignup = async function(isSignup) {
-            const email = document.getElementById('login-email').value;
-            const password = document.getElementById('login-password').value;
-            const loginStatus = document.getElementById('login-modal-status');
-            loginStatus.textContent = isSignup ? '正在注册...' : '正在登录...';
-            try {
-                if (isSignup) await createUserWithEmailAndPassword(auth, email, password);
-                else await signInWithEmailAndPassword(auth, email, password);
-                document.getElementById('login-modal').classList.add('hidden');
-            } catch (error) {
-                loginStatus.textContent = `失败: ${error.message.replace('Firebase: ','')}`;
-            }
-        }
-
-        window.logout = async function() { try { await signOut(auth); } catch(e) { console.error(e); } }
-        window.showLoginModal = function() { document.getElementById('login-modal').classList.remove('hidden'); }
-        window.hideLoginModal = function() { document.getElementById('login-modal').classList.add('hidden'); }
-
-        async function initFirebase() {
-            try {
-                const app = initializeApp(firebaseConfig);
-                db = getFirestore(app);
-                auth = getAuth(app);
-                onAuthStateChanged(auth, async (user) => {
-                    if (user) {
-                        currentAuthUser = user;
-                        userRole = await fetchUserRole(user); 
-                        renderAdminLinks(); 
-                        renderLoginStatus(user);
-                        loadConfig(); 
-                    } else {
-                        await signInAnonymously(auth);
-                    }
-                });
-            } catch (error) {
-                document.getElementById('app-container').innerHTML = `<div class="p-6 text-red-600 bg-red-100">❌ Firebase 初始化失败: ${error.message}</div>`;
-            }
-        }
-
-        function loadConfig() {
-            if (configUnsubscribe) configUnsubscribe();
-            const configDocRef = doc(db, CONFIG_DOC_PATH);
-            configUnsubscribe = onSnapshot(configDocRef, (docSnap) => {
-                ratingConfig = (docSnap.exists() && docSnap.data().ratingCriteria) ? docSnap.data() : defaultInitialConfig;
-                calculateWeights(ratingConfig);
-                userRatings = {}; 
-                renderRatingView(); 
-                document.getElementById('config-load-status').textContent = `配置已同步`;
-            }, (error) => {
-                console.error("加载配置失败:", error);
-                document.getElementById('config-load-status').textContent = '配置加载失败';
-            });
-        }
-        
-        document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && db) loadConfig(); });
-
-        function renderAdminLinks() { 
-            const adminLinksContainer = document.getElementById('admin-links-container');
-            if (!adminLinksContainer) return;
-            let linksHtml = '';
-            if (userRole === 'admin' || userRole === 'super_admin') {
-                linksHtml += `<a href="cigar_rating_config.html" class="flex items-center px-3 py-1.5 border text-xs font-medium rounded-full text-white bg-indigo-600 hover:bg-indigo-500">标准修改</a>`;
-            }
-            if (userRole === 'super_admin') {
-                 linksHtml += `<a href="role_management.html" class="flex items-center px-3 py-1.5 border text-xs font-medium rounded-full text-yellow-100 bg-purple-600 hover:bg-purple-500">角色管理</a>`;
-            }
-            adminLinksContainer.innerHTML = linksHtml;
-        }
-        function renderLoginStatus(user) { 
-            const container = document.getElementById('login-status-container');
-            if (!container) return;
-            if (user && user.email) {
-                container.innerHTML = `<span class="text-sm font-medium text-yellow-300 mr-2 hidden sm:inline">${user.email}</span><button onclick="logout()" class="px-3 py-1 text-xs font-medium rounded-full bg-red-500 text-white hover:bg-red-600">退出</button>`;
-            } else {
-                 container.innerHTML = `<span class="text-sm font-medium text-indigo-300 mr-2 hidden sm:inline">匿名用户</span><button onclick="showLoginModal()" class="px-3 py-1 text-xs font-medium rounded-full bg-green-500 text-white hover:bg-green-600">登录/注册</button>`;
             }
         }
 
@@ -272,92 +327,33 @@
                     </div>
                 </div>`;
         }
-        window.onload = initFirebase;
+
+        // ---------------------------------------------------
+        // 5. 启动函数 (替换 initFirebase)
+        // ---------------------------------------------------
+        window.onload = async function() {
+            try {
+                // 检查 URL 是否是 Authing 登录后的回调
+                if (await authingClient.isRedirectCallback()) {
+                    // 从 URL 中处理回调，获取 token 和用户信息
+                    const { userInfo } = await authingClient.handleRedirectCallback();
+                    currentAuthUser = userInfo;
+                } else {
+                    // 如果不是回调，就检查是否已经有登录会话
+                    const session = await authingClient.getLoginState();
+                    currentAuthUser = session ? session.userInfo : null;
+                }
+            } catch (e) {
+                // 任何认证错误
+                console.error('认证过程中出错:', e);
+                currentAuthUser = null;
+            }
+            
+            // 无论是否登录，都执行以下操作
+            renderLoginStatus(currentAuthUser); // 更新UI
+            renderAdminLinks(); // 根据角色显示/隐藏管理员链接
+            await loadConfig(); // 调用我们新的 API 来加载配置
+        };
     </script>
-</head>
-<body class="bg-gray-100 font-sans antialiased text-gray-800">
-    <div id="app-container" class="max-w-6xl mx-auto p-4 md:p-8">
-        <nav class="mb-4 flex justify-between items-center bg-white p-3 rounded-lg shadow-sm">
-             <a href="index.html" class="text-xl font-bold text-indigo-600">Pistacho评分</a>
-             <div class="space-x-4">
-                 <a href="history.html" class="text-gray-600 hover:text-indigo-600">历史记录</a>
-                 <a href="certified.html" class="text-gray-600 hover:text-indigo-600">认证评分</a>
-             </div>
-        </nav>
-        <header class="mb-8 p-6 bg-indigo-700 text-white rounded-xl shadow-2xl">
-            <div class="flex justify-between items-start">
-                <div>
-                    <h1 id="app-title-display" class="text-3xl font-extrabold mb-1">雪茄评分应用</h1>
-                    <p id="app-description-display" class="text-indigo-200 text-sm max-w-lg">加载描述中...</p>
-                </div>
-                 <div class="flex items-center space-x-3 flex-shrink-0">
-                    <div id="login-status-container" class="flex items-center"></div>
-                    <div id="admin-links-container" class="flex items-center space-x-3"></div>
-                </div>
-            </div>
-            <div class="mt-6 bg-black bg-opacity-20 p-4 rounded-lg">
-                <div class="flex justify-between items-end">
-                    <div>
-                        <p class="text-sm font-medium text-indigo-200">当前得分</p>
-                        <div class="flex items-baseline">
-                            <span id="current-score-display" class="text-6xl font-black leading-none">0.00</span>
-                            <span class="text-lg font-medium text-indigo-200 ml-2">/ <span id="total-weight-max-display">0</span></span>
-                        </div>
-                    </div>
-                    <div class="text-right">
-                         <p class="text-sm font-medium text-indigo-200">已评项目</p>
-                         <p id="progress-text" class="font-bold text-lg">0 / 0</p>
-                    </div>
-                </div>
-                <div class="w-full bg-indigo-900 rounded-full h-2.5 mt-2">
-                    <div id="progress-bar" class="bg-green-400 h-2.5 rounded-full transition-width duration-500" style="width: 0%"></div>
-                </div>
-            </div>
-             <p id="config-load-status" class="text-xs text-yellow-300 mt-2 text-right">正在连接...</p>
-        </header>
-        <section class="mb-8 p-6 bg-white rounded-xl shadow-lg">
-            <h2 class="text-xl font-bold text-gray-800 mb-4">雪茄信息</h2>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div>
-                    <label for="cigar-name" class="block text-sm font-medium text-gray-700">名称</label>
-                    <input type="text" id="cigar-name" autocomplete="off" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" placeholder="例如：帕特加斯D4">
-                </div>
-                <div>
-                    <label for="cigar-size" class="block text-sm font-medium text-gray-700">尺寸</label>
-                    <input type="text" id="cigar-size" autocomplete="off" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" placeholder="例如：Robusto">
-                </div>
-                <div>
-                    <label for="cigar-origin" class="block text-sm font-medium text-gray-700">产地</label>
-                    <input type="text" id="cigar-origin" autocomplete="off" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" placeholder="例如：古巴">
-                </div>
-            </div>
-        </section>
-        <div id="rating-form-container"></div>
-        <section class="mt-8 p-6 bg-white rounded-xl shadow-lg">
-            <h2 class="text-xl font-bold text-gray-800 mb-4">文字评价</h2>
-            <div>
-                <textarea id="cigar-review" rows="5" class="w-full p-3 border rounded-md" placeholder="在此处输入您的详细品吸感受..."></textarea>
-            </div>
-        </section>
-        <div class="mt-8 grid grid-cols-2 gap-4">
-            <button onclick="resetRatings()" class="w-full py-3 px-6 bg-red-500 text-white font-bold text-lg rounded-lg shadow-md hover:bg-red-600">重置</button>
-            <button onclick="showResults()" class="w-full py-3 px-6 bg-green-600 text-white font-bold text-lg rounded-lg shadow-md hover:bg-green-700">查看报告</button>
-        </div>
-        <footer class="mt-8 text-center text-gray-500 text-sm p-4 border-t">评分应用数据由云端配置中心实时同步。</footer>
-    </div>
-    <div id="login-modal" class="fixed inset-0 bg-gray-600 bg-opacity-75 hidden flex items-center justify-center z-50">
-       <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-sm">
-            <h3 class="text-xl font-bold mb-4 text-indigo-700">登录或注册</h3>
-            <label class="block mb-3"><span class="text-gray-700 text-sm">邮箱</span><input type="email" id="login-email" autocomplete="email" class="mt-1 block w-full rounded-md p-2"></label>
-            <label class="block mb-4"><span class="text-gray-700 text-sm">密码</span><input type="password" id="login-password" autocomplete="current-password" class="mt-1 block w-full rounded-md p-2"></label>
-            <div class="flex space-x-3">
-                <button onclick="handleLoginSignup(false)" class="flex-1 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">登录</button>
-                <button onclick="handleLoginSignup(true)" class="flex-1 py-2 bg-gray-200 text-indigo-600 rounded-lg hover:bg-gray-300">注册</button>
-            </div>
-            <p id="login-modal-status" class="text-center mt-3"></p>
-            <button onclick="hideLoginModal()" class="mt-4 text-sm text-gray-500 w-full">取消</button>
-        </div>
-    </div>
 </body>
 </html>
-
