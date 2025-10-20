@@ -216,13 +216,11 @@
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 if (!response.ok) {
-                    // Token is invalid or expired
                     sessionStorage.removeItem('userInfo');
                     sessionStorage.removeItem('accessToken');
                     return null;
                 }
                 const fullUserProfile = await response.json();
-                // Refresh userInfo in sessionStorage with the latest role
                 sessionStorage.setItem('userInfo', JSON.stringify(fullUserProfile));
                 return fullUserProfile;
             } catch (e) {
@@ -231,21 +229,28 @@
             }
         }
 
+        // **FIX**: Central function to update user state and render dependent UI
+        function setUser(user) {
+            currentAuthUser = user;
+            renderLoginStatus(currentAuthUser);
+            renderAdminLinks();
+        }
 
         window.onload = async function() {
             const urlParams = new URLSearchParams(window.location.search);
             const code = urlParams.get('code');
+            let user = null;
 
             if (code) {
-                currentAuthUser = await handleOidcCallback(code);
+                user = await handleOidcCallback(code);
             } else {
-                currentAuthUser = await validateSessionAndGetUser();
+                user = await validateSessionAndGetUser();
             }
             
+            // Use the central function to update state and UI
+            setUser(user);
+            
             console.log("Current User Object for role check:", currentAuthUser);
-
-            renderLoginStatus(currentAuthUser);
-            renderAdminLinks();
             
             // --- 完整评分逻辑 ---
             async function loadConfig() {

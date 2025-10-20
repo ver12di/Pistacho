@@ -1,7 +1,7 @@
 // ---------------------------------------------------
 // 文件: /functions/api/me.js
 // 作用: 验证 token，并返回包含 D1 角色的完整用户信息
-//       同时处理新用户的角色初始化 (ver11 逻辑)
+//       同时处理新用户的角色初始化
 // ---------------------------------------------------
 
 export async function onRequestGet(context) {
@@ -23,7 +23,6 @@ export async function onRequestGet(context) {
         const userInfo = await response.json();
 
         const userId = userInfo.sub;
-        const username = userInfo.preferred_username || userInfo.username;
 
         // 2. 在我们的 D1 数据库中查找该用户
         let stmt = env.DB.prepare("SELECT role FROM users WHERE userId = ?").bind(userId);
@@ -35,11 +34,7 @@ export async function onRequestGet(context) {
             // 3. 如果用户已存在，使用数据库中的角色
             finalRole = userRecord.role;
         } else {
-            // 4. 如果用户不存在，执行“初始超管”逻辑
-            if (username === 'ver11') {
-                finalRole = 'super_admin';
-            }
-            // 将新用户写入我们的数据库
+            // 4. 如果用户不存在，创建为普通用户
             const insertStmt = env.DB.prepare(
                 "INSERT INTO users (userId, email, role) VALUES (?, ?, ?)"
             ).bind(userId, userInfo.email, finalRole);
@@ -60,3 +55,4 @@ export async function onRequestGet(context) {
         return new Response(JSON.stringify({ error: e.message }), { status: 500 });
     }
 }
+
