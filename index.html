@@ -232,6 +232,7 @@
         function setUser(user) {
             currentAuthUser = user;
             renderLoginStatus(currentAuthUser);
+            // Delay rendering admin links slightly to ensure DOM is ready
             setTimeout(() => {
                 renderAdminLinks();
             }, 0);
@@ -267,7 +268,6 @@
                 } catch (error) {
                     console.error("加载配置失败:", error);
                     document.getElementById('config-load-status').textContent = '配置加载失败';
-                    // **FIX**: Add an alert for explicit error feedback
                     alert(`加载应用核心配置失败，请刷新页面重试。\n错误详情: ${error.message}`);
                 }
             }
@@ -332,7 +332,6 @@
             };
             function renderRatingView() {
                 if (!ratingConfig) {
-                    // If config is null, render an empty state or an error message in the form container
                     const formContainer = document.getElementById('rating-form-container');
                     formContainer.innerHTML = `<div class="text-center p-6 bg-white rounded-lg shadow"><p>无法加载评分标准。</p></div>`;
                     return;
@@ -362,10 +361,14 @@
                 if (selectedOptionIndex !== undefined && criterion.options?.[selectedOptionIndex]) {
                     currentScore = currentWeight * (criterion.options[selectedOptionIndex].scorePct || 0);
                 }
+                
+                // **FIX**: Check user role here before rendering score span
+                const isSuperAdmin = currentAuthUser?.db_role === 'super_admin';
+
                 return `<div class="bg-gray-50 p-4 rounded-lg border">
                         <div class="flex justify-between items-center mb-3">
-                            <h4 class="text-lg font-semibold text-gray-800">${criterion.name} (${currentWeight} 分)</h4>
-                            <span class="text-xl font-extrabold text-green-600">${currentScore.toFixed(2)}</span>
+                            <h4 class="text-lg font-semibold text-gray-800">${criterion.name} ${isSuperAdmin ? `(${currentWeight} 分)` : ''}</h4>
+                            ${isSuperAdmin ? `<span class="text-xl font-extrabold text-green-600">${currentScore.toFixed(2)}</span>` : ''}
                         </div>
                         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
                             ${(criterion.options || []).map((option, optIndex) => {
@@ -374,7 +377,7 @@
                                 return `<button onclick="updateRatingSelection('${categoryName}', '${criterion.name}', ${optIndex})" 
                                         class="p-2 text-sm text-center rounded-lg border transition ${ isSelected ? 'bg-indigo-600 text-white shadow-md' : 'bg-white hover:bg-indigo-50' }">
                                         ${option.description} 
-                                        <span class="block text-xs ${isSelected ? 'text-indigo-200' : 'text-gray-500'}">(得 ${score} 分)</span>
+                                        ${isSuperAdmin ? `<span class="block text-xs ${isSelected ? 'text-indigo-200' : 'text-gray-500'}">(得 ${score} 分)</span>` : ''}
                                     </button>`;
                             }).join('')}
                         </div>
