@@ -147,7 +147,9 @@
             const container = document.getElementById('login-status-container');
             if (!container) return;
             if (user) {
-                container.innerHTML = `<span class="text-sm font-medium text-yellow-300 mr-2 hidden sm:inline">${user.email || user.name || '已登录'}</span><button onclick="logout()" class="px-3 py-1 text-xs font-medium rounded-full bg-red-500 text-white hover:bg-red-600">退出</button>`;
+                // **FIX**: Prioritize username fields over email
+                const displayName = user.name || user.preferred_username || user.nickname || user.email || '已登录';
+                container.innerHTML = `<span class="text-sm font-medium text-yellow-300 mr-2 hidden sm:inline">${displayName}</span><button onclick="logout()" class="px-3 py-1 text-xs font-medium rounded-full bg-red-500 text-white hover:bg-red-600">退出</button>`;
             } else {
                 container.innerHTML = `<span class="text-sm font-medium text-indigo-300 mr-2 hidden sm:inline">未登录</span><button onclick="login()" class="px-3 py-1 text-xs font-medium rounded-full bg-green-500 text-white hover:bg-green-600">登录/注册</button>`;
             }
@@ -389,4 +391,5 @@
     </script>
 </body>
 </html>
+
 
