@@ -92,18 +92,14 @@ export async function onRequestGet(context) {
         if (getCertified) {
             // --- 公开的认证评分查询 ---
             // 任何人都可以查看认证评分, 无需 token
-            // TODO: D1 方案中 'isCertified' 字段需要被正确设置 (通过一个 'certify' API)
-            // 目前, 我们暂时返回所有评分作为示例
-            // stmt = env.DB.prepare("SELECT * FROM ratings WHERE isCertified = 1 ORDER BY timestamp DESC");
-             console.warn("认证查询: 暂时返回所有评分。 'isCertified' 字段需要后端逻辑支持。");
-             // **NEW**: Join with users table to get nickname
-             stmt = env.DB.prepare(
-                `SELECT r.*, u.nickname AS userNickname 
-                 FROM ratings r 
-                 LEFT JOIN users u ON r.userId = u.userId 
+            // **FIX**: Removed JOIN on users table.
+            // The 'userNickname' is already stored in the 'ratings' table.
+            stmt = env.DB.prepare(
+                `SELECT r.*
+                 FROM ratings r
                  ORDER BY r.timestamp DESC`
-             );
-             // TODO: When certification is ready, add: WHERE r.isCertified = 1
+            );
+            // TODO: When certification is ready, add: WHERE r.isCertified = 1
 
         } else {
             // --- 私人的历史记录查询 ---
@@ -111,23 +107,23 @@ export async function onRequestGet(context) {
             userInfo = await validateTokenAndGetUser(request, env);
             
             // 2. 根据角色准备查询
-            if (userInfo.db_role === 'super_admin') {
-                // 超级管理员获取所有评分, 并 join nickname
+            if (userInfo.db_role === 'super_admin' || userInfo.db_role === 'admin') {
+                // 超级管理员/管理员获取所有评分
+                // **FIX**: Removed JOIN on users table.
                 stmt = env.DB.prepare(
-                   `SELECT r.*, u.nickname AS userNickname 
-                    FROM ratings r 
-                    LEFT JOIN users u ON r.userId = u.userId 
+                   `SELECT r.*
+                    FROM ratings r
                     ORDER BY r.timestamp DESC`
                 );
             } else {
                 // 普通用户仅获取自己的评分
+                // **FIX**: No longer need to bind nickname, it's already in 'r.*'
                 stmt = env.DB.prepare(
-                   `SELECT r.*, ? AS userNickname
-                    FROM ratings r 
-                    WHERE r.userId = ? 
+                   `SELECT r.*
+                    FROM ratings r
+                    WHERE r.userId = ?
                     ORDER BY r.timestamp DESC`
                 ).bind(
-                    userInfo.name || userInfo.nickname || userInfo.preferred_username || userInfo.email, // Bind their own nickname
                     userInfo.sub // Bind their userId
                 );
             }
@@ -384,5 +380,6 @@ export async function onRequest(context) {
     }
     return new Response('Method Not Allowed', { status: 405 });
 }
+
 
 
