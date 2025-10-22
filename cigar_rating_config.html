@@ -22,7 +22,7 @@
              console.warn('Tailwind object not found. Skipping config.');
         }
     </script>
-    <!-- Removed Authing SDK script, as this page relies on sessionStorage -->
+    <!-- Removed Authing SDK script -->
     
 </head>
 <body class="bg-gray-100 font-sans antialiased text-gray-800">
@@ -117,14 +117,18 @@
             return currentAuthUser.db_role === 'admin' || currentAuthUser.db_role === 'super_admin';
         }
 
-        function renderError(message, isFatal = false) {
+        function renderError(message, isFatal = false, showLoginLink = false) {
             const container = isFatal ? document.getElementById('main-container') : document.getElementById('error-container');
-            const html = `<div class="p-4 text-red-700 bg-red-100 border border-red-300 rounded-lg max-w-2xl mx-auto mt-4 shadow-sm"><p class="font-bold text-sm mb-1">${isFatal ? '严重错误' : '错误'}</p><p class="text-sm">${message}</p></div>`;
-            container.innerHTML = html;
+            let html = `<div class="p-4 text-red-700 bg-red-100 border border-red-300 rounded-lg max-w-2xl mx-auto mt-4 shadow-sm"><p class="font-bold text-sm mb-1">${isFatal ? '严重错误' : '错误'}</p><p class="text-sm">${message}</p></div>`;
+            if (isFatal) {
+                 html += `<div class="mt-4 text-center"><a href="index.html" class="text-indigo-600 hover:text-indigo-800 underline">返回主页${showLoginLink ? '并重新登录' : ''}</a></div>`;
+                 document.getElementById('main-container').innerHTML = html; // Replace main content if fatal
+            } else {
+                 document.getElementById('error-container').innerHTML = html; // Append to error container if not fatal
+            }
         }
         
         function deepCleanObject(obj) {
-             // Keep this function as it was defined before
              const partiallyCleaned = JSON.parse(JSON.stringify(obj));
              function recursiveClean(current) {
                  if (Array.isArray(current)) {
@@ -151,20 +155,41 @@
         // --- API 调用封装 ---
         async function apiFetch(endpoint, options = {}) {
             const headers = { 'Content-Type': 'application/json', ...options.headers };
+             // **Ensure token is always added for API calls from this page**
+            if (!accessToken && options.method !== 'GET') { // Allow GET without token for now
+                throw new Error("用户未认证或会话已过期，无法执行操作。");
+            }
             if (accessToken) {
-                headers['Authorization'] = `Bearer ${accessToken}`;
-            } else {
-                 throw new Error("用户未认证，无法执行操作。"); // Stop if no token
+                 headers['Authorization'] = `Bearer ${accessToken}`;
             }
-            const response = await fetch(endpoint, { ...options, headers });
+            
+            const apiUrl = new URL(endpoint, window.location.origin);
+
+            const response = await fetch(apiUrl, { ...options, headers });
+            
             if (!response.ok) {
-                const errorData = await response.json().catch(() => ({ error: '未知的服务器错误' }));
-                throw new Error(errorData.error || `请求失败，状态码 ${response.status}`);
+                let errorData = { error: `请求失败，状态码 ${response.status}` };
+                 let errorMessage = errorData.error;
+                try {
+                    errorData = await response.json();
+                     errorMessage = errorData.error || errorMessage;
+                } catch(e) { /* Ignore if response body is not JSON */ }
+                 
+                 // **FIX**: Throw specific error for 401/403
+                 if (response.status === 401 || response.status === 403) {
+                     throw new Error('会话已过期或无效，请重新登录。');
+                 }
+                 
+                throw new Error(errorMessage);
             }
+
             if (response.headers.get('Content-Type')?.includes('application/json')) {
                 return response.json();
             }
-            return response.text(); // For responses that might not be JSON (though unlikely here)
+            if (response.status === 200 || response.status === 204) {
+                return { success: true }; 
+            }
+            return response.text(); 
         }
         
         // --- 配置方案加载逻辑 ---
@@ -172,7 +197,7 @@
             const selector = document.getElementById('profile-selector');
             selector.innerHTML = '<option value="latest">--- 实时配置 (latest) ---</option>';
             try {
-                // No token needed for GET /api/config-profiles
+                // Allow GET without token
                 const profileIds = await apiFetch('/api/config-profiles'); 
                 profileIds.forEach(id => {
                     if (id !== 'latest') { 
@@ -180,7 +205,7 @@
                     }
                 });
             } catch (e) {
-                alert("加载配置方案列表失败: " + e.message);
+                renderError("加载配置方案列表失败: " + e.message); // Use renderError
             }
         }
 
@@ -191,7 +216,7 @@
 
         async function loadConfigById(profileId) {
             try {
-                 // No token needed for GET /api/config/[profileId]
+                 // Allow GET without token
                 const config = await apiFetch(`/api/config/${profileId}`);
                 ratingConfig = config;
                 currentProfileId = profileId;
@@ -205,37 +230,48 @@
             }
         }
 
-        // --- UI 渲染 (Keep your existing rendering logic) ---
+        // --- UI 渲染 ---
         function renderConfigView() {
             const isAdmin = hasAdminAccess();
-            document.querySelectorAll('.admin-feature').forEach(el => el.disabled = !isAdmin);
-            
+            const titleInput = document.getElementById('app-title-input');
+            const descInput = document.getElementById('app-description-input');
+            const container = document.getElementById('config-form-container');
             const publishButton = document.getElementById('publish-button');
             const saveProfileButton = document.getElementById('save-profile-button');
             const deleteProfileButton = document.getElementById('delete-profile-button');
 
-            publishButton.className = isAdmin ? 'w-full py-3 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition' : 'w-full py-3 font-semibold rounded-lg cursor-not-allowed bg-gray-400 text-gray-700';
+            if (!titleInput || !descInput || !container || !publishButton || !saveProfileButton || !deleteProfileButton) {
+                console.error("One or more essential UI elements are missing.");
+                return;
+            }
+
+            document.querySelectorAll('.admin-feature').forEach(el => el.disabled = !isAdmin);
+
+            publishButton.className = isAdmin 
+                ? 'w-full py-3 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition' 
+                : 'w-full py-3 font-semibold rounded-lg cursor-not-allowed bg-gray-400 text-gray-700';
+            publishButton.disabled = !isAdmin; 
 
             if (isAdmin && currentProfileId !== 'latest') {
                 saveProfileButton.disabled = false;
                 saveProfileButton.className = 'w-full py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition';
                 deleteProfileButton.disabled = false;
+                deleteProfileButton.className = 'w-full py-3 bg-red-500 text-white font-semibold rounded-lg hover:bg-red-600 transition text-sm';
             } else {
                 saveProfileButton.disabled = true;
                 saveProfileButton.className = 'w-full py-3 font-semibold rounded-lg cursor-not-allowed bg-gray-400 text-gray-700';
                 deleteProfileButton.disabled = true;
-                deleteProfileButton.classList.add('cursor-not-allowed', 'opacity-50'); // Visually disable delete button
+                deleteProfileButton.className = 'w-full py-3 bg-red-500 text-white font-semibold rounded-lg text-sm cursor-not-allowed opacity-50';
             }
 
-            document.getElementById('app-title-input').value = ratingConfig.appTitle || '';
-            document.getElementById('app-description-input').value = ratingConfig.description || '';
+            titleInput.value = ratingConfig?.appTitle || ''; // Add safe navigation
+            descInput.value = ratingConfig?.description || ''; // Add safe navigation
             
-            const container = document.getElementById('config-form-container');
-            container.innerHTML = (ratingConfig.ratingCriteria || []).map((category, catIndex) => `
+            container.innerHTML = (ratingConfig?.ratingCriteria || []).map((category, catIndex) => `
                 <div class="bg-white p-6 rounded-xl shadow-lg mb-6 border-l-4 border-indigo-500">
                     <div class="flex justify-between items-start mb-4">
                         <h3 class="text-xl font-bold text-indigo-700">评分类别 #${catIndex + 1}</h3>
-                        <button onclick="removeCategory(${catIndex})" class="text-red-500 hover:text-red-700 transition admin-feature">删除类别</button>
+                        <button type="button" onclick="removeCategory(${catIndex})" class="text-red-500 hover:text-red-700 transition admin-feature">删除类别</button>
                     </div>
                     <label class="block mb-2">类别名称:</label>
                     <input type="text" data-type="category" data-index="${catIndex}" data-field="category" value="${category.category || ''}" class="config-input w-full p-2 border rounded-md mb-3 admin-feature" oninput="handleInputChange(this)">
@@ -245,78 +281,82 @@
                     <div class="space-y-4">
                         ${(category.criteriaList || []).map((criterion, critIndex) => renderCriterion(catIndex, critIndex, criterion)).join('')}
                     </div>
-                    <button onclick="addCriterion(${catIndex})" class="mt-4 w-full py-2 border border-dashed border-indigo-300 text-indigo-500 hover:bg-indigo-50 rounded-md transition admin-feature">+ 添加评分项</button>
+                    <button type="button" onclick="addCriterion(${catIndex})" class="mt-4 w-full py-2 border border-dashed border-indigo-300 text-indigo-500 hover:bg-indigo-50 rounded-md transition admin-feature">+ 添加评分项</button>
                 </div>
             `).join('');
-             container.innerHTML += `<button onclick="addCategory()" class="mt-6 w-full py-3 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 transition duration-150 shadow-md admin-feature">+ 添加新类别</button>`;
+             container.innerHTML += `<button type="button" onclick="addCategory()" class="mt-6 w-full py-3 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 transition duration-150 shadow-md admin-feature">+ 添加新类别</button>`;
              if (!isAdmin) document.querySelectorAll('.admin-feature').forEach(el => el.disabled = true);
         }
 
         function renderCriterion(catIndex, critIndex, criterion) {
-            return `
-                <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                    <div class="flex justify-between items-center mb-3">
-                        <h5 class="font-medium text-gray-800">评分项 #${critIndex + 1}</h5>
-                        <button onclick="removeCriterion(${catIndex}, ${critIndex})" class="text-red-400 hover:text-red-600 transition text-sm admin-feature">删除</button>
-                    </div>
-                    <label class="block text-sm">名称:</label>
-                    <input type="text" data-type="criterion" data-cat-index="${catIndex}" data-index="${critIndex}" data-field="name" value="${criterion.name || ''}" class="config-input w-full p-1 border rounded-md mb-2 text-sm admin-feature" oninput="handleInputChange(this)">
-                    <label class="block text-sm">权重 (分数):</label>
-                    <input type="number" data-type="criterion" data-cat-index="${catIndex}" data-index="${critIndex}" data-field="weight" value="${criterion.weight || 0}" class="config-input w-full p-1 border rounded-md mb-3 text-sm admin-feature" oninput="handleInputChange(this)">
-                    <h6 class="text-sm font-semibold mb-2 mt-3">选项:</h6>
-                    <div class="space-y-2">
-                        ${(criterion.options || []).map((option, optIndex) => renderOption(catIndex, critIndex, optIndex, option)).join('')}
-                    </div>
-                    <button onclick="addOption(${catIndex}, ${critIndex})" class="mt-3 w-full py-1 border border-dashed text-gray-500 hover:bg-gray-100 rounded-md transition text-sm admin-feature">+ 添加选项</button>
-                </div>
-            `;
+             return `
+                 <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                     <div class="flex justify-between items-center mb-3">
+                         <h5 class="font-medium text-gray-800">评分项 #${critIndex + 1}</h5>
+                         <button type="button" onclick="removeCriterion(${catIndex}, ${critIndex})" class="text-red-400 hover:text-red-600 transition text-sm admin-feature">删除</button>
+                     </div>
+                     <label class="block text-sm">名称:</label>
+                     <input type="text" data-type="criterion" data-cat-index="${catIndex}" data-index="${critIndex}" data-field="name" value="${criterion.name || ''}" class="config-input w-full p-1 border rounded-md mb-2 text-sm admin-feature" oninput="handleInputChange(this)">
+                     <label class="block text-sm">权重 (分数):</label>
+                     <input type="number" data-type="criterion" data-cat-index="${catIndex}" data-index="${critIndex}" data-field="weight" value="${criterion.weight || 0}" class="config-input w-full p-1 border rounded-md mb-3 text-sm admin-feature" oninput="handleInputChange(this)">
+                     <h6 class="text-sm font-semibold mb-2 mt-3">选项:</h6>
+                     <div class="space-y-2">
+                         ${(criterion.options || []).map((option, optIndex) => renderOption(catIndex, critIndex, optIndex, option)).join('')}
+                     </div>
+                     <button type="button" onclick="addOption(${catIndex}, ${critIndex})" class="mt-3 w-full py-1 border border-dashed text-gray-500 hover:bg-gray-100 rounded-md transition text-sm admin-feature">+ 添加选项</button>
+                 </div>
+             `;
         }
 
         function renderOption(catIndex, critIndex, optIndex, option) {
-            return `
-                <div class="flex space-x-2 items-center bg-white p-2 rounded-md border text-sm">
-                    <div class="flex-1">
-                        <label class="block text-xs">描述:</label>
-                        <input type="text" data-type="option" data-cat-index="${catIndex}" data-crit-index="${critIndex}" data-index="${optIndex}" data-field="description" value="${option.description || ''}" class="config-input w-full p-1 border rounded-md text-xs admin-feature" oninput="handleInputChange(this)">
-                    </div>
-                    <div class="w-1/4">
-                        <label class="block text-xs">得分率 (0-1):</label>
-                        <input type="number" step="0.01" data-type="option" data-cat-index="${catIndex}" data-crit-index="${critIndex}" data-index="${optIndex}" data-field="scorePct" value="${option.scorePct || 0}" class="config-input w-full p-1 border rounded-md text-xs admin-feature" oninput="handleInputChange(this)">
-                    </div>
-                    <button onclick="removeOption(${catIndex}, ${critIndex}, ${optIndex})" class="text-red-400 hover:text-red-600 transition text-sm flex-shrink-0 admin-feature">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 10-2 0v6a1 1 0 102 0V8z" clip-rule="evenodd" /></svg>
-                    </button>
-                </div>
-            `;
+             return `
+                 <div class="flex space-x-2 items-center bg-white p-2 rounded-md border text-sm">
+                     <div class="flex-1">
+                         <label class="block text-xs">描述:</label>
+                         <input type="text" data-type="option" data-cat-index="${catIndex}" data-crit-index="${critIndex}" data-index="${optIndex}" data-field="description" value="${option.description || ''}" class="config-input w-full p-1 border rounded-md text-xs admin-feature" oninput="handleInputChange(this)">
+                     </div>
+                     <div class="w-1/4">
+                         <label class="block text-xs">得分率 (0-1):</label>
+                         <input type="number" step="0.01" data-type="option" data-cat-index="${catIndex}" data-crit-index="${critIndex}" data-index="${optIndex}" data-field="scorePct" value="${option.scorePct || 0}" class="config-input w-full p-1 border rounded-md text-xs admin-feature" oninput="handleInputChange(this)">
+                     </div>
+                     <button type="button" onclick="removeOption(${catIndex}, ${critIndex}, ${optIndex})" class="text-red-400 hover:text-red-600 transition text-sm flex-shrink-0 admin-feature">
+                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 10-2 0v6a1 1 0 102 0V8z" clip-rule="evenodd" /></svg>
+                     </button>
+                 </div>
+             `;
         }
 
-        // --- 数据操作 (增删改 - Keep your existing logic) ---
+        // --- 数据操作 (增删改) ---
         window.handleInputChange = function(element) {
             let value = (element.type === 'number') ? (parseFloat(element.value) || 0) : element.value;
             const { type, field, index, catIndex, critIndex } = element.dataset;
-            if (!type) { ratingConfig[field] = value; }
-            else if (type === 'category') { ratingConfig.ratingCriteria[index][field] = value; }
-            else if (type === 'criterion') { ratingConfig.ratingCriteria[catIndex].criteriaList[index][field] = value; }
-            else if (type === 'option') { ratingConfig.ratingCriteria[catIndex].criteriaList[critIndex].options[index][field] = value; }
+            try {
+                if (!type && ratingConfig) { ratingConfig[field] = value; }
+                else if (type === 'category' && ratingConfig?.ratingCriteria?.[index]) { ratingConfig.ratingCriteria[index][field] = value; }
+                else if (type === 'criterion' && ratingConfig?.ratingCriteria?.[catIndex]?.criteriaList?.[index]) { ratingConfig.ratingCriteria[catIndex].criteriaList[index][field] = value; }
+                else if (type === 'option' && ratingConfig?.ratingCriteria?.[catIndex]?.criteriaList?.[critIndex]?.options?.[index]) { ratingConfig.ratingCriteria[catIndex].criteriaList[critIndex].options[index][field] = value; }
+            } catch (e) { console.error("Error handling input change:", e, element.dataset); }
         };
         window.addCategory = function() {
             if (!ratingConfig.ratingCriteria) ratingConfig.ratingCriteria = [];
             ratingConfig.ratingCriteria.push({ category: "新类别", detail: "", criteriaList: [{ name: "新评分项", weight: 10, options: [{ description: "一般", scorePct: 0.5 }] }] });
             renderConfigView();
         };
-        window.removeCategory = (i) => { ratingConfig.ratingCriteria.splice(i, 1); renderConfigView(); };
+        window.removeCategory = (i) => { if (ratingConfig?.ratingCriteria) { ratingConfig.ratingCriteria.splice(i, 1); renderConfigView(); } };
         window.addCriterion = (i) => {
+            if (!ratingConfig?.ratingCriteria?.[i]) return;
             if (!ratingConfig.ratingCriteria[i].criteriaList) ratingConfig.ratingCriteria[i].criteriaList = [];
             ratingConfig.ratingCriteria[i].criteriaList.push({ name: "新评分项", weight: 10, options: [{ description: "一般", scorePct: 0.5 }] });
             renderConfigView();
         };
-        window.removeCriterion = (i, j) => { ratingConfig.ratingCriteria[i].criteriaList.splice(j, 1); renderConfigView(); };
+        window.removeCriterion = (i, j) => { if (ratingConfig?.ratingCriteria?.[i]?.criteriaList) { ratingConfig.ratingCriteria[i].criteriaList.splice(j, 1); renderConfigView(); } };
         window.addOption = (i, j) => {
+            if (!ratingConfig?.ratingCriteria?.[i]?.criteriaList?.[j]) return;
             if (!ratingConfig.ratingCriteria[i].criteriaList[j].options) ratingConfig.ratingCriteria[i].criteriaList[j].options = [];
             ratingConfig.ratingCriteria[i].criteriaList[j].options.push({ description: "新选项", scorePct: 0.5 });
             renderConfigView();
         };
-        window.removeOption = (i, j, k) => { ratingConfig.ratingCriteria[i].criteriaList[j].options.splice(k, 1); renderConfigView(); };
+        window.removeOption = (i, j, k) => { if (ratingConfig?.ratingCriteria?.[i]?.criteriaList?.[j]?.options) { ratingConfig.ratingCriteria[i].criteriaList[j].options.splice(k, 1); renderConfigView(); }};
 
         // --- 保存与发布逻辑 ---
         async function saveConfig(profileId, button) {
@@ -324,10 +364,8 @@
             const originalText = button.textContent;
             button.textContent = '正在操作...'; button.disabled = true;
             
-            // Sync UI values back to the ratingConfig object just before saving
             ratingConfig.appTitle = document.getElementById('app-title-input').value;
             ratingConfig.description = document.getElementById('app-description-input').value;
-            
             const cleanConfig = deepCleanObject(ratingConfig);
 
             try {
@@ -336,28 +374,38 @@
                 alert(`配置方案 "${profileId}" 操作成功！`);
                 return true;
             } catch (error) {
-                alert(`操作失败！\n错误: ${error.message}`);
+                 renderError(`操作失败！错误: ${error.message}`); // Use renderError
                 return false;
             } finally {
                 button.textContent = originalText; 
-                // Re-enable based on admin access and profile ID
                  if (hasAdminAccess()) {
-                     if (button.id === 'save-profile-button') button.disabled = (currentProfileId === 'latest');
-                     else button.disabled = false;
+                     button.disabled = (button.id === 'save-profile-button' && currentProfileId === 'latest');
+                 } else {
+                     button.disabled = true;
                  }
-                renderConfigView(); // Refresh buttons state maybe needed if profileId changed
+                // Optionally re-enable delete button based on profileId
+                const deleteBtn = document.getElementById('delete-profile-button');
+                if (deleteBtn) {
+                     deleteBtn.disabled = !hasAdminAccess() || currentProfileId === 'latest';
+                     if(deleteBtn.disabled) deleteBtn.classList.add('cursor-not-allowed', 'opacity-50');
+                     else deleteBtn.classList.remove('cursor-not-allowed', 'opacity-50');
+                }
             }
         }
         window.publishConfig = () => saveConfig('latest', document.getElementById('publish-button'));
         window.saveProfileChanges = () => saveConfig(currentProfileId, document.getElementById('save-profile-button'));
-        window.saveAsNewProfile = async function() {
+        window.saveAsNewProfile = async function(event) {
             const profileName = prompt("请输入新配置方案的名称:");
             if (!profileName || profileName.trim() === '') return;
             const trimmedName = profileName.trim();
+            if (trimmedName === 'latest') {
+                 alert("不能将方案命名为 'latest'。");
+                 return;
+            }
             const success = await saveConfig(trimmedName, event.target);
             if (success) {
                 await loadProfileList();
-                await loadConfigById(trimmedName); // Load the newly saved profile
+                await loadConfigById(trimmedName); 
             }
         };
         window.deleteSelectedProfile = async function() {
@@ -368,18 +416,24 @@
                 await apiFetch(`/api/config/${currentProfileId}`, { method: 'DELETE' });
                 alert(`方案 "${currentProfileId}" 已删除。`);
                 await loadProfileList();
-                await loadConfigById('latest'); // Load latest after deletion
+                await loadConfigById('latest'); 
             } catch (error) {
-                alert(`删除方案失败！错误: ${error.message}`);
-                 button.textContent = '删除'; button.disabled = (currentProfileId === 'latest');
+                 renderError(`删除方案失败！错误: ${error.message}`); // Use renderError
+                 button.textContent = '删除'; 
+                 button.disabled = !hasAdminAccess() || currentProfileId === 'latest';
             }
         };
 
         // --- 导入 / 导出功能 ---
         window.downloadConfigJSON = function() {
+            // Sync UI values before downloading
             ratingConfig.appTitle = document.getElementById('app-title-input').value;
             ratingConfig.description = document.getElementById('app-description-input').value;
             const cleanConfig = deepCleanObject(ratingConfig);
+            if (!cleanConfig) {
+                 alert("当前配置为空或无效，无法下载。");
+                 return;
+            }
             const jsonString = JSON.stringify(cleanConfig, null, 2);
             const blob = new Blob([jsonString], { type: "application/json" });
             const url = URL.createObjectURL(blob);
@@ -389,56 +443,69 @@
             URL.revokeObjectURL(url);
         };
         window.uploadConfigJSON = function() {
-            const file = document.getElementById('json-upload-input').files[0];
+            const fileInput = document.getElementById('json-upload-input');
+            const file = fileInput.files[0];
             if (!file) return;
             const reader = new FileReader();
             reader.onload = async (e) => {
                 let uploadedConfig;
                 try {
                     uploadedConfig = JSON.parse(e.target.result);
-                    if (!uploadedConfig.ratingCriteria) throw new Error("JSON 格式无效。");
-                } catch (err) { return alert(`文件解析失败！\n错误: ${err.message}`); }
+                    // Basic validation
+                    if (!uploadedConfig || typeof uploadedConfig !== 'object' || !uploadedConfig.ratingCriteria) {
+                         throw new Error("JSON 文件格式无效或缺少 'ratingCriteria'。");
+                    }
+                } catch (err) { 
+                    fileInput.value = null; // Reset file input
+                    return alert(`文件解析失败！\n错误: ${err.message}`); 
+                }
                 
                 ratingConfig = uploadedConfig; // Load into editor
                 renderConfigView(); // Display the loaded config
-                alert('JSON 文件已加载到编辑器中，请点击 "另存为新方案" 来保存它。');
+                alert('JSON 文件已加载到编辑器中，请检查内容并点击 "另存为新方案" 来保存它。');
+                fileInput.value = null; // Reset file input after processing
             };
             reader.readAsText(file);
-            document.getElementById('json-upload-input').value = null; 
         };
 
         // --- 初始化流程 ---
         window.onload = async function() {
              accessToken = sessionStorage.getItem('accessToken');
              if (!accessToken) {
-                 renderError("您需要登录才能访问此页面。请返回主页登录。", true);
+                 renderError("您需要登录才能访问此页面。请返回主页登录。", true, true); // Added showLoginLink
                  document.getElementById('role-display').textContent = '未登录';
-                 return; // Stop execution if not logged in
+                 return; 
              }
 
-             // Validate token and get user info including db_role
              try {
                   const response = await fetch('/api/me', {
                      headers: { 'Authorization': `Bearer ${accessToken}` }
                  });
-                 if (!response.ok) throw new Error('会话已过期或无效，请重新登录。');
+                 if (!response.ok) {
+                     // If /api/me fails (e.g., token expired), show fatal error with login link
+                     throw new Error('会话已过期或无效，请重新登录。');
+                 }
                  currentAuthUser = await response.json();
 
                  if (!hasAdminAccess()) {
                      renderError("权限不足。需要 ADMIN 或 SUPER_ADMIN 权限才能访问此页面。", true);
                      document.getElementById('role-display').textContent = `权限不足 (当前: ${ (currentAuthUser.db_role || 'USER').toUpperCase() })`;
-                     return; // Stop if not admin
+                     return; 
                  }
                  
-                 // User is admin, proceed
                  document.getElementById('role-display').textContent = `当前用户角色: ${currentAuthUser.db_role.toUpperCase()}`;
-                 document.getElementById('admin-content').classList.remove('hidden'); // Show admin content
+                 document.getElementById('admin-content').classList.remove('hidden'); 
                  
                  await loadProfileList();
                  await loadConfigById('latest');
 
              } catch(e) {
-                 renderError(`初始化失败: ${e.message}`, true);
+                 // Catch token validation error specifically
+                 if (e.message.includes('会话已过期')) {
+                      renderError(e.message, true, true); // Show fatal error with login link
+                 } else {
+                      renderError(`初始化失败: ${e.message}`, true); // Other fatal errors
+                 }
              }
         };
     </script>
