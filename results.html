@@ -6,38 +6,42 @@
     <title>雪茄品鉴 - 评分报告</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['Inter', 'Noto Sans SC', 'system-ui', 'sans-serif'],
-                    },
-                    keyframes: {
-                        fadeInUp: {
-                            '0%': { opacity: '0', transform: 'translateY(20px)' },
-                            '100%': { opacity: '1', transform: 'translateY(0)' },
+        // Check if tailwind exists before configuring, add onerror handler
+        if (typeof tailwind !== 'undefined') {
+            tailwind.config = {
+                theme: {
+                    extend: {
+                        fontFamily: {
+                            sans: ['Inter', 'Noto Sans SC', 'system-ui', 'sans-serif'],
                         },
-                        highlight: {
-                            '0%, 100%': { transform: 'scale(1)', boxShadow: '0 0 0 rgba(66, 153, 225, 0)' },
-                            '50%': { transform: 'scale(1.02)', boxShadow: '0 0 15px rgba(66, 153, 225, 0.4)' },
+                        keyframes: {
+                            fadeInUp: {
+                                '0%': { opacity: '0', transform: 'translateY(20px)' },
+                                '100%': { opacity: '1', transform: 'translateY(0)' },
+                            },
+                            highlight: {
+                                '0%, 100%': { transform: 'scale(1)', boxShadow: '0 0 0 rgba(66, 153, 225, 0)' },
+                                '50%': { transform: 'scale(1.02)', boxShadow: '0 0 15px rgba(66, 153, 225, 0.4)' },
+                            }
+                        },
+                        animation: {
+                            fadeInUp: 'fadeInUp 0.8s ease-out forwards',
+                            highlight: 'highlight 2.5s ease-in-out infinite',
                         }
-                    },
-                    animation: {
-                        fadeInUp: 'fadeInUp 0.8s ease-out forwards',
-                        highlight: 'highlight 2.5s ease-in-out infinite',
                     }
                 }
             }
+        } else {
+             console.warn('Tailwind object not found. Skipping config.');
         }
     </script>
-    <!-- 引入 Authing.cn JS SDK -->
-    <script src="https://cdn.authing.cn/packages/authing-js-sdk/5.1.5/authing-js-sdk.min.js"></script>
+    <!-- Removed Authing SDK script -->
 
 </head>
 <body class="bg-gray-100 font-sans antialiased text-gray-800">
     <div class="max-w-4xl mx-auto p-4 md:p-8">
         <div id="error-container" class="hidden bg-red-100 p-6 rounded-lg shadow-lg text-red-700 font-medium"></div>
-        <div id="main-content" class="opacity-0">
+        <div id="main-content" class="opacity-0"> <!-- Set initial opacity to 0 -->
             <nav class="mb-4 flex justify-between items-center bg-white p-3 rounded-lg shadow-sm">
                  <a href="index.html" class="text-xl font-bold text-indigo-600">Pistacho评分</a>
                  <div class="space-x-4">
@@ -121,14 +125,16 @@
         let resultsData = null; 
         let normalizedScore = 0;
         let finalGrade = null;
-        let authingClient = null;
+        // Removed authingClient variable
         
         // --- 核心功能: 保存评分 ---
         window.saveRating = async function() {
-            if (!authingClient) {
-                return alert("认证服务未就绪，无法保存。");
-            }
-            if (!currentAuthUser) {
+            // Get token and user info directly from sessionStorage
+            const token = sessionStorage.getItem('accessToken');
+            const storedUser = sessionStorage.getItem('userInfo');
+            currentAuthUser = storedUser ? JSON.parse(storedUser) : null;
+
+            if (!currentAuthUser || !token) {
                 return alert("请登录后保存您的评分记录。");
             }
             if (!resultsData) {
@@ -139,16 +145,13 @@
             saveButton.disabled = true;
 
             try {
-                const loginState = await authingClient.getLoginState();
-                if (!loginState || !loginState.accessToken) {
-                    throw new Error("无法获取认证 Token，请重新登录。");
-                }
-                const token = loginState.accessToken;
-
                 const ratingToSave = {
                     ...resultsData,
                     normalizedScore: normalizedScore, 
                     finalGrade: finalGrade,
+                    // Ensure user info is attached if needed by backend (though backend validates token)
+                    // userId: currentAuthUser.sub, 
+                    // userEmail: currentAuthUser.email 
                 };
                 
                 const apiUrl = new URL('/api/ratings', window.location.origin);
@@ -156,19 +159,27 @@
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
+                        'Authorization': `Bearer ${token}` // Use token from sessionStorage
                     },
                     body: JSON.stringify(ratingToSave)
                 });
                 
                 if (!response.ok) {
-                    const errorData = await response.json();
+                    let errorData = { error: `服务器错误: ${response.status}` };
+                    try {
+                        errorData = await response.json();
+                    } catch(e) {}
                     throw new Error(errorData.error || `服务器错误: ${response.status}`);
                 }
 
                 saveButton.textContent = "已保存";
                 saveButton.classList.add('bg-gray-400', 'cursor-not-allowed');
                 alert("评分已成功保存到您的历史记录！");
+                
+                // Optional: Remove draft flag from sessionStorage data if you want to prevent re-saving
+                // resultsData.isDraft = false;
+                // sessionStorage.setItem('cigarRatingResults', JSON.stringify(resultsData));
+
 
             } catch (error) {
                 alert(`保存失败: ${error.message}`);
@@ -178,44 +189,15 @@
         };
 
         // --- 页面加载逻辑 ---
-        window.onload = async function() {
+        window.onload = function() { // No longer async, doesn't need to wait for SDK
             const storedData = sessionStorage.getItem('cigarRatingResults');
             const errorContainer = document.getElementById('error-container');
             const mainContent = document.getElementById('main-content');
-
-            const waitForAuthing = (timeout = 10000) => {
-                return new Promise((resolve, reject) => {
-                    if (window.authing) { return resolve(); }
-                    const interval = setInterval(() => {
-                        if (window.authing) {
-                            clearInterval(interval);
-                            clearTimeout(timer);
-                            resolve();
-                        }
-                    }, 100);
-                    const timer = setTimeout(() => {
-                        clearInterval(interval);
-                        reject(new Error("认证服务(Authing SDK)加载超时。"));
-                    }, timeout);
-                });
-            };
-
-            try {
-                await waitForAuthing();
-                authingClient = new window.authing.AuthenticationClient({
-                    appId: '68f5b0b6875017c02b3bfdb3',
-                    appHost: 'https://xfvu647mcdbk-demo.authing.cn',
-                    redirectUri: window.location.origin,
-                });
-                const session = await authingClient.getLoginState();
-                currentAuthUser = session ? session.userInfo : null;
-            } catch(e) {
-                console.error("检查登录状态失败:", e);
-                currentAuthUser = null;
-                errorContainer.innerHTML = `<p class="font-bold text-center">无法加载认证服务。(${e.message})</p>`;
-                errorContainer.classList.remove('hidden');
-            }
             
+            // Get user info from sessionStorage
+            const storedUser = sessionStorage.getItem('userInfo');
+            currentAuthUser = storedUser ? JSON.parse(storedUser) : null;
+
             if (!storedData) { 
                 errorContainer.innerHTML = `<p class="font-bold text-center">没有找到评分数据！<a href="index.html" class="text-indigo-600 underline">返回评分</a></p>`;
                 errorContainer.classList.remove('hidden');
@@ -225,6 +207,11 @@
             
             try {
                 resultsData = JSON.parse(storedData);
+                // Check if resultsData is valid before proceeding
+                if (!resultsData || !resultsData.config || !resultsData.ratings || resultsData.calculatedScore === undefined) {
+                    throw new Error("存储的评分数据格式无效。");
+                }
+
                 const { config, ratings, calculatedScore, cigarInfo, cigarReview, isDraft } = resultsData;
                 
                 const maxScore = config.totalWeightMax || 100;
@@ -233,7 +220,8 @@
                 finalGrade = GRADING_SCALE.find(g => normalizedScore >= g.min_score) || GRADING_SCALE[GRADING_SCALE.length - 1];
 
                 const saveButtonContainer = document.getElementById('save-button-container');
-                if (currentAuthUser && isDraft) {
+                // Show save button only if user is logged in AND it's a draft
+                if (currentAuthUser && isDraft) { 
                     saveButtonContainer?.classList.remove('hidden');
                 }
                 
@@ -249,7 +237,8 @@
                 renderSummary(document.getElementById('summary-container'), config, ratings);
                 renderFullScale(document.getElementById('full-scale-container'), finalGrade);
 
-                mainContent.classList.add('animate-fadeInUp');
+                mainContent.style.opacity = '1'; // Make content visible
+                mainContent.classList.add('animate-fadeInUp'); // Start animation
             } catch (e) { 
                  errorContainer.innerHTML = `<p class="font-bold text-center">解析数据出错！<a href="index.html" class="text-indigo-600 underline">返回重试</a></p><p class="text-sm text-gray-600">${e.message}</p>`;
                  errorContainer.classList.remove('hidden');
@@ -261,10 +250,10 @@
         // --- 渲染和工具函数 (未改变) ---
         function generateNarrativeSummary(cigarInfo, config, ratings, finalGrade) {
             let summary = `<p class="text-base text-gray-700 leading-relaxed">`;
-            summary += `本次品鉴的雪茄是来自<strong class="font-semibold">${cigarInfo.origin}</strong>的<strong class="font-semibold">${cigarInfo.name}</strong>，尺寸为<strong class="font-semibold">${cigarInfo.size}</strong>。`;
+            summary += `本次品鉴的雪茄是来自<strong class="font-semibold">${cigarInfo?.origin || '未知'}</strong>的<strong class="font-semibold">${cigarInfo?.name || '未知'}</strong>，尺寸为<strong class="font-semibold">${cigarInfo?.size || '未知'}</strong>。`;
             
             let observations = [];
-            (config.ratingCriteria || []).forEach(category => {
+            (config?.ratingCriteria || []).forEach(category => {
                 (category.criteriaList || []).forEach(criterion => {
                     const id = getRatingId(category.category, criterion.name);
                     const selectedOptionIndex = ratings[id];
@@ -286,7 +275,10 @@
         }
 
         function getRatingId(category, criterion) {
-            return `${String(category).trim()}-${String(criterion).trim()}`;
+            // Add checks for undefined inputs
+            const catStr = String(category || '').trim();
+            const critStr = String(criterion || '').trim();
+            return `${catStr}-${critStr}`;
         }
 
         function renderResultsCard(container, score, grade) {
@@ -298,12 +290,12 @@
         function renderSummary(container, config, ratings) {
             if (!container) return;
             let summaryHtml = '';
-            (config.ratingCriteria || []).forEach((category) => {
+            (config?.ratingCriteria || []).forEach((category) => {
                 summaryHtml += `<div class="mb-4"><h4 class="text-md font-semibold text-gray-600 mb-2 border-b pb-1">${category.category}</h4><ul class="list-none space-y-1 text-sm">`;
                 (category.criteriaList || []).forEach((criterion) => {
                     const id = getRatingId(category.category, criterion.name);
                     const selectedOptionIndex = ratings[id];
-                    if (selectedOptionIndex !== undefined && criterion.options && criterion.options[selectedOptionIndex]) {
+                    if (selectedOptionIndex !== undefined && criterion.options?.[selectedOptionIndex]) {
                         const option = criterion.options[selectedOptionIndex];
                         const weightedScore = (criterion.weight || 0) * (option.scorePct || 0);
                         summaryHtml += `<li class="flex justify-between items-center p-1"><div><span class="font-medium text-gray-700">${criterion.name}:</span><span class="text-gray-500 ml-2">${option.description}</span></div><span class="font-semibold text-green-600">+${weightedScore.toFixed(2)}</span></li>`;
@@ -318,7 +310,7 @@
             if (!container) return;
             let scaleHtml = '<div class="space-y-3">';
             GRADING_SCALE.forEach(grade => {
-                const isCurrentGrade = grade.grade === finalGrade.grade;
+                const isCurrentGrade = grade.grade === finalGrade?.grade;
                 const styles = getGradeStyles(grade.color);
                 const highlightClasses = isCurrentGrade ? `border-blue-500 bg-blue-50 ring-2 ring-blue-200 animate-highlight` : 'border-gray-200 bg-white hover:bg-gray-50';
                 scaleHtml += `<div class="p-4 rounded-lg border-2 transition-all duration-300 ${highlightClasses}"><div class="flex items-center space-x-4"><div class="w-8 h-8 flex-shrink-0 rounded-full flex items-center justify-center font-black text-xl ${styles.textColor} ${styles.bgColor}">${grade.grade}</div><div class="flex-grow"><p class="font-bold text-lg ${styles.textColor}">${grade.name_cn}</p><p class="text-sm text-gray-500">${grade.name_en}</p></div><p class="font-mono font-semibold text-gray-700 text-right">${getScoreRange(grade.grade)}</p></div></div>`;
@@ -327,8 +319,8 @@
             container.innerHTML = scaleHtml;
         }
 
-        function getScoreRange(grade) {
-            const index = GRADING_SCALE.findIndex(g => g.grade === grade);
+        function getScoreRange(gradeCode) {
+            const index = GRADING_SCALE.findIndex(g => g.grade === gradeCode);
             if (index === -1) return '';
             const min = GRADING_SCALE[index].min_score;
             const max = index === 0 ? 100 : GRADING_SCALE[index - 1].min_score - 0.01;
