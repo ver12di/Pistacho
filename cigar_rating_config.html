@@ -7,18 +7,22 @@
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['Inter', 'Noto Sans SC', 'system-ui', 'sans-serif'],
-                    },
+        // Check if tailwind exists before configuring, add onerror handler
+        if (typeof tailwind !== 'undefined') {
+            tailwind.config = {
+                theme: {
+                    extend: {
+                        fontFamily: {
+                            sans: ['Inter', 'Noto Sans SC', 'system-ui', 'sans-serif'],
+                        },
+                    }
                 }
             }
+        } else {
+             console.warn('Tailwind object not found. Skipping config.');
         }
     </script>
-    <!-- 引入 Authing.cn JS SDK -->
-    <script src="https://cdn.authing.cn/packages/authing-js-sdk/5.1.5/authing-js-sdk.min.js"></script>
+    <!-- Removed Authing SDK script, as this page relies on sessionStorage -->
     
 </head>
 <body class="bg-gray-100 font-sans antialiased text-gray-800">
@@ -34,7 +38,8 @@
         
         <div id="error-container"></div>
 
-        <section id="admin-content" class="hidden">
+        <!-- Admin content area - initially hidden -->
+        <section id="admin-content" class="hidden"> 
             <section class="mb-8 p-6 bg-white rounded-xl shadow-lg">
                  <h2 class="text-xl font-bold text-indigo-700 mb-4">配置方案管理</h2>
                  <p class="text-sm text-gray-600 mb-2">
@@ -74,11 +79,11 @@
                  <h2 class="text-xl font-bold text-indigo-700 mb-4">应用基本信息</h2>
                  <label class="block mb-4">
                      <span class="text-gray-700 font-medium">应用标题</span>
-                     <input type="text" id="app-title-input" class="w-full p-2 border rounded-md mt-1" oninput="handleInputChange(this)" data-field="appTitle">
+                     <input type="text" id="app-title-input" class="w-full p-2 border rounded-md mt-1 admin-feature" oninput="handleInputChange(this)" data-field="appTitle">
                  </label>
                  <label class="block mb-4">
                      <span class="text-gray-700 font-medium">应用描述</span>
-                     <textarea id="app-description-input" class="w-full p-2 border rounded-md mt-1" rows="3" oninput="handleInputChange(this)" data-field="description"></textarea>
+                     <textarea id="app-description-input" class="w-full p-2 border rounded-md mt-1 admin-feature" rows="3" oninput="handleInputChange(this)" data-field="description"></textarea>
                  </label>
             </section>
 
@@ -88,10 +93,10 @@
                 </section>
             
                 <div class="mt-8 pt-4 border-t border-gray-300 grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <button type="button" id="save-profile-button" onclick="saveProfileChanges()" class="w-full py-3 font-semibold rounded-lg cursor-not-allowed bg-gray-400 text-gray-700" disabled>
+                    <button type="button" id="save-profile-button" onclick="saveProfileChanges()" class="w-full py-3 font-semibold rounded-lg cursor-not-allowed bg-gray-400 text-gray-700 admin-feature" disabled>
                         保存更改到方案
                     </button>
-                    <button type="button" id="publish-button" onclick="publishConfig()" class="w-full py-3 font-semibold rounded-lg cursor-not-allowed bg-gray-400 text-gray-700">
+                    <button type="button" id="publish-button" onclick="publishConfig()" class="w-full py-3 font-semibold rounded-lg cursor-not-allowed bg-gray-400 text-gray-700 admin-feature">
                         发布到 Live (latest)
                     </button>
                 </div>
@@ -104,14 +109,12 @@
         let ratingConfig = {};
         let currentAuthUser = null;
         let currentProfileId = 'latest';
-        let authingClient = null;
         let accessToken = null;
 
         // --- 权限和工具函数 ---
         function hasAdminAccess() {
-            if (!currentAuthUser || !currentAuthUser.roles) return false;
-            const userRoles = currentAuthUser.roles.map(r => r.code);
-            return userRoles.includes('admin') || userRoles.includes('super_admin');
+            if (!currentAuthUser || !currentAuthUser.db_role) return false;
+            return currentAuthUser.db_role === 'admin' || currentAuthUser.db_role === 'super_admin';
         }
 
         function renderError(message, isFatal = false) {
@@ -121,27 +124,28 @@
         }
         
         function deepCleanObject(obj) {
-            const partiallyCleaned = JSON.parse(JSON.stringify(obj));
-            function recursiveClean(current) {
-                if (Array.isArray(current)) {
-                    const cleanedArray = current.filter(item => item !== null).map(item => recursiveClean(item));
-                    return cleanedArray.length > 0 ? cleanedArray : undefined;
-                }
-                if (typeof current === 'object' && current !== null) {
-                    const newObj = {};
-                    let keyCount = 0;
-                    for (const key in current) {
-                        const value = recursiveClean(current[key]);
-                        if (value !== undefined) {
-                            newObj[key] = value;
-                            keyCount++;
-                        }
-                    }
-                    return keyCount > 0 ? newObj : undefined;
-                }
-                return current;
-            }
-            return recursiveClean(partiallyCleaned);
+             // Keep this function as it was defined before
+             const partiallyCleaned = JSON.parse(JSON.stringify(obj));
+             function recursiveClean(current) {
+                 if (Array.isArray(current)) {
+                     const cleanedArray = current.filter(item => item !== null).map(item => recursiveClean(item));
+                     return cleanedArray.length > 0 ? cleanedArray : undefined;
+                 }
+                 if (typeof current === 'object' && current !== null) {
+                     const newObj = {};
+                     let keyCount = 0;
+                     for (const key in current) {
+                         const value = recursiveClean(current[key]);
+                         if (value !== undefined) {
+                             newObj[key] = value;
+                             keyCount++;
+                         }
+                     }
+                     return keyCount > 0 ? newObj : undefined;
+                 }
+                 return current;
+             }
+             return recursiveClean(partiallyCleaned);
         }
 
         // --- API 调用封装 ---
@@ -149,16 +153,18 @@
             const headers = { 'Content-Type': 'application/json', ...options.headers };
             if (accessToken) {
                 headers['Authorization'] = `Bearer ${accessToken}`;
+            } else {
+                 throw new Error("用户未认证，无法执行操作。"); // Stop if no token
             }
             const response = await fetch(endpoint, { ...options, headers });
             if (!response.ok) {
-                const errorData = await response.json().catch(() => ({ error: 'Unknown server error' }));
-                throw new Error(errorData.error || `Request failed with status ${response.status}`);
+                const errorData = await response.json().catch(() => ({ error: '未知的服务器错误' }));
+                throw new Error(errorData.error || `请求失败，状态码 ${response.status}`);
             }
             if (response.headers.get('Content-Type')?.includes('application/json')) {
                 return response.json();
             }
-            return response.text();
+            return response.text(); // For responses that might not be JSON (though unlikely here)
         }
         
         // --- 配置方案加载逻辑 ---
@@ -166,9 +172,10 @@
             const selector = document.getElementById('profile-selector');
             selector.innerHTML = '<option value="latest">--- 实时配置 (latest) ---</option>';
             try {
-                const profileIds = await apiFetch('/api/config-profiles');
+                // No token needed for GET /api/config-profiles
+                const profileIds = await apiFetch('/api/config-profiles'); 
                 profileIds.forEach(id => {
-                    if (id !== 'latest') { // 'latest' is already there
+                    if (id !== 'latest') { 
                         selector.innerHTML += `<option value="${id}">${id}</option>`;
                     }
                 });
@@ -184,6 +191,7 @@
 
         async function loadConfigById(profileId) {
             try {
+                 // No token needed for GET /api/config/[profileId]
                 const config = await apiFetch(`/api/config/${profileId}`);
                 ratingConfig = config;
                 currentProfileId = profileId;
@@ -197,7 +205,7 @@
             }
         }
 
-        // --- UI 渲染 ---
+        // --- UI 渲染 (Keep your existing rendering logic) ---
         function renderConfigView() {
             const isAdmin = hasAdminAccess();
             document.querySelectorAll('.admin-feature').forEach(el => el.disabled = !isAdmin);
@@ -216,6 +224,7 @@
                 saveProfileButton.disabled = true;
                 saveProfileButton.className = 'w-full py-3 font-semibold rounded-lg cursor-not-allowed bg-gray-400 text-gray-700';
                 deleteProfileButton.disabled = true;
+                deleteProfileButton.classList.add('cursor-not-allowed', 'opacity-50'); // Visually disable delete button
             }
 
             document.getElementById('app-title-input').value = ratingConfig.appTitle || '';
@@ -281,7 +290,7 @@
             `;
         }
 
-        // --- 数据操作 (增删改) ---
+        // --- 数据操作 (增删改 - Keep your existing logic) ---
         window.handleInputChange = function(element) {
             let value = (element.type === 'number') ? (parseFloat(element.value) || 0) : element.value;
             const { type, field, index, catIndex, critIndex } = element.dataset;
@@ -315,8 +324,10 @@
             const originalText = button.textContent;
             button.textContent = '正在操作...'; button.disabled = true;
             
-            document.getElementById('app-title-input').value = ratingConfig.appTitle;
-            document.getElementById('app-description-input').value = ratingConfig.description;
+            // Sync UI values back to the ratingConfig object just before saving
+            ratingConfig.appTitle = document.getElementById('app-title-input').value;
+            ratingConfig.description = document.getElementById('app-description-input').value;
+            
             const cleanConfig = deepCleanObject(ratingConfig);
 
             try {
@@ -328,8 +339,13 @@
                 alert(`操作失败！\n错误: ${error.message}`);
                 return false;
             } finally {
-                button.textContent = originalText; button.disabled = false;
-                renderConfigView(); // Refresh buttons state
+                button.textContent = originalText; 
+                // Re-enable based on admin access and profile ID
+                 if (hasAdminAccess()) {
+                     if (button.id === 'save-profile-button') button.disabled = (currentProfileId === 'latest');
+                     else button.disabled = false;
+                 }
+                renderConfigView(); // Refresh buttons state maybe needed if profileId changed
             }
         }
         window.publishConfig = () => saveConfig('latest', document.getElementById('publish-button'));
@@ -337,28 +353,32 @@
         window.saveAsNewProfile = async function() {
             const profileName = prompt("请输入新配置方案的名称:");
             if (!profileName || profileName.trim() === '') return;
-            const success = await saveConfig(profileName.trim(), event.target);
+            const trimmedName = profileName.trim();
+            const success = await saveConfig(trimmedName, event.target);
             if (success) {
                 await loadProfileList();
-                await loadConfigById(profileName.trim());
+                await loadConfigById(trimmedName); // Load the newly saved profile
             }
         };
         window.deleteSelectedProfile = async function() {
             if (!hasAdminAccess() || currentProfileId === 'latest' || !confirm(`确定要永久删除方案 "${currentProfileId}" 吗？`)) return;
+             const button = document.getElementById('delete-profile-button');
+             button.textContent = '删除中...'; button.disabled = true;
             try {
                 await apiFetch(`/api/config/${currentProfileId}`, { method: 'DELETE' });
                 alert(`方案 "${currentProfileId}" 已删除。`);
                 await loadProfileList();
-                await loadConfigById('latest');
+                await loadConfigById('latest'); // Load latest after deletion
             } catch (error) {
                 alert(`删除方案失败！错误: ${error.message}`);
+                 button.textContent = '删除'; button.disabled = (currentProfileId === 'latest');
             }
         };
 
         // --- 导入 / 导出功能 ---
         window.downloadConfigJSON = function() {
-            document.getElementById('app-title-input').value = ratingConfig.appTitle;
-            document.getElementById('app-description-input').value = ratingConfig.description;
+            ratingConfig.appTitle = document.getElementById('app-title-input').value;
+            ratingConfig.description = document.getElementById('app-description-input').value;
             const cleanConfig = deepCleanObject(ratingConfig);
             const jsonString = JSON.stringify(cleanConfig, null, 2);
             const blob = new Blob([jsonString], { type: "application/json" });
@@ -376,9 +396,11 @@
                 let uploadedConfig;
                 try {
                     uploadedConfig = JSON.parse(e.target.result);
+                    if (!uploadedConfig.ratingCriteria) throw new Error("JSON 格式无效。");
                 } catch (err) { return alert(`文件解析失败！\n错误: ${err.message}`); }
-                ratingConfig = uploadedConfig; // Temporarily load into editor
-                renderConfigView();
+                
+                ratingConfig = uploadedConfig; // Load into editor
+                renderConfigView(); // Display the loaded config
                 alert('JSON 文件已加载到编辑器中，请点击 "另存为新方案" 来保存它。');
             };
             reader.readAsText(file);
@@ -387,49 +409,37 @@
 
         // --- 初始化流程 ---
         window.onload = async function() {
-            const waitForAuthing = (timeout = 10000) => new Promise((resolve, reject) => {
-                if (window.authing) return resolve();
-                const interval = setInterval(() => {
-                    if (window.authing) { clearInterval(interval); clearTimeout(timer); resolve(); }
-                }, 100);
-                const timer = setTimeout(() => {
-                    clearInterval(interval);
-                    reject(new Error("认证服务(Authing SDK)加载超时。"));
-                }, timeout);
-            });
+             accessToken = sessionStorage.getItem('accessToken');
+             if (!accessToken) {
+                 renderError("您需要登录才能访问此页面。请返回主页登录。", true);
+                 document.getElementById('role-display').textContent = '未登录';
+                 return; // Stop execution if not logged in
+             }
 
-            try {
-                await waitForAuthing();
-                authingClient = new window.authing.AuthenticationClient({
-                    appId: '68f5b0b6875017c02b3bfdb3',
-                    appHost: 'https://xfvu647mcdbk-demo.authing.cn',
-                    redirectUri: window.location.origin,
-                });
-                
-                const session = await authingClient.getLoginState();
-                if (!session) {
-                    renderError("您需要登录才能访问此页面。", true);
-                    document.getElementById('role-display').textContent = '未登录';
-                    return;
-                }
-                currentAuthUser = session.userInfo;
-                accessToken = session.accessToken;
+             // Validate token and get user info including db_role
+             try {
+                  const response = await fetch('/api/me', {
+                     headers: { 'Authorization': `Bearer ${accessToken}` }
+                 });
+                 if (!response.ok) throw new Error('会话已过期或无效，请重新登录。');
+                 currentAuthUser = await response.json();
 
-                if (!hasAdminAccess()) {
-                    renderError("权限不足。需要 ADMIN 或 SUPER_ADMIN 权限才能访问此页面。", true);
-                    document.getElementById('role-display').textContent = `权限不足 (当前: ${ (currentAuthUser.roles[0]?.code || 'USER').toUpperCase() })`;
-                    return;
-                }
+                 if (!hasAdminAccess()) {
+                     renderError("权限不足。需要 ADMIN 或 SUPER_ADMIN 权限才能访问此页面。", true);
+                     document.getElementById('role-display').textContent = `权限不足 (当前: ${ (currentAuthUser.db_role || 'USER').toUpperCase() })`;
+                     return; // Stop if not admin
+                 }
+                 
+                 // User is admin, proceed
+                 document.getElementById('role-display').textContent = `当前用户角色: ${currentAuthUser.db_role.toUpperCase()}`;
+                 document.getElementById('admin-content').classList.remove('hidden'); // Show admin content
+                 
+                 await loadProfileList();
+                 await loadConfigById('latest');
 
-                document.getElementById('role-display').textContent = `当前用户角色: ${currentAuthUser.roles.map(r=>r.code).join(', ').toUpperCase()}`;
-                document.getElementById('admin-content').classList.remove('hidden');
-                
-                await loadProfileList();
-                await loadConfigById('latest');
-
-            } catch (e) {
-                renderError(`初始化失败: ${e.message}`, true);
-            }
+             } catch(e) {
+                 renderError(`初始化失败: ${e.message}`, true);
+             }
         };
     </script>
 </body>
