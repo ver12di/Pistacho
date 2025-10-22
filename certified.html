@@ -73,8 +73,26 @@
                     method: 'POST',
                     body: JSON.stringify({ ratingId: ratingId, certify: certify })
                 });
-                // 成功后刷新列表
-                fetchAndRenderCertified(); 
+                
+                // **FIX**: 不再调用 fetchAndRenderCertified()，
+                // 而是手动移除 DOM 元素以避免数据同步延迟
+                const cardToRemove = document.getElementById(`rating-card-${ratingId}`);
+                if (cardToRemove) {
+                    // 添加一个平滑的淡出效果
+                    cardToRemove.style.transition = 'opacity 0.3s ease-out';
+                    cardToRemove.style.opacity = '0';
+                    setTimeout(() => {
+                        cardToRemove.remove();
+                        // 检查容器是否变空
+                        const container = document.getElementById('certified-container');
+                        if (container && !container.querySelector('a')) {
+                            container.innerHTML = `<div class="text-center p-6 bg-white rounded-lg shadow"><p>还没有任何认证评分。</p></div>`;
+                        }
+                    }, 300);
+                } else {
+                    // 如果因为某些原因找不到卡片，才回退到刷新
+                    fetchAndRenderCertified();
+                }
              } catch(e) {
                 alert(`操作失败: ${e.message}`);
                 button.textContent = originalText;
@@ -144,7 +162,7 @@
                     }
 
                     certifiedHtml += `
-                        <a href="#" onclick="viewRatingDetails('${ratingId}'); return false;" class="block bg-white p-4 rounded-lg shadow-md hover:shadow-lg transition-shadow">
+                        <a id="rating-card-${ratingId}" href="#" onclick="viewRatingDetails('${ratingId}'); return false;" class="block bg-white p-4 rounded-lg shadow-md hover:shadow-lg transition-shadow">
                             <div class="flex justify-between items-center">
                                 <div>
                                     <p class="text-lg font-bold text-gray-800">${cigarInfo.name}</p>
@@ -183,3 +201,4 @@
     </script>
 </body>
 </html>
+
