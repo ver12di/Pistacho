@@ -5,8 +5,8 @@
 // ---------------------------------------------------
 
 /**
- * **FIXED**: Atomically inserts or updates user using ON CONFLICT,
- * then retrieves the role. (Copied from callback.js & ratings.js)
+ * **FIXED (Safer Logic)**: Atomically inserts or updates user using a
+ * multi-step select-then-update approach to guarantee role preservation.
  * @param {D1Database} db - D1 数据库实例
  * @param {object} userInfo - 从 Authing 获取的用户信息
  * @returns {Promise<string>} - 用户的角色
@@ -14,35 +14,57 @@
 async function getRoleFromDatabase(db, userInfo) {
     const userId = userInfo.sub;
     const email = userInfo.email;
-    // **MODIFIED**: Extract a nickname
-    const nickname = userInfo.name || userInfo.nickname || userInfo.preferred_username || userInfo.email; 
+    const nickname = userInfo.name || userInfo.nickname || userInfo.preferred_username || userInfo.email;
 
-    if (!email) {
-        console.warn(`User ${userId} has no email from Authing. Assigning temporary 'general' role.`);
+    if (!userId || !email) {
+        console.warn(`User ${userId} has no email or ID from Authing. Assigning temporary 'general' role.`);
         return 'general';
     }
 
     try {
-        // Step 1: Atomically INSERT or UPDATE the user record.
-        // **MODIFIED**: Added nickname logic
-        await db.prepare(
-            `INSERT INTO users (userId, email, role, nickname) VALUES (?, ?, 'general', ?)
-             ON CONFLICT(userId) DO UPDATE SET email = excluded.email, nickname = excluded.nickname
-             ON CONFLICT(email) DO UPDATE SET userId = excluded.userId, nickname = excluded.nickname`
-        ).bind(userId, email, nickname).run();
+        // Step 1: 尝试通过主键 (userId) 查找用户
+        let stmt = db.prepare("SELECT * FROM users WHERE userId = ?").bind(userId);
+        let userRecord = await stmt.first();
 
-        // Step 2: Fetch the definitive role.
-        const stmt = db.prepare("SELECT role FROM users WHERE userId = ?").bind(userId);
-        const userRecord = await stmt.first();
-
-        if (!userRecord) {
-             throw new Error(`Failed to find user record for userId ${userId} after insert/update.`);
+        if (userRecord) {
+            // --- 找到用户 (通过 ID) ---
+            // 这是最常见的情况。更新 email/nickname 以防它们在 Authing 中被更改。
+            stmt = db.prepare("UPDATE users SET email = ?, nickname = ? WHERE userId = ?")
+                     .bind(email, nickname, userId);
+            await stmt.run();
+            // 返回数据库中已存在的角色
+            return userRecord.role;
         }
-        return userRecord.role;
+
+        // --- 未通过 ID 找到用户 ---
+        // Step 2: 尝试通过 email 查找
+        // (处理 userId 可能已更改，或是首次登录后数据同步的情况)
+        stmt = db.prepare("SELECT * FROM users WHERE email = ?").bind(email);
+        userRecord = await stmt.first();
+
+        if (userRecord) {
+            // --- 找到用户 (通过 Email) ---
+            // 用户存在，但ta在我们数据库中的 userId 是旧的。更新它。
+            stmt = db.prepare("UPDATE users SET userId = ?, nickname = ? WHERE email = ?")
+                     .bind(userId, nickname, email);
+            await stmt.run();
+            // 返回数据库中已存在的角色
+            return userRecord.role;
+        }
+
+        // --- 未通过 ID 或 Email 找到用户 ---
+        // Step 3: 这是一个全新的用户。创建ta。
+        stmt = db.prepare("INSERT INTO users (userId, email, role, nickname) VALUES (?, ?, 'general', ?)")
+                 .bind(userId, email, nickname);
+        await stmt.run();
+        
+        // 返回新创建的 'general' 角色
+        return 'general';
 
     } catch (e) {
         console.error(`Database error during getRoleFromDatabase for userId ${userId}, email ${email}:`, e);
-        return 'general'; // Fallback role on error
+        // 出现意外错误时，回退到 'general'
+        return 'general';
     }
 }
 
