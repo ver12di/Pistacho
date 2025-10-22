@@ -5,8 +5,8 @@
 // ---------------------------------------------------
 
 /**
- * **FINAL FIX**: Atomically inserts or updates user using ON CONFLICT,
- * then retrieves the role. (Copied from callback.js)
+ * **FIXED**: Atomically inserts or updates user using ON CONFLICT,
+ * then retrieves the role. (Copied from callback.js & ratings.js)
  * @param {D1Database} db - D1 数据库实例
  * @param {object} userInfo - 从 Authing 获取的用户信息
  * @returns {Promise<string>} - 用户的角色
@@ -14,8 +14,8 @@
 async function getRoleFromDatabase(db, userInfo) {
     const userId = userInfo.sub;
     const email = userInfo.email;
-    // Extract a nickname, prioritizing 'name', then 'nickname', then 'preferred_username'
-    const nickname = userInfo.name || userInfo.nickname || userInfo.preferred_username || userInfo.email; // Fallback to email if no name
+    // **MODIFIED**: Extract a nickname
+    const nickname = userInfo.name || userInfo.nickname || userInfo.preferred_username || userInfo.email; 
 
     if (!email) {
         console.warn(`User ${userId} has no email from Authing. Assigning temporary 'general' role.`);
@@ -24,6 +24,7 @@ async function getRoleFromDatabase(db, userInfo) {
 
     try {
         // Step 1: Atomically INSERT or UPDATE the user record.
+        // **MODIFIED**: Added nickname logic
         await db.prepare(
             `INSERT INTO users (userId, email, role, nickname) VALUES (?, ?, 'general', ?)
              ON CONFLICT(userId) DO UPDATE SET email = excluded.email, nickname = excluded.nickname
@@ -67,7 +68,7 @@ export async function onRequestGet(context) {
         }
         const userInfo = await response.json();
 
-        // 2. Get (or create/update) role from our D1 database using the atomic function
+        // 2. Get (or create/update) role from our D1 database using the (now correct) atomic function
         const dbRole = await getRoleFromDatabase(env.DB, userInfo);
 
         // 3. Combine Authing info and D1 role and return
