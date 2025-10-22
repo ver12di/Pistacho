@@ -122,9 +122,9 @@
             let html = `<div class="p-4 text-red-700 bg-red-100 border border-red-300 rounded-lg max-w-2xl mx-auto mt-4 shadow-sm"><p class="font-bold text-sm mb-1">${isFatal ? '严重错误' : '错误'}</p><p class="text-sm">${message}</p></div>`;
             if (isFatal) {
                  html += `<div class="mt-4 text-center"><a href="index.html" class="text-indigo-600 hover:text-indigo-800 underline">返回主页${showLoginLink ? '并重新登录' : ''}</a></div>`;
-                 document.getElementById('main-container').innerHTML = html; // Replace main content if fatal
+                 document.getElementById('main-container').innerHTML = html; 
             } else {
-                 document.getElementById('error-container').innerHTML = html; // Append to error container if not fatal
+                 document.getElementById('error-container').innerHTML = html; 
             }
         }
         
@@ -155,9 +155,8 @@
         // --- API 调用封装 ---
         async function apiFetch(endpoint, options = {}) {
             const headers = { 'Content-Type': 'application/json', ...options.headers };
-             // **Ensure token is always added for API calls from this page**
-            if (!accessToken && options.method !== 'GET') { // Allow GET without token for now
-                throw new Error("用户未认证或会话已过期，无法执行操作。");
+            if (!accessToken && options.method !== 'GET') { 
+                 throw new Error("用户未认证或会话已过期，无法执行写操作。"); 
             }
             if (accessToken) {
                  headers['Authorization'] = `Bearer ${accessToken}`;
@@ -168,16 +167,16 @@
             const response = await fetch(apiUrl, { ...options, headers });
             
             if (!response.ok) {
-                let errorData = { error: `请求失败，状态码 ${response.status}` };
+                let errorData = { error: `请求失败 (${response.status})` };
                  let errorMessage = errorData.error;
                 try {
                     errorData = await response.json();
                      errorMessage = errorData.error || errorMessage;
-                } catch(e) { /* Ignore if response body is not JSON */ }
+                } catch(e) { /* Ignore */ }
                  
-                 // **FIX**: Throw specific error for 401/403
+                 // Throw specific error for 401/403
                  if (response.status === 401 || response.status === 403) {
-                     throw new Error('会话已过期或无效，请重新登录。');
+                     throw new Error(`会话已过期或无效 (${response.status})`); // More specific
                  }
                  
                 throw new Error(errorMessage);
@@ -197,7 +196,6 @@
             const selector = document.getElementById('profile-selector');
             selector.innerHTML = '<option value="latest">--- 实时配置 (latest) ---</option>';
             try {
-                // Allow GET without token
                 const profileIds = await apiFetch('/api/config-profiles'); 
                 profileIds.forEach(id => {
                     if (id !== 'latest') { 
@@ -205,7 +203,7 @@
                     }
                 });
             } catch (e) {
-                renderError("加载配置方案列表失败: " + e.message); // Use renderError
+                renderError("加载配置方案列表失败: " + e.message); 
             }
         }
 
@@ -216,7 +214,6 @@
 
         async function loadConfigById(profileId) {
             try {
-                 // Allow GET without token
                 const config = await apiFetch(`/api/config/${profileId}`);
                 ratingConfig = config;
                 currentProfileId = profileId;
@@ -264,8 +261,8 @@
                 deleteProfileButton.className = 'w-full py-3 bg-red-500 text-white font-semibold rounded-lg text-sm cursor-not-allowed opacity-50';
             }
 
-            titleInput.value = ratingConfig?.appTitle || ''; // Add safe navigation
-            descInput.value = ratingConfig?.description || ''; // Add safe navigation
+            titleInput.value = ratingConfig?.appTitle || ''; 
+            descInput.value = ratingConfig?.description || ''; 
             
             container.innerHTML = (ratingConfig?.ratingCriteria || []).map((category, catIndex) => `
                 <div class="bg-white p-6 rounded-xl shadow-lg mb-6 border-l-4 border-indigo-500">
@@ -374,22 +371,20 @@
                 alert(`配置方案 "${profileId}" 操作成功！`);
                 return true;
             } catch (error) {
-                 renderError(`操作失败！错误: ${error.message}`); // Use renderError
+                 // **FIX**: Use renderError for better feedback
+                 renderError(`操作失败！错误: ${error.message}`); 
                 return false;
             } finally {
                 button.textContent = originalText; 
-                 if (hasAdminAccess()) {
-                     button.disabled = (button.id === 'save-profile-button' && currentProfileId === 'latest');
-                 } else {
-                     button.disabled = true;
-                 }
-                // Optionally re-enable delete button based on profileId
-                const deleteBtn = document.getElementById('delete-profile-button');
-                if (deleteBtn) {
+                 // Re-enable logic needs careful check
+                 button.disabled = !hasAdminAccess() || (button.id === 'save-profile-button' && currentProfileId === 'latest');
+                 // Ensure delete button state is also correct
+                 const deleteBtn = document.getElementById('delete-profile-button');
+                 if(deleteBtn) {
                      deleteBtn.disabled = !hasAdminAccess() || currentProfileId === 'latest';
                      if(deleteBtn.disabled) deleteBtn.classList.add('cursor-not-allowed', 'opacity-50');
                      else deleteBtn.classList.remove('cursor-not-allowed', 'opacity-50');
-                }
+                 }
             }
         }
         window.publishConfig = () => saveConfig('latest', document.getElementById('publish-button'));
@@ -418,7 +413,7 @@
                 await loadProfileList();
                 await loadConfigById('latest'); 
             } catch (error) {
-                 renderError(`删除方案失败！错误: ${error.message}`); // Use renderError
+                 renderError(`删除方案失败！错误: ${error.message}`); 
                  button.textContent = '删除'; 
                  button.disabled = !hasAdminAccess() || currentProfileId === 'latest';
             }
@@ -426,7 +421,6 @@
 
         // --- 导入 / 导出功能 ---
         window.downloadConfigJSON = function() {
-            // Sync UI values before downloading
             ratingConfig.appTitle = document.getElementById('app-title-input').value;
             ratingConfig.description = document.getElementById('app-description-input').value;
             const cleanConfig = deepCleanObject(ratingConfig);
@@ -451,19 +445,18 @@
                 let uploadedConfig;
                 try {
                     uploadedConfig = JSON.parse(e.target.result);
-                    // Basic validation
                     if (!uploadedConfig || typeof uploadedConfig !== 'object' || !uploadedConfig.ratingCriteria) {
                          throw new Error("JSON 文件格式无效或缺少 'ratingCriteria'。");
                     }
                 } catch (err) { 
-                    fileInput.value = null; // Reset file input
+                    fileInput.value = null; 
                     return alert(`文件解析失败！\n错误: ${err.message}`); 
                 }
                 
-                ratingConfig = uploadedConfig; // Load into editor
-                renderConfigView(); // Display the loaded config
+                ratingConfig = uploadedConfig; 
+                renderConfigView(); 
                 alert('JSON 文件已加载到编辑器中，请检查内容并点击 "另存为新方案" 来保存它。');
-                fileInput.value = null; // Reset file input after processing
+                fileInput.value = null; 
             };
             reader.readAsText(file);
         };
@@ -472,20 +465,27 @@
         window.onload = async function() {
              accessToken = sessionStorage.getItem('accessToken');
              if (!accessToken) {
-                 renderError("您需要登录才能访问此页面。请返回主页登录。", true, true); // Added showLoginLink
+                 // **FIX**: Added showLoginLink = true
+                 renderError("您需要登录才能访问此页面。请返回主页登录。", true, true); 
                  document.getElementById('role-display').textContent = '未登录';
                  return; 
              }
 
              try {
+                  console.log("Token found in sessionStorage:", accessToken ? accessToken.substring(0, 10) + '...' : 'null'); // Log token existence
                   const response = await fetch('/api/me', {
                      headers: { 'Authorization': `Bearer ${accessToken}` }
                  });
+                 console.log("/api/me response status:", response.status); // Log response status
+
                  if (!response.ok) {
-                     // If /api/me fails (e.g., token expired), show fatal error with login link
-                     throw new Error('会话已过期或无效，请重新登录。');
+                      let errorBody = await response.text(); // Get potential error body
+                      console.error("/api/me failed:", response.status, errorBody);
+                      // **FIX**: Throw specific error based on status
+                      throw new Error(`会话已过期或无效 (${response.status})，请重新登录。`); 
                  }
                  currentAuthUser = await response.json();
+                 console.log("User info received from /api/me:", currentAuthUser); // Log received user info
 
                  if (!hasAdminAccess()) {
                      renderError("权限不足。需要 ADMIN 或 SUPER_ADMIN 权限才能访问此页面。", true);
@@ -500,11 +500,12 @@
                  await loadConfigById('latest');
 
              } catch(e) {
-                 // Catch token validation error specifically
+                 console.error("Initialization failed:", e); // Log the actual error
+                 // **FIX**: Catch the specific session error and show login link
                  if (e.message.includes('会话已过期')) {
-                      renderError(e.message, true, true); // Show fatal error with login link
+                      renderError(e.message, true, true); 
                  } else {
-                      renderError(`初始化失败: ${e.message}`, true); // Other fatal errors
+                      renderError(`初始化失败: ${e.message}`, true); 
                  }
              }
         };
