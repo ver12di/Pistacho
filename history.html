@@ -36,11 +36,11 @@
             <a href="index.html" class="py-2 px-4 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700">&larr; 返回主页</a>
         </footer>
     </div>
-    
+
     <script type="module">
         let currentAuthUser = null;
         let accessToken = null;
-        let historicalRatings = {}; 
+        let historicalRatings = {}; // 用于 "查看详情"
 
         // --- API 调用封装 ---
         async function apiFetch(endpoint, options = {}) {
@@ -61,19 +61,20 @@
             }
             return response.json();
         }
-        
+
         // --- 认证功能 ---
         async function updateCertification(ratingId, certify, button) {
              const originalText = button.textContent;
-             button.textContent = '处理中...';
+             button.textContent = '...';
              button.disabled = true;
              try {
+                // 调用新的 certify API
                 await apiFetch('/api/certify', {
                     method: 'POST',
                     body: JSON.stringify({ ratingId: ratingId, certify: certify })
                 });
-                // 成功后刷新列表
-                fetchAndRenderHistory(); 
+                // 成功后, 刷新列表
+                fetchAndRenderHistory();
              } catch(e) {
                 alert(`操作失败: ${e.message}`);
                 button.textContent = originalText;
@@ -83,28 +84,25 @@
         
         window.certifyRating = function(ratingId, event) {
             event.stopPropagation();
-            if (confirm("确定要将此评分认证为 Pistacho 官方评分吗？")) {
-                updateCertification(ratingId, true, event.target);
-            }
+            updateCertification(ratingId, true, event.target);
         }
         
         window.uncertifyRating = function(ratingId, event) {
             event.stopPropagation();
-             if (confirm("确定要取消此评分的 Pistacho 官方认证吗？")) {
-                updateCertification(ratingId, false, event.target);
-            }
+            updateCertification(ratingId, false, event.target);
         }
 
         // --- 评分管理 ---
         window.viewRatingDetails = function(ratingId) {
             const ratingData = historicalRatings[ratingId];
             if (ratingData) {
-                // 将 D1 数据库中的 fullData (它是一个字符串) 转为对象
+                // fullData 是保存时的原始 JSON
                 const fullData = (typeof ratingData.fullData === 'string') 
                     ? JSON.parse(ratingData.fullData) 
                     : ratingData.fullData;
                 
-                // isDraft: false 表示这是一个已保存的记录，不是草稿
+                // 我们需要传递 isDraft: false 来告诉 results.html 这不是草稿
+                // 并且传递 ratingId
                 sessionStorage.setItem('cigarRatingResults', JSON.stringify({ ...fullData, isDraft: false, ratingId: ratingId }));
                 window.location.href = 'results.html';
             } else {
@@ -116,9 +114,9 @@
             event.stopPropagation();
             const ratingData = historicalRatings[ratingId];
             if (ratingData) {
-                // 存储一个标记，告诉 index.html 我们要编辑
-                sessionStorage.setItem('editRatingData', JSON.stringify(ratingData));
-                window.location.href = 'index.html?edit=true';
+                // 告诉 index.html 我们要编辑这个 ratingId
+                sessionStorage.setItem('editRatingId', ratingId);
+                window.location.href = 'index.html';
             } else {
                 alert("无法加载该评分进行编辑。");
             }
@@ -126,14 +124,23 @@
         
         window.deleteRating = async function(ratingId, event) {
             event.stopPropagation();
-            if (!confirm("确定要永久删除这条评分记录吗？此操作无法撤销。")) {
-                return;
-            }
+            if (!confirm("确定要永久删除这条评分记录吗？此操作无法撤销。")) return;
+            
+            const button = event.target;
+            button.textContent = '...';
+            button.disabled = true;
+            
             try {
-                await apiFetch(`/api/ratings?id=${ratingId}`, { method: 'DELETE' });
-                fetchAndRenderHistory(); // 刷新列表
+                await apiFetch('/api/ratings', {
+                    method: 'DELETE',
+                    body: JSON.stringify({ ratingId: ratingId })
+                });
+                // 成功后, 刷新列表
+                fetchAndRenderHistory();
             } catch(e) {
-                alert(`删除失败: ${e.message}`);
+                 alert(`删除失败: ${e.message}`);
+                 button.textContent = '删除';
+                 button.disabled = false;
             }
         }
 
@@ -142,7 +149,7 @@
             const container = document.getElementById('history-container');
             const title = document.getElementById('history-title');
 
-            if (!currentAuthUser) {
+            if (!currentAuthUser || !accessToken) {
                 title.textContent = "评分历史";
                 container.innerHTML = `<div class="text-center p-6 bg-white rounded-lg shadow"><p>请<a href="index.html" class="text-indigo-600 underline">登录</a>以查看您的评分历史。</p></div>`;
                 return;
@@ -151,31 +158,33 @@
             container.innerHTML = `<div class="text-center p-6"><p>正在加载历史记录...</p></div>`;
             
             try {
+                // 调用 GET /api/ratings (会自动处理权限)
                 const results = await apiFetch('/api/ratings');
                 
                 if (results.length === 0) {
                     container.innerHTML = `<div class="text-center p-6 bg-white rounded-lg shadow"><p>还没有任何评分记录。</p></div>`;
                     return;
                 }
-                
+
                 // 确定用户角色
+                const userId = currentAuthUser.sub;
                 const userRole = currentAuthUser.db_role;
                 const isAdmin = userRole === 'admin' || userRole === 'super_admin';
-                const currentUserId = currentAuthUser.sub;
                 
                 if (isAdmin) {
-                    title.textContent = "所有用户的评分历史";
+                     title.textContent = "所有用户的评分历史";
                 } else {
-                    title.textContent = "我的评分历史";
+                     title.textContent = "我的评分历史";
                 }
 
                 let historyHtml = '<div class="space-y-4">';
                 historicalRatings = {}; // 清空缓存
-
+                
                 results.forEach(data => {
                     const ratingId = data.id;
-                    historicalRatings[ratingId] = data; // 缓存数据以供查看详情
+                    historicalRatings[ratingId] = data; // 缓存数据
                     
+                    // fullData 是保存时的原始 JSON
                     const fullData = (typeof data.fullData === 'string') 
                         ? JSON.parse(data.fullData) 
                         : data.fullData;
@@ -183,23 +192,26 @@
                     const date = data.timestamp ? new Date(data.timestamp).toLocaleDateString('zh-CN') : '未知日期';
                     const scoreDisplay = data.normalizedScore !== undefined ? data.normalizedScore.toFixed(2) : 'N/A';
                     const gradeDisplay = data.finalGrade_grade ? `${data.finalGrade_grade} - ${data.finalGrade_name_cn}` : '未评级';
-                    const cigarInfo = fullData.cigarInfo || { name: data.cigarName, size: data.cigarSize, origin: data.cigarOrigin };
+                    // 优先使用 fullData 里的 cigarInfo, 其次使用数据库根字段
+                    const cigarInfo = fullData?.cigarInfo || { name: data.cigarName, size: data.cigarSize, origin: data.cigarOrigin };
+
+                    // 权限检查
+                    const isOwner = data.userId === userId;
+                    const canEdit = isOwner || isAdmin;
                     
-                    const isOwner = data.userId === currentUserId;
-                    
-                    // --- 按钮逻辑 ---
-                    let buttonsHtml = '';
-                    if (isOwner || isAdmin) {
-                        buttonsHtml += `<button onclick="editRating('${ratingId}', event)" class="flex-1 text-sm py-1 px-3 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition">修改</button>`;
-                        buttonsHtml += `<button onclick="deleteRating('${ratingId}', event)" class="flex-1 text-sm py-1 px-3 bg-red-500 text-white rounded-md hover:bg-red-600 transition">删除</button>`;
-                    }
-                    
-                    // 认证按钮（仅限管理员）
+                    // 作者信息 (仅管理员可见)
+                    let authorHtml = '';
                     if (isAdmin) {
-                        if (data.isCertified) { // D1 返回 1 (true) 或 0 (false)
-                            buttonsHtml += `<button onclick="uncertifyRating('${ratingId}', event)" class="flex-1 text-sm py-1 px-3 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 transition">取消认证</button>`;
+                        authorHtml = `<span class="text-xs text-gray-500"> | 用户: ${data.userNickname || data.userEmail || data.userId}</span>`;
+                    }
+
+                    // 认证按钮
+                    let certifyButtonHtml = '';
+                    if (isAdmin) {
+                        if (data.isCertified) {
+                            certifyButtonHtml = `<button onclick="uncertifyRating('${ratingId}', event)" class="flex-shrink-0 text-xs py-1 px-3 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 transition">取消认证</button>`;
                         } else {
-                            buttonsHtml += `<button onclick="certifyRating('${ratingId}', event)" class="flex-1 text-sm py-1 px-3 bg-green-500 text-white rounded-md hover:bg-green-600 transition">认证</button>`;
+                            certifyButtonHtml = `<button onclick="certifyRating('${ratingId}', event)" class="flex-shrink-0 text-xs py-1 px-3 bg-green-500 text-white rounded-md hover:bg-green-600 transition">认证</button>`;
                         }
                     }
 
@@ -208,15 +220,19 @@
                             <div class="flex justify-between items-center">
                                 <div>
                                     <p class="text-lg font-bold text-gray-800">${cigarInfo.name}</p>
-                                    <p class="text-sm text-gray-500">${cigarInfo.size} | ${cigarInfo.origin} | ${date}</p>
-                                    ${ (isAdmin && !isOwner) ? `<p class="text-xs text-gray-400 pt-1">用户: ${data.userNickname || data.userEmail || data.userId}</p>` : '' }
+                                    <p class="text-sm text-gray-500">${cigarInfo.size} | ${cigarInfo.origin} | ${date}${authorHtml}</p>
                                 </div>
                                 <div class="text-right flex-shrink-0 ml-4">
                                     <p class="text-2xl font-black text-indigo-600">${scoreDisplay}</p>
                                     <p class="font-bold text-gray-600">${gradeDisplay}</p>
                                 </div>
                             </div>
-                            ${buttonsHtml ? `<div class="mt-3 border-t pt-3 flex gap-2">${buttonsHtml}</div>` : ''}
+                            ${canEdit ? `
+                            <div class="mt-3 border-t pt-3 flex items-center justify-end space-x-2">
+                                <button onclick="editRating('${ratingId}', event)" class="flex-shrink-0 text-xs py-1 px-3 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition">修改</button>
+                                <button onclick="deleteRating('${ratingId}', event)" class="flex-shrink-0 text-xs py-1 px-3 bg-red-500 text-white rounded-md hover:bg-red-600 transition">删除</button>
+                                ${certifyButtonHtml}
+                            </div>` : ''}
                         </a>
                     `;
                 });
@@ -229,6 +245,7 @@
             }
         }
 
+        // --- 初始化 ---
         window.onload = function() {
             const storedUser = sessionStorage.getItem('userInfo');
             accessToken = sessionStorage.getItem('accessToken');
