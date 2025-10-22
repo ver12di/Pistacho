@@ -4,6 +4,46 @@
 //       同时处理新用户的角色初始化
 // ---------------------------------------------------
 
+/**
+ * **FINAL FIX**: Atomically inserts or updates user using ON CONFLICT,
+ * then retrieves the role. (Copied from callback.js)
+ * @param {D1Database} db - D1 数据库实例
+ * @param {object} userInfo - 从 Authing 获取的用户信息
+ * @returns {Promise<string>} - 用户的角色
+ */
+async function getRoleFromDatabase(db, userInfo) {
+    const userId = userInfo.sub;
+    const email = userInfo.email;
+
+    if (!email) {
+        console.warn(`User ${userId} has no email from Authing. Assigning temporary 'general' role.`);
+        return 'general';
+    }
+
+    try {
+        // Step 1: Atomically INSERT or UPDATE the user record.
+        await db.prepare(
+            `INSERT INTO users (userId, email, role) VALUES (?, ?, 'general')
+             ON CONFLICT(userId) DO NOTHING
+             ON CONFLICT(email) DO UPDATE SET userId = excluded.userId`
+        ).bind(userId, email).run();
+
+        // Step 2: Fetch the definitive role.
+        const stmt = db.prepare("SELECT role FROM users WHERE userId = ?").bind(userId);
+        const userRecord = await stmt.first();
+
+        if (!userRecord) {
+             throw new Error(`Failed to find user record for userId ${userId} after insert/update.`);
+        }
+        return userRecord.role;
+
+    } catch (e) {
+        console.error(`Database error during getRoleFromDatabase for userId ${userId}, email ${email}:`, e);
+        return 'general'; // Fallback role on error
+    }
+}
+
+
 export async function onRequestGet(context) {
     const { request, env } = context;
 
@@ -14,37 +54,24 @@ export async function onRequestGet(context) {
     }
 
     try {
-        // 1. 从 Authing 获取基础用户信息
+        // 1. Get base user info from Authing
         const userInfoUrl = new URL('/oidc/me', env.AUTHING_ISSUER);
         const response = await fetch(userInfoUrl.toString(), {
             headers: { 'Authorization': `Bearer ${token}` }
         });
-        if (!response.ok) throw new Error('Invalid Authing token');
+        if (!response.ok) {
+             console.error('Fetch user info failed in /api/me:', response.status, await response.text());
+             throw new Error('Invalid Authing token');
+        }
         const userInfo = await response.json();
 
-        const userId = userInfo.sub;
+        // 2. Get (or create/update) role from our D1 database using the atomic function
+        const dbRole = await getRoleFromDatabase(env.DB, userInfo);
 
-        // 2. 在我们的 D1 数据库中查找该用户
-        let stmt = env.DB.prepare("SELECT role FROM users WHERE userId = ?").bind(userId);
-        let userRecord = await stmt.first();
-        
-        let finalRole = 'general';
-
-        if (userRecord) {
-            // 3. 如果用户已存在，使用数据库中的角色
-            finalRole = userRecord.role;
-        } else {
-            // 4. 如果用户不存在，创建为普通用户
-            const insertStmt = env.DB.prepare(
-                "INSERT INTO users (userId, email, role) VALUES (?, ?, ?)"
-            ).bind(userId, userInfo.email, finalRole);
-            await insertStmt.run();
-        }
-
-        // 5. 将 Authing 的信息和我们数据库的角色合并后返回
+        // 3. Combine Authing info and D1 role and return
         const fullUserProfile = {
             ...userInfo,
-            db_role: finalRole // 添加我们数据库中的角色
+            db_role: dbRole
         };
 
         return new Response(JSON.stringify(fullUserProfile), {
@@ -52,7 +79,11 @@ export async function onRequestGet(context) {
         });
 
     } catch (e) {
-        return new Response(JSON.stringify({ error: e.message }), { status: 500 });
+        console.error("/api/me error:", e.message); // Log specific error
+        return new Response(JSON.stringify({ error: `Failed to get user profile: ${e.message}` }), { 
+             status: e.message.includes('Invalid Authing token') ? 401 : 500, // Return 401 for invalid token
+             headers: { 'Content-Type': 'application/json' }
+        });
     }
 }
 
