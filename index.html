@@ -30,7 +30,7 @@
         <nav class="mb-4 flex justify-between items-center bg-white p-3 rounded-lg shadow-sm">
              <a href="index.html" class="text-xl font-bold text-indigo-600">Pistacho评分</a>
              <div class="space-x-4">
-                 <a href="history.html" class="text-gray-600 hover:text-indigo-600">我的评分历史</a>
+                 <a href="history.html" class="text-gray-600 hover:text-indigo-600">历史记录</a>
                  <a href="certified.html" class="text-gray-600 hover:text-indigo-600">认证评分</a>
              </div>
         </nav>
@@ -100,11 +100,37 @@
                 </div>
             </section>
 
+            <!-- **NEW** 图片上传区 (Image Upload Section) -->
+            <section class="mt-8 p-6 bg-white rounded-xl shadow-lg">
+                <h2 class="text-xl font-bold text-gray-800 mb-4">上传封面图片 (可选)</h2>
+                
+                <!-- 上传控件 -->
+                <div id="image-upload-container">
+                    <label for="cigar-image-upload" class="relative cursor-pointer bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-6 flex flex-col items-center justify-center hover:bg-gray-100 transition">
+                        <svg class="w-12 h-12 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+                        </svg>
+                        <span class="mt-2 text-sm text-gray-600">点击上传图片 (JPG, PNG, 不超过 5MB)</span>
+                        <input id="cigar-image-upload" type="file" class="sr-only" accept="image/png, image/jpeg" onchange="uploadImage()">
+                    </label>
+                    <div id="image-upload-status" class="mt-2 text-sm text-indigo-600 h-5"></div>
+                </div>
+
+                <!-- 预览控件 -->
+                <div id="image-preview-container" class="hidden mt-4 relative w-full max-w-sm mx-auto">
+                    <img id="image-preview" src="" alt="Image preview" class="w-full h-auto rounded-lg shadow-md aspect-video object-cover">
+                    <button onclick="removeImage()" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow-lg hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+                        <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+            </section>
+
             <!-- 操作按钮 (Action Buttons) -->
             <div class="mt-8 grid grid-cols-2 gap-4">
                 <button onclick="resetRatings()" class="w-full py-3 px-6 bg-red-500 text-white font-bold text-lg rounded-lg shadow-md hover:bg-red-600">重置</button>
-                <!-- **MODIFIED**: Added id="action-button" -->
-                <button id="action-button" onclick="showResults()" class="w-full py-3 px-6 bg-green-600 text-white font-bold text-lg rounded-lg shadow-md hover:bg-green-700">查看报告</button>
+                <button id="main-action-button" onclick="showResults()" class="w-full py-3 px-6 bg-green-600 text-white font-bold text-lg rounded-lg shadow-md hover:bg-green-700">查看报告</button>
             </div>
         </main>
         
@@ -119,7 +145,11 @@
         let ratingConfig = null; 
         let userRatings = {};    
         let currentAuthUser = null; 
-        let editingRatingId = null; // **NEW**: 用于跟踪正在编辑的评分 ID
+        
+        // **NEW** (图片上传相关)
+        let uploadedImageKey = null; // 用于存储 R2 返回的图片 Key (例如: 'uuid.jpg')
+        let isUploading = false;     // 防止在上传时提交表单
+        let currentEditRatingId = null; // 用于存储当前正在编辑的评分ID
         
         const AUTHING_APP_ID = '68f5b0b6875017c02b3bfdb3';
         const AUTHING_HOST = 'https://xfvu647mcdbk-demo.authing.cn';
@@ -128,6 +158,8 @@
         // 2. 认证 (无 SDK 依赖)
         // ---------------------------------------------------
         window.login = function() {
+            // 清理旧的编辑状态
+            sessionStorage.removeItem('editRatingId');
             const redirectUri = window.location.origin;
             const authorizeUrl = new URL('/oidc/auth', AUTHING_HOST);
             authorizeUrl.search = new URLSearchParams({
@@ -141,6 +173,8 @@
         }
 
         window.logout = function() {
+             // 清理旧的编辑状态
+             sessionStorage.removeItem('editRatingId');
              const logoutUrl = new URL('/oidc/session/end', AUTHING_HOST);
              logoutUrl.search = new URLSearchParams({
                 post_logout_redirect_uri: window.location.origin
@@ -154,8 +188,8 @@
             const container = document.getElementById('login-status-container');
             if (!container) return;
             if (user) {
-                // **NEW**: 优先使用昵称
-                const displayName = user.nickname || user.name || user.preferred_username || user.email || '已登录';
+                // 优先使用昵称
+                const displayName = user.name || user.nickname || user.preferred_username || user.email || '已登录';
                 container.innerHTML = `<span class="text-sm font-medium text-yellow-300 mr-2 hidden sm:inline">${displayName}</span><button onclick="logout()" class="px-3 py-1 text-xs font-medium rounded-full bg-red-500 text-white hover:bg-red-600">退出</button>`;
             } else {
                 container.innerHTML = `<span class="text-sm font-medium text-indigo-300 mr-2 hidden sm:inline">未登录</span><button onclick="login()" class="px-3 py-1 text-xs font-medium rounded-full bg-green-500 text-white hover:bg-green-600">登录/注册</button>`;
@@ -178,10 +212,385 @@
                 adminLinksContainer.innerHTML += `<a href="role_management.html" class="flex items-center px-3 py-1.5 border text-xs font-medium rounded-full text-yellow-100 bg-purple-600 hover:bg-purple-500 ml-2">用户管理</a>`;
             }
         }
+
+        // ---------------------------------------------------
+        // 3. **NEW** (图片上传逻辑)
+        // ---------------------------------------------------
+        window.uploadImage = async function() {
+            const fileInput = document.getElementById('cigar-image-upload');
+            const statusEl = document.getElementById('image-upload-status');
+            const file = fileInput.files[0];
+
+            if (!file) return;
+
+            // 检查文件大小 (5MB)
+            if (file.size > 5 * 1024 * 1024) {
+                alert("图片文件太大，请选择 5MB 以下的图片。");
+                fileInput.value = null; // 清空选择
+                return;
+            }
+
+            // 检查文件类型
+            if (!['image/jpeg', 'image/png'].includes(file.type)) {
+                alert("不支持的文件类型，请选择 JPG 或 PNG 图片。");
+                fileInput.value = null; // 清空选择
+                return;
+            }
+            
+            const token = sessionStorage.getItem('accessToken');
+            if (!token) {
+                alert("请先登录再上传图片。");
+                return;
+            }
+
+            isUploading = true;
+            statusEl.textContent = '正在上传...';
+            const formData = new FormData();
+            formData.append('image', file);
+
+            try {
+                const response = await fetch('/api/upload-image', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                        // 'Content-Type': 'multipart/form-data' (fetch 会自动设置)
+                    },
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.error || '上传失败');
+                }
+
+                const result = await response.json();
+                
+                // ** 关键: 保存 R2 返回的 Key **
+                uploadedImageKey = result.imageKey; 
+                
+                statusEl.textContent = '上传成功！';
+                
+                // 显示预览
+                const previewImg = document.getElementById('image-preview');
+                previewImg.src = `/api/image/${uploadedImageKey}`; // 从我们的服务器安全加载
+                
+                document.getElementById('image-upload-container').classList.add('hidden');
+                document.getElementById('image-preview-container').classList.remove('hidden');
+
+            } catch (error) {
+                console.error("Upload error:", error);
+                alert(`上传失败: ${error.message}`);
+                statusEl.textContent = '上传失败，请重试。';
+                fileInput.value = null;
+            } finally {
+                isUploading = false;
+            }
+        }
+
+        window.removeImage = function() {
+            uploadedImageKey = null;
+            document.getElementById('image-upload-container').classList.remove('hidden');
+            document.getElementById('image-preview-container').classList.add('hidden');
+            document.getElementById('image-preview').src = '';
+            document.getElementById('cigar-image-upload').value = null; // 清空文件输入
+            document.getElementById('image-upload-status').textContent = '';
+            
+            // TODO: (可选) 如果需要，可以发送一个 API 请求到后端删除 R2 上的图片
+            // fetch(`/api/upload-image?key=${keyToDelete}`, { method: 'DELETE', ... })
+        }
+
         
+        // ---------------------------------------------------
+        // 4. 核心评分逻辑
+        // ---------------------------------------------------
+        
+        /**
+         * 加载配置
+         */
+        async function loadConfig() {
+            document.getElementById('config-load-status').textContent = '正在从 Cloudflare 同步配置...';
+            try {
+                const apiUrl = new URL('/api/config/latest', window.location.origin);
+                const response = await fetch(apiUrl);
+                if (!response.ok) throw new Error(`服务器错误: ${response.statusText}`);
+                ratingConfig = await response.json();
+                calculateWeights(ratingConfig); 
+                userRatings = {}; 
+                renderRatingView(); 
+                document.getElementById('config-load-status').textContent = `配置已同步`;
+            } catch (error) {
+                console.error("加载配置失败:", error);
+                document.getElementById('config-load-status').textContent = '配置加载失败';
+                alert(`加载应用核心配置失败，请刷新页面重试。\n错误详情: ${error.message}`);
+            }
+        }
+
+        function getRatingId(category, criterion) { return `${String(category || '').trim()}-${String(criterion || '').trim()}`; }
+        
+        function calculateWeights(config) {
+            if (!config) return;
+            let grandTotal = 0, totalCriteriaCount = 0;
+            (config.ratingCriteria || []).forEach(category => {
+                let categoryTotal = 0;
+                (category.criteriaList || []).forEach(criterion => {
+                    categoryTotal += (criterion.weight || 0);
+                    totalCriteriaCount++;
+                });
+                category.totalWeight = categoryTotal;
+                grandTotal += categoryTotal;
+            });
+            config.totalWeightMax = grandTotal;
+            config.totalCriteriaCount = totalCriteriaCount;
+        }
+        
+        function calculateFinalScore() {
+            if (!ratingConfig) return 0;
+            let totalScore = 0;
+            (ratingConfig.ratingCriteria || []).forEach(category => {
+                (category.criteriaList || []).forEach(criterion => {
+                    const id = getRatingId(category.category, criterion.name);
+                    const selectedOptionIndex = userRatings[id];
+                    if (selectedOptionIndex !== undefined && criterion.options?.[selectedOptionIndex]) {
+                        totalScore += (criterion.weight || 0) * (criterion.options[selectedOptionIndex].scorePct || 0);
+                    }
+                });
+            });
+            return totalScore;
+        }
+
+        /**
+         * **UPDATED** (查看报告 或 更新评分)
+         */
+        window.showResults = async function() {
+            if (!ratingConfig) return alert("配置未加载，请稍候。");
+            
+            if (Object.keys(userRatings).length === 0 && !currentEditRatingId) {
+                return alert("请至少选择一个评分项后再查看报告。");
+            }
+            
+            if (isUploading) {
+                return alert("图片正在上传，请稍候...");
+            }
+
+            const cigarInfo = { name: document.getElementById('cigar-name').value || '未命名雪茄', size: document.getElementById('cigar-size').value || '未知尺寸', origin: document.getElementById('cigar-origin').value || '未知产地' };
+            const cigarReview = document.getElementById('cigar-review').value || '无';
+            const finalScore = calculateFinalScore();
+            
+            const resultsData = { 
+                config: ratingConfig, 
+                ratings: userRatings, 
+                calculatedScore: finalScore, 
+                cigarInfo: cigarInfo, 
+                cigarReview: cigarReview,
+                isDraft: true, // 默认为 true
+                imageUrl: uploadedImageKey // **NEW**: 传递图片 key
+            };
+
+            // 检查是 "保存更改" (编辑模式) 还是 "查看报告" (新建模式)
+            if (currentEditRatingId) {
+                // --- 编辑模式：调用 PUT API ---
+                resultsData.ratingId = currentEditRatingId; // 告诉后端要更新哪条
+                
+                const token = sessionStorage.getItem('accessToken');
+                if (!token) return alert("会话已过期，请重新登录。");
+
+                const button = document.getElementById('main-action-button');
+                button.textContent = "正在保存...";
+                button.disabled = true;
+
+                try {
+                    const response = await fetch('/api/ratings', {
+                        method: 'PUT',
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify(resultsData)
+                    });
+                    
+                    if (!response.ok) {
+                        const err = await response.json();
+                        throw new Error(err.error || "保存失败");
+                    }
+                    
+                    alert("更改已保存！");
+                    sessionStorage.removeItem('editRatingId'); // 清除编辑状态
+                    window.location.href = 'history.html'; // 返回历史页
+
+                } catch (e) {
+                    console.error("Update rating error:", e);
+                    alert(`保存失败: ${e.message}`);
+                    button.textContent = "保存更改";
+                    button.disabled = false;
+                }
+
+            } else {
+                // --- 新建模式：跳转到 results.html ---
+                try {
+                    sessionStorage.setItem('cigarRatingResults', JSON.stringify(resultsData));
+                    window.location.href = 'results.html';
+                } catch (e) {
+                    alert("无法保存会话数据。");
+                }
+            }
+        }
+
+        /**
+         * **UPDATED** (重置)
+         */
+        window.resetRatings = function() {
+            if (confirm("确定要重置所有评分选择和雪茄信息吗？")) {
+                userRatings = {};
+                document.getElementById('cigar-name').value = '';
+                document.getElementById('cigar-size').value = '';
+                document.getElementById('cigar-origin').value = '';
+                document.getElementById('cigar-review').value = '';
+                
+                removeImage(); // **NEW**: 同时重置图片
+                
+                // 如果在编辑模式，重置会取消编辑
+                if (currentEditRatingId) {
+                    sessionStorage.removeItem('editRatingId');
+                    currentEditRatingId = null;
+                    const button = document.getElementById('main-action-button');
+                    button.textContent = "查看报告";
+                    button.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+                    button.classList.add('bg-green-600', 'hover:bg-green-700');
+                }
+                
+                renderRatingView();
+            }
+        }
+        
+        window.updateRatingSelection = function(categoryName, criterionName, optionIndex) {
+            const id = getRatingId(categoryName, criterionName);
+            if (userRatings[id] === optionIndex) {
+                delete userRatings[id];
+            } else {
+                userRatings[id] = optionIndex;
+            }
+            renderRatingView(); 
+        };
+        
+        function renderRatingView() {
+            if (!ratingConfig) {
+                const formContainer = document.getElementById('rating-form-container');
+                formContainer.innerHTML = `<div class="text-center p-6 bg-white rounded-lg shadow"><p>无法加载评分标准。</p></div>`;
+                return;
+            };
+            const totalScore = calculateFinalScore();
+            document.getElementById('app-title-display').textContent = ratingConfig.appTitle;
+            document.getElementById('app-description-display').textContent = ratingConfig.description;
+            document.getElementById('total-weight-max-display').textContent = ratingConfig.totalWeightMax;
+            document.getElementById('current-score-display').textContent = totalScore.toFixed(2);
+            const ratedCount = Object.keys(userRatings).length;
+            const totalCount = ratingConfig.totalCriteriaCount || 1;
+            document.getElementById('progress-bar').style.width = `${(ratedCount / totalCount) * 100}%`;
+            document.getElementById('progress-text').textContent = `${ratedCount} / ${totalCount}`;
+            const formContainer = document.getElementById('rating-form-container');
+            formContainer.innerHTML = (ratingConfig.ratingCriteria || []).map((category) => `
+                <div class="bg-white p-6 rounded-xl shadow-lg mb-8 border-l-4 border-indigo-500">
+                    <h3 class="text-xl font-bold text-indigo-700 mb-2">${category.category}</h3>
+                    <p class="text-gray-500 text-sm mb-4">${category.detail || ''}</p>
+                    <div class="space-y-6">${(category.criteriaList || []).map((criterion) => renderRatingCriterion(category.category, criterion)).join('')}</div>
+                </div>`).join('');
+        }
+        
+        function renderRatingCriterion(categoryName, criterion) {
+            const id = getRatingId(categoryName, criterion.name);
+            const selectedOptionIndex = userRatings[id];
+            const currentWeight = criterion.weight || 0;
+            let currentScore = 0;
+            if (selectedOptionIndex !== undefined && criterion.options?.[selectedOptionIndex]) {
+                currentScore = currentWeight * (criterion.options[selectedOptionIndex].scorePct || 0);
+            }
+            
+            const isSuperAdmin = currentAuthUser?.db_role === 'super_admin';
+
+            return `<div class="bg-gray-50 p-4 rounded-lg border">
+                    <div class="flex justify-between items-center mb-3">
+                        <h4 class="text-lg font-semibold text-gray-800">${criterion.name} ${isSuperAdmin ? `(${currentWeight} 分)` : ''}</h4>
+                        ${isSuperAdmin ? `<span class="text-xl font-extrabold text-green-600">${currentScore.toFixed(2)}</span>` : ''}
+                    </div>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
+                        ${(criterion.options || []).map((option, optIndex) => {
+                            const isSelected = selectedOptionIndex === optIndex;
+                            const score = (currentWeight * (option.scorePct || 0)).toFixed(2);
+                            return `<button onclick="updateRatingSelection('${categoryName}', '${criterion.name}', ${optIndex})" 
+                                    class="p-2 text-sm text-center rounded-lg border transition ${ isSelected ? 'bg-indigo-600 text-white shadow-md' : 'bg-white hover:bg-indigo-50' }">
+                                    ${option.description} 
+                                    ${isSuperAdmin ? `<span class="block text-xs ${isSelected ? 'text-indigo-200' : 'text-gray-500'}">(得 ${score} 分)</span>` : ''}
+                                </button>`;
+                        }).join('')}
+                    </div>
+                </div>`;
+        } // End of renderRatingCriterion
+            
         // ---------------------------------------------------
         // 5. 启动函数
         // ---------------------------------------------------
+        
+        /**
+         * **NEW** (加载从 history.html 传来的评分数据)
+         */
+        async function loadRatingForEdit(ratingId) {
+            document.getElementById('config-load-status').textContent = '正在加载评分数据以供编辑...';
+            // 从 sessionStorage 获取完整数据
+            const ratingData = sessionStorage.getItem('editRatingData');
+            if (!ratingData) {
+                alert("加载编辑数据失败，未在会话中找到数据。");
+                sessionStorage.removeItem('editRatingId');
+                return;
+            }
+            
+            try {
+                const ratingToEdit = JSON.parse(ratingData);
+                
+                // 1. 填充雪茄信息
+                document.getElementById('cigar-name').value = ratingToEdit.cigarInfo.name;
+                document.getElementById('cigar-size').value = ratingToEdit.cigarInfo.size;
+                document.getElementById('cigar-origin').value = ratingToEdit.cigarInfo.origin;
+                
+                // 2. 填充文字评价
+                document.getElementById('cigar-review').value = ratingToEdit.cigarReview;
+
+                // 3. 填充评分选项
+                //    (需要先确保 config 加载完成, 但 loadConfig() 之后会调用 renderRatingView() 刷新)
+                userRatings = ratingToEdit.ratings; 
+                
+                // 4. **NEW** (填充图片)
+                if (ratingToEdit.imageUrl) {
+                    uploadedImageKey = ratingToEdit.imageUrl;
+                    const previewImg = document.getElementById('image-preview');
+                    previewImg.src = `/api/image/${uploadedImageKey}`;
+                    
+                    document.getElementById('image-upload-container').classList.add('hidden');
+                    document.getElementById('image-preview-container').classList.remove('hidden');
+                    document.getElementById('image-upload-status').textContent = '已加载保存的图片。';
+                }
+
+                // 5. 切换 UI 到编辑模式
+                currentEditRatingId = ratingId;
+                const button = document.getElementById('main-action-button');
+                button.textContent = "保存更改";
+                // 切换按钮颜色以示区别
+                button.classList.remove('bg-green-600', 'hover:bg-green-700');
+                button.classList.add('bg-blue-600', 'hover:bg-blue-700');
+                
+                document.getElementById('config-load-status').textContent = `已加载评分 ${ratingId}。`;
+                
+                // 渲染评分 (会使用已填充的 userRatings)
+                renderRatingView();
+
+            } catch (e) {
+                alert(`解析编辑数据时出错: ${e.message}`);
+                sessionStorage.removeItem('editRatingId');
+            } finally {
+                // 清理, 防止重复加载
+                sessionStorage.removeItem('editRatingData');
+            }
+        }
+        
         async function handleOidcCallback(code) {
             document.getElementById('main-content').style.opacity = '0.5';
             document.getElementById('config-load-status').textContent = '正在验证登录...';
@@ -221,16 +630,19 @@
             if (!token) return null;
 
             try {
+                // **使用 /api/me 验证 session**
                 const response = await fetch('/api/me', {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 if (!response.ok) {
+                    // Token 过期或无效
                     sessionStorage.removeItem('userInfo');
                     sessionStorage.removeItem('accessToken');
                     return null;
                 }
                 const fullUserProfile = await response.json();
-                sessionStorage.setItem('userInfo', JSON.stringify(fullUserProfile));
+                // 刷新 userInfo
+                sessionStorage.setItem('userInfo', JSON.stringify(fullUserProfile)); 
                 return fullUserProfile;
             } catch (e) {
                 console.error("Session validation failed:", e);
@@ -249,275 +661,29 @@
         window.onload = async function() {
             const urlParams = new URLSearchParams(window.location.search);
             const code = urlParams.get('code');
-            editingRatingId = urlParams.get('edit'); // **NEW**: 检查 'edit' 参数
             let user = null;
 
             if (code) {
+                // 1. 如果 URL 中有 code (从 Authing 重定向回来)
                 user = await handleOidcCallback(code);
             } else {
+                // 2. 正常加载, 检查 session
                 user = await validateSessionAndGetUser();
             }
             
+            // 3. 设置用户信息 (无论是否为 null)
             setUser(user);
             
             console.log("Current User Object for role check:", currentAuthUser);
             
-            // --- 完整评分逻辑 ---
-            async function loadConfig() {
-                document.getElementById('config-load-status').textContent = '正在从 Cloudflare 同步配置...';
-                try {
-                    const apiUrl = new URL('/api/config/latest', window.location.origin);
-                    const response = await fetch(apiUrl);
-                    if (!response.ok) throw new Error(`服务器错误: ${response.statusText}`);
-                    ratingConfig = await response.json();
-                    calculateWeights(ratingConfig); 
-                    
-                    // **NEW**: 检查是否处于编辑模式
-                    if (editingRatingId) {
-                        loadDraftForEditing();
-                    } else {
-                        userRatings = {}; 
-                    }
-                    
-                    renderRatingView(); 
-                    document.getElementById('config-load-status').textContent = `配置已同步`;
-                } catch (error) {
-                    console.error("加载配置失败:", error);
-                    document.getElementById('config-load-status').textContent = '配置加载失败';
-                    alert(`加载应用核心配置失败，请刷新页面重试。\n错误详情: ${error.message}`);
-                }
-            }
-            
-            // **NEW**: 加载草稿函数
-            function loadDraftForEditing() {
-                 const draftData = sessionStorage.getItem('cigarRatingDraft');
-                 if (draftData) {
-                    try {
-                        const draft = JSON.parse(draftData);
-                        // 假设 draft.fullData 存在, 并且包含了需要的所有信息
-                        userRatings = draft.ratings || {};
-                        document.getElementById('cigar-name').value = draft.cigarInfo?.name || '';
-                        document.getElementById('cigar-size').value = draft.cigarInfo?.size || '';
-                        document.getElementById('cigar-origin').value = draft.cigarInfo?.origin || '';
-                        document.getElementById('cigar-review').value = draft.cigarReview || '';
-                        
-                        // 更改按钮文本
-                        const actionButton = document.getElementById('action-button');
-                        if (actionButton) {
-                             actionButton.textContent = '保存更改';
-                             actionButton.classList.remove('bg-green-600', 'hover:bg-green-700');
-                             actionButton.classList.add('bg-blue-600', 'hover:bg-blue-700');
-                        }
-                        
-                        // 清理草稿, 避免重复加载
-                        sessionStorage.removeItem('cigarRatingDraft');
-                        
-                    } catch(e) {
-                         console.error("加载草稿失败:", e);
-                         alert("加载评分草稿失败。");
-                         editingRatingId = null; // 恢复到创建模式
-                    }
-                 } else {
-                     alert("未找到评分草稿, 将返回创建模式。");
-                     editingRatingId = null; // 恢复到创建模式
-                 }
-            }
-
-            function getRatingId(category, criterion) { return `${String(category || '').trim()}-${String(criterion || '').trim()}`; }
-            function calculateWeights(config) {
-                if (!config) return;
-                let grandTotal = 0, totalCriteriaCount = 0;
-                (config.ratingCriteria || []).forEach(category => {
-                    let categoryTotal = 0;
-                    (category.criteriaList || []).forEach(criterion => {
-                        categoryTotal += (criterion.weight || 0);
-                        totalCriteriaCount++;
-                    });
-                    category.totalWeight = categoryTotal;
-                    grandTotal += categoryTotal;
-                });
-                config.totalWeightMax = grandTotal;
-                config.totalCriteriaCount = totalCriteriaCount;
-            }
-            function calculateFinalScore() {
-                if (!ratingConfig) return 0;
-                let totalScore = 0;
-                (ratingConfig.ratingCriteria || []).forEach(category => {
-                    (category.criteriaList || []).forEach(criterion => {
-                        const id = getRatingId(category.category, criterion.name);
-                        const selectedOptionIndex = userRatings[id];
-                        if (selectedOptionIndex !== undefined && criterion.options?.[selectedOptionIndex]) {
-                            totalScore += (criterion.weight || 0) * (criterion.options[selectedOptionIndex].scorePct || 0);
-                        }
-                    });
-                });
-                return totalScore;
-            }
-            
-            // **MODIFIED**: showResults 现在处理创建 (POST) 和更新 (PUT)
-            window.showResults = async function() {
-                if (!ratingConfig || Object.keys(userRatings).length === 0) return alert("请至少选择一个评分项后再继续。");
-                
-                const cigarInfo = { name: document.getElementById('cigar-name').value || '未命名雪茄', size: document.getElementById('cigar-size').value || '未知尺寸', origin: document.getElementById('cigar-origin').value || '未知产地' };
-                const cigarReview = document.getElementById('cigar-review').value || '无';
-                const finalScore = calculateFinalScore();
-                
-                // 这是将要发送到 /api/ratings (POST or PUT) 
-                // 或者发送到 results.html (sessionStorage) 的完整数据
-                const resultsData = { 
-                    config: ratingConfig, 
-                    ratings: userRatings, 
-                    calculatedScore: finalScore, 
-                    cigarInfo: cigarInfo, 
-                    cigarReview: cigarReview,
-                    // isDraft: true // isDraft 状态在 results.html 中处理
-                };
-                
-                // --- **NEW LOGIC**: 检查是创建还是更新 ---
-                if (editingRatingId) {
-                    // --- 这是 "更新" (PUT) ---
-                    const button = document.getElementById('action-button');
-                    button.textContent = '正在保存...';
-                    button.disabled = true;
-                    
-                    try {
-                        // 添加 ratingId 以便后端识别
-                        resultsData.ratingId = editingRatingId;
-                        // 标记为非草稿 (因为我们是直接保存, 而不是去 results 页)
-                        resultsData.isDraft = false; 
-                        
-                        const token = sessionStorage.getItem('accessToken');
-                        if (!token) throw new Error("您未登录或会话已过期。");
-
-                        const response = await fetch('/api/ratings', {
-                            method: 'PUT',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${token}`
-                            },
-                            body: JSON.stringify(resultsData)
-                        });
-                        
-                        if (!response.ok) {
-                            const err = await response.json();
-                            throw new Error(err.error || `保存失败 (${response.status})`);
-                        }
-
-                        alert("修改已保存！");
-                        // 清理并返回历史页面
-                        editingRatingId = null;
-                        sessionStorage.removeItem('cigarRatingDraft'); // just in case
-                        window.location.href = 'history.html';
-                        
-                    } catch (e) {
-                        alert(`保存修改失败: ${e.message}`);
-                        button.textContent = '保存更改';
-                        button.disabled = false;
-                    }
-                    
-                } else {
-                    // --- 这是 "创建" (POST) ---
-                    // (与 results.html 上的 "保存" 按钮不同, 
-                    // 这里我们只是转到 results.html, "保存" 发生在 results.html 上)
-                    try {
-                        // 标记为草稿, 这样 results.html 才会显示 "保存" 按钮
-                        resultsData.isDraft = true; 
-                        sessionStorage.setItem('cigarRatingResults', JSON.stringify(resultsData));
-                        window.location.href = 'results.html';
-                    } catch (e) {
-                        alert("无法保存会话数据。");
-                    }
-                }
-            }
-            
-            window.resetRatings = function() {
-                if (confirm("确定要重置所有评分选择吗？")) {
-                    userRatings = {};
-                    document.getElementById('cigar-name').value = '';
-                    document.getElementById('cigar-size').value = '';
-                    document.getElementById('cigar-origin').value = '';
-                    document.getElementById('cigar-review').value = '';
-                    
-                    // **NEW**: 如果在编辑模式下重置, 则退出编辑模式
-                    if (editingRatingId) {
-                        editingRatingId = null;
-                        // 更改按钮文本
-                        const actionButton = document.getElementById('action-button');
-                        if (actionButton) {
-                             actionButton.textContent = '查看报告';
-                             actionButton.classList.add('bg-green-600', 'hover:bg-green-700');
-                             actionButton.classList.remove('bg-blue-600', 'hover:bg-blue-700');
-                        }
-                        // 清理 URL
-                        window.history.replaceState({}, document.title, window.location.pathname);
-                    }
-                    
-                    renderRatingView();
-                }
-            }
-            window.updateRatingSelection = function(categoryName, criterionName, optionIndex) {
-                const id = getRatingId(categoryName, criterionName);
-                if (userRatings[id] === optionIndex) {
-                    delete userRatings[id];
-                } else {
-                    userRatings[id] = optionIndex;
-                }
-                renderRatingView(); 
-            };
-            function renderRatingView() {
-                if (!ratingConfig) {
-                    const formContainer = document.getElementById('rating-form-container');
-                    formContainer.innerHTML = `<div class="text-center p-6 bg-white rounded-lg shadow"><p>无法加载评分标准。</p></div>`;
-                    return;
-                };
-                const totalScore = calculateFinalScore();
-                document.getElementById('app-title-display').textContent = ratingConfig.appTitle;
-                document.getElementById('app-description-display').textContent = ratingConfig.description;
-                document.getElementById('total-weight-max-display').textContent = ratingConfig.totalWeightMax;
-                document.getElementById('current-score-display').textContent = totalScore.toFixed(2);
-                const ratedCount = Object.keys(userRatings).length;
-                const totalCount = ratingConfig.totalCriteriaCount || 1;
-                document.getElementById('progress-bar').style.width = `${(ratedCount / totalCount) * 100}%`;
-                document.getElementById('progress-text').textContent = `${ratedCount} / ${totalCount}`;
-                const formContainer = document.getElementById('rating-form-container');
-                formContainer.innerHTML = (ratingConfig.ratingCriteria || []).map((category) => `
-                    <div class="bg-white p-6 rounded-xl shadow-lg mb-8 border-l-4 border-indigo-500">
-                        <h3 class="text-xl font-bold text-indigo-700 mb-2">${category.category}</h3>
-                        <p class="text-gray-500 text-sm mb-4">${category.detail || ''}</p>
-                        <div class="space-y-6">${(category.criteriaList || []).map((criterion) => renderRatingCriterion(category.category, criterion)).join('')}</div>
-                    </div>`).join('');
-            }
-            function renderRatingCriterion(categoryName, criterion) {
-                const id = getRatingId(categoryName, criterion.name);
-                const selectedOptionIndex = userRatings[id];
-                const currentWeight = criterion.weight || 0;
-                let currentScore = 0;
-                if (selectedOptionIndex !== undefined && criterion.options?.[selectedOptionIndex]) {
-                    currentScore = currentWeight * (criterion.options[selectedOptionIndex].scorePct || 0);
-                }
-                
-                const isSuperAdmin = currentAuthUser?.db_role === 'super_admin';
-
-                return `<div class="bg-gray-50 p-4 rounded-lg border">
-                        <div class="flex justify-between items-center mb-3">
-                            <h4 class="text-lg font-semibold text-gray-800">${criterion.name} ${isSuperAdmin ? `(${currentWeight} 分)` : ''}</h4>
-                            ${isSuperAdmin ? `<span class="text-xl font-extrabold text-green-600">${currentScore.toFixed(2)}</span>` : ''}
-                        </div>
-                        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
-                            ${(criterion.options || []).map((option, optIndex) => {
-                                const isSelected = selectedOptionIndex === optIndex;
-                                const score = (currentWeight * (option.scorePct || 0)).toFixed(2);
-                                return `<button onclick="updateRatingSelection('${categoryName}', '${criterion.name}', ${optIndex})" 
-                                        class="p-2 text-sm text-center rounded-lg border transition ${ isSelected ? 'bg-indigo-600 text-white shadow-md' : 'bg-white hover:bg-indigo-50' }">
-                                        ${option.description} 
-                                        ${isSuperAdmin ? `<span class="block text-xs ${isSelected ? 'text-indigo-200' : 'text-gray-500'}">(得 ${score} 分)</span>` : ''}
-                                    </button>`;
-                            }).join('')}
-                        </div>
-                    </div>`;
-            } // End of renderRatingCriterion
-            
+            // 4. 加载核心评分配置
             await loadConfig();
+
+            // 5. **NEW**: 检查是否处于编辑模式
+            const editRatingId = sessionStorage.getItem('editRatingId');
+            if (editRatingId) {
+                await loadRatingForEdit(editRatingId);
+            }
         }; // End of window.onload
     </script>
 </body>
