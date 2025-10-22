@@ -1,13 +1,14 @@
 // ---------------------------------------------------
 // 文件: /functions/api/me.js
 // 作用: 验证 token，并返回包含 D1 角色的完整用户信息
-//       同时处理新用户的角色初始化
+// **FIX**: 采用了用户提供的更简单、更健壮的 'SELECT-first' 逻辑
 // ---------------------------------------------------
 
 /**
- * **FIXED (Safer Logic)**: Atomically inserts or updates user using a
- * multi-step select-then-update approach to guarantee role preservation.
- * **REMOVED**: All references to 'nickname' column in SQL queries.
+ * **FINAL FIX (Proven Logic)**:
+ * 1. 尝试通过 userId 查找用户。
+ * 2. 如果找到，立即返回该用户的角色（不执行任何 UPDATE）。
+ * 3. 如果未找到，插入一个新用户并赋予 'general' 角色。
  * @param {D1Database} db - D1 数据库实例
  * @param {object} userInfo - 从 Authing 获取的用户信息
  * @returns {Promise<string>} - 用户的角色
@@ -15,58 +16,40 @@
 async function getRoleFromDatabase(db, userInfo) {
     const userId = userInfo.sub;
     const email = userInfo.email;
-    // We still get the nickname, but we won't save it to DB
-    const nickname = userInfo.name || userInfo.nickname || userInfo.preferred_username || userInfo.email;
 
-    if (!userId || !email) {
-        console.warn(`User ${userId} has no email or ID from Authing. Assigning temporary 'general' role.`);
+    if (!userId) {
+        console.warn(`User info missing 'sub' (userId). Cannot get role.`);
         return 'general';
     }
 
     try {
-        // Step 1: 尝试通过主键 (userId) 查找用户
-        let stmt = db.prepare("SELECT * FROM users WHERE userId = ?").bind(userId);
-        let userRecord = await stmt.first();
+        // Step 1: 尝试从我们的 users 表中查找用户
+        const stmt = db.prepare("SELECT role FROM users WHERE userId = ?").bind(userId);
+        const user = await stmt.first();
 
-        if (userRecord) {
-            // --- 找到用户 (通过 ID) ---
-            // **FIXED**: Only update email, not nickname.
-            stmt = db.prepare("UPDATE users SET email = ? WHERE userId = ?")
-                     .bind(email, userId);
-            await stmt.run();
-            // 返回数据库中已存在的角色
-            return userRecord.role;
+        if (user) {
+            // --- 找到用户 ---
+            // 立即返回数据库中已存在的角色 (e.g., 'super_admin')
+            return user.role;
+        } else {
+            // --- 未找到用户 ---
+            // Step 2: 这是一个全新的用户。创建ta。
+            // (我们不再检查特殊的 'ver11' 用户名，除非你需要)
+            const assignedRole = 'general'; // 默认为普通用户
+
+            // Step 3: 将新用户及其角色写入数据库
+            // **FIXED**: 确保 email 存在才插入，如果 email 为 null，则插入 NULL
+            const insertStmt = db.prepare(
+                "INSERT INTO users (userId, email, role) VALUES (?, ?, ?)"
+            ).bind(userId, email ?? null, assignedRole);
+            await insertStmt.run();
+            
+            return assignedRole;
         }
-
-        // --- 未通过 ID 找到用户 ---
-        // Step 2: 尝试通过 email 查找
-        stmt = db.prepare("SELECT * FROM users WHERE email = ?").bind(email);
-        userRecord = await stmt.first();
-
-        if (userRecord) {
-            // --- 找到用户 (通过 Email) ---
-            // **FIXED**: Only update userId, not nickname.
-            stmt = db.prepare("UPDATE users SET userId = ? WHERE email = ?")
-                     .bind(userId, email);
-            await stmt.run();
-            // 返回数据库中已存在的角色
-            return userRecord.role;
-        }
-
-        // --- 未通过 ID 或 Email 找到用户 ---
-        // Step 3: 这是一个全新的用户。创建ta。
-        // **FIXED**: Do not insert nickname.
-        stmt = db.prepare("INSERT INTO users (userId, email, role) VALUES (?, ?, 'general')")
-                 .bind(userId, email);
-        await stmt.run();
-        
-        // 返回新创建的 'general' 角色
-        return 'general';
-
     } catch (e) {
-        console.error(`Database error during getRoleFromDatabase for userId ${userId}, email ${email}:`, e);
-        // 出现意外错误时，回退到 'general'
-        return 'general';
+         console.error(`Database error during getRoleFromDatabase (proven logic) for userId ${userId}:`, e);
+         // 出现意外错误时，回退到 'general'
+         return 'general';
     }
 }
 
@@ -84,7 +67,7 @@ export async function onRequestGet(context) {
         // 1. Get base user info from Authing
         const userInfoUrl = new URL('/oidc/me', env.AUTHING_ISSUER);
         const response = await fetch(userInfoUrl.toString(), {
-            headers { 'Authorization': `Bearer ${token}` }
+            headers: { 'Authorization': `Bearer ${token}` }
         });
         if (!response.ok) {
              console.error('Fetch user info failed in /api/me:', response.status, await response.text());
@@ -92,11 +75,10 @@ export async function onRequestGet(context) {
         }
         const userInfo = await response.json();
 
-        // 2. Get (or create/update) role from our D1 database using the (now correct) atomic function
+        // 2. Get (or create/update) role from our D1 database using the atomic function
         const dbRole = await getRoleFromDatabase(env.DB, userInfo);
 
         // 3. Combine Authing info and D1 role and return
-        // **FIX**: We get nickname from Authing, but don't assume it's in the DB
         const nickname = userInfo.name || userInfo.nickname || userInfo.preferred_username || userInfo.email;
         const fullUserProfile = {
             ...userInfo,
