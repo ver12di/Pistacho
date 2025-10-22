@@ -103,7 +103,8 @@
             <!-- 操作按钮 (Action Buttons) -->
             <div class="mt-8 grid grid-cols-2 gap-4">
                 <button onclick="resetRatings()" class="w-full py-3 px-6 bg-red-500 text-white font-bold text-lg rounded-lg shadow-md hover:bg-red-600">重置</button>
-                <button onclick="showResults()" class="w-full py-3 px-6 bg-green-600 text-white font-bold text-lg rounded-lg shadow-md hover:bg-green-700">查看报告</button>
+                <!-- **MODIFIED**: Added id="action-button" -->
+                <button id="action-button" onclick="showResults()" class="w-full py-3 px-6 bg-green-600 text-white font-bold text-lg rounded-lg shadow-md hover:bg-green-700">查看报告</button>
             </div>
         </main>
         
@@ -118,6 +119,7 @@
         let ratingConfig = null; 
         let userRatings = {};    
         let currentAuthUser = null; 
+        let editingRatingId = null; // **NEW**: 用于跟踪正在编辑的评分 ID
         
         const AUTHING_APP_ID = '68f5b0b6875017c02b3bfdb3';
         const AUTHING_HOST = 'https://xfvu647mcdbk-demo.authing.cn';
@@ -152,8 +154,8 @@
             const container = document.getElementById('login-status-container');
             if (!container) return;
             if (user) {
-                // Prioritize username fields over email
-                const displayName = user.name || user.preferred_username || user.nickname || user.email || '已登录';
+                // **NEW**: 优先使用昵称
+                const displayName = user.nickname || user.name || user.preferred_username || user.email || '已登录';
                 container.innerHTML = `<span class="text-sm font-medium text-yellow-300 mr-2 hidden sm:inline">${displayName}</span><button onclick="logout()" class="px-3 py-1 text-xs font-medium rounded-full bg-red-500 text-white hover:bg-red-600">退出</button>`;
             } else {
                 container.innerHTML = `<span class="text-sm font-medium text-indigo-300 mr-2 hidden sm:inline">未登录</span><button onclick="login()" class="px-3 py-1 text-xs font-medium rounded-full bg-green-500 text-white hover:bg-green-600">登录/注册</button>`;
@@ -247,6 +249,7 @@
         window.onload = async function() {
             const urlParams = new URLSearchParams(window.location.search);
             const code = urlParams.get('code');
+            editingRatingId = urlParams.get('edit'); // **NEW**: 检查 'edit' 参数
             let user = null;
 
             if (code) {
@@ -268,7 +271,14 @@
                     if (!response.ok) throw new Error(`服务器错误: ${response.statusText}`);
                     ratingConfig = await response.json();
                     calculateWeights(ratingConfig); 
-                    userRatings = {}; 
+                    
+                    // **NEW**: 检查是否处于编辑模式
+                    if (editingRatingId) {
+                        loadDraftForEditing();
+                    } else {
+                        userRatings = {}; 
+                    }
+                    
                     renderRatingView(); 
                     document.getElementById('config-load-status').textContent = `配置已同步`;
                 } catch (error) {
@@ -276,6 +286,41 @@
                     document.getElementById('config-load-status').textContent = '配置加载失败';
                     alert(`加载应用核心配置失败，请刷新页面重试。\n错误详情: ${error.message}`);
                 }
+            }
+            
+            // **NEW**: 加载草稿函数
+            function loadDraftForEditing() {
+                 const draftData = sessionStorage.getItem('cigarRatingDraft');
+                 if (draftData) {
+                    try {
+                        const draft = JSON.parse(draftData);
+                        // 假设 draft.fullData 存在, 并且包含了需要的所有信息
+                        userRatings = draft.ratings || {};
+                        document.getElementById('cigar-name').value = draft.cigarInfo?.name || '';
+                        document.getElementById('cigar-size').value = draft.cigarInfo?.size || '';
+                        document.getElementById('cigar-origin').value = draft.cigarInfo?.origin || '';
+                        document.getElementById('cigar-review').value = draft.cigarReview || '';
+                        
+                        // 更改按钮文本
+                        const actionButton = document.getElementById('action-button');
+                        if (actionButton) {
+                             actionButton.textContent = '保存更改';
+                             actionButton.classList.remove('bg-green-600', 'hover:bg-green-700');
+                             actionButton.classList.add('bg-blue-600', 'hover:bg-blue-700');
+                        }
+                        
+                        // 清理草稿, 避免重复加载
+                        sessionStorage.removeItem('cigarRatingDraft');
+                        
+                    } catch(e) {
+                         console.error("加载草稿失败:", e);
+                         alert("加载评分草稿失败。");
+                         editingRatingId = null; // 恢复到创建模式
+                    }
+                 } else {
+                     alert("未找到评分草稿, 将返回创建模式。");
+                     editingRatingId = null; // 恢复到创建模式
+                 }
             }
 
             function getRatingId(category, criterion) { return `${String(category || '').trim()}-${String(criterion || '').trim()}`; }
@@ -308,19 +353,83 @@
                 });
                 return totalScore;
             }
-            window.showResults = function() {
-                if (!ratingConfig || Object.keys(userRatings).length === 0) return alert("请至少选择一个评分项后再查看报告。");
+            
+            // **MODIFIED**: showResults 现在处理创建 (POST) 和更新 (PUT)
+            window.showResults = async function() {
+                if (!ratingConfig || Object.keys(userRatings).length === 0) return alert("请至少选择一个评分项后再继续。");
+                
                 const cigarInfo = { name: document.getElementById('cigar-name').value || '未命名雪茄', size: document.getElementById('cigar-size').value || '未知尺寸', origin: document.getElementById('cigar-origin').value || '未知产地' };
                 const cigarReview = document.getElementById('cigar-review').value || '无';
                 const finalScore = calculateFinalScore();
-                const resultsData = { config: ratingConfig, ratings: userRatings, calculatedScore: finalScore, cigarInfo: cigarInfo, cigarReview: cigarReview, isDraft: true };
-                try {
-                    sessionStorage.setItem('cigarRatingResults', JSON.stringify(resultsData));
-                    window.location.href = 'results.html';
-                } catch (e) {
-                    alert("无法保存会话数据。");
+                
+                // 这是将要发送到 /api/ratings (POST or PUT) 
+                // 或者发送到 results.html (sessionStorage) 的完整数据
+                const resultsData = { 
+                    config: ratingConfig, 
+                    ratings: userRatings, 
+                    calculatedScore: finalScore, 
+                    cigarInfo: cigarInfo, 
+                    cigarReview: cigarReview,
+                    // isDraft: true // isDraft 状态在 results.html 中处理
+                };
+                
+                // --- **NEW LOGIC**: 检查是创建还是更新 ---
+                if (editingRatingId) {
+                    // --- 这是 "更新" (PUT) ---
+                    const button = document.getElementById('action-button');
+                    button.textContent = '正在保存...';
+                    button.disabled = true;
+                    
+                    try {
+                        // 添加 ratingId 以便后端识别
+                        resultsData.ratingId = editingRatingId;
+                        // 标记为非草稿 (因为我们是直接保存, 而不是去 results 页)
+                        resultsData.isDraft = false; 
+                        
+                        const token = sessionStorage.getItem('accessToken');
+                        if (!token) throw new Error("您未登录或会话已过期。");
+
+                        const response = await fetch('/api/ratings', {
+                            method: 'PUT',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${token}`
+                            },
+                            body: JSON.stringify(resultsData)
+                        });
+                        
+                        if (!response.ok) {
+                            const err = await response.json();
+                            throw new Error(err.error || `保存失败 (${response.status})`);
+                        }
+
+                        alert("修改已保存！");
+                        // 清理并返回历史页面
+                        editingRatingId = null;
+                        sessionStorage.removeItem('cigarRatingDraft'); // just in case
+                        window.location.href = 'history.html';
+                        
+                    } catch (e) {
+                        alert(`保存修改失败: ${e.message}`);
+                        button.textContent = '保存更改';
+                        button.disabled = false;
+                    }
+                    
+                } else {
+                    // --- 这是 "创建" (POST) ---
+                    // (与 results.html 上的 "保存" 按钮不同, 
+                    // 这里我们只是转到 results.html, "保存" 发生在 results.html 上)
+                    try {
+                        // 标记为草稿, 这样 results.html 才会显示 "保存" 按钮
+                        resultsData.isDraft = true; 
+                        sessionStorage.setItem('cigarRatingResults', JSON.stringify(resultsData));
+                        window.location.href = 'results.html';
+                    } catch (e) {
+                        alert("无法保存会话数据。");
+                    }
                 }
             }
+            
             window.resetRatings = function() {
                 if (confirm("确定要重置所有评分选择吗？")) {
                     userRatings = {};
@@ -328,6 +437,21 @@
                     document.getElementById('cigar-size').value = '';
                     document.getElementById('cigar-origin').value = '';
                     document.getElementById('cigar-review').value = '';
+                    
+                    // **NEW**: 如果在编辑模式下重置, 则退出编辑模式
+                    if (editingRatingId) {
+                        editingRatingId = null;
+                        // 更改按钮文本
+                        const actionButton = document.getElementById('action-button');
+                        if (actionButton) {
+                             actionButton.textContent = '查看报告';
+                             actionButton.classList.add('bg-green-600', 'hover:bg-green-700');
+                             actionButton.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+                        }
+                        // 清理 URL
+                        window.history.replaceState({}, document.title, window.location.pathname);
+                    }
+                    
                     renderRatingView();
                 }
             }

@@ -61,7 +61,18 @@
             </div>
 
             <section id="results-card-container" class="mb-8"></section>
+            
+            <!-- **NEW ORDER** -->
             <div class="space-y-4">
+                <!-- **MOVED UP** -->
+                <details class="group bg-white rounded-xl shadow-lg p-6" open>
+                    <summary class="flex justify-between items-center cursor-pointer font-bold text-lg text-gray-800">
+                        PISTACHO 评级体系
+                        <svg class="w-5 h-5 transform group-open:rotate-180 transition-transform" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+                    </summary>
+                    <div id="full-scale-container" class="mt-4"></div>
+                </details>
+                
                 <details class="group bg-white rounded-xl shadow-lg p-6 transition-all duration-300" open>
                     <summary class="flex justify-between items-center cursor-pointer font-bold text-lg text-gray-800">
                         综合评价
@@ -79,13 +90,9 @@
                     </summary>
                     <div id="cigar-review-container" class="mt-4 text-gray-700 prose max-w-none"></div>
                 </details>
-                <details class="group bg-white rounded-xl shadow-lg p-6">
-                    <summary class="flex justify-between items-center cursor-pointer font-bold text-lg text-gray-800">
-                        分数详情
-                        <svg class="w-5 h-5 transform group-open:rotate-180 transition-transform" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
-                    </summary>
-                    <div id="score-details-container" class="mt-4 text-center"></div>
-                </details>
+                
+                <!-- **REMOVED** Score Details Section -->
+
                 <details class="group bg-white rounded-xl shadow-lg p-6">
                     <summary class="flex justify-between items-center cursor-pointer font-bold text-lg text-gray-800">
                         评分详情汇总
@@ -93,13 +100,8 @@
                     </summary>
                     <div id="summary-container" class="mt-4"></div>
                 </details>
-                <details class="group bg-white rounded-xl shadow-lg p-6" open>
-                    <summary class="flex justify-between items-center cursor-pointer font-bold text-lg text-gray-800">
-                        PISTACHO 评级体系
-                        <svg class="w-5 h-5 transform group-open:rotate-180 transition-transform" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
-                    </summary>
-                    <div id="full-scale-container" class="mt-4"></div>
-                </details>
+
+                <!-- **MOVED UP** (Original position of full scale) -->
             </div>
             <footer class="mt-8 text-center">
                 <a href="index.html" class="py-3 px-6 bg-indigo-600 text-white font-bold rounded-lg shadow-md hover:bg-indigo-700 transition">
@@ -149,9 +151,8 @@
                     ...resultsData,
                     normalizedScore: normalizedScore, 
                     finalGrade: finalGrade,
-                    // Ensure user info is attached if needed by backend (though backend validates token)
-                    // userId: currentAuthUser.sub, 
-                    // userEmail: currentAuthUser.email 
+                    // **NEW**: 确保 ratingId 不会被发送 (POST 是创建新记录)
+                    ratingId: undefined, 
                 };
                 
                 const apiUrl = new URL('/api/ratings', window.location.origin);
@@ -171,14 +172,18 @@
                     } catch(e) {}
                     throw new Error(errorData.error || `服务器错误: ${response.status}`);
                 }
+                
+                const result = await response.json();
 
                 saveButton.textContent = "已保存";
                 saveButton.classList.add('bg-gray-400', 'cursor-not-allowed');
                 alert("评分已成功保存到您的历史记录！");
                 
-                // Optional: Remove draft flag from sessionStorage data if you want to prevent re-saving
-                // resultsData.isDraft = false;
-                // sessionStorage.setItem('cigarRatingResults', JSON.stringify(resultsData));
+                // **NEW**: 更新 sessionStorage 中的数据, 
+                // 标记为非草稿并存入新的 ID, 以防用户刷新
+                resultsData.isDraft = false;
+                resultsData.ratingId = result.id; 
+                sessionStorage.setItem('cigarRatingResults', JSON.stringify(resultsData));
 
 
             } catch (error) {
@@ -233,7 +238,9 @@
                 if (cigarReview) document.getElementById('cigar-review-container').textContent = cigarReview;
                 
                 renderResultsCard(document.getElementById('results-card-container'), normalizedScore, finalGrade);
-                document.getElementById('score-details-container').innerHTML = `<p class="text-lg">原始得分: <span class="font-bold">${calculatedScore.toFixed(2)}</span> / ${maxScore.toFixed(2)}</p>`;
+                
+                // **REMOVED** Rendering for score-details-container
+                
                 renderSummary(document.getElementById('summary-container'), config, ratings);
                 renderFullScale(document.getElementById('full-scale-container'), finalGrade);
 
@@ -284,7 +291,7 @@
         function renderResultsCard(container, score, grade) {
             if (!container || !grade || !grade.color) return;
             const styles = getGradeStyles(grade.color);
-            container.innerHTML = `<div class="relative rounded-2xl p-8 text-white overflow-hidden shadow-2xl ${styles.bgGradient} ${styles.shadowColor}"><div class="relative z-10 flex justify-between items-center"><div><p class="font-medium opacity-80">${grade.name_en}</p><h2 class="text-4xl font-extrabold tracking-tight">${grade.name_cn}</h2><p class="mt-4 text-7xl font-black">${score.toFixed(2)}</p></div><div class="flex-shrink-0 w-32 h-32 rounded-full border-4 border-white border-opacity-50 flex flex-col items-center justify-center bg-white bg-opacity-10 backdrop-blur-sm"><span class="text-6xl font-black">${grade.grade}</span><span class="font-semibold tracking-widest uppercase text-sm">${grade.name_en}</span></div></div></div>`;
+            container.innerHTML = `<div class="relative rounded-2xl p-8 text-white overflow-hidden shadow-2xl ${styles.bgGradient} ${styles.shadowColor}"><div class="relative z-10 flex justify-between items-center"><div><p class="font-medium opacity-80">${grade.name_en}</p><h2 class="text-4xl font-extrabold tracking-tight">${grade.name_cn}</h2><p class="mt-4 text-7xl font-black">${score.toFixed(2)}</p></div><div class="flex-shrink-0 w-32 h-32 rounded-full border-4 border-white border-opacity-50 flex flex-col items-center justify-center bg-white bg-opacity-10 backdrop-blur-sm"><span class_ ="text-6xl font-black">${grade.grade}</span><span class="font-semibold tracking-widest uppercase text-sm">${grade.name_en}</span></div></div></div>`;
         }
 
         function renderSummary(container, config, ratings) {
@@ -297,8 +304,11 @@
                     const selectedOptionIndex = ratings[id];
                     if (selectedOptionIndex !== undefined && criterion.options?.[selectedOptionIndex]) {
                         const option = criterion.options[selectedOptionIndex];
-                        const weightedScore = (criterion.weight || 0) * (option.scorePct || 0);
-                        summaryHtml += `<li class="flex justify-between items-center p-1"><div><span class="font-medium text-gray-700">${criterion.name}:</span><span class="text-gray-500 ml-2">${option.description}</span></div><span class="font-semibold text-green-600">+${weightedScore.toFixed(2)}</span></li>`;
+                        // const weightedScore = (criterion.weight || 0) * (option.scorePct || 0); // Score calculation no longer needed here
+                        summaryHtml += `<li class="flex justify-between items-center p-1"><div><span class="font-medium text-gray-700">${criterion.name}:</span><span class="text-gray-500 ml-2">${option.description}</span></div>`;
+                        // **MODIFIED**: Removed the score span
+                        // summaryHtml += `<span class="font-semibold text-green-600">+${weightedScore.toFixed(2)}</span></li>`;
+                        summaryHtml += `</li>`;
                     }
                 });
                 summaryHtml += `</ul></div>`;

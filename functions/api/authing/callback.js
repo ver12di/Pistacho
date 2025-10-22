@@ -14,6 +14,8 @@
 async function getRoleFromDatabase(db, userInfo) {
     const userId = userInfo.sub;
     const email = userInfo.email;
+    // Extract a nickname, prioritizing 'name', then 'nickname', then 'preferred_username'
+    const nickname = userInfo.name || userInfo.nickname || userInfo.preferred_username || userInfo.email; // Fallback to email if no name
 
     if (!email) {
         // Cannot reliably create or find user without email due to UNIQUE constraint
@@ -23,14 +25,14 @@ async function getRoleFromDatabase(db, userInfo) {
 
     try {
         // Step 1: Atomically INSERT or UPDATE the user record.
-        // - If userId conflicts, do nothing (user exists with correct ID).
-        // - If email conflicts, update the userId for that email.
-        // - If neither conflicts, insert new user with 'general' role.
+        // - If userId conflicts, update email and nickname (in case they changed in Authing).
+        // - If email conflicts, update userId and nickname.
+        // - If neither conflicts, insert new user.
         await db.prepare(
-            `INSERT INTO users (userId, email, role) VALUES (?, ?, 'general')
-             ON CONFLICT(userId) DO NOTHING
-             ON CONFLICT(email) DO UPDATE SET userId = excluded.userId`
-        ).bind(userId, email).run();
+            `INSERT INTO users (userId, email, role, nickname) VALUES (?, ?, 'general', ?)
+             ON CONFLICT(userId) DO UPDATE SET email = excluded.email, nickname = excluded.nickname
+             ON CONFLICT(email) DO UPDATE SET userId = excluded.userId, nickname = excluded.nickname`
+        ).bind(userId, email, nickname).run();
 
         // Step 2: Now that the user is guaranteed to exist with the correct userId,
         // fetch their definitive role.

@@ -14,6 +14,8 @@
 async function getRoleFromDatabase(db, userInfo) {
     const userId = userInfo.sub;
     const email = userInfo.email;
+    // Extract a nickname, prioritizing 'name', then 'nickname', then 'preferred_username'
+    const nickname = userInfo.name || userInfo.nickname || userInfo.preferred_username || userInfo.email; // Fallback to email if no name
 
     if (!email) {
         console.warn(`User ${userId} has no email from Authing. Assigning temporary 'general' role.`);
@@ -23,10 +25,10 @@ async function getRoleFromDatabase(db, userInfo) {
     try {
         // Step 1: Atomically INSERT or UPDATE the user record.
         await db.prepare(
-            `INSERT INTO users (userId, email, role) VALUES (?, ?, 'general')
-             ON CONFLICT(userId) DO NOTHING
-             ON CONFLICT(email) DO UPDATE SET userId = excluded.userId`
-        ).bind(userId, email).run();
+            `INSERT INTO users (userId, email, role, nickname) VALUES (?, ?, 'general', ?)
+             ON CONFLICT(userId) DO UPDATE SET email = excluded.email, nickname = excluded.nickname
+             ON CONFLICT(email) DO UPDATE SET userId = excluded.userId, nickname = excluded.nickname`
+        ).bind(userId, email, nickname).run();
 
         // Step 2: Fetch the definitive role.
         const stmt = db.prepare("SELECT role FROM users WHERE userId = ?").bind(userId);
