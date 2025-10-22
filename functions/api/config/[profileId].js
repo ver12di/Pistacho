@@ -3,45 +3,44 @@
 // 作用: 处理单个配置方案的获取(GET)、保存/更新(POST)、删除(DELETE)
 // ---------------------------------------------------
 
-// 帮助函数，用于验证 Authing Token 并检查角色
+/**
+ * **FIXED**: Validates Authing Token AND checks D1 database for admin role.
+ * @param {Request} request
+ * @param {object} env
+ * @returns {Promise<object>} - User info if authorized
+ */
 async function validateAdminToken(request, env) {
     const authHeader = request.headers.get('Authorization') || '';
     const token = authHeader.replace('Bearer ', '');
-    if (!token) {
-        return { authorized: false, error: "Missing token" };
+    if (!token) throw new Error("Missing authorization token.");
+
+    // 1. Validate token with Authing
+    const userInfoUrl = new URL('/oidc/me', env.AUTHING_ISSUER);
+    const response = await fetch(userInfoUrl.toString(), {
+        headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!response.ok) throw new Error('Invalid token.');
+    const userInfo = await response.json();
+
+    // 2. **CRITICAL FIX**: Check role in our D1 database
+    const userId = userInfo.sub;
+    const stmt = env.DB.prepare("SELECT role FROM users WHERE userId = ?").bind(userId);
+    const userRecord = await stmt.first();
+
+    // 3. Check if user exists in DB and has admin or super_admin role
+    if (!userRecord || (userRecord.role !== 'admin' && userRecord.role !== 'super_admin')) {
+        throw new Error("Permission denied. Admin role required.");
     }
 
-    try {
-        // 调用 Authing 的用户信息端点来验证 token
-        const userInfoUrl = `${env.AUTHING_ISSUER}/me`;
-        const response = await fetch(userInfoUrl, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-
-        if (!response.ok) {
-            throw new Error('Invalid token');
-        }
-        const userInfo = await response.json();
-
-        // 检查用户角色
-        const userRoles = (userInfo.roles || []).map(r => r.code);
-        const isAdmin = userRoles.includes('admin') || userRoles.includes('super_admin');
-
-        if (!isAdmin) {
-            return { authorized: false, error: "Permission denied. Admin role required." };
-        }
-
-        return { authorized: true, user: userInfo };
-
-    } catch (e) {
-        return { authorized: false, error: e.message };
-    }
+    // Add db_role to userInfo for consistency (though not strictly needed here)
+    userInfo.db_role = userRecord.role;
+    return userInfo;
 }
 
 
 // --- API 方法 ---
 
-// 1. 处理 GET 请求 (获取特定配置)
+// GET (No changes needed, GET requests are public)
 export async function onRequestGet(context) {
     const { env, params } = context;
     const profileId = params.profileId; 
@@ -51,26 +50,29 @@ export async function onRequestGet(context) {
         const result = await stmt.first();
 
         if (!result) {
-            return new Response(JSON.stringify({ error: `Profile '${profileId}' not found.` }), { status: 404 });
+            return new Response(JSON.stringify({ error: `Profile '${profileId}' not found.` }), { 
+                status: 404,
+                headers: { 'Content-Type': 'application/json' }
+            });
         }
         return new Response(result.configData, { headers: { 'Content-Type': 'application/json' } });
     } catch (e) {
-        return new Response(JSON.stringify({ error: e.message }), { status: 500 });
+        return new Response(JSON.stringify({ error: e.message }), { 
+            status: 500,
+             headers: { 'Content-Type': 'application/json' }
+        });
     }
 }
 
-// 2. 处理 POST 请求 (创建或更新配置)
+// POST (Uses updated validateAdminToken)
 export async function onRequestPost(context) {
     const { request, env, params } = context;
     const profileId = params.profileId;
 
-    // **安全检查**: 必须是管理员才能写入
-    const { authorized, error } = await validateAdminToken(request, env);
-    if (!authorized) {
-        return new Response(JSON.stringify({ error: `Unauthorized: ${error}` }), { status: 403 });
-    }
-
     try {
+        // **Security Check**: Only admins (checked via D1) can write
+        await validateAdminToken(request, env); 
+        
         const configData = await request.json();
         if (!configData || !configData.ratingCriteria) {
             return new Response(JSON.stringify({ error: 'Invalid config data provided' }), { status: 400 });
@@ -88,29 +90,32 @@ export async function onRequestPost(context) {
         );
         await stmt.run();
 
-        return new Response(JSON.stringify({ success: true, profileId: profileId }), { status: 200 });
+        return new Response(JSON.stringify({ success: true, profileId: profileId }), { 
+            status: 200,
+            headers: { 'Content-Type': 'application/json' }
+        });
     } catch (e) {
-        return new Response(JSON.stringify({ error: e.message }), { status: 500 });
+        // Catches permission errors or DB errors
+        return new Response(JSON.stringify({ error: e.message }), { 
+            status: e.message.includes("Permission denied") ? 403 : 500,
+             headers: { 'Content-Type': 'application/json' }
+        });
     }
 }
 
-// 3. 处理 DELETE 请求 (删除配置)
+// DELETE (Uses updated validateAdminToken)
 export async function onRequestDelete(context) {
     const { request, env, params } = context;
     const profileId = params.profileId;
 
-    // **安全检查**: 必须是管理员才能删除
-    const { authorized, error } = await validateAdminToken(request, env);
-    if (!authorized) {
-        return new Response(JSON.stringify({ error: `Unauthorized: ${error}` }), { status: 403 });
-    }
-    
-    // **安全限制**: 不允许通过 API 删除 'latest' 配置
-    if (profileId === 'latest') {
-        return new Response(JSON.stringify({ error: "Cannot delete the 'latest' profile via API." }), { status: 400 });
-    }
-
     try {
+        // **Security Check**: Only admins (checked via D1) can delete
+        await validateAdminToken(request, env);
+        
+        if (profileId === 'latest') {
+            return new Response(JSON.stringify({ error: "Cannot delete the 'latest' profile via API." }), { status: 400 });
+        }
+
         const stmt = env.DB.prepare("DELETE FROM config_profiles WHERE profileId = ?").bind(profileId);
         const result = await stmt.run();
 
@@ -120,6 +125,10 @@ export async function onRequestDelete(context) {
             return new Response(JSON.stringify({ error: `Profile '${profileId}' not found.` }), { status: 404 });
         }
     } catch (e) {
-        return new Response(JSON.stringify({ error: e.message }), { status: 500 });
+        return new Response(JSON.stringify({ error: e.message }), { 
+            status: e.message.includes("Permission denied") ? 403 : 500,
+            headers: { 'Content-Type': 'application/json' }
+        });
     }
 }
+
