@@ -1,13 +1,11 @@
 // ---------------------------------------------------
 // 文件: /functions/api/ratings.js
 // 作用: 处理评分的 增(POST), 删(DELETE), 改(PUT), 查(GET)
-// **FIXED**: Removed all SQL references to 'nickname' columns
 // ---------------------------------------------------
 
 /**
- * **FIXED (Safer Logic)**: Atomically inserts or updates user using a
- * multi-step select-then-update approach to guarantee role preservation.
- * **REMOVED**: All references to 'nickname' column in SQL queries.
+ * **V3 Logic (Nickname Support)** - Copied from me.js
+ * 从 D1 获取角色, 并在用户存在时更新其 nickname。
  * @param {D1Database} db - D1 数据库实例
  * @param {object} userInfo - 从 Authing 获取的用户信息
  * @returns {Promise<string>} - 用户的角色
@@ -15,58 +13,48 @@
 async function getRoleFromDatabase(db, userInfo) {
     const userId = userInfo.sub;
     const email = userInfo.email;
-    // We still get the nickname, but we won't save it to DB
     const nickname = userInfo.name || userInfo.nickname || userInfo.preferred_username || userInfo.email;
 
-    if (!userId || !email) {
-        console.warn(`User ${userId} has no email or ID from Authing. Assigning temporary 'general' role.`);
-        return 'general';
-    }
-
     try {
-        // Step 1: 尝试通过主键 (userId) 查找用户
-        let stmt = db.prepare("SELECT * FROM users WHERE userId = ?").bind(userId);
+        let stmt = db.prepare("SELECT role FROM users WHERE userId = ?").bind(userId);
         let userRecord = await stmt.first();
 
         if (userRecord) {
-            // --- 找到用户 (通过 ID) ---
-            // **FIXED**: Only update email, not nickname.
-            stmt = db.prepare("UPDATE users SET email = ? WHERE userId = ?")
-                     .bind(email, userId);
-            await stmt.run();
-            // 返回数据库中已存在的角色
-            return userRecord.role;
+            try {
+                 const updateStmt = db.prepare("UPDATE users SET email = ?, nickname = ? WHERE userId = ?")
+                    .bind(email, nickname, userId);
+                 await updateStmt.run();
+            } catch (e) {
+                console.error(`Failed to update nickname for ${userId}:`, e.message);
+            }
+            return userRecord.role; 
         }
 
-        // --- 未通过 ID 找到用户 ---
-        // Step 2: 尝试通过 email 查找
-        stmt = db.prepare("SELECT * FROM users WHERE email = ?").bind(email);
-        userRecord = await stmt.first();
-
-        if (userRecord) {
-            // --- 找到用户 (通过 Email) ---
-            // **FIXED**: Only update userId, not nickname.
-            stmt = db.prepare("UPDATE users SET userId = ? WHERE email = ?")
-                     .bind(userId, email);
-            await stmt.run();
-            // 返回数据库中已存在的角色
-            return userRecord.role;
+        if (email) {
+             stmt = db.prepare("SELECT role FROM users WHERE email = ?").bind(email);
+             userRecord = await stmt.first();
+             if (userRecord) {
+                 try {
+                    const updateStmt = db.prepare("UPDATE users SET userId = ?, nickname = ? WHERE email = ?")
+                        .bind(userId, nickname, email);
+                    await updateStmt.run();
+                 } catch(e) {
+                     console.error(`Failed to update userId for ${email}:`, e.message);
+                 }
+                return userRecord.role; 
+             }
         }
-
-        // --- 未通过 ID 或 Email 找到用户 ---
-        // Step 3: 这是一个全新的用户。创建ta。
-        // **FIXED**: Do not insert nickname.
-        stmt = db.prepare("INSERT INTO users (userId, email, role) VALUES (?, ?, 'general')")
-                 .bind(userId, email);
-        await stmt.run();
         
-        // 返回新创建的 'general' 角色
-        return 'general';
+        let assignedRole = 'general';
+        const insertStmt = db.prepare(
+            "INSERT INTO users (userId, email, role, nickname) VALUES (?, ?, ?, ?)"
+        ).bind(userId, email, assignedRole, nickname);
+        await insertStmt.run();
+        return assignedRole;
 
     } catch (e) {
-        console.error(`Database error during getRoleFromDatabase for userId ${userId}, email ${email}:`, e);
-        // 出现意外错误时，回退到 'general'
-        return 'general';
+        console.error("Error in getRoleFromDatabase (ratings.js):", e.message);
+        return 'general'; 
     }
 }
 
@@ -75,7 +63,7 @@ async function getRoleFromDatabase(db, userInfo) {
  * 验证 Authing Token 并返回用户信息
  * @param {Request} request
  * @param {object} env - Cloudflare environment variables
- * @returns {Promise<object>} - Authing 用户信息对象
+ * @returns {Promise<object>} - Authing 用户信息对象 (包含 db_role)
  */
 async function validateTokenAndGetUser(request, env) {
     const authHeader = request.headers.get('Authorization') || '';
@@ -90,21 +78,15 @@ async function validateTokenAndGetUser(request, env) {
     });
 
     if (!response.ok) {
-        // Log Authing's response for debugging
         const errorText = await response.text();
         console.error("Authing token validation failed:", response.status, errorText);
         throw new Error(`Invalid token (status: ${response.status})`);
     }
     
-    // **NEW**: Also fetch user's role from D1
     const userInfo = await response.json();
-    const dbRole = await getRoleFromDatabase(env.DB, userInfo);
-    
-    // **FIX**: We get nickname from Authing, but don't assume it's in the DB
-    const nickname = userInfo.name || userInfo.nickname || userInfo.preferred_username || userInfo.email;
-    
-    userInfo.db_role = dbRole; // Attach D1 role to the user object
-    userInfo.nickname = nickname; // Attach nickname to the user object
+    // **V3**: Get role AND update nickname in users table
+    const dbRole = await getRoleFromDatabase(env.DB, userInfo); 
+    userInfo.db_role = dbRole; 
     return userInfo;
 }
 
@@ -113,64 +95,47 @@ async function validateTokenAndGetUser(request, env) {
 export async function onRequestGet(context) {
     const { request, env } = context;
     const url = new URL(request.url);
-    // Gg check ?certified=true parameter
     const getCertified = url.searchParams.get('certified') === 'true';
 
     try {
         let stmt;
-        let userInfo = null; // Used for private history
-
-        // **FIX**: Removed all `LEFT JOIN` statements to prevent 'no such column' errors.
-        // The frontend (history.html) will automatically fall back to `userEmail` 
-        // if `userNickname` is null in the database.
+        let userInfo = null; 
 
         if (getCertified) {
-            // --- Public certified ratings query ---
-            // Anyone can view certified ratings
-            // TODO: 'isCertified' field needs to be set by a 'certify' API
-            // For now, we return all ratings as an example.
-            stmt = env.DB.prepare(
-                `SELECT * FROM ratings 
-                 ORDER BY timestamp DESC`
-                 // TODO: When certification is ready, add: WHERE isCertified = 1
+            // --- 公开的认证评分查询 ---
+             stmt = env.DB.prepare(
+                `SELECT * FROM ratings WHERE isCertified = 1 ORDER BY timestamp DESC`
              );
+
         } else {
-            // --- Private history query ---
-            // 1. Validate token and get Authing user info (includes db_role)
+            // --- 私人的历史记录查询 ---
             userInfo = await validateTokenAndGetUser(request, env);
             
-            // 2. Prepare query based on role
             if (userInfo.db_role === 'super_admin' || userInfo.db_role === 'admin') {
-                // Admins get all ratings
+                // 管理员获取所有评分
                 stmt = env.DB.prepare(
-                   `SELECT * FROM ratings 
-                    ORDER BY timestamp DESC`
+                   `SELECT * FROM ratings ORDER BY timestamp DESC`
                 );
             } else {
-                // Normal users only get their own ratings
+                // 普通用户仅获取自己的评分
                 stmt = env.DB.prepare(
-                   `SELECT * FROM ratings 
-                    WHERE userId = ? 
-                    ORDER BY timestamp DESC`
-                ).bind(userInfo.sub); // Bind their userId
+                   `SELECT * FROM ratings WHERE userId = ? ORDER BY timestamp DESC`
+                ).bind(userInfo.sub);
             }
         }
 
         const { results } = await stmt.all();
 
-        // 4. Parse fullData JSON string
+        // 4. 解析 fullData JSON 字符串
         const parsedResults = results.map(row => {
             try {
-                // A bit redundant if fullData is always text, but safe
                 if (typeof row.fullData === 'string') {
                     row.fullData = JSON.parse(row.fullData);
                 }
             } catch (e) {
                 console.warn(`Failed to parse fullData for rating ID ${row.id}`);
-                row.fullData = null; // Set to null if parsing fails
+                row.fullData = null; 
             }
-            // **FIX**: Frontend will check if row.userNickname exists.
-            // If not, it will use row.userEmail.
             return row;
         });
 
@@ -181,7 +146,6 @@ export async function onRequestGet(context) {
     } catch(e) {
         console.error("Get ratings error:", e);
         let errorMessage = e.message || 'An unknown error occurred while fetching ratings.';
-        // If certification query fails (non-token error), return 500
         let statusCode = e.message.includes('token') ? 401 : 500;
         return new Response(JSON.stringify({ error: errorMessage }), { 
             status: statusCode,
@@ -196,34 +160,32 @@ export async function onRequestPost(context) {
     const { request, env } = context;
 
     try {
-        // 1. 验证用户身份 (now also gets nickname and role)
+        // 1. 验证用户身份 (V3 logic)
         const userInfo = await validateTokenAndGetUser(request, env);
         
         // 2. 获取前端发送的评分数据
         const ratingToSave = await request.json();
         
-        // 3. 基本数据验证 (确保核心对象存在)
         if (!ratingToSave || typeof ratingToSave !== 'object') {
              throw new Error("Invalid rating data received.");
         }
         
-        const newId = crypto.randomUUID(); // D1 需要手动生成 ID
+        const newId = crypto.randomUUID(); 
         
-        // **FIX**: Get nickname from validated user info
-        const nickname = userInfo.nickname; // Get nickname from the validated user object
+        // **V3**: Get nickname from validated user info
+        const nickname = userInfo.name || userInfo.nickname || userInfo.preferred_username || userInfo.email;
 
-        // 4. **FIX**: Removed `userNickname` from INSERT statement
-        // The frontend will get the nickname from history.html's logic
+        // 4. **V3**: 插入数据 (包含 userNickname)
         await env.DB.prepare(
           `INSERT INTO ratings (
-            id, userId, userEmail, timestamp, cigarName, cigarSize, cigarOrigin,
+            id, userId, userEmail, userNickname, timestamp, cigarName, cigarSize, cigarOrigin,
             normalizedScore, finalGrade_grade, finalGrade_name_cn, isCertified, certifiedRatingId, fullData
-           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         ).bind(
           newId,                                  // id
           userInfo.sub,                           // userId
           userInfo.email ?? null,                 // userEmail
-          // userNickname was here, it is now removed
+          nickname ?? null,                       // userNickname **NEW**
           new Date().toISOString(),               // timestamp
           ratingToSave?.cigarInfo?.name ?? null,  // cigarName
           ratingToSave?.cigarInfo?.size ?? null,  // cigarSize
@@ -231,29 +193,25 @@ export async function onRequestPost(context) {
           ratingToSave?.normalizedScore ?? null,  // normalizedScore
           ratingToSave?.finalGrade?.grade ?? null,// finalGrade_grade
           ratingToSave?.finalGrade?.name_cn ?? null, // finalGrade_name_cn
-          false,                                  // isCertified (TODO: 认证 API 需要更新这个)
-          null,                                   // certifiedRatingId (TODO: 认证 API 需要更新这个)
-          JSON.stringify(ratingToSave)            // fullData (original object)
+          false,                                  // isCertified
+          null,                                   // certifiedRatingId
+          JSON.stringify(ratingToSave)            // fullData
         ).run();
         
-        // 5. 返回成功响应
         return new Response(JSON.stringify({ success: true, id: newId }), { 
-            status: 201, // 201 Created status
+            status: 201, 
             headers: { 'Content-Type': 'application/json' }
         });
 
     } catch (e) {
-        console.error("Save rating error:", e); // Log the detailed error on the server
-        // Provide a clearer error message to the frontend
+        console.error("Save rating error:", e); 
         let errorMessage = e.message || 'An unknown error occurred while saving the rating.';
-        if (e.message.includes('D1_TYPE_ERROR') || e.message.includes('no such column')) {
-             errorMessage = `Database schema error: ${e.message}. Did you add the 'userNickname' column?`; 
-        } else if (e.message.includes('token')) {
+        if (e.message.includes('token')) {
              errorMessage = 'Authentication failed. Please log in again.';
         }
         
         return new Response(JSON.stringify({ error: errorMessage }), { 
-            status: e.message.includes('token') ? 401 : 500, // Return 401 for auth errors
+            status: e.message.includes('token') ? 401 : 500, 
             headers: { 'Content-Type': 'application/json' }
         });
     }
@@ -270,7 +228,7 @@ export async function onRequestPut(context) {
         
         // 2. 获取数据
         const ratingToSave = await request.json();
-        const ratingId = ratingToSave.ratingId; // 假设 ratingId 包含在 body 中
+        const ratingId = ratingToSave.ratingId; 
 
         if (!ratingId) {
             throw new Error("Missing ratingId for update.");
@@ -288,9 +246,9 @@ export async function onRequestPut(context) {
         }
 
         const isOwner = originalRating.userId === userInfo.sub;
-        const isAdmin = (userInfo.db_role === 'admin' || userInfo.db_role === 'super_admin');
+        const isAdmin = userInfo.db_role === 'admin' || userInfo.db_role === 'super_admin';
 
-        if (!isOwner && !isAdmin) {
+        if (!isOwner && !isAdmin) { // **FIX**: Allow 'admin'
              throw new Error("Permission denied to edit this rating.");
         }
         
@@ -313,9 +271,8 @@ export async function onRequestPut(context) {
           ratingId                                // WHERE id = ?
         ).run();
         
-        // 5. 返回成功响应
         return new Response(JSON.stringify({ success: true, id: ratingId }), { 
-            status: 200, // 200 OK
+            status: 200, 
             headers: { 'Content-Type': 'application/json' }
         });
 
@@ -337,19 +294,18 @@ export async function onRequestPut(context) {
 // --- API: DELETE /api/ratings ---
 // (删除评分)
 export async function onRequestDelete(context) {
-    const { request, env } = context;
+     const { request, env } = context;
 
     try {
         // 1. 验证用户身份
         const userInfo = await validateTokenAndGetUser(request, env);
         
-        // 2. 获取 ID
-        const url = new URL(request.url);
-        const ratingId = url.searchParams.get('id');
+        // 2. 获取数据
+        const { ratingId } = await request.json();
         if (!ratingId) {
-             throw new Error("Missing rating 'id' in query parameter.");
+            throw new Error("Missing ratingId for delete.");
         }
-
+        
         // 3. **Security Check**: 验证用户是否有权删除
         const stmt = env.DB.prepare("SELECT userId FROM ratings WHERE id = ?").bind(ratingId);
         const originalRating = await stmt.first();
@@ -359,16 +315,18 @@ export async function onRequestDelete(context) {
         }
 
         const isOwner = originalRating.userId === userInfo.sub;
-        const isAdmin = (userInfo.db_role === 'admin' || userInfo.db_role === 'super_admin');
+        const isAdmin = userInfo.db_role === 'admin' || userInfo.db_role === 'super_admin';
 
-        if (!isOwner && !isAdmin) {
+        if (!isOwner && !isAdmin) { // **FIX**: Allow 'admin'
              throw new Error("Permission denied to delete this rating.");
         }
         
         // 4. 执行删除
         await env.DB.prepare("DELETE FROM ratings WHERE id = ?").bind(ratingId).run();
         
-        // 5. 返回成功响应
+        // 5. [可选] 检查并删除认证表中的条目 (如果 certify API 不是这么做的话)
+        // await env.DB.prepare("DELETE FROM certified_ratings WHERE originalRatingId = ?").bind(ratingId).run();
+
         return new Response(JSON.stringify({ success: true, id: ratingId }), { 
             status: 200, // 200 OK
             headers: { 'Content-Type': 'application/json' }
@@ -386,23 +344,6 @@ export async function onRequestDelete(context) {
             status: statusCode,
             headers: { 'Content-Type': 'application/json' }
         });
-    }
-}
-
-
-export async function onRequest(context) {
-    const { request } = context;
-    switch (request.method) {
-        case 'GET':
-            return onRequestGet(context);
-        case 'POST':
-            return onRequestPost(context);
-        case 'PUT':
-            return onRequestPut(context);
-        case 'DELETE':
-            return onRequestDelete(context);
-        default:
-            return new Response('Method Not Allowed', { status: 405 });
     }
 }
 

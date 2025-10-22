@@ -200,9 +200,12 @@
                     const canEdit = isOwner || isAdmin;
                     
                     // 作者信息 (仅管理员可见)
+                    // **注意**: 这里的 data.userNickname 依赖于后端修复
                     let authorHtml = '';
                     if (isAdmin) {
-                        authorHtml = `<span class="text-xs text-gray-500"> | 用户: ${data.userNickname || data.userEmail || data.userId}</span>`;
+                        // 优先显示昵称，其次 Email，最后 ID
+                        const authorName = data.userNickname || data.userEmail || data.userId;
+                        authorHtml = `<span class="text-xs text-gray-500"> | 用户: ${authorName}</span>`;
                     }
 
                     // 认证按钮
@@ -215,24 +218,31 @@
                         }
                     }
 
+                    // --- **新的紧凑型布局** ---
                     historyHtml += `
                         <a href="#" onclick="viewRatingDetails('${ratingId}'); return false;" class="block bg-white p-4 rounded-lg shadow-md hover:shadow-lg transition-shadow">
-                            <div class="flex justify-between items-center">
-                                <div>
-                                    <p class="text-lg font-bold text-gray-800">${cigarInfo.name}</p>
-                                    <p class="text-sm text-gray-500">${cigarInfo.size} | ${cigarInfo.origin} | ${date}${authorHtml}</p>
-                                </div>
-                                <div class="text-right flex-shrink-0 ml-4">
-                                    <p class="text-2xl font-black text-indigo-600">${scoreDisplay}</p>
-                                    <p class="font-bold text-gray-600">${gradeDisplay}</p>
-                                </div>
+                            <!-- 上方: 信息 -->
+                            <div class="mb-2">
+                                <p class="text-lg font-bold text-gray-800">${cigarInfo.name}</p>
+                                <p class="text-sm text-gray-500">${cigarInfo.size} | ${cigarInfo.origin} | ${date}${authorHtml}</p>
                             </div>
-                            ${canEdit ? `
-                            <div class="mt-3 border-t pt-3 flex items-center justify-end space-x-2">
-                                <button onclick="editRating('${ratingId}', event)" class="flex-shrink-0 text-xs py-1 px-3 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition">修改</button>
-                                <button onclick="deleteRating('${ratingId}', event)" class="flex-shrink-0 text-xs py-1 px-3 bg-red-500 text-white rounded-md hover:bg-red-600 transition">删除</button>
-                                ${certifyButtonHtml}
-                            </div>` : ''}
+                            
+                            <!-- 下方: 分数 + 按钮 (如果可编辑) -->
+                            <div class="mt-2 border-t pt-2 flex justify-between items-center">
+                                <!-- 左侧: 分数 -->
+                                <div class="text-left flex-shrink-0">
+                                    <p class="text-2xl font-black text-indigo-600">${scoreDisplay}</p>
+                                    <p class="font-bold text-gray-600 text-sm">${gradeDisplay}</p>
+                                </div>
+                                
+                                <!-- 右侧: 按钮 -->
+                                ${canEdit ? `
+                                <div class="flex items-center justify-end space-x-2">
+                                    <button onclick="editRating('${ratingId}', event)" class="flex-shrink-0 text-xs py-1 px-3 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition">修改</button>
+                                    <button onclick="deleteRating('${ratingId}', event)" class="flex-shrink-0 text-xs py-1 px-3 bg-red-500 text-white rounded-md hover:bg-red-600 transition">删除</button>
+                                    ${certifyButtonHtml}
+                                </div>` : `<div></div>` /* 占位符保持布局 */ }
+                            </div>
                         </a>
                     `;
                 });
