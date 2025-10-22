@@ -16,163 +16,139 @@
             }
         }
     </script>
+    <!-- 
+      移除了 Firebase/Firestore 相关的 imports.
+      此页面现在将使用 sessionStorage 和 /api/ratings 端点,
+      与 index.html 保持一致。
+    -->
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, query, where, getDocs, orderBy, doc, getDoc, updateDoc, addDoc, serverTimestamp, deleteDoc, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
         window.onload = function() {
-            const appId = 'pistacho-b9efe';
-            const firebaseConfig = JSON.parse('{"apiKey":"AIzaSyDC-8qbWsjRyxBzJpfCi9n3ftzdg9FStF0","authDomain":"pistacho-b9efe.firebaseapp.com","projectId":"pistacho-b9efe"}');
-            
-            let db, auth;
             let userRole = 'unknown';
             let historicalRatings = {}; 
+            let accessToken = null;
 
-            const RATINGS_COLLECTION_PATH = `/artifacts/${appId}/public/data/ratings`;
-            const CERTIFIED_COLLECTION_PATH = `/artifacts/${appId}/public/data/certified_ratings`;
-            const USERS_COLLECTION_PATH = 'users';
-
-            async function fetchUserRole(user) {
-                if (!user) return 'general';
-                const roleDocRef = doc(db, USERS_COLLECTION_PATH, user.uid);
-                try {
-                    const docSnap = await getDoc(roleDocRef);
-                    if (docSnap.exists() && docSnap.data().role) {
-                        return docSnap.data().role;
-                    }
-                } catch(e) { console.error("获取角色失败:", e); }
-                return 'general';
-            }
-
-            window.certifyRating = async function(ratingId, event) {
-                event.stopPropagation();
-                const button = event.target;
-                button.textContent = '认证中...';
-                button.disabled = true;
-
-                try {
-                    const ratingDocRef = doc(db, RATINGS_COLLECTION_PATH, ratingId);
-                    const ratingSnap = await getDoc(ratingDocRef);
-                    if (!ratingSnap.exists()) throw new Error("原始评分记录不存在。");
-                    
-                    const ratingData = ratingSnap.data();
-                    
-                    const newCertifiedDocRef = await addDoc(collection(db, CERTIFIED_COLLECTION_PATH), {
-                        ...ratingData,
-                        originalRatingId: ratingId,
-                        certifiedAt: serverTimestamp()
-                    });
-                    
-                    await updateDoc(ratingDocRef, { 
-                        certified: true,
-                        certifiedRatingId: newCertifiedDocRef.id
-                    });
-                    
-                    fetchAndRenderHistory(auth.currentUser);
-                } catch (error) {
-                    console.error("认证失败:", error);
-                    alert(`认证失败: ${error.message}`);
-                    button.textContent = "认证";
-                    button.disabled = false;
-                }
-            }
-
-            window.uncertifyRating = async function(ratingId, certifiedRatingId, event) {
-                event.stopPropagation();
-                if (!confirm("确定要取消这条记录的 Pistacho 认证吗？")) return;
-
-                const button = event.target;
-                button.textContent = '取消中...';
-                button.disabled = true;
-
-                try {
-                    const batch = writeBatch(db);
-                    const certifiedDocRef = doc(db, CERTIFIED_COLLECTION_PATH, certifiedRatingId);
-                    batch.delete(certifiedDocRef);
-                    const ratingDocRef = doc(db, RATINGS_COLLECTION_PATH, ratingId);
-                    batch.update(ratingDocRef, {
-                        certified: false,
-                        certifiedRatingId: null
-                    });
-
-                    await batch.commit();
-                    fetchAndRenderHistory(auth.currentUser);
-                } catch (error) {
-                    console.error("取消认证失败:", error);
-                    alert(`取消认证失败: ${error.message}`);
-                    button.textContent = "取消认证";
-                    button.disabled = false;
-                }
-            }
+            // 从 sessionStorage 获取认证信息
+            accessToken = sessionStorage.getItem('accessToken');
+            const storedUser = sessionStorage.getItem('userInfo');
+            let currentAuthUser = storedUser ? JSON.parse(storedUser) : null;
             
-            window.viewRatingDetails = function(ratingId) {
-                const ratingData = historicalRatings[ratingId];
-                if (ratingData) {
-                    sessionStorage.setItem('cigarRatingResults', JSON.stringify(ratingData));
-                    window.location.href = 'results.html';
-                } else {
-                    alert("无法加载该评分的详细信息。");
-                }
+            // 如果 currentAuthUser 存在，从中获取角色
+            if (currentAuthUser && currentAuthUser.db_role) {
+                userRole = currentAuthUser.db_role;
             }
 
-            async function fetchAndRenderHistory(user) {
+            // --- 认证和数据获取 ---
+            async function fetchAndRenderHistory() {
                 const container = document.getElementById('history-container');
                 const title = document.getElementById('history-title');
 
-                if (!user || user.isAnonymous) {
+                // 1. 检查是否存在 token
+                if (!accessToken) {
                     title.textContent = "评分历史";
                     container.innerHTML = `<div class="text-center p-6 bg-white rounded-lg shadow"><p>请<a href="index.html" class="text-indigo-600 underline">登录</a>以查看您的评分历史。</p></div>`;
                     return;
                 }
 
+                // 2. 如果 token 存在 (但可能角色未知), 尝试从 /api/me 获取最新角色
+                //    这可以确保角色信息是最新的
+                if (userRole === 'unknown' || !currentAuthUser) {
+                     try {
+                        const meResponse = await fetch('/api/me', {
+                             headers: { 'Authorization': `Bearer ${accessToken}` }
+                        });
+                        if (meResponse.ok) {
+                            currentAuthUser = await meResponse.json();
+                            userRole = currentAuthUser.db_role;
+                            sessionStorage.setItem('userInfo', JSON.stringify(currentAuthUser)); // 更新 sessionStorage
+                        } else {
+                             // 如果 /api/me 失败 (例如 token 过期), 则抛出错误
+                             sessionStorage.removeItem('accessToken'); 
+                             sessionStorage.removeItem('userInfo');
+                             throw new Error('会话无效或已过期，请重新登录。');
+                        }
+                     } catch (e) {
+                        title.textContent = "评分历史";
+                        container.innerHTML = `<div class="text-center p-6 bg-red-100 text-red-700 rounded-lg shadow"><p>${e.message}</p><p class="mt-2"><a href="index.html" class="text-indigo-600 underline">返回主页登录</a></p></div>`;
+                        return;
+                     }
+                }
+
+                // 3. 获取评分数据
                 container.innerHTML = `<div class="text-center p-6"><p>正在加载历史记录...</p></div>`;
                 
                 try {
-                    const ratingsCollection = collection(db, RATINGS_COLLECTION_PATH);
-                    let q;
+                    // 调用 /api/ratings (GET)
+                    const response = await fetch('/api/ratings', {
+                        headers: { 'Authorization': `Bearer ${accessToken}` }
+                    });
+                    
+                    if (!response.ok) {
+                        const err = await response.json();
+                        // 如果 token 再次失效 (例如在 /api/me 和此次调用之间失效)
+                        if (response.status === 401) {
+                             sessionStorage.removeItem('accessToken'); 
+                             sessionStorage.removeItem('userInfo');
+                             throw new Error('会话无效或已过期，请重新登录。');
+                        }
+                        throw new Error(err.error || `服务器错误 (${response.status})`);
+                    }
+                    
+                    const ratings = await response.json();
 
                     if (userRole === 'super_admin') {
                         title.textContent = "所有用户的评分历史";
-                        q = query(ratingsCollection, orderBy("timestamp", "desc"));
                     } else {
                         title.textContent = "我的评分历史";
-                        q = query(ratingsCollection, where("userId", "==", user.uid), orderBy("timestamp", "desc"));
                     }
-                    
-                    const querySnapshot = await getDocs(q);
 
-                    if (querySnapshot.empty) {
+                    if (!ratings || ratings.length === 0) {
                         container.innerHTML = `<div class="text-center p-6 bg-white rounded-lg shadow"><p>还没有任何评分记录。</p></div>`;
                         return;
                     }
 
                     let historyHtml = '<div class="space-y-4">';
-                    querySnapshot.forEach(doc => {
-                        const data = doc.data();
-                        const ratingId = doc.id;
-                        historicalRatings[ratingId] = data;
+                    
+                    // 遍历从 D1 API 返回的数据
+                    ratings.forEach(row => {
+                        // `row` 是 D1 数据库的行
+                        // `row.fullData` 包含了原始的 JSON 对象
+                        const data = row.fullData; 
+                        const ratingId = row.id; 
+                        
+                        // 存储原始对象以便查看详情
+                        if(data) {
+                           historicalRatings[ratingId] = data; 
+                        }
 
-                        const date = data.timestamp?.toDate ? data.timestamp.toDate().toLocaleDateString('zh-CN') : '未知日期';
-                        const scoreDisplay = data.normalizedScore !== undefined ? data.normalizedScore.toFixed(2) : 'N/A';
-                        const gradeDisplay = data.finalGrade ? `${data.finalGrade.grade} - ${data.finalGrade.name_cn}` : '未评级';
+                        // 解析 timestamp (ISO string from D1)
+                        const date = row.timestamp ? new Date(row.timestamp).toLocaleDateString('zh-CN') : '未知日期';
+                        
+                        // 使用 D1 的列 (如果 fullData 解析失败, 也能优雅降级)
+                        const scoreDisplay = row.normalizedScore !== null ? Number(row.normalizedScore).toFixed(2) : 'N/A';
+                        const gradeDisplay = row.finalGrade_grade ? `${row.finalGrade_grade} - ${row.finalGrade_name_cn}` : '未评级';
+                        const cigarName = row.cigarName || data?.cigarInfo?.name || '未知雪茄';
+                        const cigarSize = row.cigarSize || data?.cigarInfo?.size || '未知尺寸';
+                        const cigarOrigin = row.cigarOrigin || data?.cigarInfo?.origin || '未知产地';
 
                         let certifyButtonHtml = '';
+                        // 认证逻辑需要一个新的 API 端点, 暂时禁用
+                        /*
                         if (userRole === 'super_admin') {
-                            if (data.certified && data.certifiedRatingId) {
-                                certifyButtonHtml = `<button onclick="uncertifyRating('${ratingId}', '${data.certifiedRatingId}', event)" class="mt-2 w-full text-sm py-1 px-3 bg-red-500 text-white rounded-md hover:bg-red-600 transition">取消认证</button>`;
+                            if (row.isCertified && row.certifiedRatingId) {
+                                certifyButtonHtml = `<button onclick="uncertifyRating('${ratingId}', '${row.certifiedRatingId}', event)" class="mt-2 w-full text-sm py-1 px-3 bg-red-500 text-white rounded-md hover:bg-red-600 transition">取消认证 (TBD)</button>`;
                             } else {
-                                certifyButtonHtml = `<button onclick="certifyRating('${ratingId}', event)" class="mt-2 w-full text-sm py-1 px-3 bg-green-500 text-white rounded-md hover:bg-green-600 transition">认证</button>`;
+                                certifyButtonHtml = `<button onclick="certifyRating('${ratingId}', event)" class="mt-2 w-full text-sm py-1 px-3 bg-green-500 text-white rounded-md hover:bg-green-600 transition">认证 (TBD)</button>`;
                             }
                         }
+                        */
 
                         historyHtml += `
                             <a href="#" onclick="viewRatingDetails('${ratingId}'); return false;" class="block bg-white p-4 rounded-lg shadow-md hover:shadow-lg transition-shadow">
                                 <div class="flex justify-between items-center">
                                     <div>
-                                        <p class="text-lg font-bold text-gray-800">${data.cigarInfo.name}</p>
-                                        <p class="text-sm text-gray-500">${data.cigarInfo.size} | ${data.cigarInfo.origin} | ${date}</p>
-                                        ${ userRole === 'super_admin' ? `<p class="text-xs text-gray-400 pt-1">用户: ${data.userEmail || data.userId}</p>` : '' }
+                                        <p class="text-lg font-bold text-gray-800">${cigarName}</p>
+                                        <p class="text-sm text-gray-500">${cigarSize} | ${cigarOrigin} | ${date}</p>
+                                        ${ userRole === 'super_admin' ? `<p class="text-xs text-gray-400 pt-1">用户: ${row.userEmail || row.userId}</p>` : '' }
                                     </div>
                                     <div class="text-right flex-shrink-0 ml-4">
                                         <p class="text-2xl font-black text-indigo-600">${scoreDisplay}</p>
@@ -188,24 +164,45 @@
 
                 } catch (error) {
                     console.error("获取历史记录失败:", error);
-                    container.innerHTML = `<div class="text-center p-6 bg-red-100 text-red-700 rounded-lg shadow"><p>加载历史记录失败: ${error.message}</p></div>`;
+                    let errorMsg = `加载历史记录失败: ${error.message}`;
+                    if (error.message.includes('重新登录')) {
+                         errorMsg += ` <a href="index.html" class="text-indigo-600 underline">返回主页登录</a>`;
+                    }
+                    container.innerHTML = `<div class="text-center p-6 bg-red-100 text-red-700 rounded-lg shadow"><p>${errorMsg}</p></div>`;
                 }
+            }
+            
+            // --- 认证功能 (TBD) ---
+            // TODO: 这些功能需要一个新的 /api/certify 端点
+            window.certifyRating = async function(ratingId, event) {
+                event.stopPropagation();
+                alert("认证功能正在开发中。");
+                // ...
             }
 
-            try {
-                const app = initializeApp(firebaseConfig);
-                db = getFirestore(app);
-                auth = getAuth(app);
-                onAuthStateChanged(auth, async (user) => {
-                    userRole = await fetchUserRole(user);
-                    fetchAndRenderHistory(user);
-                });
-            } catch(e) {
-                const container = document.getElementById('history-container');
-                if (container) {
-                    container.innerHTML = `<div class="p-6 bg-red-100 text-red-700">Firebase 初始化失败: ${e.message}</div>`;
+            window.uncertifyRating = async function(ratingId, certifiedRatingId, event) {
+                event.stopPropagation();
+                if (!confirm("确定要取消这条记录的 Pistacho 认证吗？")) return;
+                alert("取消认证功能正在开发中。");
+                // ...
+            }
+            
+            // --- 查看详情 ---
+            window.viewRatingDetails = function(ratingId) {
+                const ratingData = historicalRatings[ratingId];
+                if (ratingData) {
+                    // 确保 isDraft 标志被移除 (或设为 false), 
+                    // 这样 "保存" 按钮就不会出现在 results 页面
+                    ratingData.isDraft = false; 
+                    sessionStorage.setItem('cigarRatingResults', JSON.stringify(ratingData));
+                    window.location.href = 'results.html';
+                } else {
+                    alert("无法加载该评分的详细信息。 (ID: " + ratingId + ")");
                 }
             }
+            
+            // --- 启动 ---
+            fetchAndRenderHistory();
         }
     </script>
 </head>
@@ -230,4 +227,3 @@
     </div>
 </body>
 </html>
-
