@@ -28,7 +28,7 @@
         </nav>
         <header class="mb-6">
             <h1 class="text-4xl font-extrabold text-gray-800">Pistacho 认证评分</h1>
-            <p class="mt-2 text-lg text-gray-600">由我们的超级管理员精选的优秀品鉴记录。</p>
+            <p class="mt-2 text-lg text-gray-600">Pistacho认证品鉴记录。</p>
         </header>
         <div id="certified-container">
             <!-- Certified ratings will be rendered here -->
@@ -74,8 +74,8 @@
                     body: JSON.stringify({ ratingId: ratingId, certify: certify })
                 });
                 
-                // **FIX**: 不再调用 fetchAndRenderCertified()，
-                // 而是手动移除 DOM 元素以避免数据同步延迟
+                // **FIX**: 修复了语法错误，添加了反引号 (`)
+                // 不再调用 fetchAndRenderCertified()，而是手动移除 DOM 元素
                 const cardToRemove = document.getElementById(`rating-card-${ratingId}`);
                 if (cardToRemove) {
                     // 添加一个平滑的淡出效果
