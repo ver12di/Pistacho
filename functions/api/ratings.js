@@ -1,162 +1,222 @@
 // ---------------------------------------------------
 // 文件: /functions/api/ratings.js
 // 作用: 处理评分的 增(POST), 删(DELETE), 改(PUT), 查(GET)
-// ** 已更新: GET 请求现在支持公共(未登录)访问 **
 // ---------------------------------------------------
 
 /**
- * 验证 Authing Token 并返回用户信息
+ * 验证 Authing Token 并返回用户信息 (包含 db_role)
  * @param {Request} request
- * @param {object} env - Cloudflare environment variables
- * @returns {Promise<object>} - Authing 用户信息对象 (包含 db_role)
+ * @param {object} env
+ * @returns {Promise<object | null>} - 用户信息对象, 或 null (如果 token 无效/缺失)
  */
 async function validateTokenAndGetUser(request, env) {
     const authHeader = request.headers.get('Authorization') || '';
     const token = authHeader.replace('Bearer ', '');
     if (!token) {
+        // 对于 GET 请求, 允许匿名访问, 返回 null
+        if (request.method === 'GET') return null;
         throw new Error("Missing token");
     }
 
-    // 1. 验证 Authing token
-    const userInfoUrl = new URL('/oidc/me', env.AUTHING_ISSUER);
-    const response = await fetch(userInfoUrl.toString(), {
-        headers: { 'Authorization': `Bearer ${token}` }
-    });
+    try {
+        const userInfoUrl = new URL('/oidc/me', env.AUTHING_ISSUER);
+        const response = await fetch(userInfoUrl.toString(), {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
 
-    if (!response.ok) {
-        const errorText = await response.text();
-        console.error("Authing token validation failed:", response.status, errorText);
-        throw new Error(`Invalid token (status: ${response.status})`);
+        if (!response.ok) {
+             // 对于 GET 请求, token 无效视为匿名, 返回 null
+            if (request.method === 'GET') return null;
+            const errorText = await response.text();
+            console.error("Authing token validation failed:", response.status, errorText);
+            throw new Error(`Invalid token (status: ${response.status})`);
+        }
+
+        const userInfo = await response.json();
+        const dbRole = await getRoleFromDatabase(env.DB, userInfo, "validateToken"); // 添加来源标记
+        userInfo.db_role = dbRole;
+        return userInfo;
+    } catch (e) {
+         // 对于 GET 请求, 任何错误都视为匿名, 返回 null
+        if (request.method === 'GET') {
+            console.warn("Token validation failed during GET, treating as anonymous:", e.message);
+            return null;
+        }
+        // 对于其他方法 (POST, PUT, DELETE), 抛出错误
+        throw e;
     }
-    
-    // 2. 获取 D1 角色
-    const userInfo = await response.json();
-    // **注意**: 此处调用下面的 getRoleFromDatabase
-    const dbRole = await getRoleFromDatabase(env.DB, userInfo);
-    userInfo.db_role = dbRole; // 将 D1 角色附加到 user object
-    return userInfo;
 }
 
+
 /**
- * **(使用 "SELECT-first" 逻辑并更新 nickname)**
- * @param {D1Database} db - D1 数据库实例
- * @param {object} userInfo - 从 Authing 获取的用户信息
- * @returns {Promise<string>} - 用户的角色
+ * 从 D1 获取/更新用户角色和昵称 (SELECT-first approach)
+ * @param {D1Database} db
+ * @param {object} userInfo - Authing user info
+ * @param {string} source - 调用来源 (用于调试日志)
+ * @returns {Promise<string>} - User's role
  */
-async function getRoleFromDatabase(db, userInfo) {
+async function getRoleFromDatabase(db, userInfo, source = "unknown") {
     const userId = userInfo.sub;
     const email = userInfo.email;
-    // 从 Authing 获取最佳昵称
-    const nickname = userInfo.name || userInfo.nickname || userInfo.preferred_username || userInfo.email; 
+    const nickname = userInfo.name || userInfo.nickname || userInfo.preferred_username || userInfo.email; // Best effort nickname
 
-    // 调试日志
-    console.log(`[getRoleFromDatabase] 正在查找: userId=${userId}, email=${email}`);
+    console.log(`[getRoleFromDatabase @ ${source}] 正在查找: userId=${userId}, email=${email}`);
+
+    if (!userId) {
+        console.error(`[getRoleFromDatabase @ ${source}] Error: userId is missing from userInfo.`);
+        return 'general'; // Cannot proceed without userId
+    }
 
     try {
-        // --- 步骤 1: 优先尝试通过 userId 查找 ---
-        let stmt = db.prepare("SELECT role FROM users WHERE userId = ?").bind(userId);
-        let userRecord = await stmt.first();
+        // Step 1: 尝试通过主键 (userId) 查找用户
+        const stmtSelect = db.prepare("SELECT role FROM users WHERE userId = ?").bind(userId);
+        const userRecord = await stmtSelect.first();
 
         if (userRecord) {
-            // 找到了! 更新 email 和 nickname (以防它们在 Authing 中被更改)
-            console.log(`[getRoleFromDatabase] 找到用户 (by userId). 角色: ${userRecord.role}. 正在更新 nickname...`);
-            await db.prepare("UPDATE users SET email = ?, nickname = ? WHERE userId = ?")
-                  .bind(email, nickname, userId)
-                  .run();
+            console.log(`[getRoleFromDatabase @ ${source}] 找到用户 (by userId). 角色: ${userRecord.role}. 正在更新 nickname...`);
+            // Step 1a: 如果找到，更新 email 和 nickname (以防它们改变), 但保留现有 role
+            const stmtUpdate = db.prepare("UPDATE users SET email = ?, nickname = ? WHERE userId = ?")
+                                 .bind(email ?? null, nickname ?? null, userId);
+            await stmtUpdate.run();
             return userRecord.role; // 返回数据库中已存在的角色
+        } else {
+             console.log(`[getRoleFromDatabase @ ${source}] 未找到用户 (by userId). 尝试通过 email 查找...`);
+            // Step 2: 如果 userId 找不到，尝试 email (防止 userId 变更?)
+            if (email) {
+                 const stmtSelectEmail = db.prepare("SELECT userId, role FROM users WHERE email = ?").bind(email);
+                 const userRecordEmail = await stmtSelectEmail.first();
+
+                 if (userRecordEmail) {
+                     console.log(`[getRoleFromDatabase @ ${source}] 找到用户 (by email). 旧 userId: ${userRecordEmail.userId}, 角色: ${userRecordEmail.role}. 正在更新 userId 和 nickname...`);
+                     // Step 2a: 如果找到，更新 userId 和 nickname, 保留现有 role
+                     const stmtUpdateEmail = db.prepare("UPDATE users SET userId = ?, nickname = ? WHERE email = ?")
+                                               .bind(userId, nickname ?? null, email);
+                     await stmtUpdateEmail.run();
+                     return userRecordEmail.role;
+                 }
+            }
+
+            // Step 3: 如果都找不到，创建新用户
+             console.log(`[getRoleFromDatabase @ ${source}] 未找到用户 (by email). 创建新用户...`);
+            let assignedRole = 'general';
+            // 可以在这里添加初始管理员逻辑 (如果需要)
+            // if (userInfo.preferred_username === 'admin_username') assignedRole = 'super_admin';
+
+            const stmtInsert = db.prepare("INSERT INTO users (userId, email, role, nickname) VALUES (?, ?, ?, ?)")
+                                 .bind(userId, email ?? null, assignedRole, nickname ?? null);
+            await stmtInsert.run();
+            console.log(`[getRoleFromDatabase @ ${source}] 创建了新用户. 分配角色: ${assignedRole}`);
+            return assignedRole;
         }
-
-        // --- 步骤 2: 如果 userId 找不到, 尝试通过 email 查找 ---
-        console.log(`[getRoleFromDatabase] 未通过 userId 找到, 正在尝试 email...`);
-        stmt = db.prepare("SELECT userId, role FROM users WHERE email = ?").bind(email);
-        userRecord = await stmt.first();
-        
-        if (userRecord) {
-            // 找到了! 更新 userId 和 nickname
-            console.log(`[getRoleFromDatabase] 找到用户 (by email). 角色: ${userRecord.role}. 正在更新 userId 和 nickname...`);
-            await db.prepare("UPDATE users SET userId = ?, nickname = ? WHERE email = ?")
-                  .bind(userId, nickname, email)
-                  .run();
-            return userRecord.role; // 返回数据库中已存在的角色
-        }
-
-        // --- 步骤 3: 彻底找不到, 创建新用户 ---
-        console.log(`[getRoleFromDatabase] 新用户. 正在创建...`);
-        let assignedRole = 'general';
-        
-        await db.prepare("INSERT INTO users (userId, email, role, nickname) VALUES (?, ?, ?, ?)")
-              .bind(userId, email, assignedRole, nickname)
-              .run();
-              
-        console.log(`[getRoleFromDatabase] 新用户已创建, 角色: ${assignedRole}`);
-        return assignedRole;
-
     } catch (e) {
-        console.error(`[getRoleFromDatabase] 数据库操作失败: ${e.message}`);
-        return 'general'; // 发生任何错误都安全降级
+        console.error(`[getRoleFromDatabase @ ${source}] Database error for userId=${userId}, email=${email}:`, e);
+        return 'general'; // Fallback role on error
     }
 }
 
 
 // --- API: GET /api/ratings ---
-// (获取评分 - **已更新: 支持公共访问**)
 export async function onRequestGet(context) {
     const { request, env } = context;
     const url = new URL(request.url);
     const getCertified = url.searchParams.get('certified') === 'true';
+    const singleRatingId = url.searchParams.get('id'); // For edit mode
 
     try {
         let stmt;
+        let userInfo = await validateTokenAndGetUser(request, env); // 获取用户信息, 可能为 null
+        const currentUserRole = userInfo?.db_role ?? 'guest'; // 'guest' if null
 
-        if (getCertified) {
-            // --- 公开的认证评分查询 (certified.html) ---
-            // 任何人都可以查看, 无需 token
-            stmt = env.DB.prepare("SELECT * FROM ratings WHERE isCertified = 1 ORDER BY timestamp DESC");
+        // **LOGIC UPDATE**: Select fullData
+        const selectFields = `r.id, r.userId, r.userEmail, r.userNickname, r.timestamp, 
+                              r.cigarName, r.cigarSize, r.cigarOrigin, r.normalizedScore, 
+                              r.finalGrade_grade, r.finalGrade_name_cn, r.isCertified, 
+                              r.certifiedRatingId, r.imageUrl, r.cigarReview, 
+                              r.fullData`; // <-- ADDED fullData
+
+        if (singleRatingId) {
+            // --- 获取单条评分 (用于编辑页加载) ---
+            if (!userInfo) throw new Error("需要登录才能加载评分进行编辑。"); // Must be logged in
+
+            stmt = env.DB.prepare(`SELECT ${selectFields} FROM ratings r WHERE r.id = ?`).bind(singleRatingId);
+            const result = await stmt.first();
+
+            if (!result) throw new Error("评分未找到。");
+
+            // Security check: only owner or admin can load for edit
+            const isOwner = result.userId === userInfo.sub;
+            const isAdmin = currentUserRole === 'admin' || currentUserRole === 'super_admin';
+            if (!isOwner && !isAdmin) throw new Error("无权编辑此评分。");
+
+            // Parse fullData before sending
+             try {
+                if (result.fullData && typeof result.fullData === 'string') {
+                    result.fullData = JSON.parse(result.fullData);
+                }
+             } catch (e) {
+                 console.warn(`Failed to parse fullData for single rating ID ${singleRatingId}`);
+                 result.fullData = null; // Or handle error appropriately
+             }
+
+            return new Response(JSON.stringify(result), { headers: { 'Content-Type': 'application/json' } });
+
+        } else if (getCertified) {
+            // --- 公开的认证评分查询 ---
+            stmt = env.DB.prepare(`SELECT ${selectFields} FROM ratings r WHERE r.isCertified = 1 ORDER BY r.timestamp DESC`);
+
+        } else if (currentUserRole === 'admin' || currentUserRole === 'super_admin') {
+            // --- 管理员获取所有历史记录 ---
+            stmt = env.DB.prepare(`SELECT ${selectFields} FROM ratings r ORDER BY r.timestamp DESC`);
+
+        } else if (userInfo) {
+             // --- 普通登录用户获取自己的历史记录 ---
+             stmt = env.DB.prepare(`SELECT ${selectFields} FROM ratings r WHERE r.userId = ? ORDER BY r.timestamp DESC`).bind(userInfo.sub);
         } else {
-            // --- 历史记录 (history.html) 或 公共社区 (community.html) 查询 ---
-            let userInfo = null;
-            try {
-                // 1. 尝试验证 token
-                userInfo = await validateTokenAndGetUser(request, env);
-            } catch (e) {
-                // Token 验证失败 (e.g., 未登录), 保持 userInfo = null
-                console.log("[ratings.js GET] No valid token found, proceeding with public query.");
-            }
-
-            // 2. 根据角色准备查询
-            if (userInfo && (userInfo.db_role === 'admin' || userInfo.db_role === 'super_admin')) {
-                // **管理员**: 获取所有评分 (用于 history.html)
-                console.log(`[ratings.js GET] Admin query by ${userInfo.email}`);
-                stmt = env.DB.prepare("SELECT * FROM ratings ORDER BY timestamp DESC");
-            } else if (userInfo) {
-                // **登录用户**: 仅获取自己的评分 (用于 history.html)
-                console.log(`[ratings.js GET] Private query by ${userInfo.email}`);
-                stmt = env.DB.prepare("SELECT * FROM ratings WHERE userId = ? ORDER BY timestamp DESC").bind(userInfo.sub);
-            } else {
-                // **未登录访客**: 获取所有评分 (用于 community.html)
-                console.log(`[ratings.js GET] Public query`);
-                stmt = env.DB.prepare("SELECT * FROM ratings ORDER BY timestamp DESC");
-            }
+             // --- 未登录用户 (公共社区浏览) 获取所有记录 ---
+            stmt = env.DB.prepare(`SELECT ${selectFields} FROM ratings r ORDER BY r.timestamp DESC`);
         }
 
+        // For list views, execute the query
         const { results } = await stmt.all();
 
-        // 3. 解析 fullData JSON 字符串
+        // **NEW**: Parse fullData for all results in the list
         const parsedResults = results.map(row => {
             try {
-                if (typeof row.fullData === 'string') {
+                if (row.fullData && typeof row.fullData === 'string') {
                     row.fullData = JSON.parse(row.fullData);
-                }
-                // 向后兼容: 如果 cigarReview 列为空 (旧数据), 尝试从 fullData 中提取
-                if (!row.cigarReview && row.fullData?.cigarReview) {
-                    row.cigarReview = row.fullData.cigarReview;
+                } else if (row.fullData && typeof row.fullData === 'object') {
+                    // Already an object, do nothing (or maybe validate?)
+                } else {
+                    row.fullData = null; // Ensure it's null if invalid or missing
                 }
             } catch (e) {
-                console.warn(`Failed to parse fullData for rating ID ${row.id}`);
+                console.warn(`Failed to parse fullData for rating ID ${row.id} in list view`);
                 row.fullData = null; // Set to null if parsing fails
             }
+            // Add cigarInfo structure for consistency with old code if fullData exists
+            if (row.fullData?.cigarInfo) {
+                row.cigarInfo = row.fullData.cigarInfo;
+            } else {
+                // Fallback if fullData or cigarInfo is missing
+                 row.cigarInfo = {
+                     name: row.cigarName,
+                     size: row.cigarSize,
+                     origin: row.cigarOrigin
+                 };
+            }
+            // Add finalGrade structure
+             if (row.finalGrade_grade && row.finalGrade_name_cn) {
+                 row.finalGrade = {
+                     grade: row.finalGrade_grade,
+                     name_cn: row.finalGrade_name_cn
+                 };
+             } else {
+                 row.finalGrade = null;
+             }
+
             return row;
         });
+
 
         return new Response(JSON.stringify(parsedResults), {
             headers: { 'Content-Type': 'application/json' }
@@ -165,231 +225,181 @@ export async function onRequestGet(context) {
     } catch(e) {
         console.error("Get ratings error:", e);
         let errorMessage = e.message || 'An unknown error occurred while fetching ratings.';
-        // 注意: 此时的 token 错误只可能是 validateTokenAndGetUser 内部的 fetch 失败
-        let statusCode = e.message.includes('token') ? 500 : 500; // Public API不应返回401
-        return new Response(JSON.stringify({ error: errorMessage }), { 
+        let statusCode = e.message.includes('token') || e.message.includes('需要登录') || e.message.includes('无权编辑') ? 401 : 500;
+        if (e.message.includes("评分未找到")) statusCode = 404;
+
+        return new Response(JSON.stringify({ error: errorMessage }), {
             status: statusCode,
             headers: { 'Content-Type': 'application/json' }
         });
     }
 }
 
+
 // --- API: POST /api/ratings ---
-// (保存新评分 - **已更新: 添加 cigarReview**)
 export async function onRequestPost(context) {
     const { request, env } = context;
-
     try {
-        // 1. 验证用户身份
         const userInfo = await validateTokenAndGetUser(request, env);
-        
-        // 2. 获取前端发送的评分数据
+        if (!userInfo) throw new Error("需要登录才能保存评分。");
+
         const ratingToSave = await request.json();
-        
-        // 3. 基本数据验证
         if (!ratingToSave || typeof ratingToSave !== 'object') {
              throw new Error("Invalid rating data received.");
         }
-        
-        const newId = crypto.randomUUID(); // D1 需要手动生成 ID
-        
-        // 4. 从验证过的 token 中获取昵称
-        const nickname = userInfo.name || userInfo.nickname || userInfo.preferred_username || userInfo.email;
 
-        // 5. 插入数据库 (包含 imageUrl, userNickname, 和 cigarReview)
+        const newId = crypto.randomUUID();
+        const nickname = userInfo.nickname || userInfo.name || userInfo.preferred_username || userInfo.email; // Get nickname again
+
+        // **SAVE cigarReview and imageUrl**
         await env.DB.prepare(
           `INSERT INTO ratings (
-            id, userId, userEmail, userNickname, timestamp, cigarName, cigarSize, cigarOrigin,
-            normalizedScore, finalGrade_grade, finalGrade_name_cn, isCertified, certifiedRatingId, fullData, imageUrl, cigarReview
+            id, userId, userEmail, userNickname, timestamp,
+            cigarName, cigarSize, cigarOrigin, normalizedScore,
+            finalGrade_grade, finalGrade_name_cn, isCertified, certifiedRatingId,
+            imageUrl, cigarReview, fullData
            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         ).bind(
-          newId,                                  // id
-          userInfo.sub,                           // userId
-          userInfo.email ?? null,                 // userEmail
-          nickname ?? null,                       // userNickname
-          new Date().toISOString(),               // timestamp
-          ratingToSave?.cigarInfo?.name ?? null,  // cigarName
-          ratingToSave?.cigarInfo?.size ?? null,  // cigarSize
-          ratingToSave?.cigarInfo?.origin ?? null,// cigarOrigin
-          ratingToSave?.normalizedScore ?? null,  // normalizedScore
-          ratingToSave?.finalGrade?.grade ?? null,// finalGrade_grade
-          ratingToSave?.finalGrade?.name_cn ?? null, // finalGrade_name_cn
-          false,                                  // isCertified
-          null,                                   // certifiedRatingId
-          JSON.stringify(ratingToSave),           // fullData
-          ratingToSave?.imageUrl ?? null,         // imageUrl
-          ratingToSave?.cigarReview ?? null       // cigarReview **(NEW)**
+          newId,
+          userInfo.sub,
+          userInfo.email ?? null,
+          nickname ?? null,
+          new Date().toISOString(),
+          ratingToSave?.cigarInfo?.name ?? null,
+          ratingToSave?.cigarInfo?.size ?? null,
+          ratingToSave?.cigarInfo?.origin ?? null,
+          ratingToSave?.normalizedScore ?? null,
+          ratingToSave?.finalGrade?.grade ?? null,
+          ratingToSave?.finalGrade?.name_cn ?? null,
+          false,
+          null,
+          ratingToSave?.imageUrl ?? null, // Save imageUrl
+          ratingToSave?.cigarReview ?? null, // Save cigarReview
+          JSON.stringify(ratingToSave) // Save full object
         ).run();
-        
-        // 6. 返回成功响应
-        return new Response(JSON.stringify({ success: true, id: newId }), { 
-            status: 201, // 201 Created status
-            headers: { 'Content-Type': 'application/json' }
-        });
 
-    } catch (e) {
-        console.error("Save rating error:", e); 
+        return new Response(JSON.stringify({ success: true, id: newId }), {
+            status: 201, headers: { 'Content-Type': 'application/json' }
+        });
+    } catch (e) { /* ... error handling ... */
+        console.error("Save rating error:", e);
         let errorMessage = e.message || 'An unknown error occurred while saving the rating.';
-        if (e.message.includes('token')) {
-             errorMessage = 'Authentication failed. Please log in again.';
-        }
-        
-        return new Response(JSON.stringify({ error: errorMessage }), { 
-            status: e.message.includes('token') ? 401 : 500,
+        if (e.message.includes('D1_ERROR')) errorMessage = `Database error: ${e.message}`;
+        else if (e.message.includes('token') || e.message.includes('需要登录')) errorMessage = 'Authentication failed. Please log in again.';
+        return new Response(JSON.stringify({ error: errorMessage }), {
+            status: e.message.includes('token') || e.message.includes('需要登录') ? 401 : 500,
             headers: { 'Content-Type': 'application/json' }
         });
     }
 }
 
 // --- API: PUT /api/ratings ---
-// (更新评分 - **已更新: 添加 cigarReview**)
 export async function onRequestPut(context) {
     const { request, env } = context;
-
     try {
-        // 1. 验证用户身份
         const userInfo = await validateTokenAndGetUser(request, env);
-        
-        // 2. 获取数据
-        const ratingToSave = await request.json();
-        const ratingId = ratingToSave.ratingId;
+         if (!userInfo) throw new Error("需要登录才能更新评分。");
 
-        if (!ratingId) {
-            throw new Error("Missing ratingId for update.");
-        }
+        const ratingToSave = await request.json();
+        const ratingId = ratingToSave?.ratingId;
+
+        if (!ratingId) throw new Error("Missing ratingId for update.");
         if (!ratingToSave || typeof ratingToSave !== 'object') {
              throw new Error("Invalid rating data received.");
         }
-        
-        // 3. 安全检查: 验证用户是否有权修改
+
+        // Security Check
         const stmt = env.DB.prepare("SELECT userId FROM ratings WHERE id = ?").bind(ratingId);
         const originalRating = await stmt.first();
-
-        if (!originalRating) {
-            throw new Error("Rating not found.");
-        }
-
+        if (!originalRating) throw new Error("Rating not found.");
         const isOwner = originalRating.userId === userInfo.sub;
         const isAdmin = userInfo.db_role === 'admin' || userInfo.db_role === 'super_admin';
+        if (!isOwner && !isAdmin) throw new Error("Permission denied to edit this rating.");
 
-        if (!isOwner && !isAdmin) {
-             throw new Error("Permission denied to edit this rating.");
-        }
-        
-        // 4. 执行更新 (包含 imageUrl 和 cigarReview)
+        // Execute update
+        // **UPDATE cigarReview and imageUrl**
         await env.DB.prepare(
           `UPDATE ratings SET
             timestamp = ?, cigarName = ?, cigarSize = ?, cigarOrigin = ?,
-            normalizedScore = ?, finalGrade_grade = ?, finalGrade_name_cn = ?, fullData = ?, imageUrl = ?, cigarReview = ?
+            normalizedScore = ?, finalGrade_grade = ?, finalGrade_name_cn = ?,
+            imageUrl = ?, cigarReview = ?, fullData = ?
            WHERE id = ?`
         ).bind(
-          new Date().toISOString(),               // timestamp (update to now)
-          ratingToSave?.cigarInfo?.name ?? null,  // cigarName
-          ratingToSave?.cigarInfo?.size ?? null,  // cigarSize
-          ratingToSave?.cigarInfo?.origin ?? null,// cigarOrigin
-          ratingToSave?.normalizedScore ?? null,  // normalizedScore
-          ratingToSave?.finalGrade?.grade ?? null,// finalGrade_grade
-          ratingToSave?.finalGrade?.name_cn ?? null, // finalGrade_name_cn
-          JSON.stringify(ratingToSave),           // fullData
-          ratingToSave?.imageUrl ?? null,         // imageUrl
-          ratingToSave?.cigarReview ?? null,      // cigarReview **(NEW)**
-          ratingId                                // WHERE id = ?
+          new Date().toISOString(),
+          ratingToSave?.cigarInfo?.name ?? null,
+          ratingToSave?.cigarInfo?.size ?? null,
+          ratingToSave?.cigarInfo?.origin ?? null,
+          ratingToSave?.normalizedScore ?? null,
+          ratingToSave?.finalGrade?.grade ?? null,
+          ratingToSave?.finalGrade?.name_cn ?? null,
+          ratingToSave?.imageUrl ?? null, // Update imageUrl
+          ratingToSave?.cigarReview ?? null, // Update cigarReview
+          JSON.stringify(ratingToSave),
+          ratingId
         ).run();
-        
-        // 5. 返回成功响应
-        return new Response(JSON.stringify({ success: true, id: ratingId }), { 
-            status: 200, // 200 OK
-            headers: { 'Content-Type': 'application/json' }
-        });
 
-    } catch (e) {
-        console.error("Update rating error:", e);
+        return new Response(JSON.stringify({ success: true, id: ratingId }), {
+            status: 200, headers: { 'Content-Type': 'application/json' }
+        });
+    } catch (e) { /* ... error handling ... */
+         console.error("Update rating error:", e);
         let errorMessage = e.message || 'An unknown error occurred while updating the rating.';
         let statusCode = 500;
-        if (e.message.includes('token')) statusCode = 401;
+        if (e.message.includes('token') || e.message.includes('需要登录')) statusCode = 401;
         if (e.message.includes('Permission denied')) statusCode = 403;
-        if (e.message.includes('not found')) statusCode = 404;
-        
-        return new Response(JSON.stringify({ error: errorMessage }), { 
-            status: statusCode,
-            headers: { 'Content-Type': 'application/json' }
+        if (e.message.includes("not found")) statusCode = 404;
+        return new Response(JSON.stringify({ error: errorMessage }), {
+            status: statusCode, headers: { 'Content-Type': 'application/json' }
         });
     }
 }
 
+
 // --- API: DELETE /api/ratings ---
-// (删除评分)
 export async function onRequestDelete(context) {
     const { request, env } = context;
-    const url = new URL(request.url);
-    const ratingId = url.searchParams.get('id');
-
-    if (!ratingId) {
-        return new Response(JSON.stringify({ error: "Missing rating id" }), { status: 400 });
-    }
-
     try {
-        // 1. 验证用户身份
         const userInfo = await validateTokenAndGetUser(request, env);
+         if (!userInfo) throw new Error("需要登录才能删除评分。");
 
-        // 2. 安全检查: 验证用户是否有权删除
-        const stmt = env.DB.prepare("SELECT userId, imageUrl FROM ratings WHERE id = ?").bind(ratingId);
+        const { ratingId } = await request.json();
+        if (!ratingId) throw new Error("Missing ratingId for delete.");
+
+        // Security Check
+        const stmt = env.DB.prepare("SELECT userId FROM ratings WHERE id = ?").bind(ratingId);
         const originalRating = await stmt.first();
-
-        if (!originalRating) {
-             throw new Error("Rating not found.");
-        }
-
+        if (!originalRating) throw new Error("Rating not found.");
         const isOwner = originalRating.userId === userInfo.sub;
         const isAdmin = userInfo.db_role === 'admin' || userInfo.db_role === 'super_admin';
+        if (!isOwner && !isAdmin) throw new Error("Permission denied to delete this rating.");
 
-        if (!isOwner && !isAdmin) {
-             throw new Error("Permission denied to delete this rating.");
+        // Execute delete
+        const deleteStmt = env.DB.prepare("DELETE FROM ratings WHERE id = ?").bind(ratingId);
+        const result = await deleteStmt.run();
+
+        // Optional: Delete image from R2 if needed (requires imageKey)
+        // const imageKey = originalRating.imageUrl; // Assuming imageUrl stores the key
+        // if (imageKey && env.PISTACHO_BUCKET) {
+        //     try { await env.PISTACHO_BUCKET.delete(imageKey); }
+        //     catch (r2Err) { console.error(`Failed to delete R2 object ${imageKey}:`, r2Err); }
+        // }
+
+        if (result.changes > 0) {
+            return new Response(JSON.stringify({ success: true, id: ratingId }), { status: 200 });
+        } else {
+             // Should not happen due to the check above, but as a fallback
+            throw new Error("Deletion failed, rating might have been deleted already.");
         }
-
-        // 3. 执行删除 (D1)
-        await env.DB.prepare("DELETE FROM ratings WHERE id = ?").bind(ratingId).run();
-
-        // 4. (可选) 从 R2 删除图片
-        const r2Key = originalRating.imageUrl;
-        if (r2Key && env.PISTACHO_BUCKET) {
-           console.log(`[delete-rating] 正在从 R2 删除图片: ${r2Key}`);
-           await env.PISTACHO_BUCKET.delete(r2Key);
-        }
-
-        return new Response(JSON.stringify({ success: true, id: ratingId }), { 
-            status: 200, // 200 OK
-            headers: { 'Content-Type': 'application/json' }
-        });
-
-    } catch (e) {
+    } catch (e) { /* ... error handling ... */
         console.error("Delete rating error:", e);
         let errorMessage = e.message || 'An unknown error occurred while deleting the rating.';
         let statusCode = 500;
-        if (e.message.includes('token')) statusCode = 401;
+        if (e.message.includes('token') || e.message.includes('需要登录')) statusCode = 401;
         if (e.message.includes('Permission denied')) statusCode = 403;
-        if (e.message.includes('not found')) statusCode = 404;
-        
-        return new Response(JSON.stringify({ error: errorMessage }), { 
-            status: statusCode,
-            headers: { 'Content-Type': 'application/json' }
+        if (e.message.includes("not found")) statusCode = 404;
+        return new Response(JSON.stringify({ error: errorMessage }), {
+            status: statusCode, headers: { 'Content-Type': 'application/json' }
         });
-    }
-}
-
-// --- 捕获所有其他方法 (如 PATCH, OPTIONS) ---
-export async function onRequest(context) {
-    switch (context.request.method) {
-        case 'GET':
-            return onRequestGet(context);
-        case 'POST':
-            return onRequestPost(context);
-        case 'PUT':
-            return onRequestPut(context);
-        case 'DELETE':
-            return onRequestDelete(context);
-        default:
-            return new Response('Method Not Allowed', { status: 405 });
     }
 }
 
