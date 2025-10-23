@@ -144,7 +144,9 @@
                 const nameMatch = rating.cigarInfo?.name?.toLowerCase().includes(searchTerm);
                 const originMatch = rating.cigarInfo?.origin?.toLowerCase().includes(searchTerm);
                 const sizeMatch = rating.cigarInfo?.size?.toLowerCase().includes(searchTerm);
-                return nameMatch || originMatch || sizeMatch;
+                // **NEW**: Also search in review text if it exists
+                const reviewMatch = rating.cigarReview?.toLowerCase().includes(searchTerm);
+                return nameMatch || originMatch || sizeMatch || reviewMatch;
             });
             if (sortBy === 'highest') { filtered.sort((a, b) => (b.normalizedScore ?? 0) - (a.normalizedScore ?? 0)); }
             else if (sortBy === 'lowest') { filtered.sort((a, b) => (a.normalizedScore ?? 0) - (b.normalizedScore ?? 0)); }
@@ -185,9 +187,19 @@
         }
 
         // --- Navigation ---
+        // **LOGIC UPDATED**
         window.viewRatingDetails = function(ratingData) {
-            if (ratingData && ratingData.fullData) {
-                 const detailedData = {
+            let detailedData = {};
+
+            // Check if fullData is valid and contains the essentials
+            const hasCompleteFullData = ratingData && ratingData.fullData &&
+                                        ratingData.fullData.config &&
+                                        ratingData.fullData.ratings &&
+                                        ratingData.fullData.calculatedScore !== undefined;
+
+            if (hasCompleteFullData) {
+                 // If complete, send everything needed for the full results page
+                 detailedData = {
                      config: ratingData.fullData.config,
                      ratings: ratingData.fullData.ratings,
                      calculatedScore: ratingData.fullData.calculatedScore,
@@ -199,24 +211,34 @@
                      timestamp: ratingData.timestamp,
                      userNickname: ratingData.userNickname,
                      userEmail: ratingData.userEmail,
+                     isDraft: false // From community, it's never a draft
+                 };
+                 console.log("Sending COMPLETE data to results.html:", detailedData);
+            } else {
+                // If incomplete or missing, send only top-level data for basic display
+                 console.warn(`fullData for rating ${ratingData?.id} is missing or incomplete. Sending only top-level data.`);
+                 detailedData = {
+                     // No config, ratings, calculatedScore
+                     cigarInfo: ratingData.cigarInfo,
+                     cigarReview: ratingData.cigarReview,
+                     imageUrl: ratingData.imageUrl,
+                     normalizedScore: ratingData.normalizedScore,
+                     finalGrade: ratingData.finalGrade,
+                     timestamp: ratingData.timestamp,
+                     userNickname: ratingData.userNickname,
+                     userEmail: ratingData.userEmail,
                      isDraft: false
                  };
-                 console.log("Sending to results.html:", detailedData);
-                 if (!detailedData.config || !detailedData.ratings || detailedData.calculatedScore === undefined) {
-                      console.error("viewRatingDetails: Missing critical data in fullData:", ratingData.fullData);
-                      alert("无法加载详情：评分数据不完整 (缺少 config, ratings 或 calculatedScore)。请检查后端 API 是否返回了 fullData。");
-                      return;
-                 }
-                 try {
-                     sessionStorage.setItem('cigarRatingResults', JSON.stringify(detailedData));
-                     window.location.href = `results.html`;
-                 } catch (e) {
-                      console.error("Error setting sessionStorage:", e);
-                      alert("无法保存会话数据以查看详情。");
-                 }
-            } else {
-                 console.error("viewRatingDetails: ratingData or ratingData.fullData is missing", ratingData);
-                 alert("无法加载该点评的详细信息 (缺少 fullData)。");
+                 console.log("Sending INCOMPLETE (top-level) data to results.html:", detailedData);
+            }
+
+            // Navigate regardless
+            try {
+                 sessionStorage.setItem('cigarRatingResults', JSON.stringify(detailedData));
+                 window.location.href = `results.html`;
+            } catch (e) {
+                  console.error("Error setting sessionStorage:", e);
+                  alert("无法保存会话数据以查看详情。");
             }
         }
 
