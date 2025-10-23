@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pistacho 评分社区</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        if (typeof tailwind !== 'undefined') {
+            tailwind.config = {
+                theme: {
+                    extend: {
+                        fontFamily: {
+                            sans: ['Inter', 'Noto Sans SC', 'system-ui', 'sans-serif'],
+                        },
+                    }
+                }
+            }
+        } else {
+            console.warn('Tailwind object not found. Skipping config.');
+        }
+    </script>
+    <!-- Masonry.js for waterfall layout -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/masonry/4.2.2/masonry.pkgd.min.js" xintegrity="sha512-NrSOvoRT3VoF8AhlXBOhDLaBFVfB/iN5xefpXkUaU/L/Y2R5jL/btbQVpabMvM1EBlEqxAcU1N0isj1XhKQr1g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <style>
+        /* Masonry grid styles */
+        .grid-item {
+            /* 手机上默认全宽 */
+            width: 100%;
+            margin-bottom: 1.25rem; /* 20px */
+            border-radius: 0.75rem; /* 12px */
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        /* 响应式列宽 */
+        @media (min-width: 640px) { /* sm */
+            .grid-sizer { width: 3.8461%; } /* 用于计算间隙 */
+            .grid-item { width: 48.0769%; } /* 2 列 */
+        }
+        @media (min-width: 1024px) { /* lg */
+            .grid-sizer { width: 2.5%; } /* 用于计算间隙 */
+            .grid-item { width: 31.6666%; } /* 3 列 */
+        }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans antialiased text-gray-800">
+
+    <div id="app-container" class="max-w-7xl mx-auto p-4 md:p-8">
+        
+        <!-- 导航栏 (Navbar) -->
+        <nav class="mb-4 flex justify-between items-center bg-white p-3 rounded-lg shadow-sm">
+             <a href="index.html" class="text-xl font-bold text-indigo-600">Pistacho评分</a>
+             <div class="flex items-center space-x-4">
+                 <a href="community.html" class="text-indigo-600 font-bold underline">社区动态</a>
+                 <a href="history.html" class="text-gray-600 hover:text-indigo-600">历史记录</a>
+                 <a href="certified.html" class="text-gray-600 hover:text-indigo-600">认证评分</a>
+             </div>
+        </nav>
+
+        <!-- 头部 -->
+        <header class="mb-6">
+            <h1 class="text-4xl font-extrabold text-gray-800">社区动态</h1>
+            <p class="mt-2 text-lg text-gray-600">查看来自所有用户的最新评分。</p>
+        </header>
+
+        <!-- 搜索与排序 -->
+        <div class="mb-6 p-4 bg-white rounded-lg shadow-sm flex flex-col sm:flex-row gap-4">
+            <div class="flex-grow">
+                <label for="search-input" class="block text-sm font-medium text-gray-700">搜索雪茄或用户</label>
+                <input type="text" id="search-input" oninput="window.filterAndRender()" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" placeholder="例如：D5 或 diuser">
+            </div>
+            <div class="flex-shrink-0">
+                <label for="sort-select" class="block text-sm font-medium text-gray-700">排序方式</label>
+                <select id="sort-select" onchange="window.filterAndRender()" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2">
+                    <option value="newest">最新发布</option>
+                    <option value="highest">分数最高</option>
+                    <option value="lowest">分数最低</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- 瀑布流网格容器 -->
+        <div id="loading-indicator" class="text-center p-10 text-gray-500">
+            <p>正在加载评分动态...</p>
+        </div>
+        <div id="grid-container" class="mx-auto" style="opacity: 0; transition: opacity 0.5s ease-in-out;">
+            <!-- Masonry Sizer (用于计算列宽) -->
+            <div class="grid-sizer"></div>
+            <!-- 评分卡片将由 JS 动态插入此处 -->
+        </div>
+
+    </div>
+
+    <script type_="module">
+        // --- 全局变量 ---
+        let allRatings = []; // 存储从 API 获取的所有评分
+        let masonry; // Masonry 实例
+        const gridContainer = document.getElementById('grid-container');
+        const loadingIndicator = document.getElementById('loading-indicator');
+
+        // --- 核心功能 ---
+
+        /**
+         * 1. 页面加载时获取所有评分
+         */
+        window.onload = async function() {
+            try {
+                // 调用我们更新后的 /api/ratings, 它现在支持公共访问
+                const response = await fetch('/api/ratings');
+                if (!response.ok) {
+                    throw new Error(`API 错误: ${response.statusText}`);
+                }
+                const ratings = await response.json();
+                
+                // 过滤掉没有评分或基本信息的
+                allRatings = ratings.filter(r => r.cigarName && r.normalizedScore !== undefined);
+                
+                if (allRatings.length === 0) {
+                    loadingIndicator.textContent = '暂无公开评分记录。';
+                    return;
+                }
+                
+                // 默认按最新排序
+                sortRatings("newest");
+                
+                // 渲染网格
+                renderGrid(allRatings);
+
+            } catch (error) {
+                console.error("加载评分失败:", error);
+                loadingIndicator.innerHTML = `<p class="text-red-500">加载评分失败: ${error.message}</p>`;
+            }
+        };
+
+        /**
+         * 2. 根据排序和搜索词, 过滤并渲染网格
+         */
+        window.filterAndRender = function() {
+            const searchTerm = document.getElementById('search-input').value.toLowerCase();
+            const sortValue = document.getElementById('sort-select').value;
+
+            // 1. 过滤
+            let filteredRatings = allRatings.filter(rating => {
+                const nameMatch = rating.cigarName?.toLowerCase().includes(searchTerm);
+                const userMatch = rating.userNickname?.toLowerCase().includes(searchTerm);
+                return nameMatch || userMatch;
+            });
+
+            // 2. 排序
+            sortRatings(sortValue, filteredRatings);
+            
+            // 3. 渲染
+            renderGrid(filteredRatings);
+        }
+        
+        /**
+         * 3. 渲染瀑布流网格
+         */
+        function renderGrid(ratingsToShow) {
+            if (!gridContainer) return;
+            
+            gridContainer.innerHTML = '<div class="grid-sizer"></div>'; // 重置并保留 sizer
+
+            if (ratingsToShow.length === 0) {
+                 loadingIndicator.textContent = '没有找到匹配的评分。';
+                 loadingIndicator.style.display = 'block';
+                 if(masonry) masonry.destroy(); // 如果没有内容, 销毁 Masonry
+                 masonry = null;
+                 return;
+            }
+            
+            loadingIndicator.style.display = 'none';
+            gridContainer.style.opacity = 1;
+
+            const fragment = document.createDocumentFragment();
+            
+            ratingsToShow.forEach(rating => {
+                const card = document.createElement('div');
+                card.className = 'grid-item bg-white shadow-lg';
+                card.innerHTML = createCardHTML(rating);
+                // 允许点击卡片查看详情
+                card.onclick = () => viewRatingDetails(rating.id);
+                fragment.appendChild(card);
+            });
+            
+            gridContainer.appendChild(fragment);
+            
+            // 初始化或重新加载 Masonry
+            if (masonry) {
+                masonry.reloadItems();
+                masonry.layout();
+            } else {
+                masonry = new Masonry(gridContainer, {
+                    itemSelector: '.grid-item',
+                    columnWidth: '.grid-sizer',
+                    percentPosition: true,
+                    gutter: 20 // 间隙
+                });
+            }
+        }
+
+        /**
+         * 4. 创建单个评分卡的 HTML
+         */
+        function createCardHTML(rating) {
+            const date = formatDate(rating.timestamp);
+            const author = rating.userNickname || '匿名用户';
+            const grade = rating.finalGrade_grade || 'N/A';
+            const gradeName = rating.finalGrade_name_cn || '未评级';
+            const score = rating.normalizedScore?.toFixed(2) || '0.00';
+            
+            // 图片处理 (关键!)
+            // 如果 imageUrl 存在, 使用 /api/image/ 路由
+            // 否则使用占位符
+            const imageUrl = rating.imageUrl 
+                ? `/api/image/${rating.imageUrl}` 
+                : `https://placehold.co/600x400/94a3b8/ffffff?text=${encodeURIComponent(rating.cigarName)}`;
+
+            const placeholder = `https://placehold.co/600x400/94a3b8/ffffff?text=${encodeURIComponent(rating.cigarName)}`;
+
+            return `
+                <a href="#" class="block cursor-pointer">
+                    <!-- 图片 -->
+                    <img 
+                        src="${imageUrl}" 
+                        alt="${rating.cigarName}" 
+                        class="w-full h-auto object-cover"
+                        onerror="this.onerror=null; this.src='${placeholder}';"
+                    >
+                    
+                    <div class="p-4">
+                        <!-- 分数和评级 -->
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-3xl font-black text-indigo-600">${score}</span>
+                            <span class="text-right">
+                                <span class="block text-lg font-bold text-indigo-600">${grade}</span>
+                                <span class="block text-sm text-gray-500">${gradeName}</span>
+                            </span>
+                        </div>
+                        
+                        <!-- 雪茄信息 -->
+                        <h3 class="text-xl font-bold text-gray-900">${rating.cigarName || '未命名'}</h3>
+                        <p class="text-sm text-gray-500 mb-3">${rating.cigarSize || '未知'} | ${rating.cigarOrigin || '未知'}</p>
+                        
+                        <!-- 评语 (我们新加的列) -->
+                        <p class="text-gray-700 text-sm mb-4">
+                            ${rating.cigarReview || '该用户没有留下文字评价。'}
+                        </p>
+                        
+                        <!-- 作者和日期 -->
+                        <div class="border-t pt-2 text-xs text-gray-400">
+                            <span>by <strong>${author}</strong></span>
+                            <span class="float-right">${date}</span>
+                        </div>
+                    </div>
+                </a>
+            `;
+        }
+        
+        // --- 辅助工具 ---
+        
+        /**
+         * 排序
+         */
+        function sortRatings(sortBy, arrayToSort) {
+             const ratings = arrayToSort || allRatings; // 允许在已过滤的数组上排序
+             ratings.sort((a, b) => {
+                switch (sortBy) {
+                    case 'highest':
+                        return (b.normalizedScore || 0) - (a.normalizedScore || 0);
+                    case 'lowest':
+                        return (a.normalizedScore || 0) - (b.normalizedScore || 0);
+                    case 'newest':
+                    default:
+                        // 假设 timestamp 是 ISO 字符串
+                        return new Date(b.timestamp) - new Date(a.timestamp);
+                }
+            });
+        }
+
+        /**
+         * 格式化日期
+         */
+        function formatDate(isoString) {
+            if (!isoString) return '未知日期';
+            try {
+                return new Date(isoString).toLocaleDateString('zh-CN', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit'
+                });
+            } catch (e) {
+                return '日期格式错误';
+            }
+        }
+        
+        /**
+         * 查看详情 (跳转到 results.html)
+         */
+        window.viewRatingDetails = function(ratingId) {
+            // 从内存中查找数据, 避免 API 调用
+            const ratingData = allRatings.find(r => r.id === ratingId);
+            if (ratingData) {
+                // 我们需要从 fullData 中获取原始的 config 和 ratings, 才能在 results.html 中正确显示
+                const resultsData = ratingData.fullData; 
+                
+                // 确保 fullData 存在且完整
+                if (resultsData && resultsData.config && resultsData.ratings) {
+                    // **重要**: 标记为 "isDraft: false" 
+                    // 这样 results.html 就不会显示 "保存" 按钮
+                    resultsData.isDraft = false; 
+                    
+                    sessionStorage.setItem('cigarRatingResults', JSON.stringify(resultsData));
+                    window.location.href = 'results.html';
+                } else {
+                    alert("无法加载此评分的完整详情数据。");
+                    console.warn("缺少 fullData: ", ratingData);
+                }
+            } else {
+                alert("无法加载该评分的详细信息。");
+            }
+        }
+
+    </script>
+</body>
+</html>

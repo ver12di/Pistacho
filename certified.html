@@ -19,18 +19,26 @@
 </head>
 <body class="bg-gray-100 font-sans">
     <div class="max-w-4xl mx-auto p-4 md:p-8">
+        <!-- **NEW**: Updated Navbar -->
         <nav class="mb-4 flex justify-between items-center bg-white p-3 rounded-lg shadow-sm">
              <a href="index.html" class="text-xl font-bold text-indigo-600">Pistacho评分</a>
-             <div class="space-x-4">
+             <div class="flex items-center space-x-4">
+                 <a href="community.html" class="text-gray-600 hover:text-indigo-600">社区动态</a>
                  <a href="history.html" class="text-gray-600 hover:text-indigo-600">历史记录</a>
                  <a href="certified.html" class="text-indigo-600 font-bold underline">认证评分</a>
              </div>
         </nav>
+        
         <header class="mb-6">
             <h1 class="text-4xl font-extrabold text-gray-800">Pistacho 认证评分</h1>
-            <p class="mt-2 text-lg text-gray-600">Pistacho认证品鉴记录。</p>
+            <p class="mt-2 text-lg text-gray-600">由我们的超级管理员精选的优秀品鉴记录。</p>
         </header>
-        <div id="certified-container">
+
+        <div id="loading-indicator" class="text-center p-10 text-gray-500">
+            <p>正在加载认证评分...</p>
+        </div>
+
+        <div id="certified-container" class="space-y-4">
             <!-- Certified ratings will be rendered here -->
         </div>
          <footer class="mt-8 text-center">
@@ -38,165 +46,173 @@
         </footer>
     </div>
     
-    <script type="module">
+    <script type_ ="module">
+        // --- 全局变量 ---
         let currentAuthUser = null;
         let accessToken = null;
-        let historicalRatings = {}; 
-
-        // --- API 调用封装 ---
-        async function apiFetch(endpoint, options = {}) {
-            const headers = { 'Content-Type': 'application/json', ...options.headers };
-            if (accessToken) {
-                 headers['Authorization'] = `Bearer ${accessToken}`;
-            }
-            const apiUrl = new URL(endpoint, window.location.origin);
-            const response = await fetch(apiUrl, { ...options, headers });
-            
-            if (!response.ok) {
-                let errorData = { error: `请求失败 (${response.status})` };
-                try { errorData = await response.json(); } catch(e) {}
-                let errorMessage = errorData.error || `请求失败 (${response.status})`;
-                if (response.status === 401) errorMessage = '认证失败，请重新登录。';
-                if (response.status === 403) errorMessage = '权限不足。';
-                throw new Error(errorMessage);
-            }
-            return response.json();
-        }
+        let allCertifiedRatings = []; // 用于缓存
         
-        // --- 认证功能 ---
-        async function updateCertification(ratingId, certify, button) {
-             const originalText = button.textContent;
-             button.textContent = '处理中...';
-             button.disabled = true;
-             try {
-                await apiFetch('/api/certify', {
-                    method: 'POST',
-                    body: JSON.stringify({ ratingId: ratingId, certify: certify })
+        const container = document.getElementById('certified-container');
+        const loadingIndicator = document.getElementById('loading-indicator');
+
+        // --- 核心 API 调用 ---
+        
+        /**
+         * 1. 页面加载时: 获取用户并拉取评分
+         */
+        window.onload = async function() {
+            // 从 sessionStorage 获取登录信息 (只为 '取消认证' 按钮)
+            const storedUser = sessionStorage.getItem('userInfo');
+            accessToken = sessionStorage.getItem('accessToken');
+            
+            if (storedUser) {
+                currentAuthUser = JSON.parse(storedUser);
+            }
+
+            await fetchAndRenderCertified();
+        }
+
+        /**
+         * 2. 拉取并渲染认证评分
+         */
+        async function fetchAndRenderCertified() {
+            const isAdmin = currentAuthUser?.db_role === 'admin' || currentAuthUser?.db_role === 'super_admin';
+            
+            try {
+                // **NEW**: 调用公共 API
+                const response = await fetch('/api/ratings?public=true');
+
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.error || `服务器错误: ${response.status}`);
+                }
+                
+                let ratings = await response.json();
+                
+                // **NEW**: 客户端过滤, 只显示认证的
+                ratings = ratings.filter(r => r.isCertified);
+                
+                allCertifiedRatings = ratings; // 缓存所有数据
+
+                if (ratings.length === 0) {
+                    loadingIndicator.innerHTML = `<div class="text-center p-6 bg-white rounded-lg shadow"><p>还没有任何认证评分。</p></div>`;
+                    return;
+                }
+
+                let historyHtml = '';
+                ratings.forEach(data => {
+                    historyHtml += createCardHTML(data, isAdmin);
                 });
                 
-                // **FIX**: 修复了语法错误，添加了反引号 (`)
-                // 不再调用 fetchAndRenderCertified()，而是手动移除 DOM 元素
-                const cardToRemove = document.getElementById(`rating-card-${ratingId}`);
-                if (cardToRemove) {
-                    // 添加一个平滑的淡出效果
-                    cardToRemove.style.transition = 'opacity 0.3s ease-out';
-                    cardToRemove.style.opacity = '0';
-                    setTimeout(() => {
-                        cardToRemove.remove();
-                        // 检查容器是否变空
-                        const container = document.getElementById('certified-container');
-                        if (container && !container.querySelector('a')) {
-                            container.innerHTML = `<div class="text-center p-6 bg-white rounded-lg shadow"><p>还没有任何认证评分。</p></div>`;
-                        }
-                    }, 300);
-                } else {
-                    // 如果因为某些原因找不到卡片，才回退到刷新
-                    fetchAndRenderCertified();
-                }
-             } catch(e) {
-                alert(`操作失败: ${e.message}`);
-                button.textContent = originalText;
-                button.disabled = false;
-             }
-        }
-        
-        window.uncertifyRating = function(ratingId, event) {
-            event.stopPropagation();
-             if (confirm("确定要取消此评分的 Pistacho 官方认证吗？")) {
-                updateCertification(ratingId, false, event.target);
+                loadingIndicator.style.display = 'none';
+                container.innerHTML = historyHtml;
+
+            } catch (error) {
+                console.error("获取认证评分失败:", error);
+                loadingIndicator.innerHTML = `<div class="text-center p-6 bg-red-100 text-red-700 rounded-lg shadow"><p>加载认证评分失败: ${error.message}</p></div>`;
             }
         }
 
-        // --- 评分管理 ---
+        /**
+         * 3. 创建卡片 HTML
+         */
+        function createCardHTML(data, isAdmin) {
+            const ratingId = data.id;
+            const date = data.timestamp ? new Date(data.timestamp).toLocaleDateString('zh-CN') : '未知日期';
+            const scoreDisplay = data.normalizedScore !== undefined ? data.normalizedScore.toFixed(2) : 'N/A';
+            const gradeDisplay = data.finalGrade_grade ? `${data.finalGrade_grade} - ${data.finalGrade_name_cn}` : '未评级';
+            const authorDisplay = data.userNickname || data.userEmail || '匿名';
+
+            // **NEW**: 紧凑布局
+            return `
+                <div class="bg-white p-4 rounded-lg shadow-md hover:shadow-lg transition-shadow" id="rating-card-${ratingId}">
+                    <!-- 上半部分: 信息 -->
+                    <div class="flex justify-between items-start mb-3">
+                        <div>
+                            <p class="text-xl font-bold text-gray-800">${data.cigarName}</p>
+                            <p class="text-sm text-gray-500">
+                                ${data.cigarSize} | ${data.cigarOrigin} | ${date}
+                                | 用户: <span class="font-medium">${authorDisplay}</span>
+                            </p>
+                        </div>
+                        <a href="#" onclick="window.viewRatingDetails('${ratingId}'); return false;" class="text-right flex-shrink-0 ml-4">
+                            <p class="text-3xl font-black text-indigo-600">${scoreDisplay}</p>
+                            <p class="font-bold text-gray-600">${gradeDisplay}</p>
+                        </a>
+                    </div>
+                    
+                    <!-- 下半部分: 按钮 (如果有权限) -->
+                    ${(isAdmin && accessToken) ? `
+                    <div class="border-t pt-3 mt-3 flex justify-end items-center space-x-2">
+                        <button onclick="window.updateCertification('${ratingId}', false, event)" class="px-3 py-1 text-xs font-semibold bg-yellow-600 text-white rounded-md hover:bg-yellow-700 transition">
+                            取消认证
+                        </button>
+                    </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+
+        // --- 按钮点击事件 ---
+
+        /**
+         * 4. 查看详情
+         */
         window.viewRatingDetails = function(ratingId) {
-            const ratingData = historicalRatings[ratingId];
-            if (ratingData) {
-                const fullData = (typeof ratingData.fullData === 'string') 
-                    ? JSON.parse(ratingData.fullData) 
-                    : ratingData.fullData;
-                sessionStorage.setItem('cigarRatingResults', JSON.stringify({ ...fullData, isDraft: false, ratingId: ratingId }));
+            const ratingData = allCertifiedRatings.find(r => r.id === ratingId);
+            if (ratingData && ratingData.fullData) {
+                const resultsData = { ...ratingData.fullData, isDraft: false };
+                sessionStorage.setItem('cigarRatingResults', JSON.stringify(resultsData));
                 window.location.href = 'results.html';
             } else {
                 alert("无法加载该评分的详细信息。");
             }
         }
-
-        // --- 数据获取和渲染 ---
-        async function fetchAndRenderCertified() {
-            const container = document.getElementById('certified-container');
-            container.innerHTML = `<div class="text-center p-6"><p>正在加载认证评分...</p></div>`;
-            
-            try {
-                // 调用 API 获取 ?certified=true 的评分
-                const results = await apiFetch('/api/ratings?certified=true');
-                
-                if (results.length === 0) {
-                    container.innerHTML = `<div class="text-center p-6 bg-white rounded-lg shadow"><p>还没有任何认证评分。</p></div>`;
-                    return;
-                }
-
-                // 确定用户角色
-                const userRole = currentAuthUser?.db_role;
-                const isAdmin = userRole === 'admin' || userRole === 'super_admin';
-
-                let certifiedHtml = '<div class="space-y-4">';
-                historicalRatings = {}; // 清空缓存
-                
-                results.forEach(data => {
-                    const ratingId = data.id;
-                    historicalRatings[ratingId] = data; // 缓存数据
-                    
-                    const fullData = (typeof data.fullData === 'string') 
-                        ? JSON.parse(data.fullData) 
-                        : data.fullData;
-
-                    const date = data.timestamp ? new Date(data.timestamp).toLocaleDateString('zh-CN') : '未知日期';
-                    const scoreDisplay = data.normalizedScore !== undefined ? data.normalizedScore.toFixed(2) : 'N/A';
-                    const gradeDisplay = data.finalGrade_grade ? `${data.finalGrade_grade} - ${data.finalGrade_name_cn}` : '未评级';
-                    const cigarInfo = fullData.cigarInfo || { name: data.cigarName, size: data.cigarSize, origin: data.cigarOrigin };
-
-                    // 认证按钮（仅限管理员）
-                    let uncertifyButtonHtml = '';
-                    if (isAdmin) {
-                        uncertifyButtonHtml = `<button onclick="uncertifyRating('${ratingId}', event)" class="w-full text-sm py-1 px-3 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 transition">取消认证</button>`;
-                    }
-
-                    certifiedHtml += `
-                        <a id="rating-card-${ratingId}" href="#" onclick="viewRatingDetails('${ratingId}'); return false;" class="block bg-white p-4 rounded-lg shadow-md hover:shadow-lg transition-shadow">
-                            <div class="flex justify-between items-center">
-                                <div>
-                                    <p class="text-lg font-bold text-gray-800">${cigarInfo.name}</p>
-                                    <p class="text-sm text-gray-500">${cigarInfo.size} | ${cigarInfo.origin}</p>
-                                    <p class="text-xs text-gray-400 pt-1">用户: ${data.userNickname || data.userEmail || 'N/A'} | ${date}</p>
-                                </div>
-                                <div class="text-right flex-shrink-0 ml-4">
-                                    <p class="text-2xl font-black text-indigo-600">${scoreDisplay}</p>
-                                    <p class="font-bold text-gray-600">${gradeDisplay}</p>
-                                </div>
-                            </div>
-                            ${uncertifyButtonHtml ? `<div class="mt-3 border-t pt-3">${uncertifyButtonHtml}</div>` : ''}
-                        </a>
-                    `;
-                });
-                certifiedHtml += '</div>';
-                container.innerHTML = certifiedHtml;
-            } catch (error) {
-                console.error("获取认证评分失败:", error);
-                container.innerHTML = `<div class="text-center p-6 bg-red-100 text-red-700 rounded-lg shadow"><p>加载认证评分失败: ${error.message}</p></div>`;
-            }
-        }
         
-        window.onload = function() {
-            const storedUser = sessionStorage.getItem('userInfo');
-            accessToken = sessionStorage.getItem('accessToken');
-            
-            if (storedUser && accessToken) {
-                currentAuthUser = JSON.parse(storedUser);
-            } else {
-                currentAuthUser = null;
+        /**
+         * 5. 取消认证
+         */
+        window.updateCertification = async function(ratingId, certify, event) {
+            event.stopPropagation();
+            if (!accessToken) {
+                return alert("请登录以执行此操作。");
             }
             
-            fetchAndRenderCertified();
+            const button = event.target;
+            const originalText = button.textContent;
+            button.textContent = '取消中...';
+            button.disabled = true;
+
+            try {
+                const response = await fetch('/api/certify', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${accessToken}`
+                    },
+                    body: JSON.stringify({ ratingId, certify })
+                });
+                
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.error || '操作失败');
+                }
+                
+                // **FIX**: 修复了语法错误 (添加了 ``)
+                const cardToRemove = document.getElementById(`rating-card-${ratingId}`);
+                if (cardToRemove) {
+                    cardToRemove.style.transition = 'opacity 0.5s ease-out, transform 0.5s ease-out';
+                    cardToRemove.style.opacity = '0';
+                    cardToRemove.style.transform = 'scale(0.95)';
+                    setTimeout(() => cardToRemove.remove(), 500);
+                }
+                
+            } catch (error) {
+                 alert(`操作失败: ${error.message}`);
+                 button.textContent = originalText;
+                 button.disabled = false;
+            }
         }
     </script>
 </body>

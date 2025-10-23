@@ -19,254 +19,278 @@
 </head>
 <body class="bg-gray-100 font-sans">
     <div class="max-w-4xl mx-auto p-4 md:p-8">
+        <!-- **NEW**: Updated Navbar -->
         <nav class="mb-4 flex justify-between items-center bg-white p-3 rounded-lg shadow-sm">
              <a href="index.html" class="text-xl font-bold text-indigo-600">Pistacho评分</a>
-             <div class="space-x-4">
+             <div class="flex items-center space-x-4">
+                 <a href="community.html" class="text-gray-600 hover:text-indigo-600">社区动态</a>
                  <a href="history.html" class="text-indigo-600 font-bold underline">历史记录</a>
                  <a href="certified.html" class="text-gray-600 hover:text-indigo-600">认证评分</a>
              </div>
         </nav>
+        
         <header class="mb-6">
             <h1 id="history-title" class="text-4xl font-extrabold text-gray-800">评分历史</h1>
         </header>
-        <div id="history-container">
+        
+        <div id="loading-indicator" class="text-center p-10 text-gray-500">
+            <p>正在加载历史记录...</p>
+        </div>
+        
+        <!-- **NEW**: Compact Card Layout -->
+        <div id="history-container" class="space-y-4">
             <!-- History items will be rendered here -->
         </div>
          <footer class="mt-8 text-center">
             <a href="index.html" class="py-2 px-4 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700">&larr; 返回主页</a>
         </footer>
     </div>
-
+    
     <script type="module">
+        // --- 全局变量 ---
         let currentAuthUser = null;
         let accessToken = null;
-        let historicalRatings = {}; // 用于 "查看详情"
+        let allMyRatings = []; // 用于存储所有评分数据, 以便传递给 '修改'
+        
+        const container = document.getElementById('history-container');
+        const title = document.getElementById('history-title');
+        const loadingIndicator = document.getElementById('loading-indicator');
 
-        // --- API 调用封装 ---
-        async function apiFetch(endpoint, options = {}) {
-            const headers = { 'Content-Type': 'application/json', ...options.headers };
-            if (accessToken) {
-                 headers['Authorization'] = `Bearer ${accessToken}`;
-            }
-            const apiUrl = new URL(endpoint, window.location.origin);
-            const response = await fetch(apiUrl, { ...options, headers });
+        // --- 核心 API 调用 ---
+        
+        /**
+         * 1. 页面加载时: 获取用户并拉取评分
+         */
+        window.onload = async function() {
+            // 从 sessionStorage 获取登录信息
+            const storedUser = sessionStorage.getItem('userInfo');
+            accessToken = sessionStorage.getItem('accessToken');
             
-            if (!response.ok) {
-                let errorData = { error: `请求失败 (${response.status})` };
-                try { errorData = await response.json(); } catch(e) {}
-                let errorMessage = errorData.error || `请求失败 (${response.status})`;
-                if (response.status === 401) errorMessage = '认证失败，请重新登录。';
-                if (response.status === 403) errorMessage = '权限不足。';
-                throw new Error(errorMessage);
+            if (!storedUser || !accessToken) {
+                title.textContent = "评分历史";
+                loadingIndicator.innerHTML = `<div class="text-center p-6 bg-white rounded-lg shadow"><p>请<a href="index.html" class="text-indigo-600 underline">登录</a>以查看您的评分历史。</p></div>`;
+                return;
             }
-            return response.json();
+
+            try {
+                currentAuthUser = JSON.parse(storedUser);
+                await fetchAndRenderHistory(currentAuthUser, accessToken);
+            } catch (e) {
+                console.error("加载历史记录失败:", e);
+                loadingIndicator.innerHTML = `<div class="text-center p-6 bg-red-100 text-red-700 rounded-lg shadow"><p>加载历史记录失败: ${e.message}</p></div>`;
+            }
         }
 
-        // --- 认证功能 ---
-        async function updateCertification(ratingId, certify, button) {
-             const originalText = button.textContent;
-             button.textContent = '...';
-             button.disabled = true;
-             try {
-                // 调用新的 certify API
-                await apiFetch('/api/certify', {
-                    method: 'POST',
-                    body: JSON.stringify({ ratingId: ratingId, certify: certify })
+        /**
+         * 2. 拉取并渲染评分
+         */
+        async function fetchAndRenderHistory(user, token) {
+            const isAdmin = user.db_role === 'admin' || user.db_role === 'super_admin';
+            
+            try {
+                const response = await fetch('/api/ratings', {
+                    headers: { 'Authorization': `Bearer ${token}` }
                 });
-                // 成功后, 刷新列表
-                fetchAndRenderHistory();
-             } catch(e) {
-                alert(`操作失败: ${e.message}`);
-                button.textContent = originalText;
-                button.disabled = false;
-             }
-        }
-        
-        window.certifyRating = function(ratingId, event) {
-            event.stopPropagation();
-            updateCertification(ratingId, true, event.target);
-        }
-        
-        window.uncertifyRating = function(ratingId, event) {
-            event.stopPropagation();
-            updateCertification(ratingId, false, event.target);
+
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.error || `服务器错误: ${response.status}`);
+                }
+                
+                const ratings = await response.json();
+                allMyRatings = ratings; // 缓存所有数据
+
+                if (isAdmin) {
+                    title.textContent = "所有用户的评分历史";
+                } else {
+                    title.textContent = "我的评分历史";
+                }
+
+                if (ratings.length === 0) {
+                    loadingIndicator.innerHTML = `<div class="text-center p-6 bg-white rounded-lg shadow"><p>还没有任何评分记录。</p></div>`;
+                    return;
+                }
+
+                let historyHtml = '';
+                ratings.forEach(data => {
+                    historyHtml += createCardHTML(data, user.sub, isAdmin);
+                });
+                
+                loadingIndicator.style.display = 'none';
+                container.innerHTML = historyHtml;
+
+            } catch (error) {
+                console.error("获取历史记录失败:", error);
+                loadingIndicator.innerHTML = `<div class="text-center p-6 bg-red-100 text-red-700 rounded-lg shadow"><p>加载历史记录失败: ${error.message}</p></div>`;
+            }
         }
 
-        // --- 评分管理 ---
+        /**
+         * 3. 创建卡片 HTML
+         */
+        function createCardHTML(data, currentUserId, isAdmin) {
+            const ratingId = data.id;
+            const date = data.timestamp ? new Date(data.timestamp).toLocaleDateString('zh-CN') : '未知日期';
+            const scoreDisplay = data.normalizedScore !== undefined ? data.normalizedScore.toFixed(2) : 'N/A';
+            const gradeDisplay = data.finalGrade_grade ? `${data.finalGrade_grade} - ${data.finalGrade_name_cn}` : '未评级';
+
+            // **NEW**: 优先显示昵称, 其次 email, 最后 '匿名'
+            const authorDisplay = data.userNickname || data.userEmail || '匿名';
+            
+            // **NEW**: 判断权限 (本人 或 管理员)
+            const canEdit = (data.userId === currentUserId) || isAdmin;
+
+            // **NEW**: 紧凑布局
+            return `
+                <div class="bg-white p-4 rounded-lg shadow-md hover:shadow-lg transition-shadow" id="rating-card-${ratingId}">
+                    <!-- 上半部分: 信息 -->
+                    <div class="flex justify-between items-start mb-3">
+                        <div>
+                            <p class="text-xl font-bold text-gray-800">${data.cigarName}</p>
+                            <p class="text-sm text-gray-500">
+                                ${data.cigarSize} | ${data.cigarOrigin} | ${date}
+                                ${isAdmin ? ` | 用户: <span class="font-medium">${authorDisplay}</span>` : ''}
+                            </p>
+                        </div>
+                        <a href="#" onclick="window.viewRatingDetails('${ratingId}'); return false;" class="text-right flex-shrink-0 ml-4">
+                            <p class="text-3xl font-black text-indigo-600">${scoreDisplay}</p>
+                            <p class="font-bold text-gray-600">${gradeDisplay}</p>
+                        </a>
+                    </div>
+                    
+                    <!-- 下半部分: 按钮 (如果有权限) -->
+                    ${canEdit ? `
+                    <div class="border-t pt-3 mt-3 flex justify-end items-center space-x-2">
+                        <button onclick="window.editRating('${ratingId}')" class="px-3 py-1 text-xs font-semibold bg-blue-500 text-white rounded-md hover:bg-blue-600 transition">
+                            修改
+                        </button>
+                        <button onclick="window.deleteRating('${ratingId}', event)" class="px-3 py-1 text-xs font-semibold bg-red-500 text-white rounded-md hover:bg-red-600 transition">
+                            删除
+                        </button>
+                        ${isAdmin ? (
+                            data.isCertified 
+                            ? `<button onclick="window.updateCertification('${ratingId}', false, event)" class="px-3 py-1 text-xs font-semibold bg-yellow-600 text-white rounded-md hover:bg-yellow-700 transition">取消认证</button>`
+                            : `<button onclick="window.updateCertification('${ratingId}', true, event)" class="px-3 py-1 text-xs font-semibold bg-green-500 text-white rounded-md hover:bg-green-600 transition">认证</button>`
+                        ) : ''}
+                    </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+
+        // --- 按钮点击事件 ---
+
+        /**
+         * 4. 查看详情
+         */
         window.viewRatingDetails = function(ratingId) {
-            const ratingData = historicalRatings[ratingId];
-            if (ratingData) {
-                // fullData 是保存时的原始 JSON
-                const fullData = (typeof ratingData.fullData === 'string') 
-                    ? JSON.parse(ratingData.fullData) 
-                    : ratingData.fullData;
-                
-                // 我们需要传递 isDraft: false 来告诉 results.html 这不是草稿
-                // 并且传递 ratingId
-                sessionStorage.setItem('cigarRatingResults', JSON.stringify({ ...fullData, isDraft: false, ratingId: ratingId }));
+            const ratingData = allMyRatings.find(r => r.id === ratingId);
+            if (ratingData && ratingData.fullData) {
+                // **NEW**: 标记为非草稿, 这样 results.html 不会显示 "保存" 按钮
+                const resultsData = { ...ratingData.fullData, isDraft: false };
+                sessionStorage.setItem('cigarRatingResults', JSON.stringify(resultsData));
                 window.location.href = 'results.html';
             } else {
                 alert("无法加载该评分的详细信息。");
             }
         }
-        
-        window.editRating = function(ratingId, event) {
-            event.stopPropagation();
-            const ratingData = historicalRatings[ratingId];
+
+        /**
+         * 5. 修改评分
+         */
+        window.editRating = function(ratingId) {
+            const ratingData = allMyRatings.find(r => r.id === ratingId);
             if (ratingData) {
-                // 告诉 index.html 我们要编辑这个 ratingId
-                sessionStorage.setItem('editRatingId', ratingId);
+                // 将完整数据存入 sessionStorage, index.html 会读取它
+                sessionStorage.setItem('editingRating', JSON.stringify(ratingData));
                 window.location.href = 'index.html';
             } else {
-                alert("无法加载该评分进行编辑。");
+                alert("找不到要修改的数据。");
             }
         }
-        
+
+        /**
+         * 6. 删除评分
+         */
         window.deleteRating = async function(ratingId, event) {
             event.stopPropagation();
             if (!confirm("确定要永久删除这条评分记录吗？此操作无法撤销。")) return;
-            
+
             const button = event.target;
-            button.textContent = '...';
+            button.textContent = '删除中...';
             button.disabled = true;
-            
+
             try {
-                await apiFetch('/api/ratings', {
+                const response = await fetch(`/api/ratings`, {
                     method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${accessToken}`
+                    },
                     body: JSON.stringify({ ratingId: ratingId })
                 });
-                // 成功后, 刷新列表
-                fetchAndRenderHistory();
-            } catch(e) {
-                 alert(`删除失败: ${e.message}`);
-                 button.textContent = '删除';
-                 button.disabled = false;
-            }
-        }
 
-        // --- 数据获取和渲染 ---
-        async function fetchAndRenderHistory() {
-            const container = document.getElementById('history-container');
-            const title = document.getElementById('history-title');
-
-            if (!currentAuthUser || !accessToken) {
-                title.textContent = "评分历史";
-                container.innerHTML = `<div class="text-center p-6 bg-white rounded-lg shadow"><p>请<a href="index.html" class="text-indigo-600 underline">登录</a>以查看您的评分历史。</p></div>`;
-                return;
-            }
-
-            container.innerHTML = `<div class="text-center p-6"><p>正在加载历史记录...</p></div>`;
-            
-            try {
-                // 调用 GET /api/ratings (会自动处理权限)
-                const results = await apiFetch('/api/ratings');
-                
-                if (results.length === 0) {
-                    container.innerHTML = `<div class="text-center p-6 bg-white rounded-lg shadow"><p>还没有任何评分记录。</p></div>`;
-                    return;
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.error || '删除失败');
                 }
-
-                // 确定用户角色
-                const userId = currentAuthUser.sub;
-                const userRole = currentAuthUser.db_role;
-                const isAdmin = userRole === 'admin' || userRole === 'super_admin';
                 
-                if (isAdmin) {
-                     title.textContent = "所有用户的评分历史";
-                } else {
-                     title.textContent = "我的评分历史";
-                }
-
-                let historyHtml = '<div class="space-y-4">';
-                historicalRatings = {}; // 清空缓存
-                
-                results.forEach(data => {
-                    const ratingId = data.id;
-                    historicalRatings[ratingId] = data; // 缓存数据
-                    
-                    // fullData 是保存时的原始 JSON
-                    const fullData = (typeof data.fullData === 'string') 
-                        ? JSON.parse(data.fullData) 
-                        : data.fullData;
-
-                    const date = data.timestamp ? new Date(data.timestamp).toLocaleDateString('zh-CN') : '未知日期';
-                    const scoreDisplay = data.normalizedScore !== undefined ? data.normalizedScore.toFixed(2) : 'N/A';
-                    const gradeDisplay = data.finalGrade_grade ? `${data.finalGrade_grade} - ${data.finalGrade_name_cn}` : '未评级';
-                    // 优先使用 fullData 里的 cigarInfo, 其次使用数据库根字段
-                    const cigarInfo = fullData?.cigarInfo || { name: data.cigarName, size: data.cigarSize, origin: data.cigarOrigin };
-
-                    // 权限检查
-                    const isOwner = data.userId === userId;
-                    const canEdit = isOwner || isAdmin;
-                    
-                    // 作者信息 (仅管理员可见)
-                    // **注意**: 这里的 data.userNickname 依赖于后端修复
-                    let authorHtml = '';
-                    if (isAdmin) {
-                        // 优先显示昵称，其次 Email，最后 ID
-                        const authorName = data.userNickname || data.userEmail || data.userId;
-                        authorHtml = `<span class="text-xs text-gray-500"> | 用户: ${authorName}</span>`;
-                    }
-
-                    // 认证按钮
-                    let certifyButtonHtml = '';
-                    if (isAdmin) {
-                        if (data.isCertified) {
-                            certifyButtonHtml = `<button onclick="uncertifyRating('${ratingId}', event)" class="flex-shrink-0 text-xs py-1 px-3 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 transition">取消认证</button>`;
-                        } else {
-                            certifyButtonHtml = `<button onclick="certifyRating('${ratingId}', event)" class="flex-shrink-0 text-xs py-1 px-3 bg-green-500 text-white rounded-md hover:bg-green-600 transition">认证</button>`;
-                        }
-                    }
-
-                    // --- **新的紧凑型布局** ---
-                    historyHtml += `
-                        <a href="#" onclick="viewRatingDetails('${ratingId}'); return false;" class="block bg-white p-4 rounded-lg shadow-md hover:shadow-lg transition-shadow">
-                            <!-- 上方: 信息 -->
-                            <div class="mb-2">
-                                <p class="text-lg font-bold text-gray-800">${cigarInfo.name}</p>
-                                <p class="text-sm text-gray-500">${cigarInfo.size} | ${cigarInfo.origin} | ${date}${authorHtml}</p>
-                            </div>
-                            
-                            <!-- 下方: 分数 + 按钮 (如果可编辑) -->
-                            <div class="mt-2 border-t pt-2 flex justify-between items-center">
-                                <!-- 左侧: 分数 -->
-                                <div class="text-left flex-shrink-0">
-                                    <p class="text-2xl font-black text-indigo-600">${scoreDisplay}</p>
-                                    <p class="font-bold text-gray-600 text-sm">${gradeDisplay}</p>
-                                </div>
-                                
-                                <!-- 右侧: 按钮 -->
-                                ${canEdit ? `
-                                <div class="flex items-center justify-end space-x-2">
-                                    <button onclick="editRating('${ratingId}', event)" class="flex-shrink-0 text-xs py-1 px-3 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition">修改</button>
-                                    <button onclick="deleteRating('${ratingId}', event)" class="flex-shrink-0 text-xs py-1 px-3 bg-red-500 text-white rounded-md hover:bg-red-600 transition">删除</button>
-                                    ${certifyButtonHtml}
-                                </div>` : `<div></div>` /* 占位符保持布局 */ }
-                            </div>
-                        </a>
-                    `;
-                });
-                historyHtml += '</div>';
-                container.innerHTML = historyHtml;
+                // 从 DOM 中移除卡片
+                document.getElementById(`rating-card-${ratingId}`)?.remove();
 
             } catch (error) {
-                console.error("获取历史记录失败:", error);
-                container.innerHTML = `<div class="text-center p-6 bg-red-100 text-red-700 rounded-lg shadow"><p>加载历史记录失败: ${error.message}</p></div>`;
+                alert(`删除失败: ${error.message}`);
+                button.textContent = "删除";
+                button.disabled = false;
             }
         }
+        
+        /**
+         * 7. 认证 / 取消认证
+         */
+        window.updateCertification = async function(ratingId, certify, event) {
+            event.stopPropagation();
+            const button = event.target;
+            const originalText = button.textContent;
+            button.textContent = certify ? '认证中...' : '取消中...';
+            button.disabled = true;
 
-        // --- 初始化 ---
-        window.onload = function() {
-            const storedUser = sessionStorage.getItem('userInfo');
-            accessToken = sessionStorage.getItem('accessToken');
-            
-            if (storedUser && accessToken) {
-                currentAuthUser = JSON.parse(storedUser);
-            } else {
-                currentAuthUser = null;
+            try {
+                const response = await fetch('/api/certify', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${accessToken}`
+                    },
+                    body: JSON.stringify({ ratingId, certify })
+                });
+                
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.error || '操作失败');
+                }
+                
+                const updatedRating = await response.json();
+                
+                // 更新 allMyRatings 缓存中的数据
+                const index = allMyRatings.findIndex(r => r.id === ratingId);
+                if (index !== -1) {
+                    allMyRatings[index] = updatedRating;
+                }
+                
+                // 重新渲染卡片
+                const cardElement = document.getElementById(`rating-card-${ratingId}`);
+                if (cardElement) {
+                    const isAdmin = currentAuthUser.db_role === 'admin' || currentAuthUser.db_role === 'super_admin';
+                    cardElement.innerHTML = createCardHTML(updatedRating, currentAuthUser.sub, isAdmin);
+                }
+                
+            } catch (error) {
+                 alert(`操作失败: ${error.message}`);
+                 button.textContent = originalText;
+                 button.disabled = false;
             }
-            
-            fetchAndRenderHistory();
         }
     </script>
 </body>
