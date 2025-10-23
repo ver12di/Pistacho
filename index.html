@@ -3,9 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- **NEW**: Title updated -->
-    <title>Pistacho 评分社区</title>
-    <!-- Tailwind CSS -->
+    <title>Pistacho 评分社区 (首页)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         if (typeof tailwind !== 'undefined') {
@@ -15,106 +13,73 @@
                         fontFamily: {
                             sans: ['Inter', 'Noto Sans SC', 'system-ui', 'sans-serif'],
                         },
+                        aspectRatio: {
+                            '1/1': '1 / 1', // 确保 1:1 比例可用
+                        }
                     }
                 }
             }
         } else {
-            console.warn('Tailwind object not found. Skipping config.');
+             console.warn('Tailwind object not found. Skipping config.');
         }
     </script>
-    <style>
-        /* Masonry Grid Styles */
-        .grid-container {
-            width: 100%;
-            column-gap: 1.5rem; /* Adjust gap between columns */
-        }
-        .grid-item {
-            margin-bottom: 1.5rem; /* Adjust gap between rows */
-            break-inside: avoid-column; /* Prevent items from breaking across columns */
-            overflow: hidden; /* Ensure content stays within the card */
-            border-radius: 0.75rem; /* Equivalent to rounded-xl */
-            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1); /* Equivalent to shadow-lg */
-            background-color: white;
-        }
-        /* Responsive Columns */
-        @media (min-width: 640px) { /* sm */
-            .grid-container { columns: 2; }
-        }
-        @media (min-width: 1024px) { /* lg */
-            .grid-container { columns: 3; }
-        }
-        /* Add hover effect */
-        .grid-item:hover {
-            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1); /* Equivalent to shadow-xl */
-            transform: translateY(-2px);
-            transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
-        }
-        /* Image styling */
-        .grid-item img {
-            width: 100%;
-            height: auto; /* Maintain aspect ratio */
-            display: block; /* Remove bottom space */
-        }
-    </style>
 </head>
-<body class="bg-gray-100 font-sans antialiased text-gray-800">
-    <div id="app-container" class="max-w-7xl mx-auto p-4 md:p-8">
-        <!-- 导航栏 (Navbar) -->
+<body class="bg-gray-100 font-sans">
+    <div class="max-w-7xl mx-auto p-4 md:p-8">
+        <!-- **NAVBAR UPDATED for new structure** -->
         <nav class="mb-6 flex flex-wrap justify-between items-center bg-white p-3 rounded-lg shadow-sm gap-4">
             <a href="index.html" class="text-xl font-bold text-indigo-600">Pistacho评分</a>
             <div class="flex items-center space-x-4 flex-grow justify-center md:justify-start md:flex-grow-0 order-3 md:order-2 w-full md:w-auto">
-                <!-- **NEW**: Highlight "社区动态" -->
+                <!-- Highlight current page -->
                 <a href="index.html" class="text-indigo-600 font-bold underline">社区动态</a>
-                <!-- **NEW**: Link to the new rating page -->
-                <a href="rate.html" class="text-gray-600 hover:text-indigo-600">去评分</a>
-                <a href="history.html" class="text-gray-600 hover:text-indigo-600">历史记录</a>
+                <a href="rate.html" class="py-2 px-4 bg-green-500 text-white text-sm font-semibold rounded-lg hover:bg-green-600 transition">去评分</a>
+                <a href="history.html" class="text-gray-600 hover:text-indigo-600">我的点评历史</a>
                 <a href="certified.html" class="text-gray-600 hover:text-indigo-600">认证评分</a>
             </div>
             <div id="login-status-container" class="flex items-center order-2 md:order-3">
-                <!-- Login/Logout button will be rendered here -->
+                 <!-- Login/Logout button will be rendered here -->
             </div>
         </nav>
+        <!-- **END NAVBAR UPDATE** -->
 
-        <!-- 搜索与排序 -->
-        <div class="mb-6 bg-white p-4 rounded-lg shadow-sm flex flex-col md:flex-row gap-4 items-center">
-            <input type="text" id="search-input" placeholder="搜索雪茄名称, 产地, 评价..." class="flex-grow p-2 border border-gray-300 rounded-md w-full md:w-auto">
-            <select id="sort-select" class="p-2 border border-gray-300 rounded-md w-full md:w-auto">
-                <option value="newest">最新发布</option>
-                <option value="oldest">最早发布</option>
-                <option value="highest">分数最高</option>
-                <option value="lowest">分数最低</option>
-            </select>
-            <button onclick="applyFilters()" class="bg-indigo-600 text-white px-5 py-2 rounded-md hover:bg-indigo-700 w-full md:w-auto">搜索</button>
+        <header class="mb-6">
+            <h1 class="text-4xl font-extrabold text-gray-800">社区动态</h1>
+            <p class="mt-2 text-lg text-gray-600">发现和分享大家的雪茄品鉴体验。</p>
+        </header>
+
+        <!-- 搜索和排序 -->
+        <div class="mb-6 p-4 bg-white rounded-lg shadow-sm flex flex-col md:flex-row gap-4">
+            <div class="flex-grow">
+                <label for="search-input" class="sr-only">搜索点评</label>
+                <input type="text" id="search-input" placeholder="搜索雪茄名称、产地或点评..." class="w-full p-2 border border-gray-300 rounded-lg">
+            </div>
+            <div class="flex-shrink-0">
+                <label for="sort-select" class="sr-only">排序方式</label>
+                <select id="sort-select" class="w-full md:w-auto p-2 border border-gray-300 rounded-lg">
+                    <option value="latest">最新发布</option>
+                    <option value="score_desc">分数最高</option>
+                    <option value="score_asc">分数最低</option>
+                </select>
+            </div>
         </div>
 
-        <!-- 瀑布流容器 -->
-        <div id="community-grid" class="grid-container">
-            <!-- Loading message or initial content -->
-            <p id="loading-message" class="text-center text-gray-500 col-span-full">正在加载社区动态...</p>
+        <!-- 评分网格 -->
+        <div id="ratings-grid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+            <!-- 加载提示 -->
+            <p id="loading-message" class="text-center text-gray-500 col-span-full">正在加载动态...</p>
         </div>
-
     </div>
 
-    <!-- Masonry Library -->
-    <script src="https://unpkg.com/masonry-layout@4/dist/masonry.pkgd.min.js"></script>
-    <script src="https://unpkg.com/imagesloaded@5/imagesloaded.pkgd.min.js"></script>
-
     <script type="module">
-        let allRatings = [];
-        let filteredRatings = [];
-        let msnry = null; // Masonry instance
-        const gridElement = document.getElementById('community-grid');
-        const loadingMessage = document.getElementById('loading-message');
-        const searchInput = document.getElementById('search-input');
-        const sortSelect = document.getElementById('sort-select');
-        let currentAuthUser = null; // For login status
+        let allRatings = []; // 存储从 API 获取的原始数据
+        let currentAuthUser = null; // 存储当前用户信息
 
         const AUTHING_APP_ID = '68f5b0b6875017c02b3bfdb3';
         const AUTHING_HOST = 'https://xfvu647mcdbk-demo.authing.cn';
 
-        // --- 认证 (从 rate.html 复制过来) ---
+        // --- 1. 认证逻辑 (用于导航栏) ---
         window.login = function() {
-            const redirectUri = window.location.origin; // Redirect back to community index
+            const redirectUri = window.location.origin;
             const authorizeUrl = new URL('/oidc/auth', AUTHING_HOST);
             authorizeUrl.search = new URLSearchParams({
                 client_id: AUTHING_APP_ID,
@@ -129,7 +94,7 @@
         window.logout = function() {
              const logoutUrl = new URL('/oidc/session/end', AUTHING_HOST);
              logoutUrl.search = new URLSearchParams({
-                post_logout_redirect_uri: window.location.origin // Back to community index
+                post_logout_redirect_uri: window.location.origin
              }).toString();
              sessionStorage.removeItem('userInfo');
              sessionStorage.removeItem('accessToken');
@@ -158,240 +123,198 @@
                     body: JSON.stringify({ code: code, redirect_uri: redirectUri })
                 });
                 if (!response.ok) {
-                    const err = await response.json();
-                    throw new Error(err.error || '认证回调失败');
+                    const err = await response.json(); throw new Error(err.error || '认证回调失败');
                 }
                 const fullUserProfile = await response.json();
                 sessionStorage.setItem('userInfo', JSON.stringify(fullUserProfile));
                 sessionStorage.setItem('accessToken', fullUserProfile.accessToken);
                 return fullUserProfile;
             } catch (e) {
-                console.error('认证回调处理失败:', e);
-                alert(`登录失败: ${e.message}`);
-                sessionStorage.removeItem('userInfo');
-                sessionStorage.removeItem('accessToken');
-                return null;
+                console.error('认证回调处理失败:', e); alert(`登录失败: ${e.message}`);
+                sessionStorage.removeItem('userInfo'); sessionStorage.removeItem('accessToken'); return null;
             } finally {
-                window.history.replaceState({}, document.title, window.location.pathname); // Clean URL
+                window.history.replaceState({}, document.title, window.location.pathname);
             }
         }
 
         async function validateSessionAndGetUser() {
-            const token = sessionStorage.getItem('accessToken');
-            if (!token) return null;
+            const token = sessionStorage.getItem('accessToken'); if (!token) return null;
             try {
                 // **FIX**: Use absolute URL
                 const apiUrl = new URL('/api/me', window.location.origin);
-                const response = await fetch(apiUrl, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+                const response = await fetch(apiUrl, { headers: { 'Authorization': `Bearer ${token}` } });
                 if (!response.ok) {
-                    sessionStorage.removeItem('userInfo');
-                    sessionStorage.removeItem('accessToken');
-                    return null;
+                    sessionStorage.removeItem('userInfo'); sessionStorage.removeItem('accessToken'); return null;
                 }
                 const fullUserProfile = await response.json();
-                sessionStorage.setItem('userInfo', JSON.stringify(fullUserProfile)); // Refresh session info
-                return fullUserProfile;
-            } catch (e) {
-                console.error("Session validation failed:", e);
-                return null;
-            }
+                sessionStorage.setItem('userInfo', JSON.stringify(fullUserProfile)); return fullUserProfile;
+            } catch (e) { console.error("Session validation failed:", e); return null; }
         }
-         // --- End of Auth ---
+        // --- 结束认证逻辑 ---
 
 
-        // --- 数据获取与处理 ---
+        // --- 2. 数据获取和渲染 ---
         async function fetchRatings() {
-            loadingMessage.textContent = '正在加载社区动态...';
+            const grid = document.getElementById('ratings-grid');
+            const loadingMsg = document.getElementById('loading-message');
             try {
                 // **FIX**: Use absolute URL
                 const apiUrl = new URL('/api/ratings', window.location.origin);
-                const response = await fetch(apiUrl);
+                // **NEW**: Add public flag for community page
+                apiUrl.searchParams.set('public', 'true');
+                
+                const response = await fetch(apiUrl); // No token needed for public view
                 if (!response.ok) {
-                     const err = await response.json();
-                    throw new Error(err.error || `加载评分失败: ${response.statusText}`);
+                    const err = await response.json();
+                    throw new Error(err.error || '加载评分失败');
                 }
                 allRatings = await response.json();
-                filteredRatings = [...allRatings]; // Start with all ratings
-                loadingMessage.style.display = 'none'; // Hide loading message
-                renderGrid(); // Initial render
-            } catch (error) {
-                console.error("获取评分失败:", error);
-                loadingMessage.textContent = `加载失败: ${error.message}`;
-                loadingMessage.classList.add('text-red-500');
+                
+                if (loadingMsg) loadingMsg.style.display = 'none'; // 隐藏加载提示
+                
+                if (allRatings.length === 0) {
+                    grid.innerHTML = '<p class="text-center text-gray-500 col-span-full">还没有任何点评，快去<a href="rate.html" class="text-indigo-600 underline">发布第一条</a>吧！</p>';
+                    return;
+                }
+                
+                renderRatingGrid(allRatings); // 初始渲染
+                
+            } catch (e) {
+                console.error("Fetch ratings error:", e);
+                if (loadingMsg) loadingMsg.textContent = `加载失败: ${e.message}`;
             }
         }
 
-        window.applyFilters = function() {
-            const searchTerm = searchInput.value.toLowerCase().trim();
-            const sortBy = sortSelect.value;
-
-            // 1. Filter
-            filteredRatings = allRatings.filter(rating => {
-                if (!searchTerm) return true; // No search term means show all
-                const nameMatch = rating.cigarInfo?.name?.toLowerCase().includes(searchTerm);
-                const originMatch = rating.cigarInfo?.origin?.toLowerCase().includes(searchTerm);
-                const reviewMatch = rating.cigarReview?.toLowerCase().includes(searchTerm);
-                const nicknameMatch = rating.userNickname?.toLowerCase().includes(searchTerm);
-                // Add more fields to search if needed (e.g., size)
-                return nameMatch || originMatch || reviewMatch || nicknameMatch;
-            });
-
-            // 2. Sort
-            switch (sortBy) {
-                case 'newest':
-                    filteredRatings.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-                    break;
-                case 'oldest':
-                    filteredRatings.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-                    break;
-                case 'highest':
-                    filteredRatings.sort((a, b) => (b.normalizedScore ?? 0) - (a.normalizedScore ?? 0));
-                    break;
-                case 'lowest':
-                    filteredRatings.sort((a, b) => (a.normalizedScore ?? 0) - (b.normalizedScore ?? 0));
-                    break;
-            }
-
-            // 3. Re-render
-            renderGrid();
-        }
-
-        // --- 渲染瀑布流 ---
-        function renderGrid() {
-            gridElement.innerHTML = ''; // Clear previous items
-
-            if (filteredRatings.length === 0) {
-                 gridElement.innerHTML = '<p class="text-center text-gray-500 col-span-full">没有找到符合条件的评分记录。</p>';
-                 if (msnry) msnry.destroy(); // Destroy masonry if no items
-                 msnry = null;
-                 return;
-            }
-
-            filteredRatings.forEach(rating => {
-                const item = createGridItem(rating);
-                gridElement.appendChild(item);
-            });
-
-            // Initialize or reload Masonry after adding items
-            imagesLoaded(gridElement, function() {
-                 if (msnry) {
-                     msnry.reloadItems();
-                     msnry.layout();
-                 } else {
-                     msnry = new Masonry(gridElement, {
-                         itemSelector: '.grid-item',
-                         columnWidth: '.grid-item', // Use item width for column width
-                         percentPosition: true,
-                         gutter: 16 // Matches column-gap style (adjust if needed)
-                     });
-                 }
-            });
-        }
-
-        function createGridItem(rating) {
-            const div = document.createElement('div');
-            div.className = 'grid-item bg-white'; // Use class for Masonry selector
-
-            const date = rating.timestamp ? new Date(rating.timestamp).toLocaleDateString('zh-CN') : '未知日期';
-            const scoreDisplay = rating.normalizedScore !== undefined ? rating.normalizedScore.toFixed(2) : 'N/A';
-            const gradeDisplay = rating.finalGrade ? `${rating.finalGrade.grade} - ${rating.finalGrade.name_cn}` : '未评级';
-            const nickname = rating.userNickname || rating.userEmail || '匿名用户';
-
-            let imageHtml = '';
-            if (rating.imageUrl) {
-                 // Use the image proxy API route
-                 imageHtml = `<img src="/api/image/${rating.imageUrl}" alt="${rating.cigarInfo?.name || '雪茄图片'}" loading="lazy">`;
-            }
-
-            // Truncate long reviews (e.g., show first 100 chars)
-            const shortReview = rating.cigarReview && rating.cigarReview.length > 100
-                ? rating.cigarReview.substring(0, 100) + '...'
-                : rating.cigarReview;
-
-            div.innerHTML = `
-                ${imageHtml}
-                <div class="p-4">
-                    <div class="flex justify-between items-start mb-2">
-                        <h3 class="text-lg font-bold text-gray-800">${rating.cigarInfo?.name || '未知名称'}</h3>
-                        <div class="text-right flex-shrink-0 ml-2">
-                             <p class="text-xl font-black text-indigo-600">${scoreDisplay}</p>
-                             <p class="text-xs font-semibold text-gray-500">${gradeDisplay}</p>
-                        </div>
-                    </div>
-                    <p class="text-xs text-gray-500 mb-3">
-                        ${rating.cigarInfo?.size || '未知尺寸'} | ${rating.cigarInfo?.origin || '未知产地'} | ${date}
-                    </p>
-                    <p class="text-sm text-gray-700 mb-3 leading-relaxed">${shortReview || '暂无文字评价'}</p>
-                    <div class="text-xs text-gray-400 border-t pt-2 flex justify-between items-center">
-                        <span>发布者: ${nickname}</span>
-                        <!-- Add a link to the full details page -->
-                        <a href="results.html?ratingId=${rating.id}" onclick="viewDetails('${rating.id}', event)" class="text-indigo-500 hover:underline">查看详情</a>
-                    </div>
-                </div>
-            `;
-            return div;
-        }
-
-        // --- 查看详情 (在 results.html 打开) ---
-        window.viewDetails = function(ratingId, event) {
-            event.preventDefault(); // Prevent default link behavior
-             const ratingData = allRatings.find(r => r.id === ratingId);
-             if (ratingData) {
-                 // **IMPORTANT**: Convert fullData back to string if necessary
-                 const dataToStore = { ...ratingData };
-                 if (typeof dataToStore.fullData === 'object') {
-                      dataToStore.fullData = JSON.stringify(dataToStore.fullData); // Ensure it's string for sessionStorage
-                 }
-                  // **CRITICAL FIX**: Need to also retrieve the *original* rating data including config and selected ratings
-                  // This requires the original `fullData` saved in D1.
-                  if (ratingData.fullData && typeof ratingData.fullData === 'object') {
-                       // Pass the necessary original data to results page
+        function renderRatingGrid(ratings) {
+            const grid = document.getElementById('ratings-grid');
+            grid.innerHTML = ''; // 清空
+            
+            ratings.forEach(rating => {
+                const card = document.createElement('a');
+                card.href = `results.html`; // 链接到结果页
+                card.className = "block bg-white rounded-lg shadow-md overflow-hidden transition-shadow hover:shadow-lg";
+                
+                // 点击卡片时，保存数据到 sessionStorage
+                card.onclick = (e) => {
+                    e.preventDefault(); // 阻止立即跳转
+                    if (rating.fullData && typeof rating.fullData === 'object') {
                        const detailedData = {
-                          config: ratingData.fullData.config,
-                          ratings: ratingData.fullData.ratings,
-                          calculatedScore: ratingData.fullData.calculatedScore,
-                          cigarInfo: ratingData.cigarInfo,
-                          cigarReview: ratingData.cigarReview,
-                          imageUrl: ratingData.imageUrl,
-                          // Add other fields from the top-level rating if needed by results.html
-                          normalizedScore: ratingData.normalizedScore,
-                          finalGrade: ratingData.finalGrade,
-                          timestamp: ratingData.timestamp,
-                          userNickname: ratingData.userNickname,
-                          userEmail: ratingData.userEmail,
-                          isDraft: false // Indicate it's not a new draft
+                          config: rating.fullData.config,
+                          ratings: rating.fullData.ratings,
+                          calculatedScore: rating.fullData.calculatedScore,
+                          cigarInfo: rating.cigarInfo,
+                          cigarReview: rating.cigarReview,
+                          imageUrl: rating.imageUrl,
+                          normalizedScore: rating.normalizedScore,
+                          finalGrade: rating.finalGrade,
+                          timestamp: rating.timestamp,
+                          userNickname: rating.userNickname,
+                          userEmail: rating.userEmail,
+                          isDraft: false
                        };
                        sessionStorage.setItem('cigarRatingResults', JSON.stringify(detailedData));
-                       window.location.href = `results.html`; // Go to results page
-                  } else {
-                       console.error("Cannot view details: Original fullData is missing or invalid for rating:", ratingId);
-                       alert("无法查看详情，原始评分数据丢失或无效。");
-                  }
-             } else {
-                 alert("无法加载该评分的详细信息。");
-             }
+                       window.location.href = `results.html`;
+                    } else {
+                        alert("无法查看详情，数据不完整。");
+                    }
+                };
+
+                const date = rating.timestamp ? new Date(rating.timestamp).toLocaleDateString('zh-CN') : '';
+                const author = rating.userNickname || rating.userEmail || '匿名';
+                const score = rating.normalizedScore?.toFixed(2) || 'N/A';
+
+                card.innerHTML = `
+                    <!-- 强制 1:1 正方形图片 -->
+                    <div class="w-full aspect-square bg-gray-200">
+                        ${rating.imageUrl ? 
+                            `<img src="/api/image/${rating.imageUrl}" alt="${rating.cigarInfo?.name || '雪茄图片'}" class="w-full h-full object-cover">` : 
+                            '<div class="w-full h-full flex items-center justify-center text-gray-400 text-sm">无图片</div>'
+                        }
+                    </div>
+                    
+                    <div class="p-4">
+                        <div class="flex justify-between items-center mb-1">
+                            <h3 class="font-bold text-lg text-gray-900 truncate" title="${rating.cigarInfo?.name || ''}">${rating.cigarInfo?.name || '未命名'}</h3>
+                            <span class="font-bold text-lg text-indigo-600 ml-2">${score}</span>
+                        </div>
+                        
+                        <!-- 评级 -->
+                        <p class="font-semibold text-sm text-gray-600 mb-2">
+                            ${rating.finalGrade?.grade || ''} - ${rating.finalGrade?.name_cn || '未评级'}
+                        </p>
+                        
+                        <!-- 文字评价 (截断) -->
+                        <p class="text-sm text-gray-700 h-10 overflow-hidden text-ellipsis">
+                            ${rating.cigarReview || '用户未填写评价。'}
+                        </p>
+                        
+                        <!-- 作者和日期 -->
+                        <div class="flex justify-between items-center mt-3 pt-3 border-t border-gray-100">
+                            <span class="text-xs text-gray-500 truncate" title="${author}">${author}</span>
+                            <span class="text-xs text-gray-400 flex-shrink-0 ml-2">${date}</span>
+                        </div>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+        
+        // --- 3. 搜索和排序逻辑 ---
+        function filterAndSort() {
+            const searchTerm = document.getElementById('search-input').value.toLowerCase();
+            const sortValue = document.getElementById('sort-select').value;
+            
+            let filtered = allRatings;
+
+            // 过滤
+            if (searchTerm) {
+                filtered = allRatings.filter(rating => 
+                    (rating.cigarInfo?.name?.toLowerCase().includes(searchTerm)) ||
+                    (rating.cigarInfo?.origin?.toLowerCase().includes(searchTerm)) ||
+                    (rating.cigarReview?.toLowerCase().includes(searchTerm)) ||
+                    (rating.userNickname?.toLowerCase().includes(searchTerm))
+                );
+            }
+            
+            // 排序
+            switch (sortValue) {
+                case 'score_desc':
+                    filtered.sort((a, b) => (b.normalizedScore || 0) - (a.normalizedScore || 0));
+                    break;
+                case 'score_asc':
+                    filtered.sort((a, b) => (a.normalizedScore || 0) - (b.normalizedScore || 0));
+                    break;
+                case 'latest':
+                default:
+                    filtered.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                    break;
+            }
+            
+            renderRatingGrid(filtered);
         }
 
-
-        // --- 初始化 ---
+        // --- 4. 启动函数 ---
         window.onload = async function() {
-             const urlParams = new URLSearchParams(window.location.search);
-             const code = urlParams.get('code');
-             let user = null;
+            // 绑定事件
+            document.getElementById('search-input').addEventListener('input', filterAndSort);
+            document.getElementById('sort-select').addEventListener('change', filterAndSort);
 
-             if (code) {
-                 user = await handleOidcCallback(code);
-             } else {
-                 user = await validateSessionAndGetUser();
-             }
-             currentAuthUser = user;
-             renderLoginStatus(currentAuthUser);
+            // 处理登录
+            const urlParams = new URLSearchParams(window.location.search);
+            const code = urlParams.get('code');
+            let user = null;
 
-             await fetchRatings(); // Fetch and render ratings
+            if (code) {
+                user = await handleOidcCallback(code);
+            } else {
+                user = await validateSessionAndGetUser();
+            }
+            currentAuthUser = user;
+            renderLoginStatus(currentAuthUser);
+            
+            // 加载数据
+            await fetchRatings();
         };
-
     </script>
 </body>
 </html>
