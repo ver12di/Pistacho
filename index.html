@@ -6,8 +6,9 @@
     <title>雪茄品鉴评分主应用</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- **NEW**: Cropper.js CSS -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css" rel="stylesheet">
     <script>
-        // Check if tailwind exists before configuring, add onerror handler
         if (typeof tailwind !== 'undefined') {
             tailwind.config = {
                 theme: {
@@ -23,6 +24,16 @@
             console.warn('Tailwind object not found. Skipping config.');
         }
     </script>
+    <style>
+        /* 确保 Cropper 在模态框中正确显示 */
+        .cropper-container {
+            max-height: 60vh; /* 限制裁切器的高度 */
+        }
+        .cropper-modal-content {
+            width: 90%;
+            max-width: 800px;
+        }
+    </style>
 </head>
 <body class="bg-gray-100 font-sans antialiased text-gray-800">
     <div id="app-container" class="max-w-6xl mx-auto p-4 md:p-8">
@@ -38,6 +49,7 @@
 
         <!-- 头部计分板 (Header Scoreboard) -->
         <header class="mb-8 p-6 bg-indigo-700 text-white rounded-xl shadow-2xl">
+            <!-- ... 现有头部内容 ... -->
             <div class="flex justify-between items-start">
                 <div>
                     <h1 id="app-title-display" class="text-3xl font-extrabold mb-1">雪茄评分应用</h1>
@@ -71,7 +83,8 @@
 
         <!-- 内容区域 -->
         <main id="main-content">
-            <!-- 雪茄信息输入区 (Cigar Info Section) -->
+            <!-- ... 现有雪茄信息和评分表单 ... -->
+             <!-- 雪茄信息输入区 (Cigar Info Section) -->
             <section class="mb-8 p-6 bg-white rounded-xl shadow-lg">
                 <h2 class="text-xl font-bold text-gray-800 mb-4">雪茄信息</h2>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -106,7 +119,7 @@
                         <label for="image-upload-input" class="w-full text-center py-3 px-6 bg-blue-600 text-white font-bold rounded-lg shadow-md hover:bg-blue-700 cursor-pointer inline-block">
                             选择图片
                         </label>
-                        <input type="file" id="image-upload-input" class="hidden" accept="image/png, image/jpeg, image/webp" onchange="handleImageUpload(event)">
+                        <input type="file" id="image-upload-input" class="hidden" accept="image/png, image/jpeg, image/webp" onchange="handleFileSelect(event)">
                         <button id="image-remove-button" onclick="removeImage()" class="w-full mt-2 py-2 px-6 bg-red-500 text-white font-medium rounded-lg shadow-md hover:bg-red-600 hidden">
                             删除图片
                         </button>
@@ -134,7 +147,25 @@
         <footer class="mt-8 text-center text-gray-500 text-sm p-4 border-t">评分应用数据由云端配置中心实时同步。</footer>
     </div>
     
-    <!-- 新的 Javascript "大脑" (无 SDK 依赖) -->
+    <!-- **NEW**: Cropper Modal -->
+    <div id="cropper-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-white rounded-lg shadow-xl p-6 cropper-modal-content">
+            <h2 class="text-2xl font-bold mb-4">裁切图片</h2>
+            <div class="cropper-container">
+                <img id="cropper-image" src="" alt="Image to crop">
+            </div>
+            <p id="cropper-status" class="text-sm font-medium text-indigo-600 my-2"></p>
+            <div class="flex justify-end gap-4 mt-4">
+                <button onclick="cancelCrop()" class="py-2 px-5 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400">取消</button>
+                <button onclick="confirmCropAndUpload()" class="py-2 px-5 bg-blue-600 text-white rounded-lg hover:bg-blue-700">确认并上传</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- **NEW**: Cropper.js JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
+    
+    <!-- 你的应用 "大脑" -->
     <script type="module">
         // ---------------------------------------------------
         // 1. 全局变量
@@ -142,11 +173,15 @@
         let ratingConfig = null; 
         let userRatings = {};    
         let currentAuthUser = null; 
-        
-        // **NEW**: 图片和编辑模式状态
         let currentImageKey = null; // R2 的 image key (e.g., "uuid.jpg")
         let isEditMode = false;
         let editRatingId = null; 
+        
+        // **NEW**: Cropper 实例
+        let cropper = null; 
+        const cropperModal = document.getElementById('cropper-modal');
+        const cropperImage = document.getElementById('cropper-image');
+        const cropperStatus = document.getElementById('cropper-status');
         
         const AUTHING_APP_ID = '68f5b0b6875017c02b3bfdb3';
         const AUTHING_HOST = 'https://xfvu647mcdbk-demo.authing.cn';
@@ -155,7 +190,6 @@
         // 2. 认证 (无 SDK 依赖)
         // ---------------------------------------------------
         window.login = function() {
-            // **FIX**: 改回 window.location.origin
             const redirectUri = window.location.origin;
             const authorizeUrl = new URL('/oidc/auth', AUTHING_HOST);
             authorizeUrl.search = new URLSearchParams({
@@ -171,7 +205,6 @@
         window.logout = function() {
              const logoutUrl = new URL('/oidc/session/end', AUTHING_HOST);
              logoutUrl.search = new URLSearchParams({
-                // **FIX**: 改回 window.location.origin
                 post_logout_redirect_uri: window.location.origin
              }).toString();
              sessionStorage.removeItem('userInfo');
@@ -180,10 +213,10 @@
         }
 
         function renderLoginStatus(user) { 
+            // ... (无变化)
             const container = document.getElementById('login-status-container');
             if (!container) return;
             if (user) {
-                // **FIX**: 优先使用 nickname
                 const displayName = user.nickname || user.name || user.preferred_username || user.email || '已登录';
                 container.innerHTML = `<span class="text-sm font-medium text-yellow-300 mr-2 hidden sm:inline">${displayName}</span><button onclick="logout()" class="px-3 py-1 text-xs font-medium rounded-full bg-red-500 text-white hover:bg-red-600">退出</button>`;
             } else {
@@ -192,14 +225,13 @@
         }
 
         function renderAdminLinks() { 
+            // ... (无变化)
             const adminLinksContainer = document.getElementById('admin-links-container');
             adminLinksContainer.innerHTML = '';
             if (!adminLinksContainer || !currentAuthUser) return;
-            
             const userRole = currentAuthUser.db_role; 
             const isAdmin = userRole === 'admin' || userRole === 'super_admin';
             const isSuperAdmin = userRole === 'super_admin';
-
             if (isAdmin) {
                  adminLinksContainer.innerHTML += `<a href="cigar_rating_config.html" class="flex items-center px-3 py-1.5 border text-xs font-medium rounded-full text-white bg-blue-600 hover:bg-blue-500">评分配置</a>`;
             }
@@ -212,30 +244,24 @@
         // 3. 认证回调和会话处理
         // ---------------------------------------------------
         async function handleOidcCallback(code) {
+            // ... (无变化)
             document.getElementById('main-content').style.opacity = '0.5';
             document.getElementById('config-load-status').textContent = '正在验证登录...';
             try {
-                // **FIX**: 确保 redirectUri 与 login 时一致
                 const redirectUri = window.location.origin; 
-                
                 const response = await fetch('/api/authing/callback', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ code: code, redirect_uri: redirectUri }) // 传递 redirect_uri
+                    body: JSON.stringify({ code: code, redirect_uri: redirectUri }) 
                 });
-
                 if (!response.ok) {
                     const err = await response.json();
                     throw new Error(err.error || '认证回调失败');
                 }
-                
                 const fullUserProfile = await response.json();
-                
                 sessionStorage.setItem('userInfo', JSON.stringify(fullUserProfile));
                 sessionStorage.setItem('accessToken', fullUserProfile.accessToken);
-                
                 return fullUserProfile;
-
             } catch (e) {
                 console.error('认证回调处理失败:', e);
                 alert(`登录失败: ${e.message}`);
@@ -243,16 +269,15 @@
                 sessionStorage.removeItem('accessToken');
                 return null;
             } finally {
-                // 清理 URL 中的 code
                 window.history.replaceState({}, document.title, window.location.pathname); 
                 document.getElementById('main-content').style.opacity = '1';
             }
         }
         
         async function validateSessionAndGetUser() {
+            // ... (无变化)
             const token = sessionStorage.getItem('accessToken');
             if (!token) return null;
-
             try {
                 const response = await fetch('/api/me', {
                     headers: { 'Authorization': `Bearer ${token}` }
@@ -263,7 +288,7 @@
                     return null;
                 }
                 const fullUserProfile = await response.json();
-                sessionStorage.setItem('userInfo', JSON.stringify(fullUserProfile)); // 刷新本地存储
+                sessionStorage.setItem('userInfo', JSON.stringify(fullUserProfile));
                 return fullUserProfile;
             } catch (e) {
                 console.error("Session validation failed:", e);
@@ -272,6 +297,7 @@
         }
         
         function setUser(user) {
+            // ... (无变化)
             currentAuthUser = user;
             renderLoginStatus(currentAuthUser);
             setTimeout(() => {
@@ -280,11 +306,11 @@
         }
         
         // ---------------------------------------------------
-        // 4. 图片上传逻辑
+        // 4. **NEW**: 图片裁切和上传逻辑
         // ---------------------------------------------------
         
         /**
-         * 更新图片预览 UI
+         * 更新主页上的图片预览
          * @param {string | null} imageKey - R2 key (e.g., "uuid.jpg") or null
          */
         function updateImagePreview(imageKey) {
@@ -293,7 +319,6 @@
             const status = document.getElementById('image-upload-status');
 
             if (imageKey) {
-                // **FIX**: 使用 /api/image/ 代理
                 preview.innerHTML = `<img src="/api/image/${imageKey}" alt="Cigar preview" class="w-full h-full object-cover">`;
                 removeBtn.classList.remove('hidden');
                 status.textContent = '图片已上传。';
@@ -305,15 +330,14 @@
         }
 
         /**
-         * 处理文件选择事件
+         * **NEW**: 1. 用户选择文件
          */
-        window.handleImageUpload = async function(event) {
+        window.handleFileSelect = function(event) {
             const file = event.target.files[0];
             const status = document.getElementById('image-upload-status');
-            const token = sessionStorage.getItem('accessToken');
-
+            
             if (!file) return;
-            if (!token) {
+            if (!currentAuthUser) {
                 alert("请先登录再上传图片。");
                 return;
             }
@@ -321,51 +345,126 @@
                 alert("图片太大，请选择 5MB 以下的文件。");
                 return;
             }
-            
-            status.textContent = '正在上传...';
-            
-            try {
-                const formData = new FormData();
-                formData.append('image', file); // **KEY**: 键名必须是 'image'
 
-                const response = await fetch('/api/upload-image', {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                        // 'Content-Type': 'multipart/form-data' (Fetch 会自动设置)
-                    },
-                    body: formData
-                });
+            // 使用 FileReader 将图片读为 DataURL
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                // 显示模态框
+                cropperModal.classList.remove('hidden');
+                // 设置图片源
+                cropperImage.src = e.target.result;
                 
-                const result = await response.json();
-
-                if (!response.ok) {
-                    throw new Error(result.error || '上传失败');
+                // 销毁旧实例 (如果存在)
+                if (cropper) {
+                    cropper.destroy();
                 }
                 
-                currentImageKey = result.imageKey;
-                updateImagePreview(currentImageKey);
-                
-            } catch (e) {
-                console.error("上传图片失败:", e);
-                status.textContent = `上传失败: ${e.message}`;
-            }
+                // 初始化 Cropper.js
+                // 我们设定一个 4:3 的宽高比，适合社区瀑布流
+                cropper = new Cropper(cropperImage, {
+                    aspectRatio: 4 / 3,
+                    viewMode: 1, // 限制裁切框不超出画布
+                    autoCropArea: 0.9,
+                    background: false,
+                });
+                cropperStatus.textContent = '请调整裁切框，然后点击确认。';
+            };
+            reader.readAsDataURL(file);
         }
         
         /**
-         * 删除图片按钮
+         * **NEW**: 2. 用户点击 "确认并上传"
+         */
+        window.confirmCropAndUpload = async function() {
+            if (!cropper) return;
+            
+            const token = sessionStorage.getItem('accessToken');
+            if (!token) {
+                alert("会话已过期，请重新登录。");
+                return;
+            }
+            
+            cropperStatus.textContent = '正在裁切并上传...';
+            
+            // 获取裁切后的 Canvas，我们指定一个中等分辨率
+            const canvas = cropper.getCroppedCanvas({
+                width: 800,
+                height: 600,
+                imageSmoothingQuality: 'high',
+            });
+
+            // 将 Canvas 转换为 Blob
+            canvas.toBlob(async (blob) => {
+                if (!blob) {
+                    cropperStatus.textContent = '裁切失败，请重试。';
+                    return;
+                }
+                
+                try {
+                    const formData = new FormData();
+                    // **KEY**: 键名必须是 'image'，并给一个文件名
+                    formData.append('image', blob, 'cropped-image.jpg'); 
+
+                    const response = await fetch('/api/upload-image', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: formData
+                    });
+                    
+                    const result = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(result.error || '上传失败');
+                    }
+                    
+                    // 成功！
+                    currentImageKey = result.imageKey; // 保存 new key
+                    updateImagePreview(currentImageKey); // 更新主页预览
+                    cancelCrop(); // 关闭模态框
+                    
+                } catch (e) {
+                    console.error("上传图片失败:", e);
+                    cropperStatus.textContent = `上传失败: ${e.message}`;
+                }
+                
+            }, 'image/jpeg', 0.9); // 0.9 质量的 JPEG
+        }
+
+        /**
+         * **NEW**: 3. 用户点击 "取消"
+         */
+        window.cancelCrop = function() {
+            cropperModal.classList.add('hidden');
+            if (cropper) {
+                cropper.destroy(); // 销毁实例
+                cropper = null;
+            }
+            // 清空文件输入框，以便用户可以重新选择同一张照片
+            document.getElementById('image-upload-input').value = null;
+            cropperStatus.textContent = '';
+        }
+
+        /**
+         * **MODIFIED**: 删除图片按钮 (现在也清理裁切器)
          */
         window.removeImage = function() {
             currentImageKey = null;
             document.getElementById('image-upload-input').value = null; // 重置文件输入
             updateImagePreview(null);
+            if (cropper) {
+                cropper.destroy(); // 确保裁切器也被清理
+                cropper = null;
+            }
         }
-
+        
         // ---------------------------------------------------
-        // 5. 核心评分逻辑
+        // 5. 核心评分逻辑 (无变化)
         // ---------------------------------------------------
         
         async function loadConfig() {
+            // ... (无变化)
             document.getElementById('config-load-status').textContent = '正在从 Cloudflare 同步配置...';
             try {
                 const apiUrl = new URL('/api/config/latest', window.location.origin);
@@ -386,6 +485,7 @@
         function getRatingId(category, criterion) { return `${String(category || '').trim()}-${String(criterion || '').trim()}`; }
         
         function calculateWeights(config) {
+            // ... (无变化)
             if (!config) return;
             let grandTotal = 0, totalCriteriaCount = 0;
             (config.ratingCriteria || []).forEach(category => {
@@ -402,6 +502,7 @@
         }
         
         function calculateFinalScore() {
+            // ... (无变化)
             if (!ratingConfig) return 0;
             let totalScore = 0;
             (ratingConfig.ratingCriteria || []).forEach(category => {
@@ -416,8 +517,8 @@
             return totalScore;
         }
         
-        // --- 提交/查看报告 (合并了"新建"和"更新"逻辑) ---
         window.showResults = async function() {
+            // ... (无变化, 它只关心 currentImageKey 是否有值)
             const token = sessionStorage.getItem('accessToken');
             if (!currentAuthUser || !token) {
                 return alert("请登录后才能提交评分。");
@@ -440,21 +541,16 @@
                 calculatedScore: finalScore, 
                 cigarInfo: cigarInfo, 
                 cigarReview: cigarReview, 
-                isDraft: true, // 标记为草稿, 供 results.html 判断是否显示"保存"
-                imageUrl: currentImageKey // **NEW**: 添加图片 Key
+                isDraft: true,
+                imageUrl: currentImageKey 
             };
             
-            // --- **NEW**: 检查是 "保存更改" (编辑模式) 还是 "查看报告" (新建模式) ---
             if (isEditMode && editRatingId) {
-                // **执行更新 (PUT)**
                 const actionButton = document.getElementById('main-action-button');
                 actionButton.textContent = "正在保存...";
                 actionButton.disabled = true;
-
                 try {
-                    // 将 ratingId 添加到要保存的数据中
                     resultsData.ratingId = editRatingId; 
-                    
                     const response = await fetch(`/api/ratings`, {
                         method: 'PUT',
                         headers: {
@@ -463,28 +559,20 @@
                         },
                         body: JSON.stringify(resultsData)
                     });
-                    
                     if (!response.ok) {
                         const err = await response.json();
                         throw new Error(err.error || '更新失败');
                     }
-                    
                     alert("更改已保存！");
-                    // 保存成功后跳转到历史记录页
                     window.location.href = 'history.html'; 
-                    
                 } catch (e) {
                     alert(`保存失败: ${e.message}`);
                     actionButton.textContent = "保存更改";
                     actionButton.disabled = false;
                 }
-                
             } else {
-                // **执行查看报告 (新建模式)**
                 try {
-                    // 将草稿数据存入 sessionStorage
                     sessionStorage.setItem('cigarRatingResults', JSON.stringify(resultsData));
-                    // 跳转到 results.html
                     window.location.href = 'results.html'; 
                 } catch (e) {
                     alert("无法保存会话数据 (sessionStorage)。");
@@ -493,16 +581,15 @@
         }
         
         window.resetRatings = function() {
+            // ... (无变化)
             if (confirm("确定要重置所有评分选择吗？")) {
                 userRatings = {};
                 document.getElementById('cigar-name').value = '';
                 document.getElementById('cigar-size').value = '';
                 document.getElementById('cigar-origin').value = '';
                 document.getElementById('cigar-review').value = '';
-                // **NEW**: 重置图片
                 removeImage(); 
                 
-                // 如果在编辑模式下重置, 则退出编辑模式
                 if (isEditMode) {
                     isEditMode = false;
                     editRatingId = null;
@@ -518,6 +605,7 @@
         }
         
         window.updateRatingSelection = function(categoryName, criterionName, optionIndex) {
+            // ... (无变化)
             const id = getRatingId(categoryName, criterionName);
             if (userRatings[id] === optionIndex) {
                 delete userRatings[id];
@@ -528,6 +616,7 @@
         };
         
         function renderRatingView() {
+            // ... (无变化)
             if (!ratingConfig) {
                 const formContainer = document.getElementById('rating-form-container');
                 formContainer.innerHTML = `<div class="text-center p-6 bg-white rounded-lg shadow"><p>无法加载评分标准。</p></div>`;
@@ -552,6 +641,7 @@
         }
         
         function renderRatingCriterion(categoryName, criterion) {
+            // ... (无变化)
             const id = getRatingId(categoryName, criterion.name);
             const selectedOptionIndex = userRatings[id];
             const currentWeight = criterion.weight || 0;
@@ -559,9 +649,7 @@
             if (selectedOptionIndex !== undefined && criterion.options?.[selectedOptionIndex]) {
                 currentScore = currentWeight * (criterion.options[selectedOptionIndex].scorePct || 0);
             }
-            
             const isSuperAdmin = currentAuthUser?.db_role === 'super_admin';
-
             return `<div class="bg-gray-50 p-4 rounded-lg border">
                     <div class="flex justify-between items-center mb-3">
                         <h4 class="text-lg font-semibold text-gray-800">${criterion.name} ${isSuperAdmin ? `(${currentWeight} 分)` : ''}</h4>
@@ -579,66 +667,45 @@
                         }).join('')}
                     </div>
                 </div>`;
-        } // End of renderRatingCriterion
+        } 
         
         // ---------------------------------------------------
         // 6. 编辑模式逻辑
         // ---------------------------------------------------
         
-        /**
-         * 从 /api/ratings 加载特定 ID 的评分数据
-         * @param {string} ratingId - 要编辑的评分 ID
-         */
         async function loadRatingForEdit(ratingId) {
+            // ... (无变化, 它会正确处理 imageUrl)
             const token = sessionStorage.getItem('accessToken');
             if (!token) {
                  alert("无法验证身份，请重新登录。");
                  window.location.href = 'history.html';
                  return;
             }
-            
             document.getElementById('config-load-status').textContent = `正在加载评分 ${ratingId}...`;
-            
             try {
-                // 调用 API 获取单条评分
                 const response = await fetch(`/api/ratings?id=${ratingId}`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
-                
                 if (!response.ok) {
                     const err = await response.json();
                     throw new Error(err.error || '加载评分失败');
                 }
-                
                 const ratingData = await response.json();
-                
-                // 填充数据
                 document.getElementById('cigar-name').value = ratingData.cigarInfo?.name || '';
                 document.getElementById('cigar-size').value = ratingData.cigarInfo?.size || '';
                 document.getElementById('cigar-origin').value = ratingData.cigarInfo?.origin || '';
-                document.getElementById('cigar-review').value = ratingData.cigarReview || ''; // **FIX**: 使用 cigarReview 列
-                
-                // 填充评分选项
+                document.getElementById('cigar-review').value = ratingData.cigarReview || ''; 
                 userRatings = ratingData.ratings || {}; 
-                
-                // **FIX**: 填充图片 (检查 null 或 undefined)
                 currentImageKey = ratingData.imageUrl || null; 
                 updateImagePreview(currentImageKey); 
-                
-                // 激活编辑模式
                 isEditMode = true;
                 editRatingId = ratingId;
-                
-                // 更改按钮
                 const actionButton = document.getElementById('main-action-button');
                 actionButton.textContent = "保存更改";
                 actionButton.classList.remove('bg-green-600', 'hover:bg-green-700');
                 actionButton.classList.add('bg-blue-600', 'hover:bg-blue-700');
-                
-                // 重新渲染评分视图
                 renderRatingView(); 
                 document.getElementById('config-load-status').textContent = `已加载评分 ${ratingId} (编辑模式)`;
-
             } catch (e) {
                  alert(`加载评分失败: ${e.message}`);
                  window.location.href = 'history.html';
@@ -650,32 +717,24 @@
         // ---------------------------------------------------
         
         window.onload = async function() {
+            // ... (无变化)
             const urlParams = new URLSearchParams(window.location.search);
             const code = urlParams.get('code');
-            const editId = urlParams.get('edit'); // **NEW**: 检查 "edit" 参数
+            const editId = urlParams.get('edit'); 
             let user = null;
-
             if (code) {
                 user = await handleOidcCallback(code);
             } else {
                 user = await validateSessionAndGetUser();
             }
-            
             setUser(user);
-            
             console.log("Current User Object for role check:", currentAuthUser);
-            
-            // --- 评分逻辑 (必须在 auth 之后) ---
             await loadConfig();
-            
-            // --- **NEW**: 检查是否进入编辑模式 ---
             if (editId) {
-                // 等待 loadConfig() 完成后, 再加载要编辑的数据
                 await loadRatingForEdit(editId);
-                // 清理 URL
                 window.history.replaceState({}, document.title, window.location.pathname);
             }
-        }; // End of window.onload
+        }; 
     </script>
 </body>
 </html>
