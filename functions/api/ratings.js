@@ -1,7 +1,7 @@
 // ---------------------------------------------------
 // 文件: /functions/api/ratings.js
 // 作用: 处理评分的 增(POST), 删(DELETE), 改(PUT), 查(GET)
-// ** 已更新: 支持 imageUrl, userNickname, 和 cigarReview **
+// ** 已更新: GET 请求现在支持公共(未登录)访问 **
 // ---------------------------------------------------
 
 /**
@@ -99,49 +99,58 @@ async function getRoleFromDatabase(db, userInfo) {
 
 
 // --- API: GET /api/ratings ---
-// (获取评分 - 已更新为使用 D1)
+// (获取评分 - **已更新: 支持公共访问**)
 export async function onRequestGet(context) {
     const { request, env } = context;
     const url = new URL(request.url);
-    // 检查是否有 ?certified=true 参数
     const getCertified = url.searchParams.get('certified') === 'true';
 
     try {
         let stmt;
-        let userInfo = null; // 用于私人历史记录
 
         if (getCertified) {
-            // --- 公开的认证评分查询 ---
+            // --- 公开的认证评分查询 (certified.html) ---
             // 任何人都可以查看, 无需 token
             stmt = env.DB.prepare("SELECT * FROM ratings WHERE isCertified = 1 ORDER BY timestamp DESC");
         } else {
-            // --- 私人的历史记录查询 ---
-            // 1. 验证 token 并获取 Authing 用户信息 (includes db_role)
-            userInfo = await validateTokenAndGetUser(request, env);
-            
+            // --- 历史记录 (history.html) 或 公共社区 (community.html) 查询 ---
+            let userInfo = null;
+            try {
+                // 1. 尝试验证 token
+                userInfo = await validateTokenAndGetUser(request, env);
+            } catch (e) {
+                // Token 验证失败 (e.g., 未登录), 保持 userInfo = null
+                console.log("[ratings.js GET] No valid token found, proceeding with public query.");
+            }
+
             // 2. 根据角色准备查询
-            if (userInfo.db_role === 'admin' || userInfo.db_role === 'super_admin') {
-                // 管理员获取所有评分
+            if (userInfo && (userInfo.db_role === 'admin' || userInfo.db_role === 'super_admin')) {
+                // **管理员**: 获取所有评分 (用于 history.html)
+                console.log(`[ratings.js GET] Admin query by ${userInfo.email}`);
                 stmt = env.DB.prepare("SELECT * FROM ratings ORDER BY timestamp DESC");
-            } else {
-                // 普通用户仅获取自己的评分
+            } else if (userInfo) {
+                // **登录用户**: 仅获取自己的评分 (用于 history.html)
+                console.log(`[ratings.js GET] Private query by ${userInfo.email}`);
                 stmt = env.DB.prepare("SELECT * FROM ratings WHERE userId = ? ORDER BY timestamp DESC").bind(userInfo.sub);
+            } else {
+                // **未登录访客**: 获取所有评分 (用于 community.html)
+                console.log(`[ratings.js GET] Public query`);
+                stmt = env.DB.prepare("SELECT * FROM ratings ORDER BY timestamp DESC");
             }
         }
 
         const { results } = await stmt.all();
 
-        // 4. 解析 fullData JSON 字符串 (仍然需要, 因为旧数据没有 cigarReview)
+        // 3. 解析 fullData JSON 字符串
         const parsedResults = results.map(row => {
             try {
                 if (typeof row.fullData === 'string') {
                     row.fullData = JSON.parse(row.fullData);
                 }
-                // **向后兼容**: 如果 cigarReview 列为空 (旧数据), 尝试从 fullData 中提取
+                // 向后兼容: 如果 cigarReview 列为空 (旧数据), 尝试从 fullData 中提取
                 if (!row.cigarReview && row.fullData?.cigarReview) {
                     row.cigarReview = row.fullData.cigarReview;
                 }
-
             } catch (e) {
                 console.warn(`Failed to parse fullData for rating ID ${row.id}`);
                 row.fullData = null; // Set to null if parsing fails
@@ -156,7 +165,8 @@ export async function onRequestGet(context) {
     } catch(e) {
         console.error("Get ratings error:", e);
         let errorMessage = e.message || 'An unknown error occurred while fetching ratings.';
-        let statusCode = e.message.includes('token') ? 401 : 500;
+        // 注意: 此时的 token 错误只可能是 validateTokenAndGetUser 内部的 fetch 失败
+        let statusCode = e.message.includes('token') ? 500 : 500; // Public API不应返回401
         return new Response(JSON.stringify({ error: errorMessage }), { 
             status: statusCode,
             headers: { 'Content-Type': 'application/json' }
