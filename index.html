@@ -155,8 +155,8 @@
         // 2. 认证 (无 SDK 依赖)
         // ---------------------------------------------------
         window.login = function() {
-            // **FIX**: 将 redirectUri 指向 index.html
-            const redirectUri = window.location.origin + '/index.html';
+            // **FIX**: 改回 window.location.origin
+            const redirectUri = window.location.origin;
             const authorizeUrl = new URL('/oidc/auth', AUTHING_HOST);
             authorizeUrl.search = new URLSearchParams({
                 client_id: AUTHING_APP_ID,
@@ -171,8 +171,8 @@
         window.logout = function() {
              const logoutUrl = new URL('/oidc/session/end', AUTHING_HOST);
              logoutUrl.search = new URLSearchParams({
-                // **FIX**: 登出后也返回 index.html
-                post_logout_redirect_uri: window.location.origin + '/index.html'
+                // **FIX**: 改回 window.location.origin
+                post_logout_redirect_uri: window.location.origin
              }).toString();
              sessionStorage.removeItem('userInfo');
              sessionStorage.removeItem('accessToken');
@@ -216,7 +216,7 @@
             document.getElementById('config-load-status').textContent = '正在验证登录...';
             try {
                 // **FIX**: 确保 redirectUri 与 login 时一致
-                const redirectUri = window.location.origin + '/index.html'; 
+                const redirectUri = window.location.origin; 
                 
                 const response = await fetch('/api/authing/callback', {
                     method: 'POST',
@@ -280,7 +280,7 @@
         }
         
         // ---------------------------------------------------
-        // 4. **NEW**: 图片上传逻辑
+        // 4. 图片上传逻辑
         // ---------------------------------------------------
         
         /**
@@ -582,7 +582,7 @@
         } // End of renderRatingCriterion
         
         // ---------------------------------------------------
-        // 6. **NEW**: 编辑模式逻辑
+        // 6. 编辑模式逻辑
         // ---------------------------------------------------
         
         /**
