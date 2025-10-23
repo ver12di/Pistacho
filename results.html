@@ -35,7 +35,6 @@
              console.warn('Tailwind object not found. Skipping config.');
         }
     </script>
-    <!-- Removed Authing SDK script -->
 
 </head>
 <body class="bg-gray-100 font-sans antialiased text-gray-800">
@@ -45,6 +44,7 @@
             <nav class="mb-4 flex justify-between items-center bg-white p-3 rounded-lg shadow-sm">
                  <a href="index.html" class="text-xl font-bold text-indigo-600">Pistacho评分</a>
                  <div class="space-x-4">
+                     <a href="community.html" class="text-gray-600 hover:text-indigo-600">社区动态</a>
                      <a href="history.html" class="text-gray-600 hover:text-indigo-600">历史记录</a>
                      <a href="certified.html" class="text-gray-600 hover:text-indigo-600">认证评分</a>
                  </div>
@@ -52,6 +52,8 @@
             <header class="mb-6 text-center">
                 <h1 class="text-4xl font-extrabold text-gray-800 mb-2">评分报告</h1>
             </header>
+            
+            <!-- 雪茄信息卡 (包含图片) -->
             <section id="cigar-info-container" class="mb-6"></section>
             
             <div id="save-button-container" class="hidden mb-6">
@@ -61,10 +63,9 @@
             </div>
 
             <section id="results-card-container" class="mb-8"></section>
-            
-            <!-- **NEW ORDER** -->
             <div class="space-y-4">
-                <!-- **MOVED UP** -->
+                
+                <!-- 评级体系 (已上移) -->
                 <details class="group bg-white rounded-xl shadow-lg p-6" open>
                     <summary class="flex justify-between items-center cursor-pointer font-bold text-lg text-gray-800">
                         PISTACHO 评级体系
@@ -91,8 +92,8 @@
                     <div id="cigar-review-container" class="mt-4 text-gray-700 prose max-w-none"></div>
                 </details>
                 
-                <!-- **REMOVED** Score Details Section -->
-
+                <!-- 分数详情 (已移除) -->
+                
                 <details class="group bg-white rounded-xl shadow-lg p-6">
                     <summary class="flex justify-between items-center cursor-pointer font-bold text-lg text-gray-800">
                         评分详情汇总
@@ -101,7 +102,6 @@
                     <div id="summary-container" class="mt-4"></div>
                 </details>
 
-                <!-- **MOVED UP** (Original position of full scale) -->
             </div>
             <footer class="mt-8 text-center">
                 <a href="index.html" class="py-3 px-6 bg-indigo-600 text-white font-bold rounded-lg shadow-md hover:bg-indigo-700 transition">
@@ -110,7 +110,7 @@
             </footer>
         </div>
     </div>
-    <script type="module">
+    <script typem="module">
         // --- 全局变量和常量 ---
         const GRADING_SCALE = [
           { "grade": "P", "name_en": "Pinnacle", "name_cn": "顶峰 / 登峰造极", "min_score": 95, "color": "gold" },
@@ -127,7 +127,6 @@
         let resultsData = null; 
         let normalizedScore = 0;
         let finalGrade = null;
-        // Removed authingClient variable
         
         // --- 核心功能: 保存评分 ---
         window.saveRating = async function() {
@@ -147,14 +146,31 @@
             saveButton.disabled = true;
 
             try {
-                const ratingToSave = {
-                    ...resultsData,
-                    normalizedScore: normalizedScore, 
-                    finalGrade: finalGrade,
-                    // **NEW**: 确保 ratingId 不会被发送 (POST 是创建新记录)
-                    ratingId: undefined, 
+                // **FIX**: D1 数据库不再需要 config, ratings, calculatedScore
+                // 它只需要 cigarInfo, cigarReview, finalScore, normalizedScore, fullData, imageUrl
+                
+                // 从 resultsData 中提取最终要保存到 fullData 的部分
+                const fullDataToSave = {
+                     cigarInfo: resultsData.cigarInfo,
+                     cigarReview: resultsData.cigarReview,
+                     ratings: resultsData.ratings, // 用户的原始选择
+                     config: resultsData.config,   // 使用的配置快照
+                     calculatedScore: resultsData.calculatedScore, // 原始得分
+                     normalizedScore: normalizedScore, // 规范化得分
+                     finalGrade: finalGrade,       // 评级
+                     imageUrl: resultsData.imageUrl // 图片 Key
                 };
                 
+                // 准备一个 D1 友好的对象 (扁平化)
+                const ratingToSaveForD1 = {
+                    cigarInfo: resultsData.cigarInfo,
+                    cigarReview: resultsData.cigarReview,
+                    normalizedScore: normalizedScore,
+                    finalGrade: finalGrade,
+                    imageUrl: resultsData.imageUrl,
+                    fullData: fullDataToSave // 将完整对象序列化
+                };
+
                 const apiUrl = new URL('/api/ratings', window.location.origin);
                 const response = await fetch(apiUrl, {
                     method: 'POST',
@@ -162,7 +178,7 @@
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${token}` // Use token from sessionStorage
                     },
-                    body: JSON.stringify(ratingToSave)
+                    body: JSON.stringify(ratingToSaveForD1) // 发送扁平化对象
                 });
                 
                 if (!response.ok) {
@@ -172,17 +188,13 @@
                     } catch(e) {}
                     throw new Error(errorData.error || `服务器错误: ${response.status}`);
                 }
-                
-                const result = await response.json();
 
                 saveButton.textContent = "已保存";
                 saveButton.classList.add('bg-gray-400', 'cursor-not-allowed');
                 alert("评分已成功保存到您的历史记录！");
                 
-                // **NEW**: 更新 sessionStorage 中的数据, 
-                // 标记为非草稿并存入新的 ID, 以防用户刷新
+                // **NEW**: 保存后, 从 sessionStorage 移除 "isDraft" 标志, 防止重复保存
                 resultsData.isDraft = false;
-                resultsData.ratingId = result.id; 
                 sessionStorage.setItem('cigarRatingResults', JSON.stringify(resultsData));
 
 
@@ -217,7 +229,7 @@
                     throw new Error("存储的评分数据格式无效。");
                 }
 
-                const { config, ratings, calculatedScore, cigarInfo, cigarReview, isDraft } = resultsData;
+                const { config, ratings, calculatedScore, cigarInfo, cigarReview, isDraft, imageUrl } = resultsData;
                 
                 const maxScore = config.totalWeightMax || 100;
                 normalizedScore = maxScore > 0 ? (calculatedScore / maxScore) * 100 : 0;
@@ -230,17 +242,35 @@
                     saveButtonContainer?.classList.remove('hidden');
                 }
                 
-                if (cigarInfo) document.getElementById('cigar-info-container').innerHTML = `<div class="bg-white rounded-xl p-6 text-center"><h2 class="text-3xl font-bold">${cigarInfo.name}</h2><div class="mt-2 flex justify-center space-x-6 text-gray-500"><span><strong>尺寸:</strong> ${cigarInfo.size}</span><span><strong>产地:</strong> ${cigarInfo.origin}</span></div></div>`;
-                
+                // --- **NEW**: 渲染雪茄信息和图片 ---
+                let imageHtml = '';
+                if (imageUrl) {
+                    imageHtml = `
+                        <div class="mt-6 rounded-lg overflow-hidden border shadow-inner max-w-lg mx-auto">
+                            <img src="/api/image/${imageUrl}" alt="${cigarInfo?.name || 'Cigar'}" class="w-full h-auto object-cover">
+                        </div>
+                    `;
+                }
+                if (cigarInfo) {
+                    document.getElementById('cigar-info-container').innerHTML = `
+                        <div class="bg-white rounded-xl p-6 text-center shadow-lg">
+                            <h2 class="text-3xl font-bold">${cigarInfo.name}</h2>
+                            <div class="mt-2 flex justify-center space-x-6 text-gray-500">
+                                <span><strong>尺寸:</strong> ${cigarInfo.size}</span>
+                                <span><strong>产地:</strong> ${cigarInfo.origin}</span>
+                            </div>
+                            ${imageHtml}
+                        </div>`;
+                }
+                // --- 渲染结束 ---
+
                 const narrativeSummary = generateNarrativeSummary(cigarInfo, config, ratings, finalGrade);
                 document.getElementById('narrative-summary-container').innerHTML = narrativeSummary;
                 
                 if (cigarReview) document.getElementById('cigar-review-container').textContent = cigarReview;
                 
                 renderResultsCard(document.getElementById('results-card-container'), normalizedScore, finalGrade);
-                
-                // **REMOVED** Rendering for score-details-container
-                
+                // document.getElementById('score-details-container').innerHTML = `<p class="text-lg">原始得分: <span class="font-bold">${calculatedScore.toFixed(2)}</span> / ${maxScore.toFixed(2)}</p>`;
                 renderSummary(document.getElementById('summary-container'), config, ratings);
                 renderFullScale(document.getElementById('full-scale-container'), finalGrade);
 
@@ -291,7 +321,7 @@
         function renderResultsCard(container, score, grade) {
             if (!container || !grade || !grade.color) return;
             const styles = getGradeStyles(grade.color);
-            container.innerHTML = `<div class="relative rounded-2xl p-8 text-white overflow-hidden shadow-2xl ${styles.bgGradient} ${styles.shadowColor}"><div class="relative z-10 flex justify-between items-center"><div><p class="font-medium opacity-80">${grade.name_en}</p><h2 class="text-4xl font-extrabold tracking-tight">${grade.name_cn}</h2><p class="mt-4 text-7xl font-black">${score.toFixed(2)}</p></div><div class="flex-shrink-0 w-32 h-32 rounded-full border-4 border-white border-opacity-50 flex flex-col items-center justify-center bg-white bg-opacity-10 backdrop-blur-sm"><span class_ ="text-6xl font-black">${grade.grade}</span><span class="font-semibold tracking-widest uppercase text-sm">${grade.name_en}</span></div></div></div>`;
+            container.innerHTML = `<div class="relative rounded-2xl p-8 text-white overflow-hidden shadow-2xl ${styles.bgGradient} ${styles.shadowColor}"><div class="relative z-10 flex justify-between items-center"><div><p class="font-medium opacity-80">${grade.name_en}</p><h2 class="text-4xl font-extrabold tracking-tight">${grade.name_cn}</h2><p class="mt-4 text-7xl font-black">${score.toFixed(2)}</p></div><div class="flex-shrink-0 w-32 h-32 rounded-full border-4 border-white border-opacity-50 flex flex-col items-center justify-center bg-white bg-opacity-10 backdrop-blur-sm"><span class="text-6xl font-black">${grade.grade}</span><span class="font-semibold tracking-widest uppercase text-sm">${grade.name_en}</span></div></div></div>`;
         }
 
         function renderSummary(container, config, ratings) {
@@ -304,11 +334,8 @@
                     const selectedOptionIndex = ratings[id];
                     if (selectedOptionIndex !== undefined && criterion.options?.[selectedOptionIndex]) {
                         const option = criterion.options[selectedOptionIndex];
-                        // const weightedScore = (criterion.weight || 0) * (option.scorePct || 0); // Score calculation no longer needed here
-                        summaryHtml += `<li class="flex justify-between items-center p-1"><div><span class="font-medium text-gray-700">${criterion.name}:</span><span class="text-gray-500 ml-2">${option.description}</span></div>`;
-                        // **MODIFIED**: Removed the score span
-                        // summaryHtml += `<span class="font-semibold text-green-600">+${weightedScore.toFixed(2)}</span></li>`;
-                        summaryHtml += `</li>`;
+                        // **FIX**: 移除了 (+${weightedScore.toFixed(2)})
+                        summaryHtml += `<li class="flex justify-between items-center p-1"><div><span class="font-medium text-gray-700">${criterion.name}:</span><span class="text-gray-500 ml-2">${option.description}</span></div></li>`;
                     }
                 });
                 summaryHtml += `</ul></div>`;
