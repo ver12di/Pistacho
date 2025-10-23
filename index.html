@@ -355,9 +355,9 @@
                     cropper.destroy();
                 }
 
-                // **FIX**: 改为 1 / 1 (正方形)
+                // **FIX**: 改为 1179 / 1572 (竖屏)
                 cropper = new Cropper(cropperImage, {
-                    aspectRatio: 1 / 1,
+                    aspectRatio: 1179 / 1572,
                     viewMode: 1,
                     autoCropArea: 0.9,
                     background: false,
@@ -381,10 +381,10 @@
 
             cropperStatus.textContent = '正在裁切并上传...';
 
-            // **FIX**: 根据 1:1 调整输出尺寸，例如 600x600
+            // **FIX**: 根据 1179:1572 调整输出尺寸，例如 600x800
             const canvas = cropper.getCroppedCanvas({
                 width: 600,
-                height: 600,
+                height: 800, // 600 * (1572 / 1179) 约等于 800
                 imageSmoothingQuality: 'high',
             });
 
@@ -496,7 +496,7 @@
             // ... (无变化)
             if (!ratingConfig) return 0;
             let totalScore = 0;
-            (ratingConfig.ratingCriteria || []).forEach(category => {
+            (config.ratingCriteria || []).forEach(category => {
                 (category.criteriaList || []).forEach(criterion => {
                     const id = getRatingId(category.category, criterion.name);
                     const selectedOptionIndex = userRatings[id];
