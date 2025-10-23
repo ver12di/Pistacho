@@ -1,7 +1,7 @@
 // ---------------------------------------------------
 // 文件: /functions/api/ratings.js
 // 作用: 处理评分的 增(POST), 删(DELETE), 改(PUT), 查(GET)
-// ** 已更新: 支持 imageUrl 和 nickname **
+// ** 已更新: 支持 imageUrl, userNickname, 和 cigarReview **
 // ---------------------------------------------------
 
 /**
@@ -31,13 +31,14 @@ async function validateTokenAndGetUser(request, env) {
     
     // 2. 获取 D1 角色
     const userInfo = await response.json();
+    // **注意**: 此处调用下面的 getRoleFromDatabase
     const dbRole = await getRoleFromDatabase(env.DB, userInfo);
     userInfo.db_role = dbRole; // 将 D1 角色附加到 user object
     return userInfo;
 }
 
 /**
- * **UPDATED** (使用 "SELECT-first" 逻辑并更新 nickname)
+ * **(使用 "SELECT-first" 逻辑并更新 nickname)**
  * @param {D1Database} db - D1 数据库实例
  * @param {object} userInfo - 从 Authing 获取的用户信息
  * @returns {Promise<string>} - 用户的角色
@@ -66,7 +67,6 @@ async function getRoleFromDatabase(db, userInfo) {
         }
 
         // --- 步骤 2: 如果 userId 找不到, 尝试通过 email 查找 ---
-        // (这可以处理 Authing 更改了 userId 但 email 相同的情况)
         console.log(`[getRoleFromDatabase] 未通过 userId 找到, 正在尝试 email...`);
         stmt = db.prepare("SELECT userId, role FROM users WHERE email = ?").bind(email);
         userRecord = await stmt.first();
@@ -131,12 +131,17 @@ export async function onRequestGet(context) {
 
         const { results } = await stmt.all();
 
-        // 4. 解析 fullData JSON 字符串
+        // 4. 解析 fullData JSON 字符串 (仍然需要, 因为旧数据没有 cigarReview)
         const parsedResults = results.map(row => {
             try {
                 if (typeof row.fullData === 'string') {
                     row.fullData = JSON.parse(row.fullData);
                 }
+                // **向后兼容**: 如果 cigarReview 列为空 (旧数据), 尝试从 fullData 中提取
+                if (!row.cigarReview && row.fullData?.cigarReview) {
+                    row.cigarReview = row.fullData.cigarReview;
+                }
+
             } catch (e) {
                 console.warn(`Failed to parse fullData for rating ID ${row.id}`);
                 row.fullData = null; // Set to null if parsing fails
@@ -160,7 +165,7 @@ export async function onRequestGet(context) {
 }
 
 // --- API: POST /api/ratings ---
-// (保存新评分 - **已更新: 添加 imageUrl 和 userNickname**)
+// (保存新评分 - **已更新: 添加 cigarReview**)
 export async function onRequestPost(context) {
     const { request, env } = context;
 
@@ -181,17 +186,17 @@ export async function onRequestPost(context) {
         // 4. 从验证过的 token 中获取昵称
         const nickname = userInfo.name || userInfo.nickname || userInfo.preferred_username || userInfo.email;
 
-        // 5. 插入数据库 (包含 imageUrl 和 userNickname)
+        // 5. 插入数据库 (包含 imageUrl, userNickname, 和 cigarReview)
         await env.DB.prepare(
           `INSERT INTO ratings (
             id, userId, userEmail, userNickname, timestamp, cigarName, cigarSize, cigarOrigin,
-            normalizedScore, finalGrade_grade, finalGrade_name_cn, isCertified, certifiedRatingId, fullData, imageUrl
-           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+            normalizedScore, finalGrade_grade, finalGrade_name_cn, isCertified, certifiedRatingId, fullData, imageUrl, cigarReview
+           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         ).bind(
           newId,                                  // id
           userInfo.sub,                           // userId
           userInfo.email ?? null,                 // userEmail
-          nickname ?? null,                       // userNickname **(NEW)**
+          nickname ?? null,                       // userNickname
           new Date().toISOString(),               // timestamp
           ratingToSave?.cigarInfo?.name ?? null,  // cigarName
           ratingToSave?.cigarInfo?.size ?? null,  // cigarSize
@@ -202,7 +207,8 @@ export async function onRequestPost(context) {
           false,                                  // isCertified
           null,                                   // certifiedRatingId
           JSON.stringify(ratingToSave),           // fullData
-          ratingToSave?.imageUrl ?? null          // imageUrl **(NEW)**
+          ratingToSave?.imageUrl ?? null,         // imageUrl
+          ratingToSave?.cigarReview ?? null       // cigarReview **(NEW)**
         ).run();
         
         // 6. 返回成功响应
@@ -226,7 +232,7 @@ export async function onRequestPost(context) {
 }
 
 // --- API: PUT /api/ratings ---
-// (更新评分 - **已更新: 添加 imageUrl**)
+// (更新评分 - **已更新: 添加 cigarReview**)
 export async function onRequestPut(context) {
     const { request, env } = context;
 
@@ -260,11 +266,11 @@ export async function onRequestPut(context) {
              throw new Error("Permission denied to edit this rating.");
         }
         
-        // 4. 执行更新 (包含 imageUrl)
+        // 4. 执行更新 (包含 imageUrl 和 cigarReview)
         await env.DB.prepare(
           `UPDATE ratings SET
             timestamp = ?, cigarName = ?, cigarSize = ?, cigarOrigin = ?,
-            normalizedScore = ?, finalGrade_grade = ?, finalGrade_name_cn = ?, fullData = ?, imageUrl = ?
+            normalizedScore = ?, finalGrade_grade = ?, finalGrade_name_cn = ?, fullData = ?, imageUrl = ?, cigarReview = ?
            WHERE id = ?`
         ).bind(
           new Date().toISOString(),               // timestamp (update to now)
@@ -275,7 +281,8 @@ export async function onRequestPut(context) {
           ratingToSave?.finalGrade?.grade ?? null,// finalGrade_grade
           ratingToSave?.finalGrade?.name_cn ?? null, // finalGrade_name_cn
           JSON.stringify(ratingToSave),           // fullData
-          ratingToSave?.imageUrl ?? null,         // imageUrl **(NEW)**
+          ratingToSave?.imageUrl ?? null,         // imageUrl
+          ratingToSave?.cigarReview ?? null,      // cigarReview **(NEW)**
           ratingId                                // WHERE id = ?
         ).run();
         
@@ -316,7 +323,7 @@ export async function onRequestDelete(context) {
         const userInfo = await validateTokenAndGetUser(request, env);
 
         // 2. 安全检查: 验证用户是否有权删除
-        const stmt = env.DB.prepare("SELECT userId FROM ratings WHERE id = ?").bind(ratingId);
+        const stmt = env.DB.prepare("SELECT userId, imageUrl FROM ratings WHERE id = ?").bind(ratingId);
         const originalRating = await stmt.first();
 
         if (!originalRating) {
@@ -330,14 +337,15 @@ export async function onRequestDelete(context) {
              throw new Error("Permission denied to delete this rating.");
         }
 
-        // 3. 执行删除
+        // 3. 执行删除 (D1)
         await env.DB.prepare("DELETE FROM ratings WHERE id = ?").bind(ratingId).run();
 
-        // (TODO: 可选) 在这里添加从 R2 删除图片的逻辑
-        // const r2Key = originalRating.imageUrl;
-        // if (r2Key) {
-        //    await env.PISTACHO_BUCKET.delete(r2Key);
-        // }
+        // 4. (可选) 从 R2 删除图片
+        const r2Key = originalRating.imageUrl;
+        if (r2Key && env.PISTACHO_BUCKET) {
+           console.log(`[delete-rating] 正在从 R2 删除图片: ${r2Key}`);
+           await env.PISTACHO_BUCKET.delete(r2Key);
+        }
 
         return new Response(JSON.stringify({ success: true, id: ratingId }), { 
             status: 200, // 200 OK
