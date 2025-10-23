@@ -111,6 +111,18 @@ export async function onRequestPost(context) {
     }
 
     // 2. 检查 R2 绑定
+    
+    // --- **NEW DEBUG LOG** ---
+    // 添加日志来查看所有可用的 env keys
+    try {
+        const envKeys = Object.keys(env).join(', ');
+        console.log(`[upload-image] Verifying environment bindings...`);
+        console.log(`[upload-image] Available env keys: ${envKeys}`);
+    } catch (e) {
+        console.error(`[upload-image] Failed to log env keys: ${e.message}`);
+    }
+    // --- **END DEBUG LOG** ---
+    
     if (!env.PISTACHO_BUCKET) {
         console.error("[upload-image] R2 存储桶 'PISTACHO_BUCKET' 未绑定!");
         return new Response(JSON.stringify({ error: 'Server configuration error: R2 bucket not found.' }), { status: 500 });
@@ -165,3 +177,4 @@ export async function onRequest(context) {
      
      return new Response('Method Not Allowed', { status: 405 });
 }
+
