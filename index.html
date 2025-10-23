@@ -87,18 +87,6 @@
          window.login = function() {
             const redirectUri = window.location.origin;
             const authorizeUrl = new URL('/oidc/auth', AUTHING_HOST);
-            authorizeUrl.search = new URLSearchParams({ /* ... */ }).toString();
-            window.location.href = authorizeUrl.toString();
-        }
-        window.logout = function() { /* ... */ }
-        function renderLoginStatus(user) { /* ... */ }
-        async function handleOidcCallback(code) { /* ... */ }
-        async function validateSessionAndGetUser() { /* ... */ }
-
-        // Duplicating auth functions
-         window.login = function() {
-            const redirectUri = window.location.origin;
-            const authorizeUrl = new URL('/oidc/auth', AUTHING_HOST);
             authorizeUrl.search = new URLSearchParams({
                 client_id: AUTHING_APP_ID, redirect_uri: redirectUri, response_type: 'code',
                 scope: 'openid profile email phone', state: Math.random().toString(36).substring(2)
@@ -198,29 +186,26 @@
 
         // --- Navigation ---
         window.viewRatingDetails = function(ratingData) {
-            // **BUG FIX**: Correctly extract data from the rating object, *including* fullData
             if (ratingData && ratingData.fullData) {
                  const detailedData = {
-                     config: ratingData.fullData.config, // Get from fullData
-                     ratings: ratingData.fullData.ratings, // Get from fullData
-                     calculatedScore: ratingData.fullData.calculatedScore, // Get from fullData
-                     cigarInfo: ratingData.cigarInfo,     // Top level is fine
-                     cigarReview: ratingData.cigarReview, // Top level is fine
-                     imageUrl: ratingData.imageUrl,       // Top level is fine
-                     normalizedScore: ratingData.normalizedScore, // Top level is fine
-                     finalGrade: ratingData.finalGrade,     // Top level is fine (object)
-                     timestamp: ratingData.timestamp,       // Top level is fine
-                     userNickname: ratingData.userNickname, // Top level is fine
-                     userEmail: ratingData.userEmail,       // Top level is fine
-                     isDraft: false // From community, it's never a draft
+                     config: ratingData.fullData.config,
+                     ratings: ratingData.fullData.ratings,
+                     calculatedScore: ratingData.fullData.calculatedScore,
+                     cigarInfo: ratingData.cigarInfo,
+                     cigarReview: ratingData.cigarReview,
+                     imageUrl: ratingData.imageUrl,
+                     normalizedScore: ratingData.normalizedScore,
+                     finalGrade: ratingData.finalGrade,
+                     timestamp: ratingData.timestamp,
+                     userNickname: ratingData.userNickname,
+                     userEmail: ratingData.userEmail,
+                     isDraft: false
                  };
-                 // **DEBUG**: Log the data being sent
                  console.log("Sending to results.html:", detailedData);
-                 // **BUG FIX**: Check if config exists *before* navigating
                  if (!detailedData.config || !detailedData.ratings || detailedData.calculatedScore === undefined) {
                       console.error("viewRatingDetails: Missing critical data in fullData:", ratingData.fullData);
                       alert("无法加载详情：评分数据不完整 (缺少 config, ratings 或 calculatedScore)。请检查后端 API 是否返回了 fullData。");
-                      return; // Stop navigation
+                      return;
                  }
                  try {
                      sessionStorage.setItem('cigarRatingResults', JSON.stringify(detailedData));
