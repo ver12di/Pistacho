@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>发布雪茄点评</title> {/* Changed Title */}
+    <title>发布雪茄点评</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Cropper.js CSS -->
@@ -32,13 +32,13 @@
     </style>
 </head>
 <body class="bg-gray-100 font-sans antialiased text-gray-800">
-    <div id="app-container" class="max-w-4xl mx-auto p-4 md:p-8"> {/* Adjusted max-width for rating form */}
+    <div id="app-container" class="max-w-4xl mx-auto p-4 md:p-8">
         <!-- Navbar -->
         <nav class="mb-6 flex flex-wrap justify-between items-center bg-white p-3 rounded-lg shadow-sm gap-4">
             <a href="index.html" class="text-xl font-bold text-indigo-600">Pistacho评分</a>
             <div class="flex items-center space-x-4 flex-grow justify-center md:justify-start md:flex-grow-0 order-3 md:order-2 w-full md:w-auto">
                 <a href="index.html" class="text-gray-600 hover:text-indigo-600">社区动态</a>
-                <a href="rate.html" class="text-indigo-600 font-bold underline">去评分</a> {/* Highlight current */}
+                <a href="rate.html" class="text-indigo-600 font-bold underline">去评分</a>
                 <a href="history.html" class="text-gray-600 hover:text-indigo-600">我的点评历史</a>
                 <a href="certified.html" class="text-gray-600 hover:text-indigo-600">认证评分</a>
             </div>
@@ -48,7 +48,7 @@
 
         <!-- Header Scoreboard -->
         <header class="mb-8 p-6 bg-indigo-700 text-white rounded-xl shadow-2xl">
-            {/* ... Scoreboard remains the same ... */}
+            <!-- Scoreboard content remains the same -->
              <div class="flex justify-between items-start">
                  <div> <h1 id="app-title-display" class="text-3xl font-extrabold mb-1">雪茄评分应用</h1> <p id="app-description-display" class="text-indigo-200 text-sm max-w-lg">正在加载描述...</p> </div>
                  <div class="flex items-center space-x-3 flex-shrink-0"> <div id="admin-links-container" class="flex items-center space-x-3"></div> </div>
@@ -66,15 +66,15 @@
         <!-- Main Content -->
         <main id="main-content">
 
-            {/* **NEW**: Title Section */}
+            <!-- Title Section -->
             <section class="mb-8 p-6 bg-white rounded-xl shadow-lg">
                 <h2 class="text-xl font-bold text-gray-800 mb-4">点评标题 <span class="text-red-500">*</span></h2>
                 <input type="text" id="rating-title" maxlength="22" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 focus:border-indigo-500 focus:ring-indigo-500" placeholder="填写标题会被更多人看到 (最多22字)">
                 <p id="title-char-count" class="text-xs text-gray-500 text-right mt-1">0 / 22</p>
             </section>
 
-            {/* **MOVED & UPDATED**: Review Section */}
-            <section class="mb-8 p-6 bg-white rounded-xl shadow-lg"> {/* Changed margin */}
+            <!-- Review Section -->
+            <section class="mb-8 p-6 bg-white rounded-xl shadow-lg">
                 <h2 class="text-xl font-bold text-gray-800 mb-4">文字评价</h2>
                 <div>
                     <textarea id="cigar-review" rows="8" maxlength="1500" class="w-full p-3 border rounded-md focus:border-indigo-500 focus:ring-indigo-500" placeholder="在此处输入您的详细品吸感受..."></textarea>
@@ -82,34 +82,34 @@
                 </div>
             </section>
 
-            {/* **MOVED & UPDATED**: Image Upload Section (Multiple) */}
-            <section class="mb-8 p-6 bg-white rounded-xl shadow-lg"> {/* Changed margin */}
+            <!-- Image Upload Section (Multiple) -->
+            <section class="mb-8 p-6 bg-white rounded-xl shadow-lg">
                 <h2 class="text-xl font-bold text-gray-800 mb-4">上传图片 (最多5张)</h2>
                 <p class="text-sm text-gray-600 mb-3">第一张图片将作为封面图显示。</p>
                 <div class="preview-grid mb-4" id="image-preview-grid">
-                    {/* Image previews will be added here */}
+                    <!-- Image previews will be added here -->
                 </div>
                 <div>
                     <label for="image-upload-input" id="image-upload-label" class="w-full md:w-auto text-center py-2 px-6 bg-blue-600 text-white font-bold rounded-lg shadow-md hover:bg-blue-700 cursor-pointer inline-block">
                         选择图片
                     </label>
-                    <input type="file" id="image-upload-input" class="hidden" accept="image/png, image/jpeg, image/webp" multiple onchange="handleFileSelect(event)"> {/* Added multiple */}
+                    <input type="file" id="image-upload-input" class="hidden" accept="image/png, image/jpeg, image/webp" multiple onchange="handleFileSelect(event)">
                     <p class="text-sm text-gray-500 mt-2 inline-block md:ml-4">支持 JPG, PNG, WEBP。单张最大 5MB。</p>
                     <p id="image-upload-status" class="text-sm font-medium text-indigo-600 mt-2"></p>
                 </div>
             </section>
 
-            {/* Cigar Info Section */}
+            <!-- Cigar Info Section -->
             <section class="mb-8 p-6 bg-white rounded-xl shadow-lg">
                 <h2 class="text-xl font-bold text-gray-800 mb-4">雪茄信息</h2>
-                 {/* ... (inputs remain the same) ... */}
+                 <!-- Inputs remain the same -->
                  <div class="grid grid-cols-1 md:grid-cols-3 gap-6"> <div> <label for="cigar-name" class="block text-sm font-medium text-gray-700">名称</label> <input type="text" id="cigar-name" autocomplete="off" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" placeholder="例如：帕特加斯D4"> </div> <div> <label for="cigar-size" class="block text-sm font-medium text-gray-700">尺寸</label> <input type="text" id="cigar-size" autocomplete="off" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" placeholder="例如：Robusto"> </div> <div> <label for="cigar-origin" class="block text-sm font-medium text-gray-700">产地</label> <input type="text" id="cigar-origin" autocomplete="off" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" placeholder="例如：古巴"> </div> </div>
             </section>
 
-            {/* Rating Form Container */}
+            <!-- Rating Form Container -->
             <div id="rating-form-container"></div>
 
-            {/* Action Buttons */}
+            <!-- Action Buttons -->
             <div class="mt-8 grid grid-cols-2 gap-4">
                 <button onclick="resetRatings()" class="w-full py-3 px-6 bg-red-500 text-white font-bold text-lg rounded-lg shadow-md hover:bg-red-600">重置</button>
                 <button id="main-action-button" onclick="showResults()" class="w-full py-3 px-6 bg-green-600 text-white font-bold text-lg rounded-lg shadow-md hover:bg-green-700">查看报告</button>
@@ -121,7 +121,7 @@
 
     <!-- Cropper Modal -->
     <div id="cropper-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50 hidden">
-        {/* ... (modal remains the same) ... */}
+        <!-- Modal content remains the same -->
          <div class="bg-white rounded-lg shadow-xl p-6 cropper-modal-content"> <h2 class="text-2xl font-bold mb-4">裁切图片</h2> <div class="cropper-container"> <img id="cropper-image" src="" alt="Image to crop"> </div> <p id="cropper-status" class="text-sm font-medium text-indigo-600 my-2"></p> <div class="flex justify-end gap-4 mt-4"> <button onclick="cancelCrop()" class="py-2 px-5 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400">取消</button> <button onclick="confirmCropAndUpload()" class="py-2 px-5 bg-blue-600 text-white rounded-lg hover:bg-blue-700">确认并上传</button> </div> </div>
     </div>
 
@@ -132,14 +132,13 @@
     <script type="module">
         // --- Global Variables ---
         let ratingConfig = null; let userRatings = {}; let currentAuthUser = null;
-        let currentImageKeys = []; // **UPDATED**: Now an array
+        let currentImageKeys = [];
         let isEditMode = false; let editRatingId = null; let cropper = null;
         const cropperModal = document.getElementById('cropper-modal');
         const cropperImage = document.getElementById('cropper-image');
         const cropperStatus = document.getElementById('cropper-status');
         const AUTHING_APP_ID = '68f5b0b6875017c02b3bfdb3';
         const AUTHING_HOST = 'https://xfvu647mcdbk-demo.authing.cn';
-        // **FIX**: Declare GRADING_SCALE only ONCE
         const GRADING_SCALE = [
           { "grade": "P", "name_en": "Pinnacle", "name_cn": "顶峰 / 登峰造极", "min_score": 95 },
           { "grade": "I", "name_en": "Impeccable", "name_cn": "无暇 / 完美无瑕", "min_score": 90 },
@@ -190,9 +189,8 @@
         window.showResults = async function() {
             const token = sessionStorage.getItem('accessToken'); if (!isEditMode && (!currentAuthUser || !token)) { return alert("请登录后才能提交点评。"); } if (!ratingConfig || Object.keys(userRatings).length === 0) { return alert("请至少选择一个评分项后再操作。"); } const title = document.getElementById('rating-title').value.trim(); if (!title) { return alert("请填写点评标题。"); }
             const cigarInfo = { name: document.getElementById('cigar-name').value || '未命名雪茄', size: document.getElementById('cigar-size').value || '未知尺寸', origin: document.getElementById('cigar-origin').value || '未知产地' }; const cigarReview = document.getElementById('cigar-review').value || '无'; const finalScore = calculateFinalScore(); const maxScore = ratingConfig.totalWeightMax || 1; const normalizedScore = maxScore > 0 ? (finalScore / maxScore) * 100 : 0;
-            // **FIX**: Use full GRADING_SCALE object structure here
             const foundGrade = GRADING_SCALE.find(g => normalizedScore >= g.min_score);
-            const finalGrade = foundGrade ? { grade: foundGrade.grade, name_cn: foundGrade.name_cn, name_en: foundGrade.name_en } : { grade: 'O', name_cn: '乏善可陈 / 平淡', name_en: 'Ordinary' }; // Fallback
+            const finalGrade = foundGrade ? { grade: foundGrade.grade, name_cn: foundGrade.name_cn, name_en: foundGrade.name_en } : { grade: 'O', name_cn: '乏善可陈 / 平淡', name_en: 'Ordinary' };
 
             const resultsData = { title: title, config: ratingConfig, ratings: userRatings, calculatedScore: finalScore, cigarInfo: cigarInfo, cigarReview: cigarReview, imageUrls: currentImageKeys, normalizedScore: normalizedScore, finalGrade: finalGrade, isDraft: !isEditMode }; console.log("Data being prepared for results/save:", resultsData);
             if (isEditMode && editRatingId) { const actionButton = document.getElementById('main-action-button'); actionButton.textContent = "正在保存..."; actionButton.disabled = true; try { if (!token) throw new Error("会话已过期，请重新登录。"); resultsData.ratingId = editRatingId; const apiUrl = new URL(`/api/ratings`, window.location.origin); const response = await fetch(apiUrl, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify(resultsData) }); if (!response.ok) { const err = await response.json(); throw new Error(err.error || '更新失败'); } alert("更改已保存！"); window.location.href = 'history.html'; } catch (e) { alert(`保存失败: ${e.message}`); actionButton.textContent = "保存更改"; actionButton.disabled = false; } }
@@ -204,7 +202,7 @@
         // --- Edit Mode Logic ---
         async function loadRatingForEdit(ratingId) {
             const token = sessionStorage.getItem('accessToken'); if (!token) { alert("无法验证身份，请重新登录。"); window.location.href = 'history.html'; return; } document.getElementById('config-load-status').textContent = `正在加载点评 ${ratingId}...`; try { const apiUrl = new URL(`/api/ratings?id=${ratingId}`, window.location.origin); const response = await fetch(apiUrl, { headers: { 'Authorization': `Bearer ${token}` } }); if (!response.ok) { const err = await response.json(); throw new Error(err.error || '加载点评失败'); } const ratingData = await response.json(); if (!ratingData) { throw new Error(`点评 ${ratingId} 未找到或无权访问。`); } if (!ratingData.fullData || !ratingData.fullData.ratings) { throw new Error("加载的点评数据不完整，无法编辑。"); } if (!ratingConfig) { await loadConfig(); if(!ratingConfig) throw new Error("无法加载评分配置，无法编辑。"); }
-            document.getElementById('rating-title').value = ratingData.title || ''; document.getElementById('cigar-name').value = ratingData.cigarInfo?.name || ''; document.getElementById('cigar-size').value = ratingData.cigarInfo?.size || ''; document.getElementById('cigar-origin').value = ratingData.cigarInfo?.origin || ''; document.getElementById('cigar-review').value = ratingData.cigarReview || ''; userRatings = ratingData.fullData.ratings || {}; let imageUrls = ratingData.imageUrl; if (typeof imageUrls === 'string') { try { currentImageKeys = JSON.parse(imageUrls); } catch(e){ currentImageKeys = []; console.error("Failed to parse imageUrls:", e); } } else if (Array.isArray(imageUrls)) { currentImageKeys = imageUrls; } else { currentImageKeys = []; } renderImagePreviews(); isEditMode = true; editRatingId = ratingId; const actionButton = document.getElementById('main-action-button'); actionButton.textContent = "保存更改"; actionButton.classList.remove('bg-green-600', 'hover:bg-green-700'); actionButton.classList.add('bg-blue-600', 'hover:bg-blue-700'); renderRatingView(); document.getElementById('config-load-status').textContent = `已加载点评 ${ratingId} (编辑模式)`; updateCharCounts(); } catch (e) { alert(`加载点评失败: ${e.message}`); window.location.href = 'history.html'; }
+            document.getElementById('rating-title').value = ratingData.title || ''; document.getElementById('cigar-name').value = ratingData.cigarInfo?.name || ''; document.getElementById('cigar-size').value = ratingData.cigarInfo?.size || ''; document.getElementById('cigar-origin').value = ratingData.cigarInfo?.origin || ''; document.getElementById('cigar-review').value = ratingData.cigarReview || ''; userRatings = ratingData.fullData.ratings || {}; let imageUrls = ratingData.imageUrl; /* **FIX**: imageUrl in DB is now JSON string array */ if (typeof imageUrls === 'string') { try { currentImageKeys = JSON.parse(imageUrls); } catch(e){ currentImageKeys = []; console.error("Failed to parse imageUrls:", e); } } else if (Array.isArray(imageUrls)) { currentImageKeys = imageUrls; } else { currentImageKeys = []; } renderImagePreviews(); isEditMode = true; editRatingId = ratingId; const actionButton = document.getElementById('main-action-button'); actionButton.textContent = "保存更改"; actionButton.classList.remove('bg-green-600', 'hover:bg-green-700'); actionButton.classList.add('bg-blue-600', 'hover:bg-blue-700'); renderRatingView(); document.getElementById('config-load-status').textContent = `已加载点评 ${ratingId} (编辑模式)`; updateCharCounts(); } catch (e) { alert(`加载点评失败: ${e.message}`); window.location.href = 'history.html'; }
         }
         // --- End Edit Mode ---
 
