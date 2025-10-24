@@ -105,6 +105,19 @@
         const AUTHING_APP_ID = '68f5b0b6875017c02b3bfdb3';
         const AUTHING_HOST = 'https://xfvu647mcdbk-demo.authing.cn';
 
+        // **NEW**: Grading scale needed to reconstruct finalGrade object
+        const GRADING_SCALE = [
+          { "grade": "P", "name_en": "Pinnacle", "name_cn": "顶峰 / 登峰造极", "min_score": 95, "color": "gold" },
+          { "grade": "I", "name_en": "Impeccable", "name_cn": "无暇 / 完美无瑕", "min_score": 90, "color": "indigo" },
+          { "grade": "S", "name_en": "Superior", "name_cn": "卓越 / 出众", "min_score": 80, "color": "purple" },
+          { "grade": "T", "name_en": "Terrific", "name_cn": "极好 / 绝佳", "min_score": 70, "color": "blue" },
+          { "grade": "A", "name_en": "Appreciable", "name_cn": "可圈可点 / 值得欣赏", "min_score": 60, "color": "green" },
+          { "grade": "C", "name_en": "Commonplace", "name_cn": "平庸 / 普通", "min_score": 50, "color": "gray" },
+          { "grade": "H", "name_en": "Hesitant", "name_cn": "犹豫 / 瑕瑜互见", "min_score": 30, "color": "orange" },
+          { "grade": "O", "name_en": "Objectionable", "name_cn": "令人反感 / 极差", "min_score": 0, "color": "red" }
+        ];
+
+
         // --- Authentication ---
          window.login = function() { const redirectUri = window.location.origin; const authorizeUrl = new URL('/oidc/auth', AUTHING_HOST); authorizeUrl.search = new URLSearchParams({ client_id: AUTHING_APP_ID, redirect_uri: redirectUri, response_type: 'code', scope: 'openid profile email phone', state: Math.random().toString(36).substring(2) }).toString(); window.location.href = authorizeUrl.toString(); }
          window.logout = function() { const logoutUrl = new URL('/oidc/session/end', AUTHING_HOST); logoutUrl.search = new URLSearchParams({ post_logout_redirect_uri: window.location.origin }).toString(); sessionStorage.removeItem('userInfo'); sessionStorage.removeItem('accessToken'); window.location.href = logoutUrl.toString(); }
@@ -140,16 +153,21 @@
             displayedRatings.forEach(rating => { const card = createRatingCard(rating); ratingsGrid.appendChild(card); });
         }
 
-        // **FIXED**: Removed incorrect comments
         function createRatingCard(rating) {
             const div = document.createElement('div');
             div.className = 'rating-card bg-white rounded-lg shadow-md overflow-hidden transition-all duration-300 cursor-pointer flex flex-col';
             div.onclick = () => viewRatingDetails(rating);
             const score = rating.normalizedScore !== undefined ? rating.normalizedScore.toFixed(2) : 'N/A';
             const author = rating.userNickname || rating.userEmail || '匿名';
-
             // Use the first image URL as cover, or null if no images
-            const coverImageUrl = Array.isArray(rating.imageUrl) ? rating.imageUrl[0] : rating.imageUrl;
+            // **FIX**: Handle imageUrl being array or single string/null from API
+            let coverImageUrl = null;
+            if (Array.isArray(rating.imageUrl) && rating.imageUrl.length > 0) {
+                 coverImageUrl = rating.imageUrl[0];
+            } else if (typeof rating.imageUrl === 'string' && rating.imageUrl) {
+                 // Should ideally be parsed to array by API, but handle defensively
+                 coverImageUrl = rating.imageUrl;
+            }
 
             div.innerHTML = `
                 <div class="aspect-[1179/1572] w-full overflow-hidden flex-shrink-0">
@@ -164,8 +182,6 @@
                     </h3>
                     <div class="flex justify-between items-end mt-auto pt-0.5">
                          <span class="text-2xs text-gray-500 line-clamp-1 flex items-center" title="${author}">
-                              <!-- Optional: Avatar placeholder -->
-                              <!-- <img src="..." class="w-3 h-3 rounded-full mr-1"> -->
                               ${author}
                          </span>
                          <div class="text-right flex-shrink-0">
@@ -178,34 +194,73 @@
         }
 
         // --- Navigation ---
+        // **LOGIC UPDATED**: Always construct essential objects before sending
         window.viewRatingDetails = function(ratingData) {
             let detailedData = {};
-            if (!ratingData || ratingData.normalizedScore === undefined || !ratingData.finalGrade || !ratingData.cigarInfo) { console.error("viewRatingDetails: Essential top-level data missing!", ratingData); alert("无法加载详情：缺少基本评分信息。"); return; }
+
+            // **1. Construct essential objects from top-level data (ALWAYS do this)**
+            const cigarInfo = ratingData.cigarInfo || { name: ratingData.cigarName, size: ratingData.cigarSize, origin: ratingData.cigarOrigin }; // Reconstruct if needed
+            // Find the full grade definition based on score using the *local* GRADING_SCALE
+            const foundGrade = GRADING_SCALE.find(g => ratingData.normalizedScore >= g.min_score) || GRADING_SCALE[GRADING_SCALE.length - 1];
+            const finalGrade = foundGrade ? { grade: foundGrade.grade, name_cn: foundGrade.name_cn, name_en: foundGrade.name_en, color: foundGrade.color } : null; // Include color!
+
+            // **2. Check if essential objects were successfully created/found**
+            if (!ratingData || ratingData.normalizedScore === undefined || !finalGrade || !cigarInfo || !ratingData.title) {
+                console.error("viewRatingDetails: Essential data missing or couldn't be constructed!", {ratingData, finalGrade, cigarInfo});
+                alert("无法加载详情：缺少基本评分信息 (标题, 分数, 评级, 雪茄信息)。");
+                return;
+            }
+
+            // **3. Handle imageUrl (ensure it's an array)**
+            let imageUrls = ratingData.imageUrl;
+            if (typeof imageUrls === 'string') { try { imageUrls = JSON.parse(imageUrls); if (!Array.isArray(imageUrls)) imageUrls = [ratingData.imageUrl]; } catch(e){ imageUrls = imageUrls ? [imageUrls] : []; } }
+            else if (!Array.isArray(imageUrls)) { imageUrls = imageUrls ? [imageUrls] : []; }
+
+            // **4. Check if fullData is valid for detailed view**
             const hasCompleteFullData = ratingData.fullData && ratingData.fullData.config && ratingData.fullData.ratings && ratingData.fullData.calculatedScore !== undefined;
 
-            // **FIX**: Correctly handle imageUrl which might be stringified array or single string
-            let imageUrls = ratingData.imageUrl;
-            if (typeof imageUrls === 'string') {
-                try {
-                    imageUrls = JSON.parse(imageUrls); // Try parsing as array
-                    if (!Array.isArray(imageUrls)) imageUrls = [ratingData.imageUrl]; // Fallback to single string array if not array
-                } catch(e) {
-                     imageUrls = imageUrls ? [imageUrls] : []; // Assume single string if parse fails, or empty array
-                }
-            } else if (!Array.isArray(imageUrls)) {
-                 imageUrls = imageUrls ? [imageUrls] : []; // Handle null/undefined or other types
-            }
-            // Now imageUrls is guaranteed to be an array (possibly empty)
-
             if (hasCompleteFullData) {
-                 detailedData = { config: ratingData.fullData.config, ratings: ratingData.fullData.ratings, calculatedScore: ratingData.fullData.calculatedScore, cigarInfo: ratingData.cigarInfo, cigarReview: ratingData.cigarReview, imageUrls: imageUrls, /* Pass array */ normalizedScore: ratingData.normalizedScore, finalGrade: ratingData.finalGrade, timestamp: ratingData.timestamp, userNickname: ratingData.userNickname, userEmail: ratingData.userEmail, isDraft: false };
+                 // If complete, send everything, using the reconstructed objects
+                 detailedData = {
+                     config: ratingData.fullData.config,
+                     ratings: ratingData.fullData.ratings,
+                     calculatedScore: ratingData.fullData.calculatedScore,
+                     title: ratingData.title, // Add title
+                     cigarInfo: cigarInfo,     // Use reconstructed
+                     cigarReview: ratingData.cigarReview,
+                     imageUrls: imageUrls,       // Use processed array
+                     normalizedScore: ratingData.normalizedScore,
+                     finalGrade: finalGrade,     // Use reconstructed
+                     timestamp: ratingData.timestamp,
+                     userNickname: ratingData.userNickname,
+                     userEmail: ratingData.userEmail,
+                     isDraft: false
+                 };
+                 console.log("Sending COMPLETE data to results.html:", detailedData);
             } else {
+                 // If incomplete, send only top-level data, using reconstructed objects
                  console.warn(`fullData for rating ${ratingData?.id} is missing or incomplete. Sending only top-level data.`);
-                 detailedData = { cigarInfo: ratingData.cigarInfo, cigarReview: ratingData.cigarReview, imageUrls: imageUrls, /* Pass array */ normalizedScore: ratingData.normalizedScore, finalGrade: ratingData.finalGrade, timestamp: ratingData.timestamp, userNickname: ratingData.userNickname, userEmail: ratingData.userEmail, isDraft: false };
+                 detailedData = {
+                     // NO config, ratings, calculatedScore
+                     title: ratingData.title, // Add title
+                     cigarInfo: cigarInfo,    // Use reconstructed
+                     cigarReview: ratingData.cigarReview,
+                     imageUrls: imageUrls,      // Use processed array
+                     normalizedScore: ratingData.normalizedScore,
+                     finalGrade: finalGrade,    // Use reconstructed
+                     timestamp: ratingData.timestamp,
+                     userNickname: ratingData.userNickname,
+                     userEmail: ratingData.userEmail,
+                     isDraft: false
+                 };
+                 console.log("Sending INCOMPLETE (top-level) data to results.html:", detailedData);
             }
+
+            // **5. Navigate**
             try { sessionStorage.setItem('cigarRatingResults', JSON.stringify(detailedData)); window.location.href = `results.html`; }
             catch (e) { console.error("Error setting sessionStorage:", e); alert("无法保存会话数据以查看详情。"); }
         }
+
 
         // --- Initialization ---
         window.onload = async function() {
