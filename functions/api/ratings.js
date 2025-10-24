@@ -55,14 +55,14 @@ async function validateTokenAndGetUser(request, env) {
 async function getRoleFromDatabase(db, userInfo, source = "unknown") {
     const userId = userInfo.sub;
     const email = userInfo.email;
-    const nickname = userInfo.name || userInfo.nickname || userInfo.preferred_username || userInfo.email;
+    const nickname = userInfo.name || userInfo.nickname || userInfo.preferred_username || userInfo.email; // Best effort nickname
 
     // **DEBUG**: Log inputs
     console.log(`[getRoleFromDatabase @ ${source}] Inputs: userId=${userId}, email=${email}, nickname=${nickname}`);
 
     if (!userId) {
         console.error(`[getRoleFromDatabase @ ${source}] Error: userId is missing from userInfo.`);
-        return 'general';
+        return 'general'; // Cannot proceed without userId
     }
 
     try {
@@ -312,7 +312,8 @@ export async function onRequestPost(context) {
           newId, userInfo.sub, userInfo.email ?? null, nickname ?? null, new Date().toISOString(),
           ratingToSave?.cigarInfo?.name ?? null, ratingToSave?.cigarInfo?.size ?? null, ratingToSave?.cigarInfo?.origin ?? null,
           ratingToSave?.normalizedScore ?? null, ratingToSave?.finalGrade?.grade ?? null, ratingToSave?.finalGrade?.name_cn ?? null,
-          false, null, ratingToSave?.imageUrl ?? null, ratingToSave?.cigarReview ?? null,
+          false, null, ratingToSave?.imageUrl ?? null, // Save imageUrl
+          ratingToSave?.cigarReview ?? null, // Save cigarReview
           JSON.stringify(ratingToSave) // Save full object AS STRING
         ).run();
          console.log(`[POST /api/ratings] Successfully inserted ID ${newId}`);
@@ -381,7 +382,9 @@ export async function onRequestPut(context) {
         ).bind(
           new Date().toISOString(), ratingToSave?.cigarInfo?.name ?? null, ratingToSave?.cigarInfo?.size ?? null, ratingToSave?.cigarInfo?.origin ?? null,
           ratingToSave?.normalizedScore ?? null, ratingToSave?.finalGrade?.grade ?? null, ratingToSave?.finalGrade?.name_cn ?? null,
-          ratingToSave?.imageUrl ?? null, ratingToSave?.cigarReview ?? null, JSON.stringify(ratingToSave),
+          ratingToSave?.imageUrl ?? null, // Update imageUrl
+          ratingToSave?.cigarReview ?? null, // Update cigarReview
+          JSON.stringify(ratingToSave),
           ratingId
         ).run();
          console.log(`[PUT /api/ratings] Successfully updated ID ${ratingId}`);
