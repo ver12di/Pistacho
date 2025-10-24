@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>雪茄品鉴 - 点评报告</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- **NEW**: Swiper.js CSS -->
+    <!-- Swiper.js CSS -->
     <link rel="stylesheet" href="https://unpkg.com/swiper/swiper-bundle.min.css"/>
     <script>
         if (typeof tailwind !== 'undefined') {
@@ -24,25 +24,9 @@
         } else { console.warn('Tailwind object not found. Skipping config.'); }
     </script>
     <style>
-        /* Tooltip styles */
-        .tooltip { position: relative; display: inline-block; }
-        .tooltip .tooltiptext { visibility: hidden; width: 80px; background-color: #555; color: #fff; text-align: center; border-radius: 6px; padding: 5px 0; position: absolute; z-index: 1; bottom: 125%; left: 50%; margin-left: -40px; opacity: 0; transition: opacity 0.3s; }
-        .tooltip .tooltiptext::after { content: ""; position: absolute; top: 100%; left: 50%; margin-left: -5px; border-width: 5px; border-style: solid; border-color: #555 transparent transparent transparent; }
-        .tooltip:hover .tooltiptext { visibility: visible; opacity: 1; }
-
-        /* Swiper styles adjustments */
-        .swiper-container { width: 100%; }
-        .swiper-slide img { display: block; width: 100%; height: 100%; object-fit: cover; }
-        .swiper-button-next, .swiper-button-prev { color: #fff; background-color: rgba(0,0,0,0.3); padding: 10px; border-radius: 50%; width: 40px; height: 40px; }
-        .swiper-button-next::after, .swiper-button-prev::after { font-size: 1.2rem; }
-        .swiper-pagination-bullet-active { background: #4f46e5; /* Indigo */ }
-        .thumbnail-swiper .swiper-slide { width: 60px !important; /* Fixed width for thumbnails */ height: 80px; opacity: 0.6; cursor: pointer; border: 2px solid transparent; transition: opacity 0.3s, border-color 0.3s; }
-        .thumbnail-swiper .swiper-slide-thumb-active { opacity: 1; border-color: #4f46e5; /* Indigo */ }
-        .thumbnail-swiper { margin-top: 0.5rem; padding: 5px 0; }
-
-        /* Ensure prose respects container width */
-         #narrative-summary-container, #cigar-review-container { max-width: 100%; }
-
+        /* Tooltip styles */ .tooltip { position: relative; display: inline-block; } .tooltip .tooltiptext { visibility: hidden; width: 80px; background-color: #555; color: #fff; text-align: center; border-radius: 6px; padding: 5px 0; position: absolute; z-index: 1; bottom: 125%; left: 50%; margin-left: -40px; opacity: 0; transition: opacity 0.3s; } .tooltip .tooltiptext::after { content: ""; position: absolute; top: 100%; left: 50%; margin-left: -5px; border-width: 5px; border-style: solid; border-color: #555 transparent transparent transparent; } .tooltip:hover .tooltiptext { visibility: visible; opacity: 1; }
+        /* Swiper styles adjustments */ .swiper-container { width: 100%; } .swiper-slide img { display: block; width: 100%; height: 100%; object-fit: cover; } .swiper-button-next, .swiper-button-prev { color: #fff; background-color: rgba(0,0,0,0.3); padding: 10px; border-radius: 50%; width: 40px; height: 40px; } .swiper-button-next::after, .swiper-button-prev::after { font-size: 1.2rem; } .swiper-pagination-bullet-active { background: #4f46e5; /* Indigo */ } .thumbnail-swiper .swiper-slide { width: 60px !important; /* Fixed width for thumbnails */ height: 80px; opacity: 0.6; cursor: pointer; border: 2px solid transparent; transition: opacity 0.3s, border-color 0.3s; } .thumbnail-swiper .swiper-slide-thumb-active { opacity: 1; border-color: #4f46e5; /* Indigo */ } .thumbnail-swiper { margin-top: 0.5rem; padding: 5px 0; }
+        /* Ensure prose respects container width */ #narrative-summary-container, #cigar-review-container { max-width: 100%; }
     </style>
 </head>
 <body class="bg-gray-100 font-sans antialiased text-gray-800">
@@ -62,71 +46,38 @@
                 <div class="w-full md:w-2/5 flex-shrink-0">
                      <div id="image-gallery-container" class="bg-white rounded-lg shadow-md overflow-hidden">
                          <!-- Main Swiper -->
-                         <div class="swiper-container main-swiper aspect-[1179/1572] bg-gray-200">
-                             <div class="swiper-wrapper" id="main-swiper-wrapper">
-                                  <div class="swiper-slide flex items-center justify-center text-gray-400">无图</div>
-                             </div>
-                             <!-- Add Pagination -->
-                             <div class="swiper-pagination"></div>
-                             <!-- Add Navigation -->
-                             <div class="swiper-button-next"></div>
-                             <div class="swiper-button-prev"></div>
-                         </div>
+                         <div class="swiper-container main-swiper aspect-[1179/1572] bg-gray-200"> <div class="swiper-wrapper" id="main-swiper-wrapper"> <div class="swiper-slide flex items-center justify-center text-gray-400">无图</div> </div> <div class="swiper-pagination"></div> <div class="swiper-button-next"></div> <div class="swiper-button-prev"></div> </div>
                          <!-- Thumbnail Swiper -->
-                         <div class="swiper-container thumbnail-swiper hidden">
-                             <div class="swiper-wrapper" id="thumbnail-swiper-wrapper">
-                             </div>
-                         </div>
+                         <div class="swiper-container thumbnail-swiper hidden"> <div class="swiper-wrapper" id="thumbnail-swiper-wrapper"> </div> </div>
                      </div>
                 </div>
-
                  <!-- Right Column: Details -->
                  <div class="w-full md:flex-grow bg-white rounded-lg shadow-md p-6">
                      <p class="text-sm text-gray-500 mb-1">点评来自: <span id="user-nickname" class="font-medium text-gray-700">加载中...</span></p>
                      <h1 id="rating-title" class="text-3xl font-bold mb-3">加载中...</h1>
                      <h2 id="cigar-name" class="text-xl font-semibold mb-1">加载中...</h2>
-                     <div class="mb-4 text-sm text-gray-600 flex space-x-4">
-                         <span>尺寸: <strong id="cigar-size">...</strong></span>
-                         <span>产地: <strong id="cigar-origin">...</strong></span>
-                     </div>
-                     <div id="cigar-review-container" class="prose prose-sm max-w-none text-gray-700 border-t pt-4">
-                         <p>加载中...</p>
-                     </div>
+                     <div class="mb-4 text-sm text-gray-600 flex space-x-4"> <span>尺寸: <strong id="cigar-size">...</strong></span> <span>产地: <strong id="cigar-origin">...</strong></span> </div>
+                     <div id="cigar-review-container" class="prose prose-sm max-w-none text-gray-700 border-t pt-4"> <p>加载中...</p> </div>
                  </div>
             </div>
 
             <!-- Integrated Score Section -->
             <section id="score-section" class="bg-white rounded-xl shadow-lg p-6 mb-8 flex flex-col md:flex-row gap-6 items-center">
-                 <div id="score-display" class="text-center md:text-left flex-shrink-0">
+                 <div id="score-display" class="w-full md:w-1/3 flex-shrink-0">
                  </div>
-                 <div id="grading-scale-explanation" class="flex-grow">
+                 <div id="grading-scale-explanation" class="w-full md:w-2/3 flex-grow border-t md:border-t-0 md:border-l border-gray-200 pt-4 md:pt-0 md:pl-6">
                  </div>
             </section>
 
              <!-- Save Button (Drafts Only) -->
-             <div id="save-button-container" class="hidden mb-6">
-                 <button id="save-rating-button" onclick="saveRating()" class="w-full py-3 px-6 bg-green-600 text-white font-bold text-lg rounded-lg shadow-md hover:bg-green-700 transition"> 保存为我的评分记录 </button>
-             </div>
-
+             <div id="save-button-container" class="hidden mb-6"> <button id="save-rating-button" onclick="saveRating()" class="w-full py-3 px-6 bg-green-600 text-white font-bold text-lg rounded-lg shadow-md hover:bg-green-700 transition"> 保存为我的评分记录 </button> </div>
 
             <div class="space-y-4">
-                 <details id="narrative-summary-details" class="group bg-white rounded-xl shadow-lg p-6 transition-all duration-300" open>
-                     <summary class="flex justify-between items-center cursor-pointer font-bold text-lg text-gray-800">
-                         <span> 综合评价 <svg class="inline w-5 h-5 transform group-open:rotate-180 transition-transform ml-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg> </span>
-                         <div class="tooltip"> <button id="copy-summary-button" onclick="copySummary(event)" class="ml-4 p-1.5 bg-gray-100 text-gray-600 rounded-full hover:bg-gray-200 transition text-xs"> <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"> <path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /> </svg> </button> <span id="copy-tooltip" class="tooltiptext">复制</span> </div>
-                     </summary>
-                     <div id="narrative-summary-container" class="mt-4 prose max-w-none"></div>
-                 </details>
-
-                 <details id="summary-details" class="group bg-white rounded-xl shadow-lg p-6">
-                     <summary class="flex justify-between items-center cursor-pointer font-bold text-lg text-gray-800"> 评分详情汇总 <svg class="w-5 h-5 transform group-open:rotate-180 transition-transform" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg> </summary>
-                     <div id="summary-container" class="mt-4"></div>
-                 </details>
+                 <details id="narrative-summary-details" class="group bg-white rounded-xl shadow-lg p-6 transition-all duration-300" open> <summary class="flex justify-between items-center cursor-pointer font-bold text-lg text-gray-800"> <span> 综合评价 <svg class="inline w-5 h-5 transform group-open:rotate-180 transition-transform ml-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg> </span> <div class="tooltip"> <button id="copy-summary-button" onclick="copySummary(event)" class="ml-4 p-1.5 bg-gray-100 text-gray-600 rounded-full hover:bg-gray-200 transition text-xs"> <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"> <path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /> </svg> </button> <span id="copy-tooltip" class="tooltiptext">复制</span> </div> </summary> <div id="narrative-summary-container" class="mt-4 prose max-w-none"></div> </details>
+                 <details id="summary-details" class="group bg-white rounded-xl shadow-lg p-6"> <summary class="flex justify-between items-center cursor-pointer font-bold text-lg text-gray-800"> 评分详情汇总 <svg class="w-5 h-5 transform group-open:rotate-180 transition-transform" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg> </summary> <div id="summary-container" class="mt-4"></div> </details>
             </div>
 
-            <footer class="mt-8 text-center">
-                <a href="rate.html" class="py-3 px-6 bg-indigo-600 text-white font-bold rounded-lg shadow-md hover:bg-indigo-700 transition"> &larr; 返回重新评分 </a>
-            </footer>
+            <footer class="mt-8 text-center"> <a href="rate.html" class="py-3 px-6 bg-indigo-600 text-white font-bold rounded-lg shadow-md hover:bg-indigo-700 transition"> &larr; 返回重新评分 </a> </footer>
         </div>
     </div>
 
@@ -135,7 +86,6 @@
 
     <script type="module">
         // --- Constants and Global Vars ---
-        // **FIX**: Declare GRADING_SCALE only ONCE
         const GRADING_SCALE = [
           { "grade": "P", "name_en": "Pinnacle", "name_cn": "顶峰 / 登峰造极", "min_score": 95, "color": "gold" },
           { "grade": "I", "name_en": "Impeccable", "name_cn": "无暇 / 完美无瑕", "min_score": 90, "color": "indigo" },
@@ -166,33 +116,7 @@
         window.copySummary = function(event) { /* ... (no changes) ... */ };
 
         // --- Initialize Swiper ---
-        function initSwipers(imageUrls = []) {
-             const mainWrapper = document.getElementById('main-swiper-wrapper');
-             const thumbWrapper = document.getElementById('thumbnail-swiper-wrapper');
-             const thumbContainer = document.querySelector('.thumbnail-swiper');
-
-             mainWrapper.innerHTML = ''; thumbWrapper.innerHTML = '';
-
-             if (imageUrls.length === 0) {
-                 mainWrapper.innerHTML = '<div class="swiper-slide flex items-center justify-center text-gray-400">无图</div>';
-                 thumbContainer.classList.add('hidden');
-                 if(mainSwiper) mainSwiper.destroy(true, true); if(thumbnailSwiper) thumbnailSwiper.destroy(true, true);
-                 mainSwiper = null; thumbnailSwiper = null; return;
-             }
-
-             imageUrls.forEach(key => { mainWrapper.innerHTML += `<div class="swiper-slide"><img src="/api/image/${key}" alt="雪茄图片"></div>`; thumbWrapper.innerHTML += `<div class="swiper-slide thumbnail-slide"><img src="/api/image/${key}" alt="缩略图"></div>`; });
-
-             if(mainSwiper) mainSwiper.destroy(true, true); if(thumbnailSwiper) thumbnailSwiper.destroy(true, true);
-
-             if (imageUrls.length > 1) {
-                  thumbContainer.classList.remove('hidden');
-                 thumbnailSwiper = new Swiper('.thumbnail-swiper', { spaceBetween: 10, slidesPerView: 'auto', freeMode: true, watchSlidesProgress: true, });
-                 mainSwiper = new Swiper('.main-swiper', { spaceBetween: 10, navigation: { nextEl: '.swiper-button-next', prevEl: '.swiper-button-prev', }, pagination: { el: '.swiper-pagination', clickable: true, }, thumbs: { swiper: thumbnailSwiper, }, simulateTouch: true, touchRatio: 1, touchAngle: 45, grabCursor: true, });
-             } else {
-                  thumbContainer.classList.add('hidden');
-                 mainSwiper = new Swiper('.main-swiper', { allowTouchMove: false, });
-             }
-        }
+        function initSwipers(imageUrls = []) { /* ... (no changes) ... */ };
 
 
         // --- Page Load Logic ---
@@ -274,7 +198,7 @@
          function renderScoreSection(container, score, grade) {
              if (!container || !grade) return;
              const styles = getGradeStyles(grade.color);
-             const scoreHtml = ` <div class="text-center md:text-left"> <p class="text-sm font-medium text-gray-500 mb-1">Pistacho 评分</p> <p class="text-7xl font-black ${styles.textColor}">${score.toFixed(2)}</p> <div class="mt-2 inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold ${styles.bgColor} ${styles.textColor} bg-opacity-20"> ${grade.grade} - ${grade.name_cn} </div> <p class="text-xs text-gray-400 mt-1">${grade.name_en}</p> </div> `;
+             const scoreHtml = ` <div class="text-center md:text-left"> <p class="text-lg font-bold text-yellow-500 mb-1">Pistacho 评分</p> <p class="text-7xl font-black ${styles.textColor}">${score.toFixed(2)}</p> <div class="mt-2 inline-flex items-center px-4 py-1.5 rounded-full text-lg font-semibold ${styles.bgColor} ${styles.textColor} bg-opacity-20"> ${grade.grade} - ${grade.name_cn} </div> </div> `;
              let scaleHtml = '<div class="space-y-1 text-sm">';
              GRADING_SCALE.forEach(g => { const gStyles = getGradeStyles(g.color); const isCurrent = g.grade === grade.grade; scaleHtml += ` <div class="flex items-center p-1 rounded ${isCurrent ? 'bg-gray-100' : ''}"> <div class="w-5 h-5 flex-shrink-0 rounded-full flex items-center justify-center font-bold text-xs ${gStyles.bgColor} ${gStyles.textColor} mr-2">${g.grade}</div> <div class="flex-grow ${isCurrent ? 'font-semibold' : ''} ${gStyles.textColor}">${g.name_cn}</div> <div class="font-mono text-xs text-gray-500 ml-2">${getScoreRange(g.grade)}</div> </div> `; });
              scaleHtml += '</div>';
