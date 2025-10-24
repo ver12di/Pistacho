@@ -36,40 +36,10 @@
     </script>
     <style>
         /* Tooltip for copy button */
-        .tooltip {
-            position: relative;
-            display: inline-block;
-        }
-        .tooltip .tooltiptext {
-            visibility: hidden;
-            width: 80px;
-            background-color: #555;
-            color: #fff;
-            text-align: center;
-            border-radius: 6px;
-            padding: 5px 0;
-            position: absolute;
-            z-index: 1;
-            bottom: 125%;
-            left: 50%;
-            margin-left: -40px;
-            opacity: 0;
-            transition: opacity 0.3s;
-        }
-        .tooltip .tooltiptext::after {
-            content: "";
-            position: absolute;
-            top: 100%;
-            left: 50%;
-            margin-left: -5px;
-            border-width: 5px;
-            border-style: solid;
-            border-color: #555 transparent transparent transparent;
-        }
-        .tooltip:hover .tooltiptext {
-            visibility: visible;
-            opacity: 1;
-        }
+        .tooltip { position: relative; display: inline-block; }
+        .tooltip .tooltiptext { visibility: hidden; width: 80px; background-color: #555; color: #fff; text-align: center; border-radius: 6px; padding: 5px 0; position: absolute; z-index: 1; bottom: 125%; left: 50%; margin-left: -40px; opacity: 0; transition: opacity 0.3s; }
+        .tooltip .tooltiptext::after { content: ""; position: absolute; top: 100%; left: 50%; margin-left: -5px; border-width: 5px; border-style: solid; border-color: #555 transparent transparent transparent; }
+        .tooltip:hover .tooltiptext { visibility: visible; opacity: 1; }
     </style>
 </head>
 <body class="bg-gray-100 font-sans antialiased text-gray-800">
@@ -108,7 +78,7 @@
                 </details>
 
                 <details id="narrative-summary-details" class="group bg-white rounded-xl shadow-lg p-6 transition-all duration-300" open>
-                    {/* **UPDATED**: Added copy button to summary */}
+                    <!-- **FIXED**: Removed incorrect comment -->
                     <summary class="flex justify-between items-center cursor-pointer font-bold text-lg text-gray-800">
                         <span>
                             综合评价
@@ -175,44 +145,21 @@
         // --- Save Rating ---
         window.saveRating = async function() { /* ... (no changes) ... */ };
 
-        // --- **NEW**: Copy Summary Function ---
+        // --- Copy Summary Function ---
         window.copySummary = function(event) {
             event.stopPropagation(); // Prevent details toggling
-
             const summaryContainer = document.getElementById('narrative-summary-container');
             const tooltip = document.getElementById('copy-tooltip');
-            const textToCopy = summaryContainer.textContent || summaryContainer.innerText || '';
+            // **FIX**: Get text content, handling potential <p> tags inside
+            let textToCopy = '';
+            const pElement = summaryContainer.querySelector('p');
+            if(pElement) { textToCopy = pElement.textContent || pElement.innerText || ''; }
+            else { textToCopy = summaryContainer.textContent || summaryContainer.innerText || ''; } // Fallback
 
-            if (!textToCopy) {
-                tooltip.textContent = '无内容';
-                setTimeout(() => { tooltip.textContent = '复制'; }, 1500);
-                return;
-            }
-
-            // Use document.execCommand for better iframe compatibility
-            const textarea = document.createElement('textarea');
-            textarea.value = textToCopy;
-            textarea.style.position = 'fixed'; // Prevent scrolling to bottom
-            document.body.appendChild(textarea);
-            textarea.focus();
-            textarea.select();
-            try {
-                const successful = document.execCommand('copy');
-                if (successful) {
-                    tooltip.textContent = '已复制!';
-                } else {
-                    tooltip.textContent = '复制失败';
-                }
-            } catch (err) {
-                 tooltip.textContent = '复制出错';
-                 console.error('Copy failed:', err);
-            }
-            document.body.removeChild(textarea);
-
-            // Reset tooltip text after a delay
-            setTimeout(() => {
-                tooltip.textContent = '复制';
-            }, 1500);
+            if (!textToCopy) { tooltip.textContent = '无内容'; setTimeout(() => { tooltip.textContent = '复制'; }, 1500); return; }
+            const textarea = document.createElement('textarea'); textarea.value = textToCopy; textarea.style.position = 'fixed'; document.body.appendChild(textarea); textarea.focus(); textarea.select();
+            try { const successful = document.execCommand('copy'); if (successful) { tooltip.textContent = '已复制!'; } else { tooltip.textContent = '复制失败'; } } catch (err) { tooltip.textContent = '复制出错'; console.error('Copy failed:', err); }
+            document.body.removeChild(textarea); setTimeout(() => { tooltip.textContent = '复制'; }, 1500);
         }
 
         // --- Page Load Logic ---
@@ -306,7 +253,7 @@
         // **UPDATED**: Correctly format the final summary sentence
         function generateNarrativeSummary(cigarInfo, config, ratings, finalGrade) {
              if (!config || !ratings) { return '<p class="text-gray-500 italic">无法生成综合评价 (缺少原始评分数据)。</p>'; }
-             let summary = `<p class="text-base text-gray-700 leading-relaxed">`;
+             let summary = `<p class="text-base text-gray-700 leading-relaxed">`; // Ensure <p> tag is added
              summary += `本次品鉴的雪茄是来自<strong class="font-semibold">${cigarInfo?.origin || '未知'}</strong>的<strong class="font-semibold">${cigarInfo?.name || '未知'}</strong>，尺寸为<strong class="font-semibold">${cigarInfo?.size || '未知'}</strong>。`;
              let observations = [];
              (config?.ratingCriteria || []).forEach(category => {
@@ -318,10 +265,10 @@
              if (observations.length > 0) { summary += ` 品鉴过程中，我们观察到：${observations.join('；')}。`; }
              else { summary += ` (未记录详细评分选项)。`; }
 
-             // **FIX**: Construct the final sentence as requested
-             const gradeHierarchy = GRADING_SCALE.map(g => g.name_en).join('-'); // Get the hierarchy string
-             summary += ` 综合来看，本次基于Pistacho Cigar Rating System（Pistacho雪茄评分）的最终评级为<strong class="font-semibold text-indigo-600">“${finalGrade.grade} - ${finalGrade.name_cn}”</strong>。Pistacho品分等级从高到低为${gradeHierarchy}`; // Construct the sentence
-             summary += `</p>`;
+             // **FIX**: Construct the final sentence as requested, using correct grade details
+             const gradeHierarchy = GRADING_SCALE.map(g => g.name_en).join('-');
+             summary += ` 综合来看，本次基于Pistacho Cigar Rating System（Pistacho雪茄评分）的最终评级为<strong class="font-semibold text-indigo-600">“${finalGrade.name_en} - ${finalGrade.name_cn}”</strong>。Pistacho品分等级从高到低为${gradeHierarchy}`;
+             summary += `</p>`; // Close <p> tag
              return summary;
         }
 
