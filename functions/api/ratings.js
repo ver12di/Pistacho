@@ -1,320 +1,226 @@
-<!DOCTYPE html>
-<html lang="zh-Hans">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>发布雪茄点评</title>
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Cropper.js CSS -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css" rel="stylesheet">
-    <script>
-        if (typeof tailwind !== 'undefined') {
-            tailwind.config = {
-                theme: {
-                    extend: {
-                        fontFamily: { sans: ['Inter', 'Noto Sans SC', 'system-ui', 'sans-serif'], },
-                        transitionProperty: { 'width': 'width' }
-                    }
-                }
-            }
-        } else { console.warn('Tailwind object not found. Skipping config.'); }
-    </script>
-    <style>
-        .cropper-container { max-height: 60vh; }
-        .cropper-modal-content { width: 90%; max-width: 800px; }
-        /* Style for image previews */
-        .preview-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 0.5rem; }
-        .preview-item { position: relative; aspect-ratio: 1179 / 1572; overflow: hidden; border-radius: 0.375rem; /* rounded-md */ border: 1px solid #e5e7eb; /* border-gray-200 */ }
-        .preview-item img { display: block; width: 100%; height: 100%; object-fit: cover; }
-        .preview-item .remove-btn { position: absolute; top: 2px; right: 2px; background-color: rgba(0,0,0,0.6); color: white; border: none; border-radius: 50%; width: 1.25rem; height: 1.25rem; font-size: 0.75rem; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; }
-        .preview-item .remove-btn:hover { background-color: rgba(239, 68, 68, 0.8); /* hover:bg-red-500 */ }
-    </style>
-</head>
-<body class="bg-gray-100 font-sans antialiased text-gray-800">
-    <div id="app-container" class="max-w-4xl mx-auto p-4 md:p-8">
-        <!-- Navbar -->
-        <nav class="mb-6 flex flex-wrap justify-between items-center bg-white p-3 rounded-lg shadow-sm gap-4">
-            <a href="index.html" class="text-xl font-bold text-indigo-600">Pistacho评分</a>
-            <div class="flex items-center space-x-4 flex-grow justify-center md:justify-start md:flex-grow-0 order-3 md:order-2 w-full md:w-auto">
-                <a href="index.html" class="text-gray-600 hover:text-indigo-600">社区动态</a>
-                <a href="rate.html" class="text-indigo-600 font-bold underline">去评分</a>
-                <a href="history.html" class="text-gray-600 hover:text-indigo-600">我的点评历史</a>
-                <a href="certified.html" class="text-gray-600 hover:text-indigo-600">认证评分</a>
-            </div>
-            <div id="login-status-container" class="flex items-center order-2 md:order-3"></div>
-        </nav>
-        <!-- End Navbar -->
+// ---------------------------------------------------
+// 文件: /functions/api/ratings.js
+// 作用: 处理评分的 增(POST), 删(DELETE), 改(PUT), 查(GET)
+// **FIX**: Correct DELETE logic return 200 even if rating was already deleted
+// ---------------------------------------------------
 
-        <!-- Header Scoreboard -->
-        <header class="mb-8 p-6 bg-indigo-700 text-white rounded-xl shadow-2xl">
-            <!-- Scoreboard content remains the same -->
-             <div class="flex justify-between items-start">
-                 <div> <h1 id="app-title-display" class="text-3xl font-extrabold mb-1">雪茄评分应用</h1> <p id="app-description-display" class="text-indigo-200 text-sm max-w-lg">正在加载描述...</p> </div>
-                 <div class="flex items-center space-x-3 flex-shrink-0"> <div id="admin-links-container" class="flex items-center space-x-3"></div> </div>
-             </div>
-             <div class="mt-6 bg-black bg-opacity-20 p-4 rounded-lg">
-                 <div class="flex justify-between items-end">
-                     <div> <p class="text-sm font-medium text-indigo-200">当前得分</p> <div class="flex items-baseline"> <span id="current-score-display" class="text-6xl font-black leading-none">0.00</span> <span class="text-lg font-medium text-indigo-200 ml-2">/ <span id="total-weight-max-display">0</span></span> </div> </div>
-                     <div class="text-right"> <p class="text-sm font-medium text-indigo-200">已评项目</p> <p id="progress-text" class="font-bold text-lg">0 / 0</p> </div>
-                 </div>
-                 <div class="w-full bg-indigo-900 rounded-full h-2.5 mt-2"> <div id="progress-bar" class="bg-green-400 h-2.5 rounded-full transition-width duration-500" style="width: 0%"></div> </div>
-             </div>
-              <p id="config-load-status" class="text-xs text-yellow-300 mt-2 text-right">正在连接...</p>
-        </header>
+/**
+ * 验证 Authing Token 并返回用户信息 (包含 db_role)
+ * @param {Request} request
+ * @param {object} env
+ * @returns {Promise<object | null>} - 用户信息对象, 或 null (如果 token 无效/缺失)
+ */
+async function validateTokenAndGetUser(request, env) {
+    const authHeader = request.headers.get('Authorization') || '';
+    const token = authHeader.replace('Bearer ', '');
+    if (!token) {
+        if (request.method === 'GET') return null; // Allow anonymous GET
+        throw new Error("Missing token");
+    }
 
-        <!-- Main Content -->
-        <main id="main-content">
+    try {
+        const userInfoUrl = new URL('/oidc/me', env.AUTHING_ISSUER);
+        const response = await fetch(userInfoUrl.toString(), {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
 
-            <!-- Title Section -->
-            <section class="mb-8 p-6 bg-white rounded-xl shadow-lg">
-                <h2 class="text-xl font-bold text-gray-800 mb-4">点评标题 <span class="text-red-500">*</span></h2>
-                <input type="text" id="rating-title" maxlength="22" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 focus:border-indigo-500 focus:ring-indigo-500" placeholder="填写标题会被更多人看到 (最多22字)">
-                <p id="title-char-count" class="text-xs text-gray-500 text-right mt-1">0 / 22</p>
-            </section>
-
-            <!-- Review Section -->
-            <section class="mb-8 p-6 bg-white rounded-xl shadow-lg">
-                <h2 class="text-xl font-bold text-gray-800 mb-4">文字评价</h2>
-                <div>
-                    <textarea id="cigar-review" rows="8" maxlength="1500" class="w-full p-3 border rounded-md focus:border-indigo-500 focus:ring-indigo-500" placeholder="在此处输入您的详细品吸感受..."></textarea>
-                    <p id="review-char-count" class="text-xs text-gray-500 text-right mt-1">0 / 1500</p>
-                </div>
-            </section>
-
-            <!-- Image Upload Section (Multiple) -->
-            <section class="mb-8 p-6 bg-white rounded-xl shadow-lg">
-                <h2 class="text-xl font-bold text-gray-800 mb-4">上传图片 (最多5张)</h2>
-                <p class="text-sm text-gray-600 mb-3">第一张图片将作为封面图显示。</p>
-                <div class="preview-grid mb-4" id="image-preview-grid">
-                    <!-- Image previews will be added here -->
-                </div>
-                <div>
-                    <label for="image-upload-input" id="image-upload-label" class="w-full md:w-auto text-center py-2 px-6 bg-blue-600 text-white font-bold rounded-lg shadow-md hover:bg-blue-700 cursor-pointer inline-block">
-                        选择图片
-                    </label>
-                    <input type="file" id="image-upload-input" class="hidden" accept="image/png, image/jpeg, image/webp" multiple onchange="handleFileSelect(event)">
-                    <p class="text-sm text-gray-500 mt-2 inline-block md:ml-4">支持 JPG, PNG, WEBP。单张最大 5MB。</p>
-                    <p id="image-upload-status" class="text-sm font-medium text-indigo-600 mt-2"></p>
-                </div>
-            </section>
-
-            <!-- Cigar Info Section -->
-            <section class="mb-8 p-6 bg-white rounded-xl shadow-lg">
-                <h2 class="text-xl font-bold text-gray-800 mb-4">雪茄信息</h2>
-                 <!-- Inputs remain the same -->
-                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6"> <div> <label for="cigar-name" class="block text-sm font-medium text-gray-700">名称</label> <input type="text" id="cigar-name" autocomplete="off" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" placeholder="例如：帕特加斯D4"> </div> <div> <label for="cigar-size" class="block text-sm font-medium text-gray-700">尺寸</label> <input type="text" id="cigar-size" autocomplete="off" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" placeholder="例如：Robusto"> </div> <div> <label for="cigar-origin" class="block text-sm font-medium text-gray-700">产地</label> <input type="text" id="cigar-origin" autocomplete="off" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" placeholder="例如：古巴"> </div> </div>
-            </section>
-
-            <!-- Rating Form Container -->
-            <div id="rating-form-container"></div>
-
-            <!-- Action Buttons -->
-            <div class="mt-8 grid grid-cols-2 gap-4">
-                <button onclick="resetRatings()" class="w-full py-3 px-6 bg-red-500 text-white font-bold text-lg rounded-lg shadow-md hover:bg-red-600">重置</button>
-                <button id="main-action-button" onclick="showResults()" class="w-full py-3 px-6 bg-green-600 text-white font-bold text-lg rounded-lg shadow-md hover:bg-green-700">查看报告</button>
-            </div>
-        </main>
-
-        <footer class="mt-8 text-center text-gray-500 text-sm p-4 border-t">评分应用数据由云端配置中心实时同步。</footer>
-    </div>
-
-    <!-- Cropper Modal -->
-    <div id="cropper-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50 hidden">
-        <!-- Modal content remains the same -->
-         <div class="bg-white rounded-lg shadow-xl p-6 cropper-modal-content"> <h2 class="text-2xl font-bold mb-4">裁切图片</h2> <div class="cropper-container"> <img id="cropper-image" src="" alt="Image to crop"> </div> <p id="cropper-status" class="text-sm font-medium text-indigo-600 my-2"></p> <div class="flex justify-end gap-4 mt-4"> <button onclick="cancelCrop()" class="py-2 px-5 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400">取消</button> <button onclick="confirmCropAndUpload()" class="py-2 px-5 bg-blue-600 text-white rounded-lg hover:bg-blue-700">确认并上传</button> </div> </div>
-    </div>
-
-    <!-- Cropper.js JS -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
-
-    <!-- App Logic -->
-    <script type="module">
-        // --- Global Variables ---
-        let ratingConfig = null; let userRatings = {}; let currentAuthUser = null;
-        let currentImageKeys = [];
-        let isEditMode = false; let editRatingId = null; let cropper = null;
-        const cropperModal = document.getElementById('cropper-modal');
-        const cropperImage = document.getElementById('cropper-image');
-        const cropperStatus = document.getElementById('cropper-status');
-        const AUTHING_APP_ID = '68f5b0b6875017c02b3bfdb3';
-        const AUTHING_HOST = 'https://xfvu647mcdbk-demo.authing.cn';
-        const GRADING_SCALE = [
-          { "grade": "P", "name_en": "Pinnacle", "name_cn": "顶峰 / 登峰造极", "min_score": 95 },
-          { "grade": "I", "name_en": "Impeccable", "name_cn": "无暇 / 完美无瑕", "min_score": 90 },
-          { "grade": "S", "name_en": "Superior", "name_cn": "卓越 / 出众", "min_score": 85 },
-          { "grade": "T", "name_en": "Terrific", "name_cn": "极好 / 绝佳", "min_score": 80 },
-          { "grade": "A", "name_en": "Appreciable", "name_cn": "可圈可点 / 值得欣赏", "min_score": 70 },
-          { "grade": "C", "name_en": "Commonplace", "name_cn": "平庸 / 普通", "min_score": 60 },
-          { "grade": "H", "name_en": "Hesitant", "name_cn": "犹豫 / 瑕瑜互见", "min_score": 40 },
-          { "grade": "O", "name_en": "Ordinary", "name_cn": "乏善可陈 / 平淡", "min_score": 0 }
-        ];
-
-        // --- Authentication ---
-         window.login = function() { const redirectUri = window.location.origin; const authorizeUrl = new URL('/oidc/auth', AUTHING_HOST); authorizeUrl.search = new URLSearchParams({ client_id: AUTHING_APP_ID, redirect_uri: redirectUri, response_type: 'code', scope: 'openid profile email phone', state: Math.random().toString(36).substring(2) }).toString(); window.location.href = authorizeUrl.toString(); }
-         window.logout = function() { const logoutUrl = new URL('/oidc/session/end', AUTHING_HOST); logoutUrl.search = new URLSearchParams({ post_logout_redirect_uri: window.location.origin }).toString(); sessionStorage.removeItem('userInfo'); sessionStorage.removeItem('accessToken'); window.location.href = logoutUrl.toString(); }
-         function renderLoginStatus(user) { const container = document.getElementById('login-status-container'); if (!container) return; if (user) { const displayName = user.nickname || user.name || user.preferred_username || user.email || '已登录'; container.innerHTML = `<span class="text-sm font-medium text-gray-700 mr-2 hidden sm:inline">${displayName}</span><button onclick="logout()" class="px-3 py-1 text-xs font-medium rounded-full bg-red-500 text-white hover:bg-red-600">退出</button>`; } else { container.innerHTML = `<button onclick="login()" class="px-3 py-1 text-xs font-medium rounded-full bg-green-500 text-white hover:bg-green-600">登录/注册</button>`; } }
-         function renderAdminLinks() { const adminLinksContainer = document.getElementById('admin-links-container'); adminLinksContainer.innerHTML = ''; if (!adminLinksContainer || !currentAuthUser) return; const userRole = currentAuthUser.db_role; const isAdmin = userRole === 'admin' || userRole === 'super_admin'; const isSuperAdmin = userRole === 'super_admin'; if (isAdmin) { adminLinksContainer.innerHTML += `<a href="cigar_rating_config.html" class="flex items-center px-3 py-1.5 border text-xs font-medium rounded-full text-white bg-blue-600 hover:bg-blue-500">评分配置</a>`; } if (isSuperAdmin) { adminLinksContainer.innerHTML += `<a href="role_management.html" class="flex items-center px-3 py-1.5 border text-xs font-medium rounded-full text-yellow-100 bg-purple-600 hover:bg-purple-500 ml-2">用户管理</a>`; } }
-         async function handleOidcCallback(code) { try { const redirectUri = window.location.origin; const apiUrl = new URL('/api/authing/callback', window.location.origin); const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: code, redirect_uri: redirectUri }) }); if (!response.ok) { const err = await response.json(); throw new Error(err.error || '认证回调失败'); } const fullUserProfile = await response.json(); sessionStorage.setItem('userInfo', JSON.stringify(fullUserProfile)); sessionStorage.setItem('accessToken', fullUserProfile.accessToken); return fullUserProfile; } catch (e) { console.error('认证回调处理失败:', e); alert(`登录失败: ${e.message}`); sessionStorage.removeItem('userInfo'); sessionStorage.removeItem('accessToken'); return null; } finally { window.history.replaceState({}, document.title, window.location.pathname); } }
-         async function validateSessionAndGetUser() { const token = sessionStorage.getItem('accessToken'); if (!token) return null; try { const apiUrl = new URL('/api/me', window.location.origin); const response = await fetch(apiUrl, { headers: { 'Authorization': `Bearer ${token}` } }); if (!response.ok) { sessionStorage.removeItem('userInfo'); sessionStorage.removeItem('accessToken'); return null; } const fullUserProfile = await response.json(); sessionStorage.setItem('userInfo', JSON.stringify(fullUserProfile)); return fullUserProfile; } catch (e) { console.error("Session validation failed:", e); return null; } }
-         function setUser(user) { currentAuthUser = user; renderLoginStatus(currentAuthUser); setTimeout(() => { renderAdminLinks(); }, 0); }
-        // --- End Auth ---
-
-        // --- Image Cropping and Upload (Multiple) ---
-        const MAX_IMAGES = 5;
-        let filesToProcess = []; let currentFileIndex = 0;
-        function renderImagePreviews() { const grid = document.getElementById('image-preview-grid'); const uploadLabel = document.getElementById('image-upload-label'); const uploadInput = document.getElementById('image-upload-input'); grid.innerHTML = ''; currentImageKeys.forEach((key, index) => { const item = document.createElement('div'); item.className = 'preview-item'; item.innerHTML = ` <img src="/api/image/${key}" alt="Preview ${index + 1}"> <button class="remove-btn" onclick="removeImage(${index})" title="删除图片">&times;</button> ${index === 0 ? '<span class="absolute bottom-1 left-1 bg-black bg-opacity-50 text-white text-2xs px-1 rounded">封面</span>' : ''} `; grid.appendChild(item); }); if (currentImageKeys.length >= MAX_IMAGES) { uploadLabel.classList.add('opacity-50', 'cursor-not-allowed', 'bg-gray-400'); uploadLabel.classList.remove('bg-blue-600', 'hover:bg-blue-700'); uploadInput.disabled = true; } else { uploadLabel.classList.remove('opacity-50', 'cursor-not-allowed', 'bg-gray-400'); uploadLabel.classList.add('bg-blue-600', 'hover:bg-blue-700'); uploadInput.disabled = false; } }
-        window.handleFileSelect = function(event) { const status = document.getElementById('image-upload-status'); status.textContent = ''; const selectedFiles = Array.from(event.target.files); if (selectedFiles.length === 0) return; if (!currentAuthUser) { alert("请先登录再上传图片。"); return; } const allowedFiles = []; for (const file of selectedFiles) { if (currentImageKeys.length + allowedFiles.length >= MAX_IMAGES) { alert(`最多只能上传 ${MAX_IMAGES} 张图片。`); break; } if (file.size > 5 * 1024 * 1024) { alert(`图片 "${file.name}" 太大 (超过5MB)，已跳过。`); continue; } if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) { alert(`文件 "${file.name}" 类型不受支持，已跳过。`); continue; } allowedFiles.push(file); } if (allowedFiles.length > 0) { filesToProcess = allowedFiles; currentFileIndex = 0; showCropperForNextFile(); } event.target.value = null; }
-        function showCropperForNextFile() { if (currentFileIndex >= filesToProcess.length) { console.log("All selected files processed."); filesToProcess = []; cancelCrop(); return; } const file = filesToProcess[currentFileIndex]; const reader = new FileReader(); reader.onload = (e) => { cropperModal.classList.remove('hidden'); cropperImage.src = e.target.result; if (cropper) cropper.destroy(); cropper = new Cropper(cropperImage, { aspectRatio: 1179 / 1572, viewMode: 1, autoCropArea: 0.9, background: false, }); cropperStatus.textContent = `正在处理第 ${currentFileIndex + 1} / ${filesToProcess.length} 张图片。请调整裁切框。`; }; reader.readAsDataURL(file); }
-        window.confirmCropAndUpload = async function() { if (!cropper || !filesToProcess[currentFileIndex]) return; const token = sessionStorage.getItem('accessToken'); if (!token) { alert("会话已过期，请重新登录。"); return; } cropperStatus.textContent = `正在裁切并上传第 ${currentFileIndex + 1} 张...`; const fileName = filesToProcess[currentFileIndex].name; const canvas = cropper.getCroppedCanvas({ width: 600, height: 800, imageSmoothingQuality: 'high', }); canvas.toBlob(async (blob) => { if (!blob) { cropperStatus.textContent = '裁切失败，请重试。'; return; } try { const formData = new FormData(); formData.append('image', blob, fileName); const response = await fetch('/api/upload-image', { method: 'POST', headers: { 'Authorization': `Bearer ${token}` }, body: formData }); const result = await response.json(); if (!response.ok) throw new Error(result.error || '上传失败'); currentImageKeys.push(result.imageKey); renderImagePreviews(); currentFileIndex++; showCropperForNextFile(); } catch (e) { console.error("上传图片失败:", e); cropperStatus.textContent = `上传失败: ${e.message}`; } }, 'image/jpeg', 0.9); }
-        window.cancelCrop = function() { cropperModal.classList.add('hidden'); if (cropper) { cropper.destroy(); cropper = null; } filesToProcess = []; currentFileIndex = 0; document.getElementById('image-upload-input').value = null; cropperStatus.textContent = ''; }
-        window.removeImage = function(indexToRemove) { if (indexToRemove >= 0 && indexToRemove < currentImageKeys.length) { const removedKey = currentImageKeys.splice(indexToRemove, 1); console.log("Removed image key:", removedKey); renderImagePreviews(); } }
-        // --- End Image ---
-
-
-        // --- Core Rating Logic ---
-        async function loadConfig() { document.getElementById('config-load-status').textContent = '正在同步配置...'; try { const apiUrl = new URL('/api/config/latest', window.location.origin); const response = await fetch(apiUrl); if (!response.ok) throw new Error(`服务器错误: ${response.statusText}`); ratingConfig = await response.json(); if (!ratingConfig || !ratingConfig.ratingCriteria) throw new Error("加载的配置无效。"); calculateWeights(ratingConfig); userRatings = {}; renderRatingView(); document.getElementById('config-load-status').textContent = `配置已同步`; } catch (error) { console.error("加载配置失败:", error); document.getElementById('config-load-status').textContent = '配置加载失败'; alert(`加载应用核心配置失败，请刷新页面重试。\n错误详情: ${error.message}`); } }
-        function getRatingId(category, criterion) { return `${String(category || '').trim()}-${String(criterion || '').trim()}`; }
-        function calculateWeights(config) { if (!config || !config.ratingCriteria) return; let grandTotal = 0, totalCriteriaCount = 0; config.ratingCriteria.forEach(category => { let categoryTotal = 0; (category.criteriaList || []).forEach(criterion => { categoryTotal += (criterion.weight || 0); totalCriteriaCount++; }); category.totalWeight = categoryTotal; grandTotal += categoryTotal; }); config.totalWeightMax = grandTotal; config.totalCriteriaCount = totalCriteriaCount; }
-        function calculateFinalScore() { if (!ratingConfig || !ratingConfig.ratingCriteria) return 0; let totalScore = 0; ratingConfig.ratingCriteria.forEach(category => { (category.criteriaList || []).forEach(criterion => { const id = getRatingId(category.category, criterion.name); const selectedOptionIndex = userRatings[id]; if (selectedOptionIndex !== undefined && criterion.options?.[selectedOptionIndex]) { totalScore += (criterion.weight || 0) * (criterion.options[selectedOptionIndex].scorePct || 0); } }); }); return totalScore; }
-        window.updateRatingSelection = function(categoryName, criterionName, optionIndex) { const id = getRatingId(categoryName, criterionName); if (userRatings[id] === optionIndex) { delete userRatings[id]; } else { userRatings[id] = optionIndex; } renderRatingView(); };
-        function renderRatingView() { if (!ratingConfig || !ratingConfig.ratingCriteria) { const formContainer = document.getElementById('rating-form-container'); formContainer.innerHTML = `<div class="text-center p-6 bg-white rounded-lg shadow"><p>无法加载评分标准。</p></div>`; return; }; const totalScore = calculateFinalScore(); document.getElementById('app-title-display').textContent = ratingConfig.appTitle; document.getElementById('app-description-display').textContent = ratingConfig.description; document.getElementById('total-weight-max-display').textContent = ratingConfig.totalWeightMax ?? 0; document.getElementById('current-score-display').textContent = totalScore.toFixed(2); const ratedCount = Object.keys(userRatings).length; const totalCount = ratingConfig.totalCriteriaCount || 1; document.getElementById('progress-bar').style.width = `${(ratedCount / totalCount) * 100}%`; document.getElementById('progress-text').textContent = `${ratedCount} / ${totalCount}`; const formContainer = document.getElementById('rating-form-container'); formContainer.innerHTML = ratingConfig.ratingCriteria.map((category) => ` <div class="bg-white p-6 rounded-xl shadow-lg mb-8 border-l-4 border-indigo-500"> <h3 class="text-xl font-bold text-indigo-700 mb-2">${category.category}</h3> <p class="text-gray-500 text-sm mb-4">${category.detail || ''}</p> <div class="space-y-6">${(category.criteriaList || []).map((criterion) => renderRatingCriterion(category.category, criterion)).join('')}</div> </div>`).join(''); }
-        function renderRatingCriterion(categoryName, criterion) { const id = getRatingId(categoryName, criterion.name); const selectedOptionIndex = userRatings[id]; const currentWeight = criterion.weight || 0; let currentScore = 0; if (selectedOptionIndex !== undefined && criterion.options?.[selectedOptionIndex]) { currentScore = currentWeight * (criterion.options[selectedOptionIndex].scorePct || 0); } const isSuperAdmin = currentAuthUser?.db_role === 'super_admin'; return `<div class="bg-gray-50 p-4 rounded-lg border"> <div class="flex justify-between items-center mb-3"> <h4 class="text-lg font-semibold text-gray-800">${criterion.name} ${isSuperAdmin ? `(${currentWeight} 分)` : ''}</h4> ${isSuperAdmin ? `<span class="text-xl font-extrabold text-green-600">${currentScore.toFixed(2)}</span>` : ''} </div> <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2"> ${(criterion.options || []).map((option, optIndex) => { const isSelected = selectedOptionIndex === optIndex; const score = (currentWeight * (option.scorePct || 0)).toFixed(2); return `<button onclick="updateRatingSelection('${categoryName}', '${criterion.name}', ${optIndex})" class="p-2 text-sm text-center rounded-lg border transition ${ isSelected ? 'bg-indigo-600 text-white shadow-md' : 'bg-white hover:bg-indigo-50' }"> ${option.description} ${isSuperAdmin ? `<span class="block text-xs ${isSelected ? 'text-indigo-200' : 'text-gray-500'}">(得 ${score} 分)</span>` : ''} </button>`; }).join('')} </div> </div>`; }
-        // --- End Core Rating Logic ---
-
-
-        // --- Actions (Reset, Show Results / Save Changes) ---
-        window.resetRatings = function() { if (confirm("确定要重置所有评分选择和图片吗？")) { userRatings = {}; document.getElementById('rating-title').value = ''; document.getElementById('cigar-name').value = ''; document.getElementById('cigar-size').value = ''; document.getElementById('cigar-origin').value = ''; document.getElementById('cigar-review').value = ''; currentImageKeys = []; renderImagePreviews(); if (isEditMode) { isEditMode = false; editRatingId = null; const actionButton = document.getElementById('main-action-button'); actionButton.textContent = "查看报告"; actionButton.classList.remove('bg-blue-600', 'hover:bg-blue-700'); actionButton.classList.add('bg-green-600', 'hover:bg-green-700'); window.history.replaceState({}, document.title, window.location.pathname); } renderRatingView(); updateCharCounts(); } }
-
-        window.showResults = async function() {
-            const token = sessionStorage.getItem('accessToken'); if (!isEditMode && (!currentAuthUser || !token)) { return alert("请登录后才能提交点评。"); } if (!ratingConfig || Object.keys(userRatings).length === 0) { return alert("请至少选择一个评分项后再操作。"); } const title = document.getElementById('rating-title').value.trim(); if (!title) { return alert("请填写点评标题。"); }
-            const cigarInfo = { name: document.getElementById('cigar-name').value || '未命名雪茄', size: document.getElementById('cigar-size').value || '未知尺寸', origin: document.getElementById('cigar-origin').value || '未知产地' }; const cigarReview = document.getElementById('cigar-review').value || '无'; const finalScore = calculateFinalScore(); const maxScore = ratingConfig.totalWeightMax || 1; const normalizedScore = maxScore > 0 ? (finalScore / maxScore) * 100 : 0;
-            const foundGrade = GRADING_SCALE.find(g => normalizedScore >= g.min_score);
-            const finalGrade = foundGrade ? { grade: foundGrade.grade, name_cn: foundGrade.name_cn, name_en: foundGrade.name_en } : { grade: 'O', name_cn: '乏善可陈 / 平淡', name_en: 'Ordinary' };
-
-            const resultsData = { title: title, config: ratingConfig, ratings: userRatings, calculatedScore: finalScore, cigarInfo: cigarInfo, cigarReview: cigarReview, imageUrls: currentImageKeys, normalizedScore: normalizedScore, finalGrade: finalGrade, isDraft: !isEditMode }; console.log("Data being prepared for results/save:", resultsData);
-            if (isEditMode && editRatingId) { const actionButton = document.getElementById('main-action-button'); actionButton.textContent = "正在保存..."; actionButton.disabled = true; try { if (!token) throw new Error("会话已过期，请重新登录。"); resultsData.ratingId = editRatingId; const apiUrl = new URL(`/api/ratings`, window.location.origin); const response = await fetch(apiUrl, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify(resultsData) }); if (!response.ok) { const err = await response.json(); throw new Error(err.error || '更新失败'); } alert("更改已保存！"); window.location.href = 'history.html'; } catch (e) { alert(`保存失败: ${e.message}`); actionButton.textContent = "保存更改"; actionButton.disabled = false; } }
-            else { try { sessionStorage.setItem('cigarRatingResults', JSON.stringify(resultsData)); window.location.href = 'results.html'; } catch (e) { alert("无法保存会话数据 (sessionStorage)。"); } }
+        if (!response.ok) {
+            if (request.method === 'GET') return null; // Treat invalid token as anonymous for GET
+            const errorText = await response.text();
+            console.error("Authing token validation failed:", response.status, errorText);
+            throw new Error(`Invalid token (status: ${response.status})`);
         }
-        // --- End Actions ---
+
+        const userInfo = await response.json();
+        const dbRole = await getRoleFromDatabase(env.DB, userInfo, `validateToken(${request.method})`);
+        userInfo.db_role = dbRole;
+        return userInfo;
+    } catch (e) {
+        if (request.method === 'GET') {
+            console.warn("Token validation failed during GET, treating as anonymous:", e.message);
+            return null;
+        }
+        throw e;
+    }
+}
 
 
-        // --- Edit Mode Logic ---
-        // **DEBUGGING**: Added logs inside loadRatingForEdit
-        async function loadRatingForEdit(ratingId) {
-            console.log(`[loadRatingForEdit] Started for ID: ${ratingId}`);
-            const token = sessionStorage.getItem('accessToken');
-            if (!token) {
-                 alert("无法验证身份，请重新登录。");
-                 window.location.href = 'history.html';
-                 return;
+/**
+ * 从 D1 获取/更新用户角色和昵称 (SELECT-first approach)
+ * @param {D1Database} db
+ * @param {object} userInfo - Authing user info
+ * @param {string} source - 调用来源 (用于调试日志)
+ * @returns {Promise<string>} - User's role
+ */
+async function getRoleFromDatabase(db, userInfo, source = "unknown") {
+    const userId = userInfo.sub;
+    const email = userInfo.email;
+    const nickname = userInfo.name || userInfo.nickname || userInfo.preferred_username || userInfo.email;
+
+    if (!userId) {
+        console.error(`[getRoleFromDatabase @ ${source}] Error: userId is missing from userInfo.`);
+        return 'general';
+    }
+
+    try {
+        // Step 1: Try finding by userId (primary key)
+        const stmtSelect = db.prepare("SELECT role, nickname as dbNickname, email as dbEmail FROM users WHERE userId = ?").bind(userId);
+        const userRecord = await stmtSelect.first();
+
+        if (userRecord) {
+            // Update email/nickname only if they differ or are null in DB
+            if ((email && userRecord.dbEmail !== email) || (nickname && userRecord.dbNickname !== nickname) || userRecord.dbEmail === null || userRecord.dbNickname === null) {
+                 console.log(`[getRoleFromDatabase @ ${source}] Updating email/nickname for existing user ${userId}...`);
+                 const stmtUpdate = db.prepare("UPDATE users SET email = ?, nickname = ? WHERE userId = ?")
+                                      .bind(email ?? null, nickname ?? null, userId);
+                 await stmtUpdate.run();
             }
-            document.getElementById('config-load-status').textContent = `正在加载点评 ${ratingId}...`;
+            return userRecord.role; // Return existing role
+        } else {
+            // Step 2: Try finding by email
+            if (email) {
+                 const stmtSelectEmail = db.prepare("SELECT userId as dbUserId, role, nickname as dbNickname FROM users WHERE email = ?").bind(email);
+                 const userRecordEmail = await stmtSelectEmail.first();
+
+                 if (userRecordEmail) {
+                     console.log(`[getRoleFromDatabase @ ${source}] Updating userId (to ${userId}) and nickname for existing user found by email ${email}...`);
+                     const stmtUpdateEmail = db.prepare("UPDATE users SET userId = ?, nickname = ? WHERE email = ?")
+                                               .bind(userId, nickname ?? null, email);
+                     await stmtUpdateEmail.run();
+                     return userRecordEmail.role;
+                 }
+            }
+
+            // Step 3: Create new user
+            let assignedRole = 'general';
+            const stmtInsert = db.prepare("INSERT INTO users (userId, email, role, nickname) VALUES (?, ?, ?, ?)")
+                                 .bind(userId, email ?? null, assignedRole, nickname ?? null);
+            await stmtInsert.run();
+            console.log(`[getRoleFromDatabase @ ${source}] Created new user ${userId}. Assigned Role: ${assignedRole}`);
+            return assignedRole;
+        }
+    } catch (e) {
+        console.error(`[getRoleFromDatabase @ ${source}] Database error for userId=${userId}, email=${email}:`, e.message, e);
+        return 'general';
+    }
+}
+
+
+// --- API: GET /api/ratings ---
+export async function onRequestGet(context) {
+     const { request, env } = context; const url = new URL(request.url); const getCertified = url.searchParams.get('certified') === 'true'; const singleRatingId = url.searchParams.get('id');
+     // console.log(`[GET /api/ratings] Request URL: ${request.url}, Certified: ${getCertified}, Single ID: ${singleRatingId}`); // Reduce logging
+     try {
+         let stmt; let userInfo = await validateTokenAndGetUser(request, env); const currentUserRole = userInfo?.db_role ?? 'guest'; // console.log(`[GET /api/ratings] User validated. Role: ${currentUserRole}, UserInfo:`, userInfo ? {sub: userInfo.sub, email: userInfo.email, role: userInfo.db_role} : null); // Reduce logging
+         const selectFields = `r.id, r.userId, r.userEmail, r.userNickname, r.timestamp, r.cigarName, r.cigarSize, r.cigarOrigin, r.normalizedScore, r.finalGrade_grade, r.finalGrade_name_cn, r.isCertified, r.certifiedRatingId, r.imageUrl, r.cigarReview, r.isPinned, r.fullData`; const defaultOrderBy = "ORDER BY r.timestamp DESC"; const pinnedOrderBy = "ORDER BY r.isPinned DESC, r.timestamp DESC";
+         if (singleRatingId) {
+             // console.log(`[GET /api/ratings] Fetching single rating: ${singleRatingId}`); // Reduce logging
+             if (!userInfo) throw new Error("需要登录才能加载评分进行编辑。"); stmt = env.DB.prepare(`SELECT ${selectFields} FROM ratings r WHERE r.id = ?`).bind(singleRatingId); const result = await stmt.first(); // console.log(`[GET /api/ratings] DB result for single rating ${singleRatingId}:`, result ? {id: result.id, userId: result.userId, hasFullData: !!result.fullData} : null); // Reduce logging
+             if (!result) throw new Error("评分未找到。"); const isOwner = result.userId === userInfo.sub; const isAdmin = currentUserRole === 'admin' || currentUserRole === 'super_admin'; if (!isOwner && !isAdmin) throw new Error("无权编辑此评分。"); try { if (result.fullData && typeof result.fullData === 'string') { result.fullData = JSON.parse(result.fullData); } else if (result.fullData && typeof result.fullData === 'object') { /* Already object */ } else { result.fullData = null; } } catch (e) { console.error(`Failed to parse fullData for single rating ID ${singleRatingId}:`, e.message); result.fullData = null; } return new Response(JSON.stringify(result), { headers: { 'Content-Type': 'application/json' } });
+         } else if (getCertified) { console.log(`[GET /api/ratings] Fetching certified ratings.`); stmt = env.DB.prepare(`SELECT ${selectFields} FROM ratings r WHERE r.isCertified = 1 ${defaultOrderBy}`);
+         } else if (currentUserRole === 'admin' || currentUserRole === 'super_admin') { console.log(`[GET /api/ratings] Fetching all ratings for admin.`); stmt = env.DB.prepare(`SELECT ${selectFields} FROM ratings r ${pinnedOrderBy}`);
+         } else if (userInfo) { console.log(`[GET /api/ratings] Fetching ratings for user ${userInfo.sub}.`); stmt = env.DB.prepare(`SELECT ${selectFields} FROM ratings r WHERE r.userId = ? ${defaultOrderBy}`).bind(userInfo.sub);
+         } else { console.log(`[GET /api/ratings] Fetching all ratings for public view (guest).`); stmt = env.DB.prepare(`SELECT ${selectFields} FROM ratings r ${pinnedOrderBy}`); }
+         // console.log(`[GET /api/ratings] Executing list query...`); // Reduce logging
+         const { results } = await stmt.all(); console.log(`[GET /api/ratings] Found ${results.length} ratings in list view.`);
+         const parsedResults = results.map(row => {
+             try { if (row.fullData && typeof row.fullData === 'string') { row.fullData = JSON.parse(row.fullData); if (!row.fullData || !row.fullData.config || !row.fullData.ratings || row.fullData.calculatedScore === undefined) { /* console.warn(`[GET /api/ratings] Parsed fullData for ${row.id} is incomplete! Setting fullData to null.`); */ row.fullData = null; } } else if (row.fullData && typeof row.fullData === 'object') { if (!row.fullData.config || !row.fullData.ratings || row.fullData.calculatedScore === undefined) { /* console.warn(`[GET /api/ratings] Existing fullData object for ${row.id} is incomplete! Setting fullData to null.`); */ row.fullData = null; } } else { row.fullData = null; } } catch (e) { console.error(`[GET /api/ratings] Failed to parse fullData for list item ID ${row.id}:`, e.message); row.fullData = null; }
+             row.cigarInfo = { name: row.cigarName, size: row.cigarSize, origin: row.cigarOrigin }; if (row.finalGrade_grade && row.finalGrade_name_cn) { row.finalGrade = { grade: row.finalGrade_grade, name_cn: row.finalGrade_name_cn }; } else { row.finalGrade = null; } row.isPinned = !!row.isPinned; return row;
+         });
+         // console.log(`[GET /api/ratings] Returning ${parsedResults.length} parsed ratings.`); // Reduce logging
+         return new Response(JSON.stringify(parsedResults), { headers: { 'Content-Type': 'application/json' } });
+     } catch(e) { console.error("[GET /api/ratings] Final catch block error:", e.message, e); let errorMessage = e.message || 'An unknown error occurred while fetching ratings.'; let statusCode = e.message.includes('token') || e.message.includes('需要登录') || e.message.includes('无权编辑') ? 401 : 500; if (e.message.includes("评分未找到")) statusCode = 404; return new Response(JSON.stringify({ error: errorMessage }), { status: statusCode, headers: { 'Content-Type': 'application/json' } }); }
+}
+
+
+// --- API: POST /api/ratings ---
+export async function onRequestPost(context) {
+     const { request, env } = context; console.log(`[POST /api/ratings] Received request.`); try { const userInfo = await validateTokenAndGetUser(request, env); if (!userInfo) throw new Error("需要登录才能保存评分。"); console.log(`[POST /api/ratings] User validated: ${userInfo.sub}`); const ratingToSave = await request.json(); // console.log(`[POST /api/ratings] Received rating data for cigar: ${ratingToSave?.cigarInfo?.name}, Has config? ${!!ratingToSave?.config}, Has ratings? ${!!ratingToSave?.ratings}`); // Reduce logging
+     if (!ratingToSave || typeof ratingToSave !== 'object') { throw new Error("Invalid rating data received."); } if (!ratingToSave.config || !ratingToSave.ratings || ratingToSave.calculatedScore === undefined) { console.error("[POST /api/ratings] Error: Data to save is incomplete!", ratingToSave); throw new Error("Cannot save rating: Data is incomplete (missing config, ratings, or calculatedScore)."); } const newId = crypto.randomUUID(); const nickname = userInfo.nickname || userInfo.name || userInfo.preferred_username || userInfo.email; console.log(`[POST /api/ratings] Preparing to insert ID ${newId} for user ${userInfo.sub}`); await env.DB.prepare( `INSERT INTO ratings ( id, userId, userEmail, userNickname, timestamp, cigarName, cigarSize, cigarOrigin, normalizedScore, finalGrade_grade, finalGrade_name_cn, isCertified, certifiedRatingId, imageUrl, cigarReview, isPinned, fullData ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)` ).bind( newId, userInfo.sub, userInfo.email ?? null, nickname ?? null, new Date().toISOString(), ratingToSave?.cigarInfo?.name ?? null, ratingToSave?.cigarInfo?.size ?? null, ratingToSave?.cigarInfo?.origin ?? null, ratingToSave?.normalizedScore ?? null, ratingToSave?.finalGrade?.grade ?? null, ratingToSave?.finalGrade?.name_cn ?? null, false, null, ratingToSave?.imageUrl ?? null, ratingToSave?.cigarReview ?? null, false, JSON.stringify(ratingToSave) ).run(); console.log(`[POST /api/ratings] Successfully inserted ID ${newId}`); return new Response(JSON.stringify({ success: true, id: newId }), { status: 201, headers: { 'Content-Type': 'application/json' } }); } catch (e) { console.error("[POST /api/ratings] Save rating error:", e.message, e); let errorMessage = e.message || 'An unknown error occurred while saving the rating.'; if (e.message.includes('D1_ERROR')) errorMessage = `Database error: ${e.message}`; else if (e.message.includes('token') || e.message.includes('需要登录')) errorMessage = 'Authentication failed. Please log in again.'; return new Response(JSON.stringify({ error: errorMessage }), { status: e.message.includes('token') || e.message.includes('需要登录') ? 401 : (e.message.includes('Cannot save rating') ? 400 : 500), headers: { 'Content-Type': 'application/json' } }); }
+}
+
+// --- API: PUT /api/ratings ---
+export async function onRequestPut(context) {
+     const { request, env } = context; console.log(`[PUT /api/ratings] Received request.`); try { const userInfo = await validateTokenAndGetUser(request, env); if (!userInfo) throw new Error("需要登录才能更新评分。"); console.log(`[PUT /api/ratings] User validated: ${userInfo.sub}`); const ratingToSave = await request.json(); const ratingId = ratingToSave?.ratingId; // console.log(`[PUT /api/ratings] Received update data for ID ${ratingId}. Cigar: ${ratingToSave?.cigarInfo?.name}, Has config? ${!!ratingToSave?.config}, Has ratings? ${!!ratingToSave?.ratings}`); // Reduce logging
+     if (!ratingId) throw new Error("Missing ratingId for update."); if (!ratingToSave || typeof ratingToSave !== 'object') { throw new Error("Invalid rating data received."); } if (!ratingToSave.config || !ratingToSave.ratings || ratingToSave.calculatedScore === undefined) { console.error("[PUT /api/ratings] Error: Data to save is incomplete!", ratingToSave); throw new Error("Cannot save rating update: Data is incomplete (missing config, ratings, or calculatedScore)."); } // console.log(`[PUT /api/ratings] Checking permissions for user ${userInfo.sub} on rating ${ratingId}`); // Reduce logging
+     const stmt = env.DB.prepare("SELECT userId FROM ratings WHERE id = ?").bind(ratingId); const originalRating = await stmt.first(); if (!originalRating) { console.log(`[PUT /api/ratings] Rating ${ratingId} not found.`); throw new Error("Rating not found."); } const isOwner = originalRating.userId === userInfo.sub; const isAdmin = userInfo.db_role === 'admin' || userInfo.db_role === 'super_admin'; // console.log(`[PUT /api/ratings] Is Owner: ${isOwner}, Is Admin: ${isAdmin}`); // Reduce logging
+     if (!isOwner && !isAdmin) throw new Error("Permission denied to edit this rating."); console.log(`[PUT /api/ratings] Preparing to update ID ${ratingId}`); await env.DB.prepare( `UPDATE ratings SET timestamp = ?, cigarName = ?, cigarSize = ?, cigarOrigin = ?, normalizedScore = ?, finalGrade_grade = ?, finalGrade_name_cn = ?, imageUrl = ?, cigarReview = ?, fullData = ? WHERE id = ?` ).bind( new Date().toISOString(), ratingToSave?.cigarInfo?.name ?? null, ratingToSave?.cigarInfo?.size ?? null, ratingToSave?.cigarInfo?.origin ?? null, ratingToSave?.normalizedScore ?? null, ratingToSave?.finalGrade?.grade ?? null, ratingToSave?.finalGrade?.name_cn ?? null, ratingToSave?.imageUrl ?? null, ratingToSave?.cigarReview ?? null, JSON.stringify(ratingToSave), ratingId ).run(); console.log(`[PUT /api/ratings] Successfully updated ID ${ratingId}`); return new Response(JSON.stringify({ success: true, id: ratingId }), { status: 200, headers: { 'Content-Type': 'application/json' } }); } catch (e) { console.error("[PUT /api/ratings] Update rating error:", e.message, e); let errorMessage = e.message || 'An unknown error occurred while updating the rating.'; let statusCode = 500; if (e.message.includes('token') || e.message.includes('需要登录')) statusCode = 401; if (e.message.includes('Permission denied')) statusCode = 403; if (e.message.includes("not found")) statusCode = 404; if (e.message.includes('Cannot save rating update')) statusCode = 400; return new Response(JSON.stringify({ error: errorMessage }), { status: statusCode, headers: { 'Content-Type': 'application/json' } }); }
+}
+
+
+// --- API: DELETE /api/ratings ---
+// **FIXED**: Return 200 even if rating was already deleted
+export async function onRequestDelete(context) {
+    const { request, env } = context;
+    console.log(`[DELETE /api/ratings] Received request.`);
+    try {
+        const userInfo = await validateTokenAndGetUser(request, env);
+         if (!userInfo) throw new Error("需要登录才能删除评分。");
+         console.log(`[DELETE /api/ratings] User validated: ${userInfo.sub}`);
+
+        const { ratingId } = await request.json();
+         console.log(`[DELETE /api/ratings] Request to delete ID ${ratingId}`);
+        if (!ratingId) throw new Error("Missing ratingId for delete.");
+
+        // Security Check & Get Image Key
+        console.log(`[DELETE /api/ratings] Checking permissions and fetching image key for rating ${ratingId}`);
+        const stmt = env.DB.prepare("SELECT userId, imageUrl FROM ratings WHERE id = ?").bind(ratingId);
+        const originalRating = await stmt.first();
+
+        // **FIX**: Handle case where rating is already deleted gracefully
+        if (!originalRating) {
+             console.log(`[DELETE /api/ratings] Rating ${ratingId} not found (already deleted?). Returning success.`);
+             // Return 200 OK because the desired state (deleted) is achieved
+             return new Response(JSON.stringify({ success: true, id: ratingId, message: "Rating already deleted or not found." }), {
+                 status: 200,
+                 headers: { 'Content-Type': 'application/json'}
+              });
+        }
+
+        const isOwner = originalRating.userId === userInfo.sub;
+        const isAdmin = userInfo.db_role === 'admin' || userInfo.db_role === 'super_admin';
+         console.log(`[DELETE /api/ratings] Is Owner: ${isOwner}, Is Admin: ${isAdmin}`);
+        if (!isOwner && !isAdmin) throw new Error("Permission denied to delete this rating.");
+
+        // STEP 1: Attempt to delete image from R2 first (if exists)
+        const imageKey = originalRating.imageUrl;
+        if (imageKey && env.PISTACHO_BUCKET) {
+             console.log(`[DELETE /api/ratings] Preparing to delete image key ${imageKey} from R2...`);
             try {
-                const apiUrl = new URL(`/api/ratings?id=${ratingId}`, window.location.origin);
-                console.log(`[loadRatingForEdit] Fetching data from: ${apiUrl}`);
-                const response = await fetch(apiUrl, { headers: { 'Authorization': `Bearer ${token}` } });
-                console.log(`[loadRatingForEdit] API response status: ${response.status}`);
-
-                if (!response.ok) {
-                    let errorText = `加载点评失败: ${response.status}`;
-                    try { const err = await response.json(); errorText = err.error || errorText; } catch(e){}
-                    throw new Error(errorText);
-                }
-
-                const ratingData = await response.json();
-                console.log("[loadRatingForEdit] Received ratingData:", ratingData); // Log the entire object
-
-                if (!ratingData) { throw new Error(`点评 ${ratingId} 未找到或无权访问。`); }
-                // Check essential fields returned by API
-                if (!ratingData.fullData || !ratingData.fullData.ratings) { throw new Error("加载的点评数据不完整(缺少fullData.ratings)，无法编辑。"); }
-                if (!ratingConfig) {
-                    console.log("[loadRatingForEdit] ratingConfig not loaded yet, loading now...");
-                    await loadConfig();
-                    if(!ratingConfig) throw new Error("无法加载评分配置，无法编辑。");
-                     console.log("[loadRatingForEdit] ratingConfig loaded successfully.");
-                }
-
-                // Populate fields
-                const titleElement = document.getElementById('rating-title');
-                if(titleElement) { titleElement.value = ratingData.title || ''; console.log(`[loadRatingForEdit] Set title: ${titleElement.value}`); } else { console.error("Title input not found!");}
-
-                const nameElement = document.getElementById('cigar-name');
-                if(nameElement) { nameElement.value = ratingData.cigarName || ratingData.cigarInfo?.name || ''; console.log(`[loadRatingForEdit] Set name: ${nameElement.value}`);} else { console.error("Name input not found!");} // Use top-level first
-
-                const sizeElement = document.getElementById('cigar-size');
-                if(sizeElement) { sizeElement.value = ratingData.cigarSize || ratingData.cigarInfo?.size || ''; console.log(`[loadRatingForEdit] Set size: ${sizeElement.value}`);} else { console.error("Size input not found!");}
-
-                const originElement = document.getElementById('cigar-origin');
-                if(originElement) { originElement.value = ratingData.cigarOrigin || ratingData.cigarInfo?.origin || ''; console.log(`[loadRatingForEdit] Set origin: ${originElement.value}`);} else { console.error("Origin input not found!");}
-
-                const reviewElement = document.getElementById('cigar-review');
-                if(reviewElement) { reviewElement.value = ratingData.cigarReview || ''; console.log(`[loadRatingForEdit] Set review: ${reviewElement.value}`);} else { console.error("Review textarea not found!");}
-
-                userRatings = ratingData.fullData.ratings || {};
-                console.log("[loadRatingForEdit] Set userRatings:", userRatings);
-
-                // **DEBUG**: Log imageUrl before parsing
-                let imageUrlsRaw = ratingData.imageUrl;
-                console.log(`[loadRatingForEdit] Raw imageUrl from API:`, imageUrlsRaw, `(Type: ${typeof imageUrlsRaw})`);
-
-                if (typeof imageUrlsRaw === 'string') {
-                     try {
-                         currentImageKeys = JSON.parse(imageUrlsRaw);
-                         if (!Array.isArray(currentImageKeys)) { // Handle cases where it's a stringified non-array
-                              console.warn("[loadRatingForEdit] Parsed imageUrls is not an array, treating as single image if non-empty:", currentImageKeys);
-                              currentImageKeys = imageUrlsRaw ? [imageUrlsRaw] : []; // Fallback to single or empty
-                         }
-                         console.log("[loadRatingForEdit] Parsed imageUrls string into array:", currentImageKeys);
-                     } catch(e){
-                         currentImageKeys = []; // Default to empty array on parse error
-                         console.error("[loadRatingForEdit] Failed to parse imageUrls string:", e);
-                     }
-                } else if (Array.isArray(imageUrlsRaw)) {
-                     // Should not happen if backend saves as string, but handle defensively
-                     currentImageKeys = imageUrlsRaw;
-                     console.log("[loadRatingForEdit] imageUrl from API was already an array:", currentImageKeys);
-                } else {
-                     currentImageKeys = []; // Default for null, undefined, etc.
-                     console.log("[loadRatingForEdit] imageUrl from API was null or invalid type, setting to empty array.");
-                }
-
-                renderImagePreviews();
-                console.log("[loadRatingForEdit] Image previews rendered.");
-
-                isEditMode = true; editRatingId = ratingId;
-                const actionButton = document.getElementById('main-action-button');
-                actionButton.textContent = "保存更改"; actionButton.classList.remove('bg-green-600', 'hover:bg-green-700'); actionButton.classList.add('bg-blue-600', 'hover:bg-blue-700');
-                console.log("[loadRatingForEdit] Set edit mode UI.");
-
-                renderRatingView(); // Render selections based on userRatings
-                console.log("[loadRatingForEdit] Rating view rendered.");
-
-                document.getElementById('config-load-status').textContent = `已加载点评 ${ratingId} (编辑模式)`;
-                updateCharCounts(); // Update counts after loading data
-                console.log("[loadRatingForEdit] Completed successfully.");
-
-            } catch (e) {
-                console.error(`[loadRatingForEdit] Error loading rating ${ratingId}:`, e);
-                alert(`加载点评失败: ${e.message}`);
-                window.location.href = 'history.html'; // Redirect back
+                await env.PISTACHO_BUCKET.delete(imageKey);
+                console.log(`[DELETE /api/ratings] Successfully deleted image key ${imageKey} from R2.`);
+            } catch (r2Err) {
+                 console.error(`[DELETE /api/ratings] Failed to delete R2 object ${imageKey} (continuing with D1 delete):`, r2Err);
             }
+        } else {
+             console.log(`[DELETE /api/ratings] No image key found or R2 bucket not configured. Skipping R2 delete.`);
         }
-        // --- End Edit Mode ---
 
-        // Character Counters
-        function updateCharCounts() { const titleInput = document.getElementById('rating-title'); const reviewInput = document.getElementById('cigar-review'); const titleCount = document.getElementById('title-char-count'); const reviewCount = document.getElementById('review-char-count'); if(titleInput && titleCount) titleCount.textContent = `${titleInput.value.length} / 22`; if(reviewInput && reviewCount) reviewCount.textContent = `${reviewInput.value.length} / 1500`; }
+        // STEP 2: Execute delete from D1
+        console.log(`[DELETE /api/ratings] Preparing to delete ID ${ratingId} from D1...`);
+        const deleteStmt = env.DB.prepare("DELETE FROM ratings WHERE id = ?").bind(ratingId);
+        const result = await deleteStmt.run();
+        console.log(`[DELETE /api/ratings] D1 delete result changes: ${result.changes}`);
 
-        // --- Initialization ---
-        window.onload = async function() {
-            const urlParams = new URLSearchParams(window.location.search); const code = urlParams.get('code'); const editId = urlParams.get('edit'); let user = null;
-            if (code) { user = await handleOidcCallback(code); } else { user = await validateSessionAndGetUser(); } setUser(user); console.log("Current User Object:", currentAuthUser);
-            await loadConfig();
-            if (editId) { await loadRatingForEdit(editId); } else { renderImagePreviews(); updateCharCounts(); } // Initialize preview grid and counts
-            document.getElementById('rating-title')?.addEventListener('input', updateCharCounts); document.getElementById('cigar-review')?.addEventListener('input', updateCharCounts);
-            if (editId) { window.history.replaceState({}, document.title, window.location.pathname); }
-        };
-    </script>
-</body>
-</html>
+        // STEP 3: Return success (200) regardless of result.changes, because the rating is now gone.
+        console.log(`[DELETE /api/ratings] Successfully processed delete request for ID ${ratingId}.`);
+        return new Response(JSON.stringify({ success: true, id: ratingId }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json'}
+         });
+
+    } catch (e) { // Catches errors ONLY from auth, JSON parsing, or permission check
+         console.error("[DELETE /api/ratings] Final catch block error:", e.message, e);
+        let errorMessage = e.message || 'An unknown error occurred while deleting the rating.';
+        let statusCode = 500;
+        if (e.message.includes('token') || e.message.includes('需要登录')) statusCode = 401;
+        else if (e.message.includes('Permission denied')) statusCode = 403;
+        // Removed 404 check here, handled above
+        else if (e.message.includes("Missing ratingId")) statusCode = 400;
+
+        return new Response(JSON.stringify({ error: errorMessage }), {
+            status: statusCode, headers: { 'Content-Type': 'application/json' }
+        });
+    }
+}
 

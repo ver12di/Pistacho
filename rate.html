@@ -165,7 +165,7 @@
         let filesToProcess = []; let currentFileIndex = 0;
         function renderImagePreviews() { const grid = document.getElementById('image-preview-grid'); const uploadLabel = document.getElementById('image-upload-label'); const uploadInput = document.getElementById('image-upload-input'); grid.innerHTML = ''; currentImageKeys.forEach((key, index) => { const item = document.createElement('div'); item.className = 'preview-item'; item.innerHTML = ` <img src="/api/image/${key}" alt="Preview ${index + 1}"> <button class="remove-btn" onclick="removeImage(${index})" title="删除图片">&times;</button> ${index === 0 ? '<span class="absolute bottom-1 left-1 bg-black bg-opacity-50 text-white text-2xs px-1 rounded">封面</span>' : ''} `; grid.appendChild(item); }); if (currentImageKeys.length >= MAX_IMAGES) { uploadLabel.classList.add('opacity-50', 'cursor-not-allowed', 'bg-gray-400'); uploadLabel.classList.remove('bg-blue-600', 'hover:bg-blue-700'); uploadInput.disabled = true; } else { uploadLabel.classList.remove('opacity-50', 'cursor-not-allowed', 'bg-gray-400'); uploadLabel.classList.add('bg-blue-600', 'hover:bg-blue-700'); uploadInput.disabled = false; } }
         window.handleFileSelect = function(event) { const status = document.getElementById('image-upload-status'); status.textContent = ''; const selectedFiles = Array.from(event.target.files); if (selectedFiles.length === 0) return; if (!currentAuthUser) { alert("请先登录再上传图片。"); return; } const allowedFiles = []; for (const file of selectedFiles) { if (currentImageKeys.length + allowedFiles.length >= MAX_IMAGES) { alert(`最多只能上传 ${MAX_IMAGES} 张图片。`); break; } if (file.size > 5 * 1024 * 1024) { alert(`图片 "${file.name}" 太大 (超过5MB)，已跳过。`); continue; } if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) { alert(`文件 "${file.name}" 类型不受支持，已跳过。`); continue; } allowedFiles.push(file); } if (allowedFiles.length > 0) { filesToProcess = allowedFiles; currentFileIndex = 0; showCropperForNextFile(); } event.target.value = null; }
-        function showCropperForNextFile() { if (currentFileIndex >= filesToProcess.length) { console.log("All selected files processed."); filesToProcess = []; return; } const file = filesToProcess[currentFileIndex]; const reader = new FileReader(); reader.onload = (e) => { cropperModal.classList.remove('hidden'); cropperImage.src = e.target.result; if (cropper) cropper.destroy(); cropper = new Cropper(cropperImage, { aspectRatio: 1179 / 1572, viewMode: 1, autoCropArea: 0.9, background: false, }); cropperStatus.textContent = `正在处理第 ${currentFileIndex + 1} / ${filesToProcess.length} 张图片。请调整裁切框。`; }; reader.readAsDataURL(file); }
+        function showCropperForNextFile() { if (currentFileIndex >= filesToProcess.length) { console.log("All selected files processed."); filesToProcess = []; cancelCrop(); return; } const file = filesToProcess[currentFileIndex]; const reader = new FileReader(); reader.onload = (e) => { cropperModal.classList.remove('hidden'); cropperImage.src = e.target.result; if (cropper) cropper.destroy(); cropper = new Cropper(cropperImage, { aspectRatio: 1179 / 1572, viewMode: 1, autoCropArea: 0.9, background: false, }); cropperStatus.textContent = `正在处理第 ${currentFileIndex + 1} / ${filesToProcess.length} 张图片。请调整裁切框。`; }; reader.readAsDataURL(file); }
         window.confirmCropAndUpload = async function() { if (!cropper || !filesToProcess[currentFileIndex]) return; const token = sessionStorage.getItem('accessToken'); if (!token) { alert("会话已过期，请重新登录。"); return; } cropperStatus.textContent = `正在裁切并上传第 ${currentFileIndex + 1} 张...`; const fileName = filesToProcess[currentFileIndex].name; const canvas = cropper.getCroppedCanvas({ width: 600, height: 800, imageSmoothingQuality: 'high', }); canvas.toBlob(async (blob) => { if (!blob) { cropperStatus.textContent = '裁切失败，请重试。'; return; } try { const formData = new FormData(); formData.append('image', blob, fileName); const response = await fetch('/api/upload-image', { method: 'POST', headers: { 'Authorization': `Bearer ${token}` }, body: formData }); const result = await response.json(); if (!response.ok) throw new Error(result.error || '上传失败'); currentImageKeys.push(result.imageKey); renderImagePreviews(); currentFileIndex++; showCropperForNextFile(); } catch (e) { console.error("上传图片失败:", e); cropperStatus.textContent = `上传失败: ${e.message}`; } }, 'image/jpeg', 0.9); }
         window.cancelCrop = function() { cropperModal.classList.add('hidden'); if (cropper) { cropper.destroy(); cropper = null; } filesToProcess = []; currentFileIndex = 0; document.getElementById('image-upload-input').value = null; cropperStatus.textContent = ''; }
         window.removeImage = function(indexToRemove) { if (indexToRemove >= 0 && indexToRemove < currentImageKeys.length) { const removedKey = currentImageKeys.splice(indexToRemove, 1); console.log("Removed image key:", removedKey); renderImagePreviews(); } }
@@ -200,9 +200,105 @@
 
 
         // --- Edit Mode Logic ---
+        // **DEBUGGING**: Added logs inside loadRatingForEdit
         async function loadRatingForEdit(ratingId) {
-            const token = sessionStorage.getItem('accessToken'); if (!token) { alert("无法验证身份，请重新登录。"); window.location.href = 'history.html'; return; } document.getElementById('config-load-status').textContent = `正在加载点评 ${ratingId}...`; try { const apiUrl = new URL(`/api/ratings?id=${ratingId}`, window.location.origin); const response = await fetch(apiUrl, { headers: { 'Authorization': `Bearer ${token}` } }); if (!response.ok) { const err = await response.json(); throw new Error(err.error || '加载点评失败'); } const ratingData = await response.json(); if (!ratingData) { throw new Error(`点评 ${ratingId} 未找到或无权访问。`); } if (!ratingData.fullData || !ratingData.fullData.ratings) { throw new Error("加载的点评数据不完整，无法编辑。"); } if (!ratingConfig) { await loadConfig(); if(!ratingConfig) throw new Error("无法加载评分配置，无法编辑。"); }
-            document.getElementById('rating-title').value = ratingData.title || ''; document.getElementById('cigar-name').value = ratingData.cigarInfo?.name || ''; document.getElementById('cigar-size').value = ratingData.cigarInfo?.size || ''; document.getElementById('cigar-origin').value = ratingData.cigarInfo?.origin || ''; document.getElementById('cigar-review').value = ratingData.cigarReview || ''; userRatings = ratingData.fullData.ratings || {}; let imageUrls = ratingData.imageUrl; /* **FIX**: imageUrl in DB is now JSON string array */ if (typeof imageUrls === 'string') { try { currentImageKeys = JSON.parse(imageUrls); } catch(e){ currentImageKeys = []; console.error("Failed to parse imageUrls:", e); } } else if (Array.isArray(imageUrls)) { currentImageKeys = imageUrls; } else { currentImageKeys = []; } renderImagePreviews(); isEditMode = true; editRatingId = ratingId; const actionButton = document.getElementById('main-action-button'); actionButton.textContent = "保存更改"; actionButton.classList.remove('bg-green-600', 'hover:bg-green-700'); actionButton.classList.add('bg-blue-600', 'hover:bg-blue-700'); renderRatingView(); document.getElementById('config-load-status').textContent = `已加载点评 ${ratingId} (编辑模式)`; updateCharCounts(); } catch (e) { alert(`加载点评失败: ${e.message}`); window.location.href = 'history.html'; }
+            console.log(`[loadRatingForEdit] Started for ID: ${ratingId}`);
+            const token = sessionStorage.getItem('accessToken');
+            if (!token) {
+                 alert("无法验证身份，请重新登录。");
+                 window.location.href = 'history.html';
+                 return;
+            }
+            document.getElementById('config-load-status').textContent = `正在加载点评 ${ratingId}...`;
+            try {
+                const apiUrl = new URL(`/api/ratings?id=${ratingId}`, window.location.origin);
+                console.log(`[loadRatingForEdit] Fetching data from: ${apiUrl}`);
+                const response = await fetch(apiUrl, { headers: { 'Authorization': `Bearer ${token}` } });
+                console.log(`[loadRatingForEdit] API response status: ${response.status}`);
+
+                if (!response.ok) {
+                    let errorText = `加载点评失败: ${response.status}`;
+                    try { const err = await response.json(); errorText = err.error || errorText; } catch(e){}
+                    throw new Error(errorText);
+                }
+
+                const ratingData = await response.json();
+                console.log("[loadRatingForEdit] Received ratingData:", ratingData); // Log the entire object
+
+                if (!ratingData) { throw new Error(`点评 ${ratingId} 未找到或无权访问。`); }
+                // Check essential fields returned by API
+                if (!ratingData.fullData || !ratingData.fullData.ratings) { throw new Error("加载的点评数据不完整(缺少fullData.ratings)，无法编辑。"); }
+                if (!ratingConfig) {
+                    console.log("[loadRatingForEdit] ratingConfig not loaded yet, loading now...");
+                    await loadConfig();
+                    if(!ratingConfig) throw new Error("无法加载评分配置，无法编辑。");
+                     console.log("[loadRatingForEdit] ratingConfig loaded successfully.");
+                }
+
+                // Populate fields
+                const titleElement = document.getElementById('rating-title');
+                if(titleElement) { titleElement.value = ratingData.title || ''; console.log(`[loadRatingForEdit] Set title: ${titleElement.value}`); } else { console.error("Title input not found!");}
+
+                const nameElement = document.getElementById('cigar-name');
+                if(nameElement) { nameElement.value = ratingData.cigarName || ratingData.cigarInfo?.name || ''; console.log(`[loadRatingForEdit] Set name: ${nameElement.value}`);} else { console.error("Name input not found!");} // Use top-level first
+
+                const sizeElement = document.getElementById('cigar-size');
+                if(sizeElement) { sizeElement.value = ratingData.cigarSize || ratingData.cigarInfo?.size || ''; console.log(`[loadRatingForEdit] Set size: ${sizeElement.value}`);} else { console.error("Size input not found!");}
+
+                const originElement = document.getElementById('cigar-origin');
+                if(originElement) { originElement.value = ratingData.cigarOrigin || ratingData.cigarInfo?.origin || ''; console.log(`[loadRatingForEdit] Set origin: ${originElement.value}`);} else { console.error("Origin input not found!");}
+
+                const reviewElement = document.getElementById('cigar-review');
+                if(reviewElement) { reviewElement.value = ratingData.cigarReview || ''; console.log(`[loadRatingForEdit] Set review: ${reviewElement.value}`);} else { console.error("Review textarea not found!");}
+
+                userRatings = ratingData.fullData.ratings || {};
+                console.log("[loadRatingForEdit] Set userRatings:", userRatings);
+
+                // **DEBUG**: Log imageUrl before parsing
+                let imageUrlsRaw = ratingData.imageUrl;
+                console.log(`[loadRatingForEdit] Raw imageUrl from API:`, imageUrlsRaw, `(Type: ${typeof imageUrlsRaw})`);
+
+                if (typeof imageUrlsRaw === 'string') {
+                     try {
+                         currentImageKeys = JSON.parse(imageUrlsRaw);
+                         if (!Array.isArray(currentImageKeys)) { // Handle cases where it's a stringified non-array
+                              console.warn("[loadRatingForEdit] Parsed imageUrls is not an array, treating as single image if non-empty:", currentImageKeys);
+                              currentImageKeys = imageUrlsRaw ? [imageUrlsRaw] : []; // Fallback to single or empty
+                         }
+                         console.log("[loadRatingForEdit] Parsed imageUrls string into array:", currentImageKeys);
+                     } catch(e){
+                         currentImageKeys = []; // Default to empty array on parse error
+                         console.error("[loadRatingForEdit] Failed to parse imageUrls string:", e);
+                     }
+                } else if (Array.isArray(imageUrlsRaw)) {
+                     // Should not happen if backend saves as string, but handle defensively
+                     currentImageKeys = imageUrlsRaw;
+                     console.log("[loadRatingForEdit] imageUrl from API was already an array:", currentImageKeys);
+                } else {
+                     currentImageKeys = []; // Default for null, undefined, etc.
+                     console.log("[loadRatingForEdit] imageUrl from API was null or invalid type, setting to empty array.");
+                }
+
+                renderImagePreviews();
+                console.log("[loadRatingForEdit] Image previews rendered.");
+
+                isEditMode = true; editRatingId = ratingId;
+                const actionButton = document.getElementById('main-action-button');
+                actionButton.textContent = "保存更改"; actionButton.classList.remove('bg-green-600', 'hover:bg-green-700'); actionButton.classList.add('bg-blue-600', 'hover:bg-blue-700');
+                console.log("[loadRatingForEdit] Set edit mode UI.");
+
+                renderRatingView(); // Render selections based on userRatings
+                console.log("[loadRatingForEdit] Rating view rendered.");
+
+                document.getElementById('config-load-status').textContent = `已加载点评 ${ratingId} (编辑模式)`;
+                updateCharCounts(); // Update counts after loading data
+                console.log("[loadRatingForEdit] Completed successfully.");
+
+            } catch (e) {
+                console.error(`[loadRatingForEdit] Error loading rating ${ratingId}:`, e);
+                alert(`加载点评失败: ${e.message}`);
+                window.location.href = 'history.html'; // Redirect back
+            }
         }
         // --- End Edit Mode ---
 
