@@ -144,7 +144,6 @@
                 const nameMatch = rating.cigarInfo?.name?.toLowerCase().includes(searchTerm);
                 const originMatch = rating.cigarInfo?.origin?.toLowerCase().includes(searchTerm);
                 const sizeMatch = rating.cigarInfo?.size?.toLowerCase().includes(searchTerm);
-                // **NEW**: Also search in review text if it exists
                 const reviewMatch = rating.cigarReview?.toLowerCase().includes(searchTerm);
                 return nameMatch || originMatch || sizeMatch || reviewMatch;
             });
@@ -191,34 +190,41 @@
         window.viewRatingDetails = function(ratingData) {
             let detailedData = {};
 
+            // **FIX**: Ensure these essential top-level fields always exist
+            if (!ratingData || ratingData.normalizedScore === undefined || !ratingData.finalGrade || !ratingData.cigarInfo) {
+                console.error("viewRatingDetails: Essential top-level data missing!", ratingData);
+                alert("无法加载详情：缺少基本评分信息。");
+                return; // Stop if basic info is missing
+            }
+
             // Check if fullData is valid and contains the essentials
-            const hasCompleteFullData = ratingData && ratingData.fullData &&
+            const hasCompleteFullData = ratingData.fullData &&
                                         ratingData.fullData.config &&
                                         ratingData.fullData.ratings &&
                                         ratingData.fullData.calculatedScore !== undefined;
 
             if (hasCompleteFullData) {
-                 // If complete, send everything needed for the full results page
+                 // If complete, send everything
                  detailedData = {
                      config: ratingData.fullData.config,
                      ratings: ratingData.fullData.ratings,
                      calculatedScore: ratingData.fullData.calculatedScore,
-                     cigarInfo: ratingData.cigarInfo,
-                     cigarReview: ratingData.cigarReview,
-                     imageUrl: ratingData.imageUrl,
-                     normalizedScore: ratingData.normalizedScore,
-                     finalGrade: ratingData.finalGrade,
-                     timestamp: ratingData.timestamp,
-                     userNickname: ratingData.userNickname,
-                     userEmail: ratingData.userEmail,
-                     isDraft: false // From community, it's never a draft
+                     cigarInfo: ratingData.cigarInfo,     // Top level
+                     cigarReview: ratingData.cigarReview, // Top level
+                     imageUrl: ratingData.imageUrl,       // Top level
+                     normalizedScore: ratingData.normalizedScore, // Top level
+                     finalGrade: ratingData.finalGrade,     // Top level
+                     timestamp: ratingData.timestamp,       // Top level
+                     userNickname: ratingData.userNickname, // Top level
+                     userEmail: ratingData.userEmail,       // Top level
+                     isDraft: false
                  };
                  console.log("Sending COMPLETE data to results.html:", detailedData);
             } else {
-                // If incomplete or missing, send only top-level data for basic display
+                // If incomplete, send only top-level data
                  console.warn(`fullData for rating ${ratingData?.id} is missing or incomplete. Sending only top-level data.`);
                  detailedData = {
-                     // No config, ratings, calculatedScore
+                     // NO config, ratings, calculatedScore
                      cigarInfo: ratingData.cigarInfo,
                      cigarReview: ratingData.cigarReview,
                      imageUrl: ratingData.imageUrl,
@@ -232,7 +238,7 @@
                  console.log("Sending INCOMPLETE (top-level) data to results.html:", detailedData);
             }
 
-            // Navigate regardless
+            // Navigate regardless (results.html will handle incomplete data)
             try {
                  sessionStorage.setItem('cigarRatingResults', JSON.stringify(detailedData));
                  window.location.href = `results.html`;

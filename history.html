@@ -47,6 +47,7 @@
             <p id="loading-message" class="text-center text-gray-500">正在加载...</p>
         </div>
          <footer class="mt-8 text-center">
+            <!-- **LINK UPDATED**: Point to index.html (community) -->
             <a href="index.html" class="py-2 px-4 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700">&larr; 返回社区首页</a>
         </footer>
     </div>
@@ -62,8 +63,7 @@
         const AUTHING_APP_ID = '68f5b0b6875017c02b3bfdb3';
         const AUTHING_HOST = 'https://xfvu647mcdbk-demo.authing.cn';
 
-        // --- Authentication (Copied from index.html/community.html) ---
-        // Duplicating auth functions for standalone page
+        // --- Authentication ---
          window.login = function() {
             const redirectUri = window.location.origin; // Redirect back to history
             const authorizeUrl = new URL('/oidc/auth', AUTHING_HOST);
@@ -101,7 +101,6 @@
         async function handleOidcCallback(code) {
              try {
                 const redirectUri = window.location.origin;
-                // **FIX**: Use absolute URL
                 const apiUrl = new URL('/api/authing/callback', window.location.origin);
                 const response = await fetch(apiUrl, {
                     method: 'POST',
@@ -119,14 +118,15 @@
                 console.error('认证回调处理失败:', e); alert(`登录失败: ${e.message}`);
                 sessionStorage.removeItem('userInfo'); sessionStorage.removeItem('accessToken'); return null;
             } finally {
-                window.history.replaceState({}, document.title, window.location.pathname);
+                // Use replaceState to clean URL without reloading
+                window.history.replaceState({}, document.title, window.location.pathname + window.location.hash); // Keep hash if exists
             }
         }
+
 
         async function validateSessionAndGetUser() {
             const token = sessionStorage.getItem('accessToken'); if (!token) return null;
             try {
-                // **FIX**: Use absolute URL
                 const apiUrl = new URL('/api/me', window.location.origin);
                 const response = await fetch(apiUrl, { headers: { 'Authorization': `Bearer ${token}` } });
                 if (!response.ok) {
@@ -142,7 +142,6 @@
         // --- Rating Actions ---
         window.editRating = function(ratingId, event) {
             event.stopPropagation();
-            // Navigate to the new rate.html page with edit parameter
             window.location.href = `rate.html?edit=${ratingId}`;
         }
 
@@ -163,7 +162,6 @@
             }
 
             try {
-                 // **FIX**: Use absolute URL
                  const apiUrl = new URL(`/api/ratings`, window.location.origin);
                  const response = await fetch(apiUrl, {
                      method: 'DELETE',
@@ -211,7 +209,6 @@
             }
 
             try {
-                // **FIX**: Use absolute URL
                 const apiUrl = new URL('/api/certify', window.location.origin);
                 const response = await fetch(apiUrl, {
                     method: 'POST',
@@ -259,27 +256,43 @@
         window.viewRatingDetails = function(ratingId) {
             const ratingData = historicalRatings[ratingId];
              if (ratingData) {
-                  if (ratingData.fullData && typeof ratingData.fullData === 'object') {
-                       const detailedData = {
-                          config: ratingData.fullData.config,
-                          ratings: ratingData.fullData.ratings,
-                          calculatedScore: ratingData.fullData.calculatedScore,
-                          cigarInfo: ratingData.cigarInfo,
-                          cigarReview: ratingData.cigarReview,
-                          imageUrl: ratingData.imageUrl,
-                          normalizedScore: ratingData.normalizedScore,
-                          finalGrade: ratingData.finalGrade,
-                          timestamp: ratingData.timestamp,
-                          userNickname: ratingData.userNickname,
-                          userEmail: ratingData.userEmail,
-                          isDraft: false
-                       };
+                  // Pass the necessary data to results.html
+                  // Ensure we always pass the essential top-level fields
+                  let detailedData = {
+                      cigarInfo: ratingData.cigarInfo,
+                      cigarReview: ratingData.cigarReview,
+                      imageUrl: ratingData.imageUrl,
+                      normalizedScore: ratingData.normalizedScore,
+                      finalGrade: ratingData.finalGrade,
+                      timestamp: ratingData.timestamp,
+                      userNickname: ratingData.userNickname,
+                      userEmail: ratingData.userEmail,
+                      isDraft: false // From history, never a draft
+                  };
+
+                  // Add fullData parts ONLY if they exist and are valid
+                  const hasCompleteFullData = ratingData.fullData &&
+                                              ratingData.fullData.config &&
+                                              ratingData.fullData.ratings &&
+                                              ratingData.fullData.calculatedScore !== undefined;
+
+                  if (hasCompleteFullData) {
+                       detailedData.config = ratingData.fullData.config;
+                       detailedData.ratings = ratingData.fullData.ratings;
+                       detailedData.calculatedScore = ratingData.fullData.calculatedScore;
+                       console.log("Sending COMPLETE data from history:", detailedData);
+                  } else {
+                       console.warn(`fullData for rating ${ratingId} from history is missing or incomplete. Sending only top-level data.`);
+                       console.log("Sending INCOMPLETE data from history:", detailedData);
+                  }
+
+                   try {
                        sessionStorage.setItem('cigarRatingResults', JSON.stringify(detailedData));
                        window.location.href = `results.html`;
-                  } else {
-                       console.error("Cannot view details: Original fullData is missing or invalid for rating:", ratingId);
-                       alert("无法查看详情，原始点评数据丢失或无效。");
-                  }
+                   } catch (e) {
+                        console.error("Error setting sessionStorage:", e);
+                        alert("无法保存会话数据以查看详情。");
+                   }
              } else {
                  alert("无法加载该点评的详细信息。");
              }
@@ -308,7 +321,6 @@
             }
 
             try {
-                 // **FIX**: Use absolute URL
                  const apiUrl = new URL('/api/ratings', window.location.origin);
                  const response = await fetch(apiUrl, {
                      headers: { 'Authorization': `Bearer ${token}` }
@@ -336,6 +348,8 @@
                     historyContainer.innerHTML = `<div class="text-center p-6 bg-white rounded-lg shadow"><p>还没有任何点评记录。</p></div>`;
                 } else {
                     let historyHtml = '<div class="space-y-4">';
+                    // **SORT**: Ensure latest first
+                    ratings.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
                     ratings.forEach(data => {
                         historyHtml += renderRatingCard(data, user.sub, userRole);
                     });
@@ -351,10 +365,10 @@
             }
         }
 
-        // **LAYOUT UPDATED**
+        // **LAYOUT UPDATED for compactness**
         function renderRatingCard(data, currentUserId, currentUserRole) {
             const ratingId = data.id;
-            const date = data.timestamp ? new Date(data.timestamp).toLocaleDateString('zh-CN') : '未知日期';
+            const date = data.timestamp ? new Date(data.timestamp).toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' }) : '未知日期';
             const scoreDisplay = data.normalizedScore !== undefined ? data.normalizedScore.toFixed(2) : 'N/A';
             const gradeDisplay = data.finalGrade ? `${data.finalGrade.grade} - ${data.finalGrade.name_cn}` : '未评级';
             const isOwner = data.userId === currentUserId;
@@ -362,7 +376,6 @@
             const canModify = isOwner || isAdmin;
             const canCertify = isAdmin;
 
-            // **NEW**: Display nickname, fallback to email
             const authorDisplay = data.userNickname || data.userEmail || data.userId || '未知用户';
 
             let actionButtonsHtml = '';
@@ -371,31 +384,34 @@
                 actionButtonsHtml += `<button onclick="deleteRating('${ratingId}', event)" class="py-1 px-3 bg-red-500 text-white text-xs rounded hover:bg-red-600 transition ml-2">删除</button>`;
             }
             if (canCertify) {
-                 // Use data-action for easier toggling
-                actionButtonsHtml += `<button data-action="certify" onclick="updateCertification('${ratingId}', true, event)" class="py-1 px-3 bg-green-500 text-white text-xs rounded hover:bg-green-600 transition ml-2 ${data.isCertified ? 'hidden' : ''}">认证</button>`;
+                 actionButtonsHtml += `<button data-action="certify" onclick="updateCertification('${ratingId}', true, event)" class="py-1 px-3 bg-green-500 text-white text-xs rounded hover:bg-green-600 transition ml-2 ${data.isCertified ? 'hidden' : ''}">认证</button>`;
                 actionButtonsHtml += `<button data-action="uncertify" onclick="updateCertification('${ratingId}', false, event)" class="py-1 px-3 bg-yellow-600 text-white text-xs rounded hover:bg-yellow-700 transition ml-2 ${!data.isCertified ? 'hidden' : ''}">取消认证</button>`;
             }
 
             return `
                 <div id="rating-card-${ratingId}" class="block bg-white p-4 rounded-lg shadow-md hover:shadow-lg transition-shadow cursor-pointer" onclick="viewRatingDetails('${ratingId}')">
-                    <!-- Top section: Info + Score -->
-                    <div class="flex justify-between items-start mb-2">
-                        <div>
-                            <p class="text-lg font-bold text-gray-800">${data.cigarInfo?.name || '未知名称'}</p>
-                            <p class="text-sm text-gray-500">
+                    <!-- Combined Info, Score, and Buttons Row -->
+                    <div class="flex flex-wrap justify-between items-center gap-2">
+                        <!-- Left: Info -->
+                        <div class="flex-grow min-w-0">
+                             <p class="text-lg font-bold text-gray-800 truncate" title="${data.cigarInfo?.name || ''}">${data.cigarInfo?.name || '未知名称'}</p>
+                            <p class="text-sm text-gray-500 truncate">
                                 ${data.cigarInfo?.size || '未知尺寸'} | ${data.cigarInfo?.origin || '未知产地'} | ${date}
-                                <!-- **NEW**: Show author if admin -->
                                 ${ isAdmin ? `<span class="font-medium text-gray-600 ml-2">| 用户: ${authorDisplay}</span>` : '' }
                             </p>
                         </div>
-                        <div class="text-right flex-shrink-0 ml-4">
-                            <p class="text-2xl font-black text-indigo-600">${scoreDisplay}</p>
-                            <p class="font-bold text-gray-600 text-sm">${gradeDisplay}</p>
+                        <!-- Right: Score + Buttons -->
+                        <div class="flex items-center flex-shrink-0 space-x-3">
+                             <!-- Score -->
+                            <div class="text-right">
+                                <p class="text-xl font-black text-indigo-600">${scoreDisplay}</p>
+                                <p class="font-bold text-gray-600 text-xs">${gradeDisplay}</p>
+                            </div>
+                            <!-- Buttons -->
+                            <div class="action-buttons flex items-center space-x-2 ${!actionButtonsHtml ? 'hidden' : ''}">
+                                ${actionButtonsHtml}
+                            </div>
                         </div>
-                    </div>
-                    <!-- Bottom section: Action buttons -->
-                    <div class="action-buttons border-t pt-2 mt-2 flex justify-end items-center ${!actionButtonsHtml ? 'hidden' : ''}">
-                        ${actionButtonsHtml}
                     </div>
                 </div>
             `;
