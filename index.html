@@ -16,10 +16,8 @@
                         aspectRatio: {
                             '1179/1572': '1179 / 1572',
                         },
-                         // **NEW**: Smaller font sizes
                          fontSize: {
                             '2xs': ['0.625rem', { lineHeight: '0.8rem' }], // ~10px
-                             '3xs': ['0.5rem', { lineHeight: '0.7rem' }], // ~8px (maybe too small)
                          }
                     }
                 }
@@ -38,14 +36,11 @@
         .main-container { padding-left: 1rem; padding-right: 1rem; padding-top: 1rem; padding-bottom: 2rem; margin-left: auto; margin-right: auto; }
         @media (min-width: 768px) { .main-container { padding-left: 2rem; padding-right: 2rem; padding-bottom: 2rem; } }
 
-        /* **NEW**: Style for line clamping (simple CSS fallback) */
         .line-clamp-2 {
              overflow: hidden;
              display: -webkit-box;
              -webkit-box-orient: vertical;
-             -webkit-line-clamp: 2; /* Limit to 2 lines */
-             /* line-height: 1.2; /* Adjust line height if needed */
-             /* max-height: 2.4em; /* Optional: Fallback max height (2 * line-height) */
+             -webkit-line-clamp: 2;
         }
         .line-clamp-1 {
              overflow: hidden;
@@ -145,31 +140,31 @@
             displayedRatings.forEach(rating => { const card = createRatingCard(rating); ratingsGrid.appendChild(card); });
         }
 
-        // **UPDATED**: Card rendering logic for compactness
+        // **FIXED**: Removed incorrect comments
         function createRatingCard(rating) {
             const div = document.createElement('div');
-            div.className = 'rating-card bg-white rounded-lg shadow-md overflow-hidden transition-all duration-300 cursor-pointer flex flex-col'; // Use flex column
+            div.className = 'rating-card bg-white rounded-lg shadow-md overflow-hidden transition-all duration-300 cursor-pointer flex flex-col';
             div.onclick = () => viewRatingDetails(rating);
             const score = rating.normalizedScore !== undefined ? rating.normalizedScore.toFixed(2) : 'N/A';
-            // const grade = rating.finalGrade ? `${rating.finalGrade.grade}` : '-';
             const author = rating.userNickname || rating.userEmail || '匿名';
 
+            // Use the first image URL as cover, or null if no images
+            const coverImageUrl = Array.isArray(rating.imageUrl) ? rating.imageUrl[0] : rating.imageUrl;
+
             div.innerHTML = `
-                <div class="aspect-[1179/1572] w-full overflow-hidden flex-shrink-0"> {/* Image part */}
-                    ${rating.imageUrl
-                        ? `<img src="/api/image/${rating.imageUrl}" alt="${rating.cigarInfo?.name || '雪茄图片'}" class="w-full h-full object-cover">`
+                <div class="aspect-[1179/1572] w-full overflow-hidden flex-shrink-0">
+                    ${coverImageUrl
+                        ? `<img src="/api/image/${coverImageUrl}" alt="${rating.cigarInfo?.name || '雪茄图片'}" class="w-full h-full object-cover">`
                         : '<div class="w-full h-full bg-gray-200 flex items-center justify-center text-gray-400 text-sm">无图</div>'
                     }
                 </div>
-                <div class="p-1.5 flex-grow flex flex-col justify-between"> {/* Text part - Reduced padding, flex-grow */}
-                    {/* Top part of text: Cigar Name (clamp to 2 lines) */}
+                <div class="p-1.5 flex-grow flex flex-col justify-between">
                     <h3 class="font-semibold text-xs leading-tight line-clamp-2 mb-0.5" title="${rating.cigarInfo?.name || ''}">
                         ${rating.cigarInfo?.name || '未命名雪茄'}
                     </h3>
-                    {/* Bottom part of text: Author and Score */}
-                    <div class="flex justify-between items-end mt-auto pt-0.5"> {/* mt-auto pushes to bottom */}
+                    <div class="flex justify-between items-end mt-auto pt-0.5">
                          <span class="text-2xs text-gray-500 line-clamp-1 flex items-center" title="${author}">
-                              <!-- Avatar placeholder (optional) -->
+                              <!-- Optional: Avatar placeholder -->
                               <!-- <img src="..." class="w-3 h-3 rounded-full mr-1"> -->
                               ${author}
                          </span>
@@ -187,11 +182,26 @@
             let detailedData = {};
             if (!ratingData || ratingData.normalizedScore === undefined || !ratingData.finalGrade || !ratingData.cigarInfo) { console.error("viewRatingDetails: Essential top-level data missing!", ratingData); alert("无法加载详情：缺少基本评分信息。"); return; }
             const hasCompleteFullData = ratingData.fullData && ratingData.fullData.config && ratingData.fullData.ratings && ratingData.fullData.calculatedScore !== undefined;
+
+            // **FIX**: Correctly handle imageUrl which might be stringified array or single string
+            let imageUrls = ratingData.imageUrl;
+            if (typeof imageUrls === 'string') {
+                try {
+                    imageUrls = JSON.parse(imageUrls); // Try parsing as array
+                    if (!Array.isArray(imageUrls)) imageUrls = [ratingData.imageUrl]; // Fallback to single string array if not array
+                } catch(e) {
+                     imageUrls = imageUrls ? [imageUrls] : []; // Assume single string if parse fails, or empty array
+                }
+            } else if (!Array.isArray(imageUrls)) {
+                 imageUrls = imageUrls ? [imageUrls] : []; // Handle null/undefined or other types
+            }
+            // Now imageUrls is guaranteed to be an array (possibly empty)
+
             if (hasCompleteFullData) {
-                 detailedData = { config: ratingData.fullData.config, ratings: ratingData.fullData.ratings, calculatedScore: ratingData.fullData.calculatedScore, cigarInfo: ratingData.cigarInfo, cigarReview: ratingData.cigarReview, imageUrl: ratingData.imageUrl, normalizedScore: ratingData.normalizedScore, finalGrade: ratingData.finalGrade, timestamp: ratingData.timestamp, userNickname: ratingData.userNickname, userEmail: ratingData.userEmail, isDraft: false };
+                 detailedData = { config: ratingData.fullData.config, ratings: ratingData.fullData.ratings, calculatedScore: ratingData.fullData.calculatedScore, cigarInfo: ratingData.cigarInfo, cigarReview: ratingData.cigarReview, imageUrls: imageUrls, /* Pass array */ normalizedScore: ratingData.normalizedScore, finalGrade: ratingData.finalGrade, timestamp: ratingData.timestamp, userNickname: ratingData.userNickname, userEmail: ratingData.userEmail, isDraft: false };
             } else {
                  console.warn(`fullData for rating ${ratingData?.id} is missing or incomplete. Sending only top-level data.`);
-                 detailedData = { cigarInfo: ratingData.cigarInfo, cigarReview: ratingData.cigarReview, imageUrl: ratingData.imageUrl, normalizedScore: ratingData.normalizedScore, finalGrade: ratingData.finalGrade, timestamp: ratingData.timestamp, userNickname: ratingData.userNickname, userEmail: ratingData.userEmail, isDraft: false };
+                 detailedData = { cigarInfo: ratingData.cigarInfo, cigarReview: ratingData.cigarReview, imageUrls: imageUrls, /* Pass array */ normalizedScore: ratingData.normalizedScore, finalGrade: ratingData.finalGrade, timestamp: ratingData.timestamp, userNickname: ratingData.userNickname, userEmail: ratingData.userEmail, isDraft: false };
             }
             try { sessionStorage.setItem('cigarRatingResults', JSON.stringify(detailedData)); window.location.href = `results.html`; }
             catch (e) { console.error("Error setting sessionStorage:", e); alert("无法保存会话数据以查看详情。"); }
@@ -205,7 +215,6 @@
              fetchRatings();
 
              searchInput.addEventListener('keypress', function (e) { if (e.key === 'Enter') { applyFilters(); } });
-             // **NEW**: Trigger filter on sort change too
              sortSelect.addEventListener('change', applyFilters);
         };
     </script>
