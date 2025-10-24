@@ -362,7 +362,7 @@
 
         function renderRatingCard(data, currentUserId, currentUserRole) {
             const ratingId = data.id;
-            // **FIX**: Corrected date assignment logic
+            // **FIX**: Corrected date assignment logic using ternary operator
             const date = data.timestamp
                 ? new Date(data.timestamp).toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' })
                 : '未知日期'; // Use ternary or || for fallback
