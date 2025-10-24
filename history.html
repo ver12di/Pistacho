@@ -256,8 +256,44 @@
         }
 
 
-        window.viewRatingDetails = function(ratingId) { /* ... (no changes needed) ... */
-             const ratingData = historicalRatings[ratingId]; if (ratingData) { let detailedData = { cigarInfo: ratingData.cigarInfo, cigarReview: ratingData.cigarReview, imageUrl: ratingData.imageUrl, normalizedScore: ratingData.normalizedScore, finalGrade: ratingData.finalGrade, timestamp: ratingData.timestamp, userNickname: ratingData.userNickname, userEmail: ratingData.userEmail, isDraft: false }; const hasCompleteFullData = ratingData.fullData && ratingData.fullData.config && ratingData.fullData.ratings && ratingData.fullData.calculatedScore !== undefined; if (hasCompleteFullData) { detailedData.config = ratingData.fullData.config; detailedData.ratings = ratingData.fullData.ratings; detailedData.calculatedScore = ratingData.fullData.calculatedScore; console.log("Sending COMPLETE data from history:", detailedData); } else { console.warn(`fullData for rating ${ratingId} from history is missing or incomplete. Sending only top-level data.`); console.log("Sending INCOMPLETE data from history:", detailedData); } try { sessionStorage.setItem('cigarRatingResults', JSON.stringify(detailedData)); window.location.href = `results.html`; } catch (e) { console.error("Error setting sessionStorage:", e); alert("无法保存会话数据以查看详情。"); } } else { alert("无法加载该点评的详细信息。"); }
+        window.viewRatingDetails = function(ratingId) {
+             const ratingData = historicalRatings[ratingId]; 
+             if (ratingData) { 
+                // **FIX**: 使用 'imageUrls' (带's') 来匹配 results.html 的期望
+                 let detailedData = { 
+                    cigarInfo: ratingData.cigarInfo, 
+                    cigarReview: ratingData.cigarReview, 
+                    imageUrls: ratingData.imageUrl, // <-- 已修复: 从 imageUrl 改为 imageUrls
+                    normalizedScore: ratingData.normalizedScore, 
+                    finalGrade: ratingData.finalGrade, 
+                    timestamp: ratingData.timestamp, 
+                    userNickname: ratingData.userNickname, 
+                    userEmail: ratingData.userEmail, 
+                    isDraft: false 
+                }; 
+                
+                const hasCompleteFullData = ratingData.fullData && ratingData.fullData.config && ratingData.fullData.ratings && ratingData.fullData.calculatedScore !== undefined; 
+                
+                if (hasCompleteFullData) { 
+                    detailedData.config = ratingData.fullData.config; 
+                    detailedData.ratings = ratingData.fullData.ratings; 
+                    detailedData.calculatedScore = ratingData.fullData.calculatedScore; 
+                    console.log("Sending COMPLETE data from history:", detailedData); 
+                } else { 
+                    console.warn(`fullData for rating ${ratingId} from history is missing or incomplete. Sending only top-level data.`); 
+                    console.log("Sending INCOMPLETE data from history:", detailedData); 
+                } 
+                
+                try { 
+                    sessionStorage.setItem('cigarRatingResults', JSON.stringify(detailedData)); 
+                    window.location.href = `results.html`; 
+                } catch (e) { 
+                    console.error("Error setting sessionStorage:", e); 
+                    alert("无法保存会话数据以查看详情。"); 
+                } 
+            } else { 
+                alert("无法加载该点评的详细信息。"); 
+            }
         }
         // --- End Rating Actions ---
 
@@ -331,4 +367,3 @@
     </script>
 </body>
 </html>
-
