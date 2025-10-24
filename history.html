@@ -88,482 +88,233 @@
         const AUTHING_HOST = 'https://xfvu647mcdbk-demo.authing.cn';
 
         // --- Authentication ---
-        window.login = function() {
+         window.login = function() {
             const redirectUri = window.location.origin + window.location.pathname;
             const authorizeUrl = new URL('/oidc/auth', AUTHING_HOST);
-            authorizeUrl.search = new URLSearchParams({
-                client_id: AUTHING_APP_ID,
-                redirect_uri: redirectUri,
-                response_type: 'code',
-                scope: 'openid profile email phone',
-                state: Math.random().toString(36).substring(2)
-            }).toString();
+            authorizeUrl.search = new URLSearchParams({ client_id: AUTHING_APP_ID, redirect_uri: redirectUri, response_type: 'code', scope: 'openid profile email phone', state: Math.random().toString(36).substring(2) }).toString();
             window.location.href = authorizeUrl.toString();
-        };
-
+        }
         window.logout = function() {
-            const logoutUrl = new URL('/oidc/session/end', AUTHING_HOST);
-            logoutUrl.search = new URLSearchParams({
-                post_logout_redirect_uri: window.location.origin
-            }).toString();
-            sessionStorage.removeItem('userInfo');
-            sessionStorage.removeItem('accessToken');
-            window.location.href = logoutUrl.toString();
-        };
-
+             const logoutUrl = new URL('/oidc/session/end', AUTHING_HOST);
+             logoutUrl.search = new URLSearchParams({ post_logout_redirect_uri: window.location.origin }).toString();
+             sessionStorage.removeItem('userInfo'); sessionStorage.removeItem('accessToken');
+             window.location.href = logoutUrl.toString();
+        }
         function renderLoginStatus(user) {
-            const container = document.getElementById('login-status-container');
-            if (!container) return;
-            
-            if (user) {
-                const displayName = user.nickname || user.name || user.preferred_username || user.email || '已登录';
-                container.innerHTML = `<span class="text-sm font-medium text-gray-700 mr-2 hidden sm:inline">${displayName}</span><button onclick="logout()" class="px-3 py-1 text-xs font-medium rounded-full bg-red-500 text-white hover:bg-red-600">退出</button>`;
-            } else {
-                container.innerHTML = `<button onclick="login()" class="px-3 py-1 text-xs font-medium rounded-full bg-green-500 text-white hover:bg-green-600">登录/注册</button>`;
-            }
+            const container = document.getElementById('login-status-container'); if (!container) return;
+            if (user) { const displayName = user.nickname || user.name || user.preferred_username || user.email || '已登录'; container.innerHTML = `<span class="text-sm font-medium text-gray-700 mr-2 hidden sm:inline">${displayName}</span><button onclick="logout()" class="px-3 py-1 text-xs font-medium rounded-full bg-red-500 text-white hover:bg-red-600">退出</button>`; }
+            else { container.innerHTML = `<button onclick="login()" class="px-3 py-1 text-xs font-medium rounded-full bg-green-500 text-white hover:bg-green-600">登录/注册</button>`; }
         }
-
         async function handleOidcCallback(code) {
-            try {
-                const redirectUri = window.location.origin + window.location.pathname;
+             try {
+                const redirectUri = window.location.origin + window.location.pathname; // Ensure correct redirect for callback
                 const apiUrl = new URL('/api/authing/callback', window.location.origin);
-                const response = await fetch(apiUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ code: code, redirect_uri: redirectUri })
-                });
-                
+                const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: code, redirect_uri: redirectUri }) });
+                // **DEBUG**: Log response status
+                console.log('handleOidcCallback response status:', response.status);
+                // **FIX**: Check response before parsing JSON
                 if (!response.ok) {
-                    const err = await response.json();
-                    throw new Error(err.error || '认证回调失败');
+                    let errorText = `认证回调失败: ${response.status}`;
+                    try { const err = await response.json(); errorText = err.error || errorText; } catch(e) {/* ignore */}
+                    throw new Error(errorText);
                 }
-                
-                const fullUserProfile = await response.json();
-                sessionStorage.setItem('userInfo', JSON.stringify(fullUserProfile));
-                sessionStorage.setItem('accessToken', fullUserProfile.accessToken);
-                return fullUserProfile;
-            } catch (e) {
-                console.error('认证回调处理失败:', e);
-                alert(`登录失败: ${e.message}`);
-                sessionStorage.removeItem('userInfo');
-                sessionStorage.removeItem('accessToken');
-                return null;
-            } finally {
-                window.history.replaceState({}, document.title, window.location.pathname + window.location.hash);
-            }
+                const fullUserProfile = await response.json(); // Safe to parse now
+                sessionStorage.setItem('userInfo', JSON.stringify(fullUserProfile)); sessionStorage.setItem('accessToken', fullUserProfile.accessToken); return fullUserProfile;
+            } catch (e) { console.error('认证回调处理失败:', e); alert(`登录失败: ${e.message}`); sessionStorage.removeItem('userInfo'); sessionStorage.removeItem('accessToken'); return null; } finally { window.history.replaceState({}, document.title, window.location.pathname + window.location.hash); }
         }
-
         async function validateSessionAndGetUser() {
-            const token = sessionStorage.getItem('accessToken');
-            if (!token) return null;
-            
+            const token = sessionStorage.getItem('accessToken'); if (!token) return null;
             try {
-                const apiUrl = new URL('/api/me', window.location.origin);
-                const response = await fetch(apiUrl, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                
-                if (!response.ok) {
-                    sessionStorage.removeItem('userInfo');
-                    sessionStorage.removeItem('accessToken');
-                    return null;
-                }
-                
-                const fullUserProfile = await response.json();
-                sessionStorage.setItem('userInfo', JSON.stringify(fullUserProfile));
-                return fullUserProfile;
-            } catch (e) {
-                console.error("Session validation failed:", e);
-                return null;
-            }
+                const apiUrl = new URL('/api/me', window.location.origin); const response = await fetch(apiUrl, { headers: { 'Authorization': `Bearer ${token}` } });
+                 // **DEBUG**: Log response status
+                 console.log('validateSessionAndGetUser response status:', response.status);
+                // **FIX**: Check response before parsing JSON
+                if (!response.ok) { sessionStorage.removeItem('userInfo'); sessionStorage.removeItem('accessToken'); return null; }
+                const fullUserProfile = await response.json(); // Safe to parse now
+                sessionStorage.setItem('userInfo', JSON.stringify(fullUserProfile)); return fullUserProfile;
+            } catch (e) { console.error("Session validation failed:", e); return null; }
         }
         // --- End Auth ---
 
+
         // --- Rating Actions ---
-        window.editRating = function(ratingId, event) {
-            event.stopPropagation();
-            window.location.href = `rate.html?edit=${ratingId}`;
-        };
+        window.editRating = function(ratingId, event) { event.stopPropagation(); window.location.href = `rate.html?edit=${ratingId}`; }
 
+        // **DEBUGGING**: Added detailed logging to deleteRating
         window.deleteRating = async function(ratingId, event) {
-            event.stopPropagation();
-            if (!confirm("确定要永久删除这条点评记录吗？")) return;
-            
-            const button = event.target;
-            const originalText = button.textContent;
-            button.textContent = '删除中...';
-            button.disabled = true;
-            
-            const token = sessionStorage.getItem('accessToken');
-            if (!token) {
-                alert("请先登录。");
-                button.textContent = originalText;
-                button.disabled = false;
-                return;
-            }
-            
-            try {
-                const apiUrl = new URL(`/api/ratings`, window.location.origin);
-                const response = await fetch(apiUrl, {
-                    method: 'DELETE',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ ratingId: ratingId })
-                });
-                
-                if (!response.ok) {
-                    const err = await response.json();
-                    throw new Error(err.error || '删除失败');
-                }
-                
-                const cardToRemove = document.getElementById(`rating-card-${ratingId}`);
-                if (cardToRemove) {
-                    cardToRemove.style.transition = 'opacity 0.5s ease-out';
-                    cardToRemove.style.opacity = '0';
-                    setTimeout(() => cardToRemove.remove(), 500);
-                }
-                alert("点评已删除。");
-            } catch (error) {
-                console.error("删除失败:", error);
-                alert(`删除失败: ${error.message}`);
-                button.textContent = originalText;
-                button.disabled = false;
-            }
-        };
+             event?.stopPropagation();
+             console.log(`[deleteRating] Initiated for ID: ${ratingId}`);
+             if (!confirm("确定要永久删除这条点评记录吗？")) {
+                 console.log(`[deleteRating] User cancelled deletion.`);
+                 return;
+             }
 
-        window.updateCertification = async function(ratingId, shouldCertify, event) {
-            event.stopPropagation();
-            const button = event.target;
-            const isCertifying = shouldCertify;
-            const actionText = isCertifying ? '认证' : '取消认证';
-            const originalText = button.textContent;
-            
-            button.textContent = actionText + '中...';
-            button.disabled = true;
-            
+            const button = event ? (event.currentTarget || event.target) : null;
+            const originalText = button ? button.textContent : '删除';
+            if (button) { button.textContent = '删除中...'; button.disabled = true; }
+            console.log(`[deleteRating] Button updated to 'deleting'.`);
+
             const token = sessionStorage.getItem('accessToken');
             if (!token) {
-                alert("请先登录。");
-                button.textContent = originalText;
-                button.disabled = false;
-                return;
+                 alert("请先登录。");
+                 console.warn(`[deleteRating] No token found.`);
+                 if (button) { button.textContent = originalText; button.disabled = false; }
+                 return;
             }
-            
+             console.log(`[deleteRating] Token found.`);
+
+            try {
+                 const apiUrl = new URL(`/api/ratings`, window.location.origin);
+                 console.log(`[deleteRating] Sending DELETE request to: ${apiUrl}`);
+                 const response = await fetch(apiUrl, {
+                     method: 'DELETE',
+                     headers: {
+                         'Authorization': `Bearer ${token}`,
+                         'Content-Type': 'application/json'
+                     },
+                     body: JSON.stringify({ ratingId: ratingId })
+                 });
+
+                 // **DEBUG**: Log status and headers
+                 console.log(`[deleteRating] Response Status: ${response.status}`);
+                 console.log(`[deleteRating] Response OK: ${response.ok}`);
+                 console.log(`[deleteRating] Response Headers:`, Object.fromEntries(response.headers.entries()));
+
+                 // **DEBUG**: Get response text regardless of status
+                 const responseText = await response.text();
+                 console.log(`[deleteRating] Response Text: ${responseText}`);
+
+                 let data;
+                 try {
+                     data = JSON.parse(responseText); // Try to parse JSON
+                 } catch (parseError) {
+                     console.error(`[deleteRating] Failed to parse response as JSON:`, parseError);
+                     // If parsing fails BUT status was ok, maybe backend sent wrong content-type or empty body?
+                     if (response.ok) {
+                          console.log(`[deleteRating] Response was OK (${response.status}) but JSON parsing failed. Assuming success based on status.`);
+                          data = { success: true }; // Assume success
+                     } else {
+                         // If not ok and not JSON, create a generic error object
+                         data = { error: `服务器返回了无效的响应 (状态 ${response.status})` };
+                     }
+                 }
+                 console.log(`[deleteRating] Parsed Response Data:`, data);
+
+                 if (!response.ok) {
+                      console.error(`[deleteRating] Response not OK. Error from data: ${data?.error}`);
+                     throw new Error(data?.error || `删除失败 (状态 ${response.status})`);
+                 }
+
+                 // If response.ok proceed with UI update
+                 console.log(`[deleteRating] Deletion successful according to response status. Removing card...`);
+                 const cardToRemove = document.getElementById(`rating-card-${ratingId}`);
+                 if (cardToRemove) {
+                     cardToRemove.style.transition = 'opacity 0.5s ease-out';
+                     cardToRemove.style.opacity = '0';
+                     setTimeout(() => cardToRemove.remove(), 500);
+                     console.log(`[deleteRating] Card removal initiated for ${ratingId}.`);
+                 } else {
+                     console.warn(`[deleteRating] Card element not found for ID ${ratingId}.`);
+                 }
+                 alert("点评已删除。"); // Success alert
+
+            } catch (error) { // Catch block for fetch errors or thrown errors
+                 console.error("[deleteRating] Caught error:", error);
+                 alert(`删除失败: ${error.message}`); // Show the error message
+                 if (button) { button.textContent = originalText; button.disabled = false; } // Restore button safely
+            }
+        }
+
+        window.updateCertification = async function(ratingId, shouldCertify, event) { /* ... (no significant change needed yet) ... */
+            event?.stopPropagation(); const button = event ? (event.currentTarget || event.target) : null; const isCertifying = shouldCertify; const actionText = isCertifying ? '认证' : '取消认证'; const originalText = button ? button.textContent : actionText;
+            if (button) { button.textContent = actionText + '中...'; button.disabled = true; }
+            const token = sessionStorage.getItem('accessToken'); if (!token) { alert("请先登录。"); if (button) { button.textContent = originalText; button.disabled = false; } return; }
             try {
                 const apiUrl = new URL('/api/certify', window.location.origin);
-                const response = await fetch(apiUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ ratingId: ratingId, certify: isCertifying })
-                });
-                
-                if (!response.ok) {
-                    const err = await response.json();
-                    throw new Error(err.error || `${actionText}失败`);
-                }
-                
+                const response = await fetch(apiUrl, { method: 'POST', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ ratingId: ratingId, certify: isCertifying }) });
+                // **FIX**: Check response before parsing JSON
+                if (!response.ok) { let errorText = `${actionText}失败: ${response.status}`; try { const err = await response.json(); errorText = err.error || errorText; } catch(e) {/*ignore*/} throw new Error(errorText); }
+                const data = await response.json(); // Safe to parse
                 const card = document.getElementById(`rating-card-${ratingId}`);
-                if (card) {
-                    const buttonContainer = card.querySelector('.action-buttons');
-                    if (buttonContainer) {
-                        const certifyButton = buttonContainer.querySelector('button[data-action="certify"]');
-                        const uncertifyButton = buttonContainer.querySelector('button[data-action="uncertify"]');
-                        if (isCertifying) {
-                            if (certifyButton) certifyButton.classList.add('hidden');
-                            if (uncertifyButton) {
-                                uncertifyButton.classList.remove('hidden');
-                                uncertifyButton.disabled = false;
-                            }
-                        } else {
-                            if (certifyButton) {
-                                certifyButton.classList.remove('hidden');
-                                certifyButton.disabled = false;
-                            }
-                            if (uncertifyButton) uncertifyButton.classList.add('hidden');
-                        }
-                    }
-                }
+                if (card) { const buttonContainer = card.querySelector('.action-buttons'); if (buttonContainer) { const certifyButton = buttonContainer.querySelector('button[data-action="certify"]'); const uncertifyButton = buttonContainer.querySelector('button[data-action="uncertify"]'); if (isCertifying) { if (certifyButton) certifyButton.classList.add('hidden'); if (uncertifyButton) { uncertifyButton.classList.remove('hidden'); uncertifyButton.disabled = false; } } else { if (certifyButton) { certifyButton.classList.remove('hidden'); certifyButton.disabled = false; } if (uncertifyButton) uncertifyButton.classList.add('hidden'); } } }
                 alert(`操作成功！`);
-            } catch (error) {
-                console.error(`${actionText}失败:`, error);
-                alert(`${actionText}失败: ${error.message}`);
-                button.textContent = originalText;
-                button.disabled = false;
-            }
-        };
+            } catch (error) { console.error(`${actionText}失败:`, error); alert(`${actionText}失败: ${error.message}`); if (button) { button.textContent = originalText; button.disabled = false; } }
+        }
 
-        // Pin/Unpin Function
-        window.updatePinStatus = async function(ratingId, shouldPin, event) {
-            event.stopPropagation();
-            const button = event.target;
-            const actionText = shouldPin ? '置顶' : '取消置顶';
-            const originalText = button.textContent;
-
-            button.textContent = actionText + '中...';
-            button.disabled = true;
-
-            const token = sessionStorage.getItem('accessToken');
-            if (!token) {
-                alert("请先登录。");
-                button.textContent = originalText;
-                button.disabled = false;
-                return;
-            }
-
+        window.updatePinStatus = async function(ratingId, shouldPin, event) { /* ... (no significant change needed yet) ... */
+             event?.stopPropagation(); const button = event ? (event.currentTarget || event.target) : null; const actionText = shouldPin ? '置顶' : '取消置顶'; const originalText = button ? button.textContent : actionText;
+            if (button) { button.textContent = actionText + '中...'; button.disabled = true; } const token = sessionStorage.getItem('accessToken'); if (!token) { alert("请先登录。"); if (button) { button.textContent = originalText; button.disabled = false; } return; }
             try {
                 const apiUrl = new URL('/api/pin', window.location.origin);
-                const response = await fetch(apiUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ ratingId: ratingId, pin: shouldPin })
-                });
-
-                if (!response.ok) {
-                    const err = await response.json();
-                    throw new Error(err.error || `${actionText}失败`);
-                }
-
-                // Update UI immediately (swap buttons and indicator)
-                const card = document.getElementById(`rating-card-${ratingId}`);
-                if (card) {
-                    // Update cache
-                    if (historicalRatings[ratingId]) {
-                        historicalRatings[ratingId].isPinned = shouldPin;
-                    }
-
-                    // Toggle buttons
-                    const buttonContainer = card.querySelector('.action-buttons');
-                    if (buttonContainer) {
-                        const pinButton = buttonContainer.querySelector('button[data-action="pin"]');
-                        const unpinButton = buttonContainer.querySelector('button[data-action="unpin"]');
-                        if (shouldPin) {
-                            if (pinButton) pinButton.classList.add('hidden');
-                            if (unpinButton) {
-                                unpinButton.classList.remove('hidden');
-                                unpinButton.disabled = false;
-                            }
-                        } else {
-                            if (pinButton) {
-                                pinButton.classList.remove('hidden');
-                                pinButton.disabled = false;
-                            }
-                            if (unpinButton) unpinButton.classList.add('hidden');
-                        }
-                    }
-                    
-                    // Toggle indicator
-                    const indicator = card.querySelector('.pinned-indicator');
-                    if (indicator) {
-                        indicator.style.display = shouldPin ? 'flex' : 'none';
-                    }
-                }
+                const response = await fetch(apiUrl, { method: 'POST', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ ratingId: ratingId, pin: shouldPin }) });
+                // **FIX**: Check response before parsing JSON
+                if (!response.ok) { let errorText = `${actionText}失败: ${response.status}`; try { const err = await response.json(); errorText = err.error || errorText; } catch(e) {/*ignore*/} throw new Error(errorText); }
+                const data = await response.json(); // Safe to parse
+                const card = document.getElementById(`rating-card-${ratingId}`); if (card) { if(historicalRatings[ratingId]) historicalRatings[ratingId].isPinned = shouldPin; const buttonContainer = card.querySelector('.action-buttons'); if (buttonContainer) { const pinButton = buttonContainer.querySelector('button[data-action="pin"]'); const unpinButton = buttonContainer.querySelector('button[data-action="unpin"]'); if (shouldPin) { if (pinButton) pinButton.classList.add('hidden'); if (unpinButton) { unpinButton.classList.remove('hidden'); unpinButton.disabled = false; } } else { if (pinButton) { pinButton.classList.remove('hidden'); pinButton.disabled = false; } if (unpinButton) unpinButton.classList.add('hidden'); } } const indicator = card.querySelector('.pinned-indicator'); if(indicator) indicator.style.display = shouldPin ? 'flex' : 'none'; }
                 alert(`操作成功！`);
-            } catch (error) {
-                console.error(`${actionText}失败:`, error);
-                alert(`${actionText}失败: ${error.message}`);
-                button.textContent = originalText;
-                button.disabled = false;
-            }
-        };
+            } catch (error) { console.error(`${actionText}失败:`, error); alert(`${actionText}失败: ${error.message}`); if (button) { button.textContent = originalText; button.disabled = false; } }
+        }
 
-        window.viewRatingDetails = function(ratingId) {
-            const ratingData = historicalRatings[ratingId];
-            if (!ratingData) {
-                alert("无法加载该点评的详细信息。");
-                return;
-            }
-            
-            let detailedData = {
-                cigarInfo: ratingData.cigarInfo,
-                cigarReview: ratingData.cigarReview,
-                imageUrl: ratingData.imageUrl,
-                normalizedScore: ratingData.normalizedScore,
-                finalGrade: ratingData.finalGrade,
-                timestamp: ratingData.timestamp,
-                userNickname: ratingData.userNickname,
-                userEmail: ratingData.userEmail,
-                isDraft: false
-            };
-            
-            const hasCompleteFullData = ratingData.fullData && 
-                ratingData.fullData.config && 
-                ratingData.fullData.ratings && 
-                ratingData.fullData.calculatedScore !== undefined;
-            
-            if (hasCompleteFullData) {
-                detailedData.config = ratingData.fullData.config;
-                detailedData.ratings = ratingData.fullData.ratings;
-                detailedData.calculatedScore = ratingData.fullData.calculatedScore;
-                console.log("Sending COMPLETE data from history:", detailedData);
-            } else {
-                console.warn(`fullData for rating ${ratingId} from history is missing or incomplete. Sending only top-level data.`);
-                console.log("Sending INCOMPLETE data from history:", detailedData);
-            }
-            
-            try {
-                sessionStorage.setItem('cigarRatingResults', JSON.stringify(detailedData));
-                window.location.href = `results.html`;
-            } catch (e) {
-                console.error("Error setting sessionStorage:", e);
-                alert("无法保存会话数据以查看详情。");
-            }
-        };
+
+        window.viewRatingDetails = function(ratingId) { /* ... (no changes needed) ... */
+             const ratingData = historicalRatings[ratingId]; if (ratingData) { let detailedData = { cigarInfo: ratingData.cigarInfo, cigarReview: ratingData.cigarReview, imageUrl: ratingData.imageUrl, normalizedScore: ratingData.normalizedScore, finalGrade: ratingData.finalGrade, timestamp: ratingData.timestamp, userNickname: ratingData.userNickname, userEmail: ratingData.userEmail, isDraft: false }; const hasCompleteFullData = ratingData.fullData && ratingData.fullData.config && ratingData.fullData.ratings && ratingData.fullData.calculatedScore !== undefined; if (hasCompleteFullData) { detailedData.config = ratingData.fullData.config; detailedData.ratings = ratingData.fullData.ratings; detailedData.calculatedScore = ratingData.fullData.calculatedScore; console.log("Sending COMPLETE data from history:", detailedData); } else { console.warn(`fullData for rating ${ratingId} from history is missing or incomplete. Sending only top-level data.`); console.log("Sending INCOMPLETE data from history:", detailedData); } try { sessionStorage.setItem('cigarRatingResults', JSON.stringify(detailedData)); window.location.href = `results.html`; } catch (e) { console.error("Error setting sessionStorage:", e); alert("无法保存会话数据以查看详情。"); } } else { alert("无法加载该点评的详细信息。"); }
+        }
         // --- End Rating Actions ---
 
         // --- Data Fetching and Rendering ---
         async function fetchAndRenderHistory(user) {
-            loadingMessage.textContent = '正在加载历史记录...';
-            loadingMessage.style.display = 'block';
-            historyContainer.innerHTML = '';
-            
-            if (!user) {
-                historyTitle.textContent = "我的点评历史";
-                historyContainer.innerHTML = `<div class="text-center p-6 bg-white rounded-lg shadow"><p>请<button onclick="login()" class="text-indigo-600 underline font-semibold">登录</button>以查看您的点评历史。</p></div>`;
-                loadingMessage.style.display = 'none';
-                return;
-            }
-            
-            const token = sessionStorage.getItem('accessToken');
-            if (!token) {
-                historyTitle.textContent = "我的点评历史";
-                historyContainer.innerHTML = `<div class="text-center p-6 bg-yellow-100 text-yellow-700 rounded-lg shadow"><p>您的会话已过期，请<button onclick="login()" class="text-indigo-600 underline font-semibold">重新登录</button>。</p></div>`;
-                loadingMessage.style.display = 'none';
-                return;
-            }
+            loadingMessage.textContent = '正在加载历史记录...'; loadingMessage.style.display = 'block'; historyContainer.innerHTML = '';
+            if (!user) { historyTitle.textContent = "我的点评历史"; historyContainer.innerHTML = `<div class="text-center p-6 bg-white rounded-lg shadow"><p>请<button onclick="login()" class="text-indigo-600 underline font-semibold">登录</button>以查看您的点评历史。</p></div>`; loadingMessage.style.display = 'none'; return; }
+            const token = sessionStorage.getItem('accessToken'); if (!token) { historyTitle.textContent = "我的点评历史"; historyContainer.innerHTML = `<div class="text-center p-6 bg-yellow-100 text-yellow-700 rounded-lg shadow"><p>您的会话已过期，请<button onclick="login()" class="text-indigo-600 underline font-semibold">重新登录</button>。</p></div>`; loadingMessage.style.display = 'none'; return; }
 
             try {
-                const apiUrl = new URL('/api/ratings', window.location.origin);
-                const response = await fetch(apiUrl, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                
-                if (!response.ok) {
-                    const err = await response.json();
-                    throw new Error(err.error || '加载历史记录失败');
-                }
-                
-                const ratings = await response.json();
-                historicalRatings = {};
-                ratings.forEach(r => historicalRatings[r.id] = r);
-                
-                // Use validated role with fallback
-                userRole = (currentAuthUser && currentAuthUser.db_role) ? currentAuthUser.db_role : 'general';
+                 const apiUrl = new URL('/api/ratings', window.location.origin); const response = await fetch(apiUrl, { headers: { 'Authorization': `Bearer ${token}` } });
+                 // **DEBUG**: Log response status
+                 console.log('fetchAndRenderHistory response status:', response.status);
+                 // **FIX**: Check response before parsing JSON
+                 if (!response.ok) { let errorText = `加载历史记录失败: ${response.status}`; try { const err = await response.json(); errorText = err.error || errorText; } catch(e){/*ignore*/} throw new Error(errorText); }
+                 const ratings = await response.json(); // Safe to parse
+                 historicalRatings = {}; ratings.forEach(r => historicalRatings[r.id] = r); userRole = currentAuthUser?.db_role || 'general'; // Use validated role
 
-                // Set title based on role - FIXED: Use === instead of =
-                if (userRole === 'admin' || userRole === 'super_admin') {
-                    historyTitle.textContent = "所有用户的点评历史";
-                } else {
-                    historyTitle.textContent = "我的点评历史";
-                }
+                 if (userRole === 'admin' || userRole === 'super_admin') { historyTitle.textContent = "所有用户的点评历史"; } else { historyTitle.textContent = "我的点评历史"; }
 
-                if (ratings.length === 0) {
-                    historyContainer.innerHTML = `<div class="text-center p-6 bg-white rounded-lg shadow"><p>还没有任何点评记录。</p></div>`;
-                } else {
-                    let historyHtml = '<div class="space-y-4">';
-                    // Sort by pin status then timestamp (API should already do this for admin)
-                    ratings.sort((a, b) => (b.isPinned - a.isPinned) || (new Date(b.timestamp) - new Date(a.timestamp)));
-                    ratings.forEach(data => {
-                        historyHtml += renderRatingCard(data, user.sub, userRole);
-                    });
-                    historyHtml += '</div>';
-                    historyContainer.innerHTML = historyHtml;
+                if (ratings.length === 0) { historyContainer.innerHTML = `<div class="text-center p-6 bg-white rounded-lg shadow"><p>还没有任何点评记录。</p></div>`; }
+                else {
+                    let historyHtml = '<div class="space-y-4">'; ratings.sort((a, b) => (b.isPinned - a.isPinned) || (new Date(b.timestamp) - new Date(a.timestamp))); ratings.forEach(data => { historyHtml += renderRatingCard(data, user.sub, userRole); }); historyHtml += '</div>'; historyContainer.innerHTML = historyHtml;
                 }
-                loadingMessage.style.display = 'none';
-            } catch (error) {
-                console.error("获取历史记录失败:", error);
-                historyContainer.innerHTML = `<div class="text-center p-6 bg-red-100 text-red-700 rounded-lg shadow"><p>加载历史记录失败: ${error.message}</p></div>`;
-                loadingMessage.style.display = 'none';
-            }
+                 loadingMessage.style.display = 'none';
+            } catch (error) { console.error("获取历史记录失败:", error); historyContainer.innerHTML = `<div class="text-center p-6 bg-red-100 text-red-700 rounded-lg shadow"><p>加载历史记录失败: ${error.message}</p></div>`; loadingMessage.style.display = 'none'; }
         }
 
-        // Card layout and admin buttons including Pin/Unpin
         function renderRatingCard(data, currentUserId, currentUserRole) {
-            if (!data || typeof data !== 'object') {
-                console.error('Invalid data provided to renderRatingCard');
-                return '';
-            }
-            
             const ratingId = data.id;
-            const date = data.timestamp ? new Date(data.timestamp).toLocaleDateString('zh-CN', {
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit'
-            }) : '未知日期';
-            
+            const date = data.timestamp ? new Date(data.timestamp).toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' }) : '未知日期';
             const scoreDisplay = data.normalizedScore !== undefined ? data.normalizedScore.toFixed(2) : 'N/A';
-            
-            // Safely access finalGrade with fallback
-            let gradeDisplay = '未评级';
-            if (data.finalGrade && data.finalGrade.grade && data.finalGrade.name_cn) {
-                gradeDisplay = `${data.finalGrade.grade} - ${data.finalGrade.name_cn}`;
-            }
-            
+            const gradeDisplay = data.finalGrade ? `${data.finalGrade.grade} - ${data.finalGrade.name_cn}` : '未评级';
             const isOwner = data.userId === currentUserId;
             const isAdmin = currentUserRole === 'admin' || currentUserRole === 'super_admin';
-            const canModify = isOwner || isAdmin; // Admins can modify/delete anyone's
-            const canCertifyOrPin = isAdmin; // Only admins can certify or pin
-            
-            // Safely access user data with fallbacks
-            const authorDisplay = (data.userNickname || data.userEmail || data.userId || '未知用户');
-            const isPinned = data.isPinned; // From API
+            const canModify = isOwner || isAdmin;
+            const canCertifyOrPin = isAdmin;
+            const authorDisplay = data.userNickname || data.userEmail || data.userId || '未知用户';
+            const isPinned = data.isPinned;
 
             let actionButtonsHtml = '';
-            if (canModify) {
-                actionButtonsHtml += `<button onclick="editRating('${ratingId}', event)" class="py-1 px-3 bg-blue-500 text-white text-xs rounded hover:bg-blue-600 transition">修改</button>`;
-                actionButtonsHtml += `<button onclick="deleteRating('${ratingId}', event)" class="py-1 px-3 bg-red-500 text-white text-xs rounded hover:bg-red-600 transition ml-2">删除</button>`;
-            }
-            
-            if (canCertifyOrPin) {
-                actionButtonsHtml += `<button data-action="certify" onclick="updateCertification('${ratingId}', true, event)" class="py-1 px-3 bg-green-500 text-white text-xs rounded hover:bg-green-600 transition ml-2 ${data.isCertified ? 'hidden' : ''}">认证</button>`;
-                actionButtonsHtml += `<button data-action="uncertify" onclick="updateCertification('${ratingId}', false, event)" class="py-1 px-3 bg-yellow-600 text-white text-xs rounded hover:bg-yellow-700 transition ml-2 ${!data.isCertified ? 'hidden' : ''}">取消认证</button>`;
-                
-                // Pin buttons
-                actionButtonsHtml += `<button data-action="pin" onclick="updatePinStatus('${ratingId}', true, event)" class="py-1 px-3 bg-pink-500 text-white text-xs rounded hover:bg-pink-600 transition ml-2 ${isPinned ? 'hidden' : ''}">置顶</button>`;
-                actionButtonsHtml += `<button data-action="unpin" onclick="updatePinStatus('${ratingId}', false, event)" class="py-1 px-3 bg-gray-500 text-white text-xs rounded hover:bg-gray-600 transition ml-2 ${!isPinned ? 'hidden' : ''}">取消置顶</button>`;
-            }
+            if (canModify) { actionButtonsHtml += `<button onclick="editRating('${ratingId}', event)" class="py-1 px-3 bg-blue-500 text-white text-xs rounded hover:bg-blue-600 transition">修改</button>`; actionButtonsHtml += `<button onclick="deleteRating('${ratingId}', event)" class="py-1 px-3 bg-red-500 text-white text-xs rounded hover:bg-red-600 transition ml-2">删除</button>`; }
+            if (canCertifyOrPin) { actionButtonsHtml += `<button data-action="certify" onclick="updateCertification('${ratingId}', true, event)" class="py-1 px-3 bg-green-500 text-white text-xs rounded hover:bg-green-600 transition ml-2 ${data.isCertified ? 'hidden' : ''}">认证</button>`; actionButtonsHtml += `<button data-action="uncertify" onclick="updateCertification('${ratingId}', false, event)" class="py-1 px-3 bg-yellow-600 text-white text-xs rounded hover:bg-yellow-700 transition ml-2 ${!data.isCertified ? 'hidden' : ''}">取消认证</button>`; actionButtonsHtml += `<button data-action="pin" onclick="updatePinStatus('${ratingId}', true, event)" class="py-1 px-3 bg-pink-500 text-white text-xs rounded hover:bg-pink-600 transition ml-2 ${isPinned ? 'hidden' : ''}">置顶</button>`; actionButtonsHtml += `<button data-action="unpin" onclick="updatePinStatus('${ratingId}', false, event)" class="py-1 px-3 bg-gray-500 text-white text-xs rounded hover:bg-gray-600 transition ml-2 ${!isPinned ? 'hidden' : ''}">取消置顶</button>`; }
 
-            // Pinned indicator SVG
             const pinIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor"><path d="M9.03 2.5a.75.75 0 0 0-1.06 0l-4 4a.75.75 0 1 0 1.06 1.06L7 5.81v4.44a3.752 3.752 0 0 0-1.36.47l-1.88 1.1-.31.18a.75.75 0 0 0 .8 1.3l.3-.18 1.88-1.1a2.252 2.252 0 0 1 2.12 0l1.88 1.1.3.18a.75.75 0 0 0 .8-1.3l-.3-.18-1.88-1.1a3.752 3.752 0 0 0-1.36-.47V5.81l1.97 1.97a.75.75 0 1 0 1.06-1.06l-4-4Z"/></svg>`;
-
-            // Safely access cigarInfo with fallbacks
-            const cigarName = (data.cigarInfo && data.cigarInfo.name) ? data.cigarInfo.name : '未知名称';
-            const cigarSize = (data.cigarInfo && data.cigarInfo.size) ? data.cigarInfo.size : '未知尺寸';
-            const cigarOrigin = (data.cigarInfo && data.cigarInfo.origin) ? data.cigarInfo.origin : '未知产地';
 
             return `
                 <div id="rating-card-${ratingId}" class="rating-card block bg-white p-4 rounded-lg shadow-md hover:shadow-lg transition-shadow cursor-pointer relative" onclick="viewRatingDetails('${ratingId}')">
-                     <!-- Pinned Indicator (Admin View) -->
                      ${isAdmin && isPinned ? `<div class="pinned-indicator" title="已置顶">${pinIconSvg} 置顶</div>` : ''}
-
-                    <!-- Combined Info, Score, and Buttons Row -->
                     <div class="flex flex-wrap justify-between items-center gap-2">
-                        <!-- Left: Info -->
                         <div class="flex-grow min-w-0 pr-4">
-                             <p class="text-lg font-bold text-gray-800 truncate" title="${cigarName}">${cigarName}</p>
-                            <p class="text-sm text-gray-500 truncate">
-                                ${cigarSize} | ${cigarOrigin} | ${date}
-                                ${isAdmin ? `<span class="font-medium text-gray-600 ml-2">| 用户: ${authorDisplay}</span>` : ''}
-                            </p>
+                             <p class="text-lg font-bold text-gray-800 truncate" title="${data.cigarInfo?.name || ''}">${data.cigarInfo?.name || '未知名称'}</p>
+                            <p class="text-sm text-gray-500 truncate"> ${data.cigarInfo?.size || '未知尺寸'} | ${data.cigarInfo?.origin || '未知产地'} | ${date} ${ isAdmin ? `<span class="font-medium text-gray-600 ml-2">| 用户: ${authorDisplay}</span>` : '' } </p>
                         </div>
-                        <!-- Right: Score + Buttons -->
                         <div class="flex items-center flex-shrink-0 space-x-3">
-                             <!-- Score -->
-                            <div class="text-right">
-                                <p class="text-xl font-black text-indigo-600">${scoreDisplay}</p>
-                                <p class="font-bold text-gray-600 text-xs">${gradeDisplay}</p>
-                            </div>
-                            <!-- Buttons -->
-                            <div class="action-buttons flex items-center space-x-2 flex-wrap gap-1 ${!actionButtonsHtml ? 'hidden' : ''}">
-                                ${actionButtonsHtml}
-                            </div>
+                            <div class="text-right"> <p class="text-xl font-black text-indigo-600">${scoreDisplay}</p> <p class="font-bold text-gray-600 text-xs">${gradeDisplay}</p> </div>
+                            <div class="action-buttons flex items-center space-x-2 flex-wrap gap-1 ${!actionButtonsHtml ? 'hidden' : ''}"> ${actionButtonsHtml} </div>
                         </div>
                     </div>
                 </div>
@@ -572,29 +323,12 @@
         // --- End Data Fetching and Rendering ---
 
         // --- Initialization ---
-        window.onload = async function() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const code = urlParams.get('code');
-            let user = null;
-            
-            if (code) {
-                user = await handleOidcCallback(code);
-            } else {
-                user = await validateSessionAndGetUser();
-            }
-            
-            currentAuthUser = user;
-            
-            // Determine role based on user with safe access
-            if (currentAuthUser && currentAuthUser.db_role) {
-                userRole = currentAuthUser.db_role;
-            } else {
-                userRole = 'guest';
-            }
-            
-            renderLoginStatus(currentAuthUser);
-            fetchAndRenderHistory(currentAuthUser);
-        };
+        window.addEventListener('load', async function() {
+             const urlParams = new URLSearchParams(window.location.search); const code = urlParams.get('code'); let user = null;
+             if (code) { user = await handleOidcCallback(code); } else { user = await validateSessionAndGetUser(); }
+             currentAuthUser = user; userRole = currentAuthUser?.db_role ?? 'guest'; renderLoginStatus(currentAuthUser); fetchAndRenderHistory(currentAuthUser);
+        });
     </script>
 </body>
 </html>
+
