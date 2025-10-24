@@ -3,10 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>雪茄品鉴 - 评分报告</title>
+    <title>雪茄品鉴 - 点评报告</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
-        // Check if tailwind exists before configuring, add onerror handler
         if (typeof tailwind !== 'undefined') {
             tailwind.config = {
                 theme: {
@@ -39,7 +38,7 @@
 <body class="bg-gray-100 font-sans antialiased text-gray-800">
     <div class="max-w-4xl mx-auto p-4 md:p-8">
         <div id="error-container" class="hidden bg-red-100 p-6 rounded-lg shadow-lg text-red-700 font-medium"></div>
-        <div id="main-content" class="opacity-0"> <!-- Set initial opacity to 0 -->
+        <div id="main-content" class="opacity-0">
             <!-- Navbar -->
             <nav class="mb-6 flex flex-wrap justify-between items-center bg-white p-3 rounded-lg shadow-sm gap-4">
                 <a href="index.html" class="text-xl font-bold text-indigo-600">Pistacho评分</a>
@@ -49,13 +48,11 @@
                     <a href="history.html" class="text-gray-600 hover:text-indigo-600">我的点评历史</a>
                     <a href="certified.html" class="text-gray-600 hover:text-indigo-600">认证评分</a>
                 </div>
-                 <div id="login-status-container" class="flex items-center order-2 md:order-3">
-                     <!-- Login/Logout button will be rendered here -->
-                </div>
+                 <div id="login-status-container" class="flex items-center order-2 md:order-3"></div>
             </nav>
             <!-- End Navbar -->
             <header class="mb-6 text-center">
-                <h1 class="text-4xl font-extrabold text-gray-800 mb-2">评分报告</h1>
+                <h1 class="text-4xl font-extrabold text-gray-800 mb-2">点评报告</h1>
             </header>
             <section id="cigar-info-container" class="mb-6"></section>
 
@@ -69,60 +66,45 @@
 
             <div class="space-y-4">
                 <details id="grading-scale-details" class="group bg-white rounded-xl shadow-lg p-6 transition-all duration-300" open>
-                    <summary class="flex justify-between items-center cursor-pointer font-bold text-lg text-gray-800">
-                        PISTACHO 评级体系
-                        <svg class="w-5 h-5 transform group-open:rotate-180 transition-transform" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
-                    </summary>
+                    <summary class="flex justify-between items-center cursor-pointer font-bold text-lg text-gray-800"> PISTACHO 评级体系 <svg class="w-5 h-5 transform group-open:rotate-180 transition-transform" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg> </summary>
                     <div id="full-scale-container" class="mt-4"></div>
                 </details>
 
                 <details id="narrative-summary-details" class="group bg-white rounded-xl shadow-lg p-6 transition-all duration-300" open>
-                    <summary class="flex justify-between items-center cursor-pointer font-bold text-lg text-gray-800">
-                        综合评价
-                        <svg class="w-5 h-5 transform group-open:rotate-180 transition-transform" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
-                    </summary>
-                    <div id="narrative-summary-container" class="mt-4 prose max-w-none">
-                        <!-- JS will inject narrative summary here -->
-                    </div>
+                    <summary class="flex justify-between items-center cursor-pointer font-bold text-lg text-gray-800"> 综合评价 <svg class="w-5 h-5 transform group-open:rotate-180 transition-transform" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg> </summary>
+                    <div id="narrative-summary-container" class="mt-4 prose max-w-none"></div>
                 </details>
 
                 <details id="cigar-review-details" class="group bg-white rounded-xl shadow-lg p-6" open>
-                    <summary class="flex justify-between items-center cursor-pointer font-bold text-lg text-gray-800">
-                        文字评价
-                        <svg class="w-5 h-5 transform group-open:rotate-180 transition-transform" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
-                    </summary>
+                    <summary class="flex justify-between items-center cursor-pointer font-bold text-lg text-gray-800"> 文字评价 <svg class="w-5 h-5 transform group-open:rotate-180 transition-transform" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg> </summary>
                     <div id="cigar-review-container" class="mt-4 text-gray-700 prose max-w-none"></div>
                 </details>
 
                 <details id="summary-details" class="group bg-white rounded-xl shadow-lg p-6">
-                    <summary class="flex justify-between items-center cursor-pointer font-bold text-lg text-gray-800">
-                        评分详情汇总
-                        <svg class="w-5 h-5 transform group-open:rotate-180 transition-transform" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
-                    </summary>
+                    <summary class="flex justify-between items-center cursor-pointer font-bold text-lg text-gray-800"> 评分详情汇总 <svg class="w-5 h-5 transform group-open:rotate-180 transition-transform" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg> </summary>
                     <div id="summary-container" class="mt-4"></div>
                 </details>
 
             </div>
             <footer class="mt-8 text-center">
-                 <!-- **LINK UPDATED**: Point to rate.html -->
-                <a href="rate.html" class="py-3 px-6 bg-indigo-600 text-white font-bold rounded-lg shadow-md hover:bg-indigo-700 transition">
-                    &larr; 返回重新评分
-                </a>
+                <a href="rate.html" class="py-3 px-6 bg-indigo-600 text-white font-bold rounded-lg shadow-md hover:bg-indigo-700 transition"> &larr; 返回重新评分 </a>
             </footer>
         </div>
     </div>
     <script type="module">
-        // --- 全局变量和常量 ---
+        // --- Global Variables and Constants ---
+        // **UPDATED GRADING SCALE based on user request**
         const GRADING_SCALE = [
-          { "grade": "P", "name_en": "Pinnacle", "name_cn": "顶峰 / 登峰造极", "min_score": 95, "color": "gold" },
-          { "grade": "I", "name_en": "Impeccable", "name_cn": "无暇 / 完美无瑕", "min_score": 90, "color": "indigo" },
-          { "grade": "S", "name_en": "Superior", "name_cn": "卓越 / 出众", "min_score": 85, "color": "purple" },
-          { "grade": "T", "name_en": "Terrific", "name_cn": "极好 / 绝佳", "min_score": 80, "color": "blue" },
-          { "grade": "A", "name_en": "Appreciable", "name_cn": "可圈可点 / 值得欣赏", "min_score": 70, "color": "green" },
-          { "grade": "C", "name_en": "Commonplace", "name_cn": "平庸 / 普通", "min_score": 60, "color": "gray" },
-          { "grade": "H", "name_en": "Hesitant", "name_cn": "犹豫 / 瑕瑜互见", "min_score": 40, "color": "orange" },
-          { "grade": "O", "name_en": "Ordinary", "name_cn": "乏善可陈 / 平淡", "min_score": 0, "color": "red" }
+          { "grade": "P", "name_en": "Pinnacle", "name_cn": "顶峰 / 登峰造极", "min_score": 95, "color": "gold" },        // 95-100
+          { "grade": "I", "name_en": "Impeccable", "name_cn": "无暇 / 完美无瑕", "min_score": 90, "color": "indigo" },       // 90-94.99
+          { "grade": "S", "name_en": "Superior", "name_cn": "卓越 / 出众", "min_score": 80, "color": "purple" },       // 80-89.99
+          { "grade": "T", "name_en": "Terrific", "name_cn": "极好 / 绝佳", "min_score": 70, "color": "blue" },         // 70-79.99
+          { "grade": "A", "name_en": "Appreciable", "name_cn": "可圈可点 / 值得欣赏", "min_score": 60, "color": "green" },        // 60-69.99
+          { "grade": "C", "name_en": "Commonplace", "name_cn": "平庸 / 普通", "min_score": 50, "color": "gray" },         // 50-59.99
+          { "grade": "H", "name_en": "Hesitant", "name_cn": "犹豫 / 瑕瑜互见", "min_score": 30, "color": "orange" },       // 30-49.99
+          { "grade": "O", "name_en": "Objectionable", "name_cn": "令人反感 / 极差", "min_score": 0, "color": "red" }           // 0-29.99
         ];
+
 
         let currentAuthUser = null;
         let resultsData = null;
@@ -133,150 +115,82 @@
         const AUTHING_HOST = 'https://xfvu647mcdbk-demo.authing.cn';
 
         // --- Authentication ---
-         // Duplicating auth functions
-         window.login = function() {
-            const redirectUri = window.location.origin;
-            const authorizeUrl = new URL('/oidc/auth', AUTHING_HOST);
-            authorizeUrl.search = new URLSearchParams({
-                client_id: AUTHING_APP_ID, redirect_uri: redirectUri, response_type: 'code',
-                scope: 'openid profile email phone', state: Math.random().toString(36).substring(2)
-            }).toString();
-            window.location.href = authorizeUrl.toString();
-        }
-        window.logout = function() {
-             const logoutUrl = new URL('/oidc/session/end', AUTHING_HOST);
-             logoutUrl.search = new URLSearchParams({ post_logout_redirect_uri: window.location.origin }).toString();
-             sessionStorage.removeItem('userInfo'); sessionStorage.removeItem('accessToken');
-             window.location.href = logoutUrl.toString();
-        }
-        function renderLoginStatus(user) {
-            const container = document.getElementById('login-status-container'); if (!container) return;
-            if (user) {
-                const displayName = user.nickname || user.name || user.preferred_username || user.email || '已登录';
-                container.innerHTML = `<span class="text-sm font-medium text-gray-700 mr-2 hidden sm:inline">${displayName}</span><button onclick="logout()" class="px-3 py-1 text-xs font-medium rounded-full bg-red-500 text-white hover:bg-red-600">退出</button>`;
-            } else {
-                container.innerHTML = `<button onclick="login()" class="px-3 py-1 text-xs font-medium rounded-full bg-green-500 text-white hover:bg-green-600">登录/注册</button>`;
-            }
-        }
-        async function handleOidcCallback(code) {
-             try {
-                const redirectUri = window.location.origin; const apiUrl = new URL('/api/authing/callback', window.location.origin);
-                const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: code, redirect_uri: redirectUri }) });
-                if (!response.ok) { const err = await response.json(); throw new Error(err.error || '认证回调失败'); }
-                const fullUserProfile = await response.json(); sessionStorage.setItem('userInfo', JSON.stringify(fullUserProfile)); sessionStorage.setItem('accessToken', fullUserProfile.accessToken); return fullUserProfile;
-            } catch (e) { console.error('认证回调处理失败:', e); alert(`登录失败: ${e.message}`); sessionStorage.removeItem('userInfo'); sessionStorage.removeItem('accessToken'); return null; } finally { window.history.replaceState({}, document.title, window.location.pathname); }
-        }
-        async function validateSessionAndGetUser() {
-            const token = sessionStorage.getItem('accessToken'); if (!token) return null;
-            try {
-                const apiUrl = new URL('/api/me', window.location.origin); const response = await fetch(apiUrl, { headers: { 'Authorization': `Bearer ${token}` } });
-                if (!response.ok) { sessionStorage.removeItem('userInfo'); sessionStorage.removeItem('accessToken'); return null; }
-                const fullUserProfile = await response.json(); sessionStorage.setItem('userInfo', JSON.stringify(fullUserProfile)); return fullUserProfile;
-            } catch (e) { console.error("Session validation failed:", e); return null; }
-        }
+         window.login = function() { const redirectUri = window.location.origin; const authorizeUrl = new URL('/oidc/auth', AUTHING_HOST); authorizeUrl.search = new URLSearchParams({ client_id: AUTHING_APP_ID, redirect_uri: redirectUri, response_type: 'code', scope: 'openid profile email phone', state: Math.random().toString(36).substring(2) }).toString(); window.location.href = authorizeUrl.toString(); }
+         window.logout = function() { const logoutUrl = new URL('/oidc/session/end', AUTHING_HOST); logoutUrl.search = new URLSearchParams({ post_logout_redirect_uri: window.location.origin }).toString(); sessionStorage.removeItem('userInfo'); sessionStorage.removeItem('accessToken'); window.location.href = logoutUrl.toString(); }
+         function renderLoginStatus(user) { const container = document.getElementById('login-status-container'); if (!container) return; if (user) { const displayName = user.nickname || user.name || user.preferred_username || user.email || '已登录'; container.innerHTML = `<span class="text-sm font-medium text-gray-700 mr-2 hidden sm:inline">${displayName}</span><button onclick="logout()" class="px-3 py-1 text-xs font-medium rounded-full bg-red-500 text-white hover:bg-red-600">退出</button>`; } else { container.innerHTML = `<button onclick="login()" class="px-3 py-1 text-xs font-medium rounded-full bg-green-500 text-white hover:bg-green-600">登录/注册</button>`; } }
+         async function handleOidcCallback(code) { try { const redirectUri = window.location.origin; const apiUrl = new URL('/api/authing/callback', window.location.origin); const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: code, redirect_uri: redirectUri }) }); if (!response.ok) { const err = await response.json(); throw new Error(err.error || '认证回调失败'); } const fullUserProfile = await response.json(); sessionStorage.setItem('userInfo', JSON.stringify(fullUserProfile)); sessionStorage.setItem('accessToken', fullUserProfile.accessToken); return fullUserProfile; } catch (e) { console.error('认证回调处理失败:', e); alert(`登录失败: ${e.message}`); sessionStorage.removeItem('userInfo'); sessionStorage.removeItem('accessToken'); return null; } finally { window.history.replaceState({}, document.title, window.location.pathname); } }
+         async function validateSessionAndGetUser() { const token = sessionStorage.getItem('accessToken'); if (!token) return null; try { const apiUrl = new URL('/api/me', window.location.origin); const response = await fetch(apiUrl, { headers: { 'Authorization': `Bearer ${token}` } }); if (!response.ok) { sessionStorage.removeItem('userInfo'); sessionStorage.removeItem('accessToken'); return null; } const fullUserProfile = await response.json(); sessionStorage.setItem('userInfo', JSON.stringify(fullUserProfile)); return fullUserProfile; } catch (e) { console.error("Session validation failed:", e); return null; } }
         // --- End Auth ---
 
 
-        // --- 核心功能: 保存评分 ---
+        // --- Save Rating ---
         window.saveRating = async function() {
-            const token = sessionStorage.getItem('accessToken');
-            const storedUser = sessionStorage.getItem('userInfo');
-            currentAuthUser = storedUser ? JSON.parse(storedUser) : null;
-
-            if (!currentAuthUser || !token) { return alert("请登录后保存您的评分记录。"); }
-            if (!resultsData) { return alert("没有可保存的评分数据。"); }
-
-            const saveButton = document.getElementById('save-rating-button');
-            saveButton.textContent = "正在保存..."; saveButton.disabled = true;
-
+            const token = sessionStorage.getItem('accessToken'); const storedUser = sessionStorage.getItem('userInfo'); currentAuthUser = storedUser ? JSON.parse(storedUser) : null; if (!currentAuthUser || !token) { return alert("请登录后保存您的评分记录。"); } if (!resultsData) { return alert("没有可保存的评分数据。"); }
+            const saveButton = document.getElementById('save-rating-button'); saveButton.textContent = "正在保存..."; saveButton.disabled = true;
             try {
-                const ratingToSave = {
-                    ...resultsData,
-                    normalizedScore: normalizedScore,
-                    finalGrade: finalGrade,
-                };
-                 if (!ratingToSave.config || !ratingToSave.ratings || ratingToSave.calculatedScore === undefined) {
-                      console.warn("Attempting to save incomplete rating data. Saving only top-level info.");
-                 }
-
-                const apiUrl = new URL('/api/ratings', window.location.origin);
-                const response = await fetch(apiUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                    body: JSON.stringify(ratingToSave)
-                });
-
+                // Ensure data passed to backend has all required fields (for POST)
+                const ratingToSave = { ...resultsData, normalizedScore: normalizedScore, finalGrade: finalGrade };
+                 if (!ratingToSave.config || !ratingToSave.ratings || ratingToSave.calculatedScore === undefined) { console.warn("Attempting to save incomplete rating data."); }
+                const apiUrl = new URL('/api/ratings', window.location.origin); const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify(ratingToSave) });
                 if (!response.ok) { let errorData = { error: `服务器错误: ${response.status}` }; try { errorData = await response.json(); } catch(e) {} throw new Error(errorData.error || `服务器错误: ${response.status}`); }
-
-                saveButton.textContent = "已保存"; saveButton.classList.add('bg-gray-400', 'cursor-not-allowed');
-                alert("评分已成功保存到您的历史记录！");
-
-                resultsData.isDraft = false;
-                sessionStorage.setItem('cigarRatingResults', JSON.stringify(resultsData));
-
+                saveButton.textContent = "已保存"; saveButton.classList.add('bg-gray-400', 'cursor-not-allowed'); alert("评分已成功保存到您的历史记录！");
+                resultsData.isDraft = false; sessionStorage.setItem('cigarRatingResults', JSON.stringify(resultsData));
             } catch (error) { alert(`保存失败: ${error.message}`); saveButton.textContent = "保存为我的评分记录"; saveButton.disabled = false; }
         };
 
-        // --- 页面加载逻辑 ---
+        // --- Page Load Logic ---
         window.onload = async function() {
             const storedData = sessionStorage.getItem('cigarRatingResults');
             const errorContainer = document.getElementById('error-container');
             const mainContent = document.getElementById('main-content');
 
             // --- Auth Check ---
-            const urlParams = new URLSearchParams(window.location.search);
-            const code = urlParams.get('code');
-            let user = null;
-            if (code) { user = await handleOidcCallback(code); }
-            else { user = await validateSessionAndGetUser(); }
+            const urlParams = new URLSearchParams(window.location.search); const code = urlParams.get('code'); let user = null;
+            if (code) { user = await handleOidcCallback(code); } else { user = await validateSessionAndGetUser(); }
             currentAuthUser = user; renderLoginStatus(currentAuthUser);
             // --- End Auth Check ---
 
-            if (!storedData) {
-                errorContainer.innerHTML = `<p class="font-bold text-center">没有找到评分数据！<a href="index.html" class="text-indigo-600 underline">返回社区</a> 或 <a href="rate.html" class="text-indigo-600 underline">去评分</a></p>`;
-                errorContainer.classList.remove('hidden'); if (mainContent) mainContent.style.display = 'none'; return;
-            }
+            if (!storedData) { errorContainer.innerHTML = `<p class="font-bold text-center">没有找到评分数据！<a href="index.html" class="text-indigo-600 underline">返回社区</a> 或 <a href="rate.html" class="text-indigo-600 underline">去评分</a></p>`; errorContainer.classList.remove('hidden'); if (mainContent) mainContent.style.display = 'none'; return; }
 
             try {
                 resultsData = JSON.parse(storedData);
                 console.log("Results data loaded from sessionStorage:", resultsData);
 
-                if (!resultsData || resultsData.normalizedScore === undefined || !resultsData.finalGrade || !resultsData.cigarInfo) {
-                    throw new Error("存储的评分数据缺少基本信息 (分数, 评级, 雪茄信息)。");
+                if (!resultsData || resultsData.normalizedScore === undefined || !resultsData.finalGrade || !resultsData.cigarInfo || !resultsData.title) {
+                    throw new Error("存储的点评数据缺少基本信息 (标题, 分数, 评级, 雪茄信息)。");
                 }
 
-                const { cigarInfo, cigarReview, imageUrl, normalizedScore: score, finalGrade: grade, isDraft } = resultsData;
+                const { title, cigarInfo, cigarReview, imageUrls, normalizedScore: score, isDraft } = resultsData; // Removed grade extraction here
                 normalizedScore = score;
-                finalGrade = grade;
+                // **FIX**: Always calculate finalGrade based on the CURRENT GRADING_SCALE
+                const currentGradeDefinition = GRADING_SCALE.find(g => normalizedScore >= g.min_score) || GRADING_SCALE[GRADING_SCALE.length - 1];
+                finalGrade = currentGradeDefinition; // Use the definition from the *current* GRADING_SCALE
+
+                const coverImageUrl = Array.isArray(imageUrls) && imageUrls.length > 0 ? imageUrls[0] : null;
 
                 // --- Render Always Visible Sections ---
                 const cigarInfoContainer = document.getElementById('cigar-info-container');
                 cigarInfoContainer.innerHTML = `
                     <div class="bg-white rounded-xl p-6 text-center shadow">
-                        <h2 class="text-3xl font-bold">${cigarInfo.name}</h2>
-                        <div class="mt-2 flex justify-center space-x-6 text-gray-500">
+                        <h2 class="text-3xl font-bold mb-2">${title}</h2>
+                        <p class="text-xl font-semibold">${cigarInfo.name}</p>
+                        <div class="mt-2 flex justify-center space-x-6 text-gray-500 text-sm">
                             <span><strong>尺寸:</strong> ${cigarInfo.size}</span>
                             <span><strong>产地:</strong> ${cigarInfo.origin}</span>
                         </div>
-                        ${imageUrl ? `<div class="mt-4 max-w-xs mx-auto aspect-[1179/1572] overflow-hidden rounded-lg shadow-inner"><img src="/api/image/${imageUrl}" alt="${cigarInfo.name}" class="w-full h-full object-cover"></div>` : ''}
+                        ${coverImageUrl ? `<div class="mt-4 max-w-xs mx-auto aspect-[1179/1572] overflow-hidden rounded-lg shadow-inner"><img src="/api/image/${coverImageUrl}" alt="${cigarInfo.name}" class="w-full h-full object-cover"></div>` : ''}
                     </div>`;
 
                 renderResultsCard(document.getElementById('results-card-container'), normalizedScore, finalGrade);
-                renderFullScale(document.getElementById('full-scale-container'), finalGrade);
+                renderFullScale(document.getElementById('full-scale-container'), finalGrade); // Will now use updated scale
 
                 const reviewContainer = document.getElementById('cigar-review-container');
                 const reviewDetails = document.getElementById('cigar-review-details');
-                if (cigarReview && cigarReview !== '无') {
-                    reviewContainer.textContent = cigarReview;
-                    reviewDetails.classList.remove('hidden');
-                } else {
-                    reviewDetails.classList.add('hidden');
-                }
+                if (cigarReview && cigarReview !== '无') { reviewContainer.textContent = cigarReview; reviewDetails.classList.remove('hidden'); }
+                else { reviewDetails.classList.add('hidden'); }
 
                 const saveButtonContainer = document.getElementById('save-button-container');
-                if (currentAuthUser && isDraft) {
-                    saveButtonContainer?.classList.remove('hidden');
-                }
+                if (currentAuthUser && isDraft) { saveButtonContainer?.classList.remove('hidden'); }
 
                 // --- Conditionally Render Sections Based on Full Data ---
                 const narrativeDetails = document.getElementById('narrative-summary-details');
@@ -287,6 +201,7 @@
 
                 if (hasFullData) {
                     const { config, ratings, calculatedScore } = resultsData;
+                    // Pass the correct finalGrade object
                     const narrativeSummary = generateNarrativeSummary(cigarInfo, config, ratings, finalGrade);
                     document.getElementById('narrative-summary-container').innerHTML = narrativeSummary;
                     narrativeDetails.classList.remove('hidden');
@@ -303,80 +218,41 @@
                     mainContent.insertBefore(limitedDataMessage, mainContent.querySelector('footer'));
                 }
 
-                mainContent.style.opacity = '1';
-                mainContent.classList.add('animate-fadeInUp');
+                mainContent.style.opacity = '1'; mainContent.classList.add('animate-fadeInUp');
 
             } catch (e) {
                  errorContainer.innerHTML = `<p class="font-bold text-center">解析数据出错！<a href="index.html" class="text-indigo-600 underline">返回社区</a> 或 <a href="rate.html" class="text-indigo-600 underline">去评分</a></p><p class="text-sm text-gray-600">${e.message}</p>`;
-                 errorContainer.classList.remove('hidden');
-                 if (mainContent) mainContent.style.display = 'none';
+                 errorContainer.classList.remove('hidden'); if (mainContent) mainContent.style.display = 'none';
                  console.error("Results page error:", e);
             }
         };
 
-        // --- 渲染和工具函数 ---
-        function generateNarrativeSummary(cigarInfo, config, ratings, finalGrade) {
-            if (!config || !ratings) { return '<p class="text-gray-500 italic">无法生成综合评价 (缺少原始评分数据)。</p>'; }
-            let summary = `<p class="text-base text-gray-700 leading-relaxed">`;
-            summary += `本次品鉴的雪茄是来自<strong class="font-semibold">${cigarInfo?.origin || '未知'}</strong>的<strong class="font-semibold">${cigarInfo?.name || '未知'}</strong>，尺寸为<strong class="font-semibold">${cigarInfo?.size || '未知'}</strong>。`;
-            let observations = [];
-            (config?.ratingCriteria || []).forEach(category => {
-                (category.criteriaList || []).forEach(criterion => {
-                    const id = getRatingId(category.category, criterion.name); const selectedOptionIndex = ratings[id];
-                    if (selectedOptionIndex !== undefined && criterion.options?.[selectedOptionIndex]) { const option = criterion.options[selectedOptionIndex]; observations.push(`在<strong class="font-semibold">${criterion.name}</strong>方面，其表现为“${option.description}”`); }
-                });
-            });
-            if (observations.length > 0) { summary += ` 品鉴过程中，我们观察到：${observations.join('；')}。`; } else { summary += ` (未记录详细评分选项)。`; }
-            const gradeHierarchy = GRADING_SCALE.map(g => g.name_en).join('-');
-            summary += ` 综合来看，本次基于Pistacho Cigar Rating System（Pistacho雪茄评分）的最终评级为<strong class="font-semibold text-indigo-600">“${finalGrade.name_en} - ${finalGrade.name_cn}”</strong>。${gradeHierarchy}`;
-            summary += `</p>`; return summary;
-        }
-
+        // --- Rendering Utilities ---
+        function generateNarrativeSummary(cigarInfo, config, ratings, finalGrade) { if(!config||!ratings){return'<p class="text-gray-500 italic">无法生成综合评价 (缺少原始评分数据)。</p>';}let summary=`<p class="text-base text-gray-700 leading-relaxed">`;summary+=`本次品鉴的雪茄是来自<strong class="font-semibold">${cigarInfo?.origin||'未知'}</strong>的<strong class="font-semibold">${cigarInfo?.name||'未知'}</strong>，尺寸为<strong class="font-semibold">${cigarInfo?.size||'未知'}</strong>。`;let observations=[];(config?.ratingCriteria||[]).forEach(category=>{(category.criteriaList||[]).forEach(criterion=>{const id=getRatingId(category.category,criterion.name);const selectedOptionIndex=ratings[id];if(selectedOptionIndex!==undefined&&criterion.options?.[selectedOptionIndex]){const option=criterion.options[selectedOptionIndex];observations.push(`在<strong class="font-semibold">${criterion.name}</strong>方面，其表现为“${option.description}”`);}});});if(observations.length>0){summary+=` 品鉴过程中，我们观察到：${observations.join('；')}。`;}else{summary+=` (未记录详细评分选项)。`;}const gradeHierarchy=GRADING_SCALE.map(g=>g.name_en).join('-');summary+=` 综合来看，本次基于Pistacho Cigar Rating System（Pistacho雪茄评分）的最终评级为<strong class="font-semibold text-indigo-600">“${finalGrade.name_en} - ${finalGrade.name_cn}”</strong>。${gradeHierarchy}`;summary+=`</p>`;return summary;}
         function getRatingId(category, criterion) { const catStr = String(category || '').trim(); const critStr = String(criterion || '').trim(); return `${catStr}-${critStr}`; }
-
         function renderResultsCard(container, score, grade) { if (!container || !grade || !grade.color) return; const styles = getGradeStyles(grade.color); container.innerHTML = `<div class="relative rounded-2xl p-8 text-white overflow-hidden shadow-2xl ${styles.bgGradient} ${styles.shadowColor}"><div class="relative z-10 flex justify-between items-center"><div><p class="font-medium opacity-80">${grade.name_en}</p><h2 class="text-4xl font-extrabold tracking-tight">${grade.name_cn}</h2><p class="mt-4 text-7xl font-black">${score.toFixed(2)}</p></div><div class="flex-shrink-0 w-32 h-32 rounded-full border-4 border-white border-opacity-50 flex flex-col items-center justify-center bg-white bg-opacity-10 backdrop-blur-sm"><span class="text-6xl font-black">${grade.grade}</span><span class="font-semibold tracking-widest uppercase text-sm">${grade.name_en}</span></div></div></div>`; }
+        function renderSummary(container, config, ratings) { if (!container) return; if (!config || !ratings) { container.innerHTML = '<p class="text-gray-500 italic">无法生成评分详情汇总 (缺少原始评分数据)。</p>'; return; } let summaryHtml = ''; (config?.ratingCriteria || []).forEach((category) => { summaryHtml += `<div class="mb-4"><h4 class="text-md font-semibold text-gray-600 mb-2 border-b pb-1">${category.category}</h4><ul class="list-none space-y-1 text-sm">`; let hasCriteria = false; (category.criteriaList || []).forEach((criterion) => { const id = getRatingId(category.category, criterion.name); const selectedOptionIndex = ratings[id]; if (selectedOptionIndex !== undefined && criterion.options?.[selectedOptionIndex]) { const option = criterion.options[selectedOptionIndex]; summaryHtml += `<li class="flex justify-between items-center p-1"><div><span class="font-medium text-gray-700">${criterion.name}:</span><span class="text-gray-500 ml-2">${option.description}</span></div></li>`; hasCriteria = true; } }); if (!hasCriteria) { summaryHtml += `<li class="text-gray-400 italic text-xs">(无评分项)</li>`; } summaryHtml += `</ul></div>`; }); container.innerHTML = summaryHtml || '<p class="text-gray-500 italic">(无评分详情)</p>'; }
+        function renderFullScale(container, finalGrade) { if (!container) return; let scaleHtml = '<div class="space-y-3">'; GRADING_SCALE.forEach(grade => { const isCurrentGrade = grade.grade === finalGrade?.grade; const styles = getGradeStyles(grade.color); const highlightClasses = isCurrentGrade ? `border-blue-500 bg-blue-50 ring-2 ring-blue-200 animate-highlight` : 'border-gray-200 bg-white hover:bg-gray-50'; scaleHtml += `<div class="p-4 rounded-lg border-2 transition-all duration-300 ${highlightClasses}"><div class="flex items-center space-x-4"><div class="w-8 h-8 flex-shrink-0 rounded-full flex items-center justify-center font-black text-xl ${styles.textColor} ${styles.bgColor}">${grade.grade}</div><div class="flex-grow"><p class="font-bold text-lg ${styles.textColor}">${grade.name_cn}</p><p class="text-sm text-gray-500">${grade.name_en}</p></div><p class="font-mono font-semibold text-gray-700 text-right">${getScoreRange(grade.grade)}</p></div></div>`; }); scaleHtml += '</div>'; container.innerHTML = scaleHtml; }
 
-        function renderSummary(container, config, ratings) {
-             if (!container) return; if (!config || !ratings) { container.innerHTML = '<p class="text-gray-500 italic">无法生成评分详情汇总 (缺少原始评分数据)。</p>'; return; }
-            let summaryHtml = ''; (config?.ratingCriteria || []).forEach((category) => {
-                summaryHtml += `<div class="mb-4"><h4 class="text-md font-semibold text-gray-600 mb-2 border-b pb-1">${category.category}</h4><ul class="list-none space-y-1 text-sm">`; let hasCriteria = false; (category.criteriaList || []).forEach((criterion) => {
-                    const id = getRatingId(category.category, criterion.name); const selectedOptionIndex = ratings[id];
-                    if (selectedOptionIndex !== undefined && criterion.options?.[selectedOptionIndex]) { const option = criterion.options[selectedOptionIndex]; summaryHtml += `<li class="flex justify-between items-center p-1"><div><span class="font-medium text-gray-700">${criterion.name}:</span><span class="text-gray-500 ml-2">${option.description}</span></div></li>`; hasCriteria = true; }
-                }); if (!hasCriteria) { summaryHtml += `<li class="text-gray-400 italic text-xs">(无评分项)</li>`; } summaryHtml += `</ul></div>`;
-            }); container.innerHTML = summaryHtml || '<p class="text-gray-500 italic">(无评分详情)</p>';
-        }
-
-        function renderFullScale(container, finalGrade) {
-            if (!container) return; let scaleHtml = '<div class="space-y-3">';
-            GRADING_SCALE.forEach(grade => {
-                const isCurrentGrade = grade.grade === finalGrade?.grade; const styles = getGradeStyles(grade.color);
-                const highlightClasses = isCurrentGrade ? `border-blue-500 bg-blue-50 ring-2 ring-blue-200 animate-highlight` : 'border-gray-200 bg-white hover:bg-gray-50';
-                scaleHtml += `<div class="p-4 rounded-lg border-2 transition-all duration-300 ${highlightClasses}"><div class="flex items-center space-x-4"><div class="w-8 h-8 flex-shrink-0 rounded-full flex items-center justify-center font-black text-xl ${styles.textColor} ${styles.bgColor}">${grade.grade}</div><div class="flex-grow"><p class="font-bold text-lg ${styles.textColor}">${grade.name_cn}</p><p class="text-sm text-gray-500">${grade.name_en}</p></div><p class="font-mono font-semibold text-gray-700 text-right">${getScoreRange(grade.grade)}</p></div></div>`;
-            }); scaleHtml += '</div>'; container.innerHTML = scaleHtml;
-        }
-
+        // **UPDATED**: getScoreRange now uses the updated GRADING_SCALE
         function getScoreRange(gradeCode) {
             const index = GRADING_SCALE.findIndex(g => g.grade === gradeCode);
-            if (index === -1) return ''; const min = GRADING_SCALE[index].min_score;
-            const max = index === 0 ? 100 : GRADING_SCALE[index - 1].min_score - 0.01;
-            return index === 0 ? `${min}-100` : `${min.toFixed(0)}-${max.toFixed(2)}`;
+            if (index === -1) return '';
+            const min = GRADING_SCALE[index].min_score;
+            // Handle Pinnacle (95-100) and the top boundary for others
+            if (gradeCode === 'P') return '95-100'; // Special case for Pinnacle
+             // Find the grade above the current one
+             const gradeAbove = GRADING_SCALE[index - 1];
+             if (!gradeAbove) return `< ${min}`; // Should not happen for non-Pinnacle grades if scale is correct
+             const max = gradeAbove.min_score - 0.01; // Upper bound is min_score of the grade above - 0.01
+
+             // Special case for Objectionable (O) to show 0-29.99
+             if (gradeCode === 'O') return `0-${max.toFixed(2)}`;
+
+            return `${min.toFixed(0)}-${max.toFixed(2)}`;
         }
 
-        // **FIX**: Moved stylesMap inside the function
-        function getGradeStyles(color) {
-            // **FIX**: Declare stylesMap only ONCE inside the function
-            const stylesMap = {
-                'gold':   { bgColor: 'bg-yellow-400', textColor: 'text-yellow-800', bgGradient: 'bg-gradient-to-br from-yellow-400 to-amber-500', shadowColor: 'shadow-yellow-500/50' },
-                'indigo': { bgColor: 'bg-indigo-300', textColor: 'text-indigo-800', bgGradient: 'bg-gradient-to-br from-indigo-500 to-purple-600', shadowColor: 'shadow-indigo-500/50' },
-                'purple': { bgColor: 'bg-purple-300', textColor: 'text-purple-800', bgGradient: 'bg-gradient-to-br from-purple-500 to-violet-600', shadowColor: 'shadow-purple-500/50' },
-                'blue':   { bgColor: 'bg-blue-300',   textColor: 'text-blue-800',   bgGradient: 'bg-gradient-to-br from-blue-500 to-cyan-600',   shadowColor: 'shadow-blue-500/50' },
-                'green':  { bgColor: 'bg-green-300',  textColor: 'text-green-800',  bgGradient: 'bg-gradient-to-br from-green-500 to-lime-600',   shadowColor: 'shadow-green-500/50' },
-                'gray':   { bgColor: 'bg-gray-300',   textColor: 'text-gray-800',   bgGradient: 'bg-gradient-to-br from-gray-500 to-slate-600',    shadowColor: 'shadow-gray-500/50' },
-                'orange': { bgColor: 'bg-orange-300', textColor: 'text-orange-800', bgGradient: 'bg-gradient-to-br from-orange-500 to-amber-600',  shadowColor: 'shadow-orange-500/50' },
-                'red':    { bgColor: 'bg-red-300',    textColor: 'text-red-800',    bgGradient: 'bg-gradient-to-br from-red-500 to-rose-600',     shadowColor: 'shadow-red-500/50' }
-            };
-            return stylesMap[color] || stylesMap['gray'];
-        }
+        function getGradeStyles(color) { const stylesMap = { 'gold': { bgColor: 'bg-yellow-400', textColor: 'text-yellow-800', bgGradient: 'bg-gradient-to-br from-yellow-400 to-amber-500', shadowColor: 'shadow-yellow-500/50' }, 'indigo': { bgColor: 'bg-indigo-300', textColor: 'text-indigo-800', bgGradient: 'bg-gradient-to-br from-indigo-500 to-purple-600', shadowColor: 'shadow-indigo-500/50' }, 'purple': { bgColor: 'bg-purple-300', textColor: 'text-purple-800', bgGradient: 'bg-gradient-to-br from-purple-500 to-violet-600', shadowColor: 'shadow-purple-500/50' }, 'blue': { bgColor: 'bg-blue-300', textColor: 'text-blue-800', bgGradient: 'bg-gradient-to-br from-blue-500 to-cyan-600', shadowColor: 'shadow-blue-500/50' }, 'green': { bgColor: 'bg-green-300', textColor: 'text-green-800', bgGradient: 'bg-gradient-to-br from-green-500 to-lime-600', shadowColor: 'shadow-green-500/50' }, 'gray': { bgColor: 'bg-gray-300', textColor: 'text-gray-800', bgGradient: 'bg-gradient-to-br from-gray-500 to-slate-600', shadowColor: 'shadow-gray-500/50' }, 'orange': { bgColor: 'bg-orange-300', textColor: 'text-orange-800', bgGradient: 'bg-gradient-to-br from-orange-500 to-amber-600', shadowColor: 'shadow-orange-500/50' }, 'red': { bgColor: 'bg-red-300', textColor: 'text-red-800', bgGradient: 'bg-gradient-to-br from-red-500 to-rose-600', shadowColor: 'shadow-red-500/50' } }; return stylesMap[color] || stylesMap['gray']; }
     </script>
 </body>
 </html>
