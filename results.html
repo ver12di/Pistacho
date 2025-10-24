@@ -139,7 +139,10 @@
 
                 if (!resultsData || resultsData.normalizedScore === undefined || !resultsData.finalGrade || !resultsData.cigarInfo || !resultsData.title) { throw new Error("存储的点评数据缺少基本信息 (标题, 分数, 评级, 雪茄信息)。"); }
 
-                const { title, cigarInfo, cigarReview, imageUrls, normalizedScore: score, isDraft } = resultsData;
+                // **FIX**: 优先检查 'imageUrls' (复数), 如果不存在, 则回退检查 'imageUrl' (单数)
+                const { title, cigarInfo, cigarReview, normalizedScore: score, isDraft } = resultsData;
+                const imageUrls = resultsData.imageUrls || resultsData.imageUrl; // <-- 已修复: 兼容两个key
+                
                 normalizedScore = score;
                 const currentGradeDefinition = GRADING_SCALE.find(g => normalizedScore >= g.min_score) || GRADING_SCALE[GRADING_SCALE.length - 1];
                 finalGrade = currentGradeDefinition;
@@ -158,6 +161,7 @@
 
                 // --- Initialize Image Gallery ---
                 let images = [];
+                // **NOTE**: 此处逻辑已兼容 imageUrls 为数组或单个字符串
                 if(Array.isArray(imageUrls)) { images = imageUrls; }
                 else if (typeof imageUrls === 'string' && imageUrls) { try { images = JSON.parse(imageUrls); if (!Array.isArray(images)) images = [imageUrls];} catch(e){ images = [imageUrls]; } }
                 initSwipers(images);
@@ -218,4 +222,3 @@
     </script>
 </body>
 </html>
-

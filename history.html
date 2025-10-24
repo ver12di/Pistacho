@@ -259,11 +259,10 @@
         window.viewRatingDetails = function(ratingId) {
              const ratingData = historicalRatings[ratingId]; 
              if (ratingData) { 
-                // **FIX**: 使用 'imageUrls' (带's') 来匹配 results.html 的期望
                  let detailedData = { 
                     cigarInfo: ratingData.cigarInfo, 
                     cigarReview: ratingData.cigarReview, 
-                    imageUrls: ratingData.imageUrl, // <-- 已修复: 从 imageUrl 改为 imageUrls
+                    imageUrl: ratingData.imageUrl, // <-- 已还原: 保持 'imageUrl' (没有 's')
                     normalizedScore: ratingData.normalizedScore, 
                     finalGrade: ratingData.finalGrade, 
                     timestamp: ratingData.timestamp, 
@@ -367,3 +366,4 @@
     </script>
 </body>
 </html>
+
