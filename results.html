@@ -113,7 +113,6 @@
     </div>
     <script type="module">
         // --- 全局变量和常量 ---
-        // **FIX**: Declare GRADING_SCALE only ONCE
         const GRADING_SCALE = [
           { "grade": "P", "name_en": "Pinnacle", "name_cn": "顶峰 / 登峰造极", "min_score": 95, "color": "gold" },
           { "grade": "I", "name_en": "Impeccable", "name_cn": "无暇 / 完美无瑕", "min_score": 90, "color": "indigo" },
@@ -328,7 +327,6 @@
                 });
             });
             if (observations.length > 0) { summary += ` 品鉴过程中，我们观察到：${observations.join('；')}。`; } else { summary += ` (未记录详细评分选项)。`; }
-            // **FIX**: Use global GRADING_SCALE
             const gradeHierarchy = GRADING_SCALE.map(g => g.name_en).join('-');
             summary += ` 综合来看，本次基于Pistacho Cigar Rating System（Pistacho雪茄评分）的最终评级为<strong class="font-semibold text-indigo-600">“${finalGrade.name_en} - ${finalGrade.name_cn}”</strong>。${gradeHierarchy}`;
             summary += `</p>`; return summary;
@@ -350,7 +348,6 @@
 
         function renderFullScale(container, finalGrade) {
             if (!container) return; let scaleHtml = '<div class="space-y-3">';
-            // **FIX**: Use global GRADING_SCALE
             GRADING_SCALE.forEach(grade => {
                 const isCurrentGrade = grade.grade === finalGrade?.grade; const styles = getGradeStyles(grade.color);
                 const highlightClasses = isCurrentGrade ? `border-blue-500 bg-blue-50 ring-2 ring-blue-200 animate-highlight` : 'border-gray-200 bg-white hover:bg-gray-50';
@@ -359,16 +356,16 @@
         }
 
         function getScoreRange(gradeCode) {
-            // **FIX**: Use global GRADING_SCALE
             const index = GRADING_SCALE.findIndex(g => g.grade === gradeCode);
             if (index === -1) return ''; const min = GRADING_SCALE[index].min_score;
             const max = index === 0 ? 100 : GRADING_SCALE[index - 1].min_score - 0.01;
             return index === 0 ? `${min}-100` : `${min.toFixed(0)}-${max.toFixed(2)}`;
         }
 
+        // **FIX**: Moved stylesMap inside the function
         function getGradeStyles(color) {
-            const stylesMap = { /* ... (no change) ... */ };
-             const stylesMap = {
+            // **FIX**: Declare stylesMap only ONCE inside the function
+            const stylesMap = {
                 'gold':   { bgColor: 'bg-yellow-400', textColor: 'text-yellow-800', bgGradient: 'bg-gradient-to-br from-yellow-400 to-amber-500', shadowColor: 'shadow-yellow-500/50' },
                 'indigo': { bgColor: 'bg-indigo-300', textColor: 'text-indigo-800', bgGradient: 'bg-gradient-to-br from-indigo-500 to-purple-600', shadowColor: 'shadow-indigo-500/50' },
                 'purple': { bgColor: 'bg-purple-300', textColor: 'text-purple-800', bgGradient: 'bg-gradient-to-br from-purple-500 to-violet-600', shadowColor: 'shadow-purple-500/50' },
