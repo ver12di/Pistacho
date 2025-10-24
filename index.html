@@ -1,255 +1,75 @@
 <!DOCTYPE html>
 <html lang="zh-Hans">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pistacho 评分社区</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        if (typeof tailwind !== 'undefined') {
-            tailwind.config = {
-                theme: {
-                    extend: {
-                        fontFamily: {
-                            sans: ['Inter', 'Noto Sans SC', 'system-ui', 'sans-serif'],
-                        },
-                        // **UPDATED**: Define the custom aspect ratio
-                        aspectRatio: {
-                            '1179/1572': '1179 / 1572',
-                        },
-                    }
-                }
-            }
-        } else {
-            console.warn('Tailwind object not found. Skipping config.');
-        }
-    </script>
-    <style>
-        .rating-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-        }
-        /* **NEW**: Style for nav links */
-        .nav-link {
-            @apply px-3 py-2 rounded-md text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-indigo-600 transition-colors;
-        }
-        .nav-link-active {
-            @apply px-3 py-2 rounded-md text-sm font-medium text-indigo-600 bg-indigo-50 font-semibold;
-        }
-         /* Ensure main content area respects padding */
-        .main-container {
-             padding-left: 1rem; /* Equivalent to p-4 */
-             padding-right: 1rem; /* Equivalent to p-4 */
-             padding-top: 1rem;
-             padding-bottom: 2rem; /* Equivalent to md:p-8 */
-             margin-left: auto;
-             margin-right: auto;
-         }
-         @media (min-width: 768px) { /* md breakpoint */
-            .main-container {
-                 padding-left: 2rem;
-                 padding-right: 2rem;
-                 padding-bottom: 2rem;
-            }
-         }
-
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pistacho Cigar Rating System ｜ Pistacho雪茄评分</title>
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-100 font-sans">
-    <!-- **UPDATED**: Removed max-w-7xl from outer div -->
-    <div class="main-container">
-        <!-- Navbar -->
-        <nav class="mb-6 flex flex-wrap justify-between items-center bg-white p-3 rounded-lg shadow-sm gap-4 max-w-7xl mx-auto">
-             <!-- **UPDATED**: Logo text -->
-             <a href="index.html" class="text-lg font-bold text-indigo-600 whitespace-nowrap">Pistacho Cigar Rating System ｜ Pistacho雪茄评分</a>
-             <!-- **UPDATED**: Applied nav-link styles -->
-             <div class="flex items-center space-x-1 flex-grow justify-center md:justify-start md:flex-grow-0 order-3 md:order-2 w-full md:w-auto">
-                 <a href="index.html" class="nav-link-active">社区动态</a>
-                 <a href="rate.html" class="py-2 px-4 bg-green-500 text-white text-sm font-semibold rounded-lg hover:bg-green-600 transition mx-2">去评分</a>
-                 <a href="history.html" class="nav-link">我的点评历史</a>
-                 <a href="certified.html" class="nav-link">认证评分</a>
-             </div>
-             <div id="login-status-container" class="flex items-center order-2 md:order-3"></div>
-        </nav>
-
-        <!-- Header -->
-        <header class="mb-6 max-w-7xl mx-auto">
-            <h1 class="text-4xl font-extrabold text-gray-800 text-center">社区动态</h1>
-            <p class="mt-2 text-lg text-gray-600 text-center">发现大家的精彩点评</p>
-        </header>
-
-        <!-- Search and Sort Controls -->
-        <div class="mb-6 bg-white p-4 rounded-lg shadow-sm flex flex-col md:flex-row gap-4 items-center max-w-7xl mx-auto">
-            <input type="text" id="search-input" placeholder="搜索雪茄名称, 产地, 尺寸, 点评..." class="flex-grow p-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500">
-            <select id="sort-select" class="p-2 border border-gray-300 rounded-md">
-                <option value="latest">最新发布</option>
-                <option value="highest">评分最高</option>
-                <option value="lowest">评分最低</option>
-            </select>
-            <button onclick="applyFilters()" class="py-2 px-5 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition w-full md:w-auto">应用</button>
-        </div>
-
-        <!-- Ratings Grid -->
-        <!-- **UPDATED**: Removed max-w-7xl -->
-        <div id="ratings-grid" class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
-            <p id="loading-message" class="col-span-full text-center text-gray-500 py-10">正在加载点评...</p>
-        </div>
-
-         <footer class="mt-8 text-center text-gray-500 text-sm">
-             Pistacho 雪茄评分社区
-         </footer>
+<body class="bg-gray-50 text-gray-800 font-sans">
+  <!-- 顶部导航栏 -->
+  <header class="bg-white shadow-md sticky top-0 z-10">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between px-4 py-3">
+      <h1 class="text-xl sm:text-2xl font-semibold text-gray-900">
+        Pistacho Cigar Rating System ｜ <span class="text-gray-600">Pistacho雪茄评分</span>
+      </h1>
+      <nav class="flex flex-wrap gap-3 mt-3 sm:mt-0">
+        <a href="#community" class="bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium px-4 py-2 rounded-xl shadow-sm transition-all duration-200">
+          社区动态
+        </a>
+        <a href="#rate" class="bg-blue-500 hover:bg-blue-600 text-white font-medium px-4 py-2 rounded-xl shadow-sm transition-all duration-200">
+          去评分
+        </a>
+      </nav>
     </div>
+  </header>
 
-    <script type="module">
-        let allRatings = [];
-        let displayedRatings = [];
-        let currentAuthUser = null;
+  <!-- 主体评分记录区 -->
+  <main class="max-w-7xl mx-auto px-4 py-8">
+    <h2 class="text-2xl font-semibold mb-6">评分记录</h2>
 
-        const ratingsGrid = document.getElementById('ratings-grid');
-        const loadingMessage = document.getElementById('loading-message');
-        const searchInput = document.getElementById('search-input');
-        const sortSelect = document.getElementById('sort-select');
+    <div class="grid grid-cols-5 md:grid-cols-3 sm:grid-cols-2 gap-6">
+      <!-- 单个评分卡片示例 -->
+      <div class="bg-white rounded-2xl shadow hover:shadow-lg hover:scale-[1.02] transition-all duration-300 overflow-hidden">
+        <div class="w-full bg-gray-100">
+          <img src="https://via.placeholder.com/400x250" alt="Cigar" class="w-full h-auto object-contain">
+        </div>
+        <div class="p-3 text-sm">
+          <h3 class="font-semibold text-gray-900 truncate">Cohiba Siglo VI</h3>
+          <p class="text-gray-600 mt-1">评分项：香气 9.2 / 外观 8.9 / 口感 9.1</p>
+          <p class="text-gray-400 mt-1 text-xs">用户：小猪泡泡</p>
+        </div>
+      </div>
 
-        const AUTHING_APP_ID = '68f5b0b6875017c02b3bfdb3';
-        const AUTHING_HOST = 'https://xfvu647mcdbk-demo.authing.cn';
+      <!-- 更多评分卡片（示例） -->
+      <div class="bg-white rounded-2xl shadow hover:shadow-lg hover:scale-[1.02] transition-all duration-300 overflow-hidden">
+        <div class="w-full bg-gray-100">
+          <img src="https://via.placeholder.com/400x300" alt="Cigar" class="w-full h-auto object-contain">
+        </div>
+        <div class="p-3 text-sm">
+          <h3 class="font-semibold text-gray-900 truncate">Montecristo No.2</h3>
+          <p class="text-gray-600 mt-1">评分项：香气 8.7 / 外观 9.0 / 口感 8.8</p>
+          <p class="text-gray-400 mt-1 text-xs">用户：烟雾迷途</p>
+        </div>
+      </div>
 
-        // --- Authentication ---
-         window.login = function() {
-            const redirectUri = window.location.origin; // Redirect back to index (community)
-            const authorizeUrl = new URL('/oidc/auth', AUTHING_HOST);
-            authorizeUrl.search = new URLSearchParams({ client_id: AUTHING_APP_ID, redirect_uri: redirectUri, response_type: 'code', scope: 'openid profile email phone', state: Math.random().toString(36).substring(2) }).toString();
-            window.location.href = authorizeUrl.toString();
-        }
-        window.logout = function() {
-             const logoutUrl = new URL('/oidc/session/end', AUTHING_HOST);
-             logoutUrl.search = new URLSearchParams({ post_logout_redirect_uri: window.location.origin }).toString();
-             sessionStorage.removeItem('userInfo'); sessionStorage.removeItem('accessToken');
-             window.location.href = logoutUrl.toString();
-        }
-        function renderLoginStatus(user) {
-            const container = document.getElementById('login-status-container'); if (!container) return;
-            if (user) { const displayName = user.nickname || user.name || user.preferred_username || user.email || '已登录'; container.innerHTML = `<span class="text-sm font-medium text-gray-700 mr-2 hidden sm:inline">${displayName}</span><button onclick="logout()" class="px-3 py-1 text-xs font-medium rounded-full bg-red-500 text-white hover:bg-red-600">退出</button>`; }
-            else { container.innerHTML = `<button onclick="login()" class="px-3 py-1 text-xs font-medium rounded-full bg-green-500 text-white hover:bg-green-600">登录/注册</button>`; }
-        }
-        async function handleOidcCallback(code) {
-             try {
-                const redirectUri = window.location.origin; const apiUrl = new URL('/api/authing/callback', window.location.origin);
-                const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: code, redirect_uri: redirectUri }) });
-                if (!response.ok) { const err = await response.json(); throw new Error(err.error || '认证回调失败'); }
-                const fullUserProfile = await response.json(); sessionStorage.setItem('userInfo', JSON.stringify(fullUserProfile)); sessionStorage.setItem('accessToken', fullUserProfile.accessToken); return fullUserProfile;
-            } catch (e) { console.error('认证回调处理失败:', e); alert(`登录失败: ${e.message}`); sessionStorage.removeItem('userInfo'); sessionStorage.removeItem('accessToken'); return null; } finally { window.history.replaceState({}, document.title, window.location.pathname); }
-        }
-        async function validateSessionAndGetUser() {
-            const token = sessionStorage.getItem('accessToken'); if (!token) return null;
-            try {
-                const apiUrl = new URL('/api/me', window.location.origin); const response = await fetch(apiUrl, { headers: { 'Authorization': `Bearer ${token}` } });
-                if (!response.ok) { sessionStorage.removeItem('userInfo'); sessionStorage.removeItem('accessToken'); return null; }
-                const fullUserProfile = await response.json(); sessionStorage.setItem('userInfo', JSON.stringify(fullUserProfile)); return fullUserProfile;
-            } catch (e) { console.error("Session validation failed:", e); return null; }
-        }
-        // --- End of Auth ---
+      <div class="bg-white rounded-2xl shadow hover:shadow-lg hover:scale-[1.02] transition-all duration-300 overflow-hidden">
+        <div class="w-full bg-gray-100">
+          <img src="https://via.placeholder.com/400x220" alt="Cigar" class="w-full h-auto object-contain">
+        </div>
+        <div class="p-3 text-sm">
+          <h3 class="font-semibold text-gray-900 truncate">Romeo y Julieta Short Churchill</h3>
+          <p class="text-gray-600 mt-1">评分项：香气 9.0 / 外观 8.5 / 口感 8.9</p>
+          <p class="text-gray-400 mt-1 text-xs">用户：雪茄先生</p>
+        </div>
+      </div>
 
-        // --- Data Fetching ---
-        async function fetchRatings() {
-            loadingMessage.textContent = '正在加载点评...'; loadingMessage.style.display = 'block'; ratingsGrid.innerHTML = '';
-            try {
-                const apiUrl = new URL('/api/ratings', window.location.origin);
-                const response = await fetch(apiUrl);
-                if (!response.ok) { let errorText = `加载失败: ${response.status}`; try { const err = await response.json(); errorText = err.error || errorText; } catch (e) {} throw new Error(errorText); }
-                allRatings = await response.json(); displayedRatings = [...allRatings]; applyFilters(); // Apply initial sort/filter
-            } catch (error) { console.error("加载点评失败:", error); loadingMessage.textContent = `加载点评失败: ${error.message}`; loadingMessage.style.color = 'red'; }
-        }
+      <!-- 可继续添加更多卡片 -->
+    </div>
+  </main>
 
-        // --- Filtering and Sorting ---
-        window.applyFilters = function() {
-            const searchTerm = searchInput.value.toLowerCase().trim(); const sortBy = sortSelect.value;
-            let filtered = allRatings.filter(rating => {
-                const nameMatch = rating.cigarInfo?.name?.toLowerCase().includes(searchTerm);
-                const originMatch = rating.cigarInfo?.origin?.toLowerCase().includes(searchTerm);
-                const sizeMatch = rating.cigarInfo?.size?.toLowerCase().includes(searchTerm);
-                const reviewMatch = rating.cigarReview?.toLowerCase().includes(searchTerm);
-                 // **NEW**: Also search nickname
-                 const authorMatch = rating.userNickname?.toLowerCase().includes(searchTerm);
-                return nameMatch || originMatch || sizeMatch || reviewMatch || authorMatch;
-            });
-            if (sortBy === 'highest') { filtered.sort((a, b) => (b.normalizedScore ?? 0) - (a.normalizedScore ?? 0)); }
-            else if (sortBy === 'lowest') { filtered.sort((a, b) => (a.normalizedScore ?? 0) - (b.normalizedScore ?? 0)); }
-            else { /* latest is default from API or keep current if filtered */ filtered.sort((a, b) => (b.isPinned - a.isPinned) || (new Date(b.timestamp) - new Date(a.timestamp)));} // Keep pinned first
-            displayedRatings = filtered; renderGrid();
-        }
-
-        // --- Rendering ---
-        function renderGrid() {
-            ratingsGrid.innerHTML = ''; if (displayedRatings.length === 0) { loadingMessage.textContent = '没有找到匹配的点评。'; loadingMessage.style.display = 'block'; return; }
-            loadingMessage.style.display = 'none';
-            displayedRatings.forEach(rating => { const card = createRatingCard(rating); ratingsGrid.appendChild(card); });
-        }
-
-        function createRatingCard(rating) {
-            const div = document.createElement('div'); div.className = 'rating-card bg-white rounded-lg shadow-md overflow-hidden transition-all duration-300 cursor-pointer';
-            div.onclick = () => viewRatingDetails(rating);
-            const score = rating.normalizedScore !== undefined ? rating.normalizedScore.toFixed(2) : 'N/A';
-            const grade = rating.finalGrade ? `${rating.finalGrade.grade}` : '-'; // Just grade letter
-            const author = rating.userNickname || rating.userEmail || '匿名';
-
-            // **UPDATED**: Image aspect ratio, text sizes, layout
-            div.innerHTML = `
-                <div class="aspect-[1179/1572] w-full overflow-hidden">
-                    ${rating.imageUrl ? `<img src="/api/image/${rating.imageUrl}" alt="${rating.cigarInfo?.name || '雪茄图片'}" class="w-full h-full object-cover">`
-                                      : '<div class="w-full h-full bg-gray-200 flex items-center justify-center text-gray-400 text-sm">无图</div>'}
-                </div>
-                <div class="p-2"> {/* Reduced padding */}
-                    <h3 class="font-semibold text-sm truncate mb-0.5" title="${rating.cigarInfo?.name || ''}">${rating.cigarInfo?.name || '未命名雪茄'}</h3>
-                    {/* <p class="text-xs text-gray-500 truncate">${rating.cigarInfo?.size || ''} | ${rating.cigarInfo?.origin || ''}</p> */}
-                    <div class="flex justify-between items-center mt-1">
-                         <span class="text-xs text-gray-500 truncate flex items-center">
-                              {/* Placeholder for avatar - you can add later */}
-                              {/* <img src="avatar_placeholder.png" class="w-4 h-4 rounded-full mr-1"> */}
-                              ${author}
-                         </span>
-                         <div class="text-right flex-shrink-0">
-                            <p class="font-bold text-indigo-600 text-sm">${score}</p>
-                            {/* <p class="font-semibold text-gray-500 text-xs">${grade}</p> */}
-                        </div>
-                    </div>
-                </div>
-            `;
-            return div;
-        }
-
-        // --- Navigation ---
-        window.viewRatingDetails = function(ratingData) {
-            let detailedData = {};
-            if (!ratingData || ratingData.normalizedScore === undefined || !ratingData.finalGrade || !ratingData.cigarInfo) { console.error("viewRatingDetails: Essential top-level data missing!", ratingData); alert("无法加载详情：缺少基本评分信息。"); return; }
-            const hasCompleteFullData = ratingData.fullData && ratingData.fullData.config && ratingData.fullData.ratings && ratingData.fullData.calculatedScore !== undefined;
-            if (hasCompleteFullData) {
-                 detailedData = { config: ratingData.fullData.config, ratings: ratingData.fullData.ratings, calculatedScore: ratingData.fullData.calculatedScore, cigarInfo: ratingData.cigarInfo, cigarReview: ratingData.cigarReview, imageUrl: ratingData.imageUrl, normalizedScore: ratingData.normalizedScore, finalGrade: ratingData.finalGrade, timestamp: ratingData.timestamp, userNickname: ratingData.userNickname, userEmail: ratingData.userEmail, isDraft: false };
-                 // console.log("Sending COMPLETE data to results.html:", detailedData); // Reduce logging
-            } else {
-                 console.warn(`fullData for rating ${ratingData?.id} is missing or incomplete. Sending only top-level data.`);
-                 detailedData = { cigarInfo: ratingData.cigarInfo, cigarReview: ratingData.cigarReview, imageUrl: ratingData.imageUrl, normalizedScore: ratingData.normalizedScore, finalGrade: ratingData.finalGrade, timestamp: ratingData.timestamp, userNickname: ratingData.userNickname, userEmail: ratingData.userEmail, isDraft: false };
-                 // console.log("Sending INCOMPLETE (top-level) data to results.html:", detailedData); // Reduce logging
-            }
-            try { sessionStorage.setItem('cigarRatingResults', JSON.stringify(detailedData)); window.location.href = `results.html`; }
-            catch (e) { console.error("Error setting sessionStorage:", e); alert("无法保存会话数据以查看详情。"); }
-        }
-
-
-        // --- Initialization ---
-        window.onload = async function() {
-             const urlParams = new URLSearchParams(window.location.search); const code = urlParams.get('code'); let user = null;
-             if (code) { user = await handleOidcCallback(code); } else { user = await validateSessionAndGetUser(); }
-             currentAuthUser = user; renderLoginStatus(currentAuthUser);
-             fetchRatings(); // Fetch and render community ratings
-
-             // Add event listener for Enter key in search input
-             searchInput.addEventListener('keypress', function (e) {
-                 if (e.key === 'Enter') {
-                     applyFilters();
-                 }
-             });
-        };
-    </script>
+  <footer class="text-center text-gray-400 text-sm py-8">
+    © 2025 Pistacho. All rights reserved.
+  </footer>
 </body>
 </html>
-
