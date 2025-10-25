@@ -84,7 +84,7 @@
 
             <!-- Image Upload Section (Multiple) -->
             <section class="mb-8 p-6 bg-white rounded-xl shadow-lg">
-                <h2 class="text-xl font-bold text-gray-800 mb-4">上传图片 (最多5张)</h2>
+                <h2 class="text-xl font-bold text-gray-800 mb-4">上传图片 (最多5张) <span class="text-red-500">*</span></h2>
                 <p class="text-sm text-gray-600 mb-3">第一张图片将作为封面图显示。</p>
                 <div class="preview-grid mb-4" id="image-preview-grid">
                     <!-- Image previews will be added here -->
@@ -103,7 +103,7 @@
             <section class="mb-8 p-6 bg-white rounded-xl shadow-lg">
                 <h2 class="text-xl font-bold text-gray-800 mb-4">雪茄信息</h2>
                  <!-- Inputs remain the same -->
-                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6"> <div> <label for="cigar-name" class="block text-sm font-medium text-gray-700">名称</label> <input type="text" id="cigar-name" autocomplete="off" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" placeholder="例如：帕特加斯D4"> </div> <div> <label for="cigar-size" class="block text-sm font-medium text-gray-700">尺寸</label> <input type="text" id="cigar-size" autocomplete="off" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" placeholder="例如：Robusto"> </div> <div> <label for="cigar-origin" class="block text-sm font-medium text-gray-700">产地</label> <input type="text" id="cigar-origin" autocomplete="off" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" placeholder="例如：古巴"> </div> </div>
+                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6"> <div> <label for="cigar-name" class="block text-sm font-medium text-gray-700">名称 <span class="text-red-500">*</span></label> <input type="text" id="cigar-name" autocomplete="off" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" placeholder="例如：帕特加斯D4"> </div> <div> <label for="cigar-size" class="block text-sm font-medium text-gray-700">尺寸</label> <input type="text" id="cigar-size" autocomplete="off" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" placeholder="例如：Robusto"> </div> <div> <label for="cigar-origin" class="block text-sm font-medium text-gray-700">产地</label> <input type="text" id="cigar-origin" autocomplete="off" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" placeholder="例如：古巴"> </div> </div>
             </section>
 
             <!-- Rating Form Container -->
@@ -188,7 +188,18 @@
 
         window.showResults = async function() {
             const token = sessionStorage.getItem('accessToken'); if (!isEditMode && (!currentAuthUser || !token)) { return alert("请登录后才能提交点评。"); } if (!ratingConfig || Object.keys(userRatings).length === 0) { return alert("请至少选择一个评分项后再操作。"); } const title = document.getElementById('rating-title').value.trim(); if (!title) { return alert("请填写点评标题。"); }
-            const cigarInfo = { name: document.getElementById('cigar-name').value || '未命名雪茄', size: document.getElementById('cigar-size').value || '未知尺寸', origin: document.getElementById('cigar-origin').value || '未知产地' }; const cigarReview = document.getElementById('cigar-review').value || '无'; const finalScore = calculateFinalScore(); const maxScore = ratingConfig.totalWeightMax || 1; const normalizedScore = maxScore > 0 ? (finalScore / maxScore) * 100 : 0;
+            
+            // --- (已添加) 必填项验证 ---
+            if (currentImageKeys.length === 0) {
+                return alert("请至少上传一张图片。");
+            }
+            const cigarNameValue = document.getElementById('cigar-name').value.trim();
+            if (!cigarNameValue) {
+                return alert("请填写雪茄名称。");
+            }
+            // --- 验证结束 ---
+
+            const cigarInfo = { name: cigarNameValue, size: document.getElementById('cigar-size').value || '未知尺寸', origin: document.getElementById('cigar-origin').value || '未知产地' }; const cigarReview = document.getElementById('cigar-review').value || '无'; const finalScore = calculateFinalScore(); const maxScore = ratingConfig.totalWeightMax || 1; const normalizedScore = maxScore > 0 ? (finalScore / maxScore) * 100 : 0;
             const foundGrade = GRADING_SCALE.find(g => normalizedScore >= g.min_score);
             const finalGrade = foundGrade ? { grade: foundGrade.grade, name_cn: foundGrade.name_cn, name_en: foundGrade.name_en } : { grade: 'O', name_cn: '乏善可陈 / 平淡', name_en: 'Ordinary' };
 
