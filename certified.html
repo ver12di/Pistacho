@@ -11,24 +11,53 @@
                 extend: {
                     fontFamily: {
                         sans: ['Inter', 'Noto Sans SC', 'system-ui', 'sans-serif'],
-                    }
+                    },
+                    aspectRatio: {
+                        '1179/1572': '1179 / 1572',
+                    },
+                     fontSize: {
+                        '2xs': ['0.625rem', { lineHeight: '0.8rem' }], // ~10px
+                     }
                 }
             }
         }
     </script>
+    <style>
+        .rating-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+        }
+        .line-clamp-2 { overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+        .line-clamp-1 { overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; }
+        /* **FIXED**: Removed @apply, using standard CSS for admin button */
+        .admin-action-btn {
+             padding: 0.25rem 0.75rem; /* px-3 py-1 */
+             font-size: 0.75rem; /* text-xs */
+             font-weight: 600; /* font-semibold */
+             background-color: #D97706; /* bg-yellow-600 */
+             color: white;
+             border-radius: 0.375rem; /* rounded-md */
+             transition: background-color 0.2s;
+        }
+        .admin-action-btn:hover {
+             background-color: #B45309; /* hover:bg-yellow-700 */
+        }
+    </style>
 </head>
 <body class="bg-gray-100 font-sans">
     <div class="max-w-4xl mx-auto p-4 md:p-8">
-        <!-- **NEW**: Updated Navbar -->
-        <nav class="mb-4 flex justify-between items-center bg-white p-3 rounded-lg shadow-sm">
+        <!-- Navbar -->
+        <nav class="mb-6 flex flex-wrap justify-between items-center bg-white p-3 rounded-lg shadow-sm gap-4">
              <a href="index.html" class="text-xl font-bold text-indigo-600">Pistacho评分</a>
-             <div class="flex items-center space-x-4">
-                 <a href="community.html" class="text-gray-600 hover:text-indigo-600">社区动态</a>
-                 <a href="history.html" class="text-gray-600 hover:text-indigo-600">历史记录</a>
+             <div class="flex items-center space-x-4 flex-grow justify-center md:justify-start md:flex-grow-0 order-3 md:order-2 w-full md:w-auto">
+                 <a href="index.html" class="text-gray-600 hover:text-indigo-600">社区动态</a>
+                 <a href="rate.html" class="text-gray-600 hover:text-indigo-600">去评分</a>
+                 <a href="history.html" class="text-gray-600 hover:text-indigo-600">我的点评历史</a>
                  <a href="certified.html" class="text-indigo-600 font-bold underline">认证评分</a>
              </div>
+             <div id="login-status-container" class="flex items-center order-2 md:order-3"></div>
         </nav>
-        
+
         <header class="mb-6">
             <h1 class="text-4xl font-extrabold text-gray-800">Pistacho 认证评分</h1>
             <p class="mt-2 text-lg text-gray-600">由我们的超级管理员精选的优秀品鉴记录。</p>
@@ -38,182 +67,177 @@
             <p>正在加载认证评分...</p>
         </div>
 
-        <div id="certified-container" class="space-y-4">
-            <!-- Certified ratings will be rendered here -->
+        <div id="certified-container" class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+            <!-- Certified ratings cards will be rendered here -->
         </div>
          <footer class="mt-8 text-center">
             <a href="index.html" class="py-2 px-4 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700">&larr; 返回主页</a>
         </footer>
     </div>
-    
-    <script type_ ="module">
-        // --- 全局变量 ---
+
+    <script type="module">
+        // --- Global Variables ---
         let currentAuthUser = null;
         let accessToken = null;
-        let allCertifiedRatings = []; // 用于缓存
-        
+        let allCertifiedRatings = [];
+        let userRole = 'guest';
+
         const container = document.getElementById('certified-container');
         const loadingIndicator = document.getElementById('loading-indicator');
+        const loginStatusContainer = document.getElementById('login-status-container');
 
-        // --- 核心 API 调用 ---
-        
-        /**
-         * 1. 页面加载时: 获取用户并拉取评分
-         */
-        window.onload = async function() {
-            // 从 sessionStorage 获取登录信息 (只为 '取消认证' 按钮)
-            const storedUser = sessionStorage.getItem('userInfo');
-            accessToken = sessionStorage.getItem('accessToken');
-            
-            if (storedUser) {
-                currentAuthUser = JSON.parse(storedUser);
-            }
+        const GRADING_SCALE = [ /* ... (grading scale remains the same) ... */ { "grade": "P", "name_en": "Pinnacle", "name_cn": "顶峰 / 登峰造极", "min_score": 95, "color": "gold" }, { "grade": "I", "name_en": "Impeccable", "name_cn": "无暇 / 完美无瑕", "min_score": 90, "color": "indigo" }, { "grade": "S", "name_en": "Superior", "name_cn": "卓越 / 出众", "min_score": 80, "color": "purple" }, { "grade": "T", "name_en": "Terrific", "name_cn": "极好 / 绝佳", "min_score": 70, "color": "blue" }, { "grade": "A", "name_en": "Appreciable", "name_cn": "可圈可点 / 值得欣赏", "min_score": 60, "color": "green" }, { "grade": "C", "name_en": "Commonplace", "name_cn": "平庸 / 普通", "min_score": 50, "color": "gray" }, { "grade": "H", "name_en": "Hesitant", "name_cn": "犹豫 / 瑕瑜互见", "min_score": 30, "color": "orange" }, { "grade": "O", "name_en": "Objectionable", "name_cn": "令人反感 / 极差", "min_score": 0, "color": "red" } ];
 
-            await fetchAndRenderCertified();
-        }
+        // --- Authentication Functions ---
+        const AUTHING_APP_ID = '68f5b0b6875017c02b3bfdb3';
+        const AUTHING_HOST = 'https://xfvu647mcdbk-demo.authing.cn';
+        /* ... (login, logout, renderLoginStatus, handleOidcCallback, validateSessionAndGetUser remain the same) ... */
+        window.login = function() { const redirectUri = window.location.origin; const authorizeUrl = new URL('/oidc/auth', AUTHING_HOST); authorizeUrl.search = new URLSearchParams({ client_id: AUTHING_APP_ID, redirect_uri: redirectUri, response_type: 'code', scope: 'openid profile email phone', state: Math.random().toString(36).substring(2) }).toString(); window.location.href = authorizeUrl.toString(); }
+        window.logout = function() { const logoutUrl = new URL('/oidc/session/end', AUTHING_HOST); logoutUrl.search = new URLSearchParams({ post_logout_redirect_uri: window.location.origin }).toString(); sessionStorage.removeItem('userInfo'); sessionStorage.removeItem('accessToken'); window.location.href = logoutUrl.toString(); }
+        function renderLoginStatus(user) { if (!loginStatusContainer) return; if (user) { const displayName = user.nickname || user.name || user.preferred_username || user.email || '已登录'; loginStatusContainer.innerHTML = `<span class="text-sm font-medium text-gray-700 mr-2 hidden sm:inline">${displayName}</span><button onclick="logout()" class="px-3 py-1 text-xs font-medium rounded-full bg-red-500 text-white hover:bg-red-600">退出</button>`; } else { loginStatusContainer.innerHTML = `<button onclick="login()" class="px-3 py-1 text-xs font-medium rounded-full bg-green-500 text-white hover:bg-green-600">登录/注册</button>`; } }
+        async function handleOidcCallback(code) { try { const redirectUri = window.location.origin; const apiUrl = new URL('/api/authing/callback', window.location.origin); const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: code, redirect_uri: redirectUri }) }); if (!response.ok) { const err = await response.json(); throw new Error(err.error || '认证回调失败'); } const fullUserProfile = await response.json(); sessionStorage.setItem('userInfo', JSON.stringify(fullUserProfile)); sessionStorage.setItem('accessToken', fullUserProfile.accessToken); return fullUserProfile; } catch (e) { console.error('认证回调处理失败:', e); alert(`登录失败: ${e.message}`); sessionStorage.removeItem('userInfo'); sessionStorage.removeItem('accessToken'); return null; } finally { window.history.replaceState({}, document.title, window.location.pathname); } }
+        async function validateSessionAndGetUser() { const token = sessionStorage.getItem('accessToken'); if (!token) return null; try { const apiUrl = new URL('/api/me', window.location.origin); const response = await fetch(apiUrl, { headers: { 'Authorization': `Bearer ${token}` } }); if (!response.ok) { sessionStorage.removeItem('userInfo'); sessionStorage.removeItem('accessToken'); return null; } const fullUserProfile = await response.json(); sessionStorage.setItem('userInfo', JSON.stringify(fullUserProfile)); return fullUserProfile; } catch (e) { console.error("Session validation failed:", e); return null; } }
 
-        /**
-         * 2. 拉取并渲染认证评分
-         */
+
+        // --- Core API Call with Improved Error Handling ---
         async function fetchAndRenderCertified() {
-            const isAdmin = currentAuthUser?.db_role === 'admin' || currentAuthUser?.db_role === 'super_admin';
-            
-            try {
-                // **NEW**: 调用公共 API
-                const response = await fetch('/api/ratings?public=true');
+             loadingIndicator.textContent = '正在加载认证评分...';
+             loadingIndicator.style.display = 'block';
+             container.innerHTML = '';
+             const isAdmin = userRole === 'admin' || userRole === 'super_admin';
 
+            try {
+                const apiUrl = new URL('/api/ratings', window.location.origin);
+                apiUrl.searchParams.set('certified', 'true');
+                const response = await fetch(apiUrl);
+
+                // **NEW**: Improved Error Handling
                 if (!response.ok) {
-                    const err = await response.json();
-                    throw new Error(err.error || `服务器错误: ${response.status}`);
+                    const contentType = response.headers.get("content-type");
+                    let errorText;
+                    if (contentType && contentType.includes("application/json")) {
+                        const err = await response.json();
+                        errorText = err.error || `服务器错误: ${response.status}`;
+                    } else {
+                        // If not JSON, read as text (likely HTML error page)
+                        errorText = await response.text();
+                        console.error("Received non-JSON error response:", errorText); // Log the HTML
+                        // Display a more generic error if HTML is received
+                        errorText = `加载失败，服务器返回了意外的内容 (状态 ${response.status})。请检查网络或联系管理员。`;
+                    }
+                    throw new Error(errorText);
                 }
-                
+
+                // If response is OK, proceed assuming JSON
                 let ratings = await response.json();
-                
-                // **NEW**: 客户端过滤, 只显示认证的
-                ratings = ratings.filter(r => r.isCertified);
-                
-                allCertifiedRatings = ratings; // 缓存所有数据
+                allCertifiedRatings = ratings;
 
                 if (ratings.length === 0) {
-                    loadingIndicator.innerHTML = `<div class="text-center p-6 bg-white rounded-lg shadow"><p>还没有任何认证评分。</p></div>`;
+                    loadingIndicator.innerHTML = `<div class="col-span-full text-center p-6 bg-white rounded-lg shadow"><p>还没有任何认证评分。</p></div>`;
                     return;
                 }
 
-                let historyHtml = '';
                 ratings.forEach(data => {
-                    historyHtml += createCardHTML(data, isAdmin);
+                    const card = createCardHTML(data, isAdmin);
+                    container.appendChild(card);
                 });
-                
+
                 loadingIndicator.style.display = 'none';
-                container.innerHTML = historyHtml;
 
             } catch (error) {
                 console.error("获取认证评分失败:", error);
-                loadingIndicator.innerHTML = `<div class="text-center p-6 bg-red-100 text-red-700 rounded-lg shadow"><p>加载认证评分失败: ${error.message}</p></div>`;
+                // Display the potentially more informative error message
+                loadingIndicator.innerHTML = `<div class="col-span-full text-center p-6 bg-red-100 text-red-700 rounded-lg shadow"><p>加载认证评分失败: ${error.message}</p></div>`;
             }
         }
 
         /**
-         * 3. 创建卡片 HTML
+         * Creates card HTML similar to index.html
          */
-        function createCardHTML(data, isAdmin) {
-            const ratingId = data.id;
-            const date = data.timestamp ? new Date(data.timestamp).toLocaleDateString('zh-CN') : '未知日期';
-            const scoreDisplay = data.normalizedScore !== undefined ? data.normalizedScore.toFixed(2) : 'N/A';
-            const gradeDisplay = data.finalGrade_grade ? `${data.finalGrade_grade} - ${data.finalGrade_name_cn}` : '未评级';
-            const authorDisplay = data.userNickname || data.userEmail || '匿名';
+        function createCardHTML(rating, isAdmin) {
+            /* ... (createCardHTML remains the same as previous version) ... */
+             const div = document.createElement('div');
+             div.className = 'rating-card bg-white rounded-lg shadow-md overflow-hidden transition-all duration-300 cursor-pointer flex flex-col';
+             div.id = `rating-card-${rating.id}`;
+             div.onclick = () => viewRatingDetails(rating.id);
 
-            // **NEW**: 紧凑布局
-            return `
-                <div class="bg-white p-4 rounded-lg shadow-md hover:shadow-lg transition-shadow" id="rating-card-${ratingId}">
-                    <!-- 上半部分: 信息 -->
-                    <div class="flex justify-between items-start mb-3">
-                        <div>
-                            <p class="text-xl font-bold text-gray-800">${data.cigarName}</p>
-                            <p class="text-sm text-gray-500">
-                                ${data.cigarSize} | ${data.cigarOrigin} | ${date}
-                                | 用户: <span class="font-medium">${authorDisplay}</span>
-                            </p>
-                        </div>
-                        <a href="#" onclick="window.viewRatingDetails('${ratingId}'); return false;" class="text-right flex-shrink-0 ml-4">
-                            <p class="text-3xl font-black text-indigo-600">${scoreDisplay}</p>
-                            <p class="font-bold text-gray-600">${gradeDisplay}</p>
-                        </a>
-                    </div>
-                    
-                    <!-- 下半部分: 按钮 (如果有权限) -->
-                    ${(isAdmin && accessToken) ? `
-                    <div class="border-t pt-3 mt-3 flex justify-end items-center space-x-2">
-                        <button onclick="window.updateCertification('${ratingId}', false, event)" class="px-3 py-1 text-xs font-semibold bg-yellow-600 text-white rounded-md hover:bg-yellow-700 transition">
-                            取消认证
-                        </button>
-                    </div>
-                    ` : ''}
-                </div>
-            `;
+             const score = rating.normalizedScore !== undefined ? rating.normalizedScore.toFixed(2) : 'N/A';
+             const author = rating.userNickname || rating.userEmail || '匿名';
+             let coverImageUrl = null;
+             if (Array.isArray(rating.imageUrl) && rating.imageUrl.length > 0) { coverImageUrl = rating.imageUrl[0]; }
+             else if (typeof rating.imageUrl === 'string' && rating.imageUrl) { coverImageUrl = rating.imageUrl; }
+             const cacheBuster = `?v=${new Date().getTime()}`;
+
+             div.innerHTML = `
+                 <div class="aspect-[1179/1572] w-full overflow-hidden flex-shrink-0 relative">
+                      <img src="/Certifiedstamp.png${cacheBuster}" alt="Certified" class="absolute top-1 left-1 w-12 h-12 md:w-16 md:h-16 z-10" title="Pistacho 认证评分" onerror="this.style.display='none'">
+                     ${coverImageUrl
+                         ? `<img src="/api/image/${coverImageUrl}" alt="${rating.cigarInfo?.name || '雪茄图片'}" class="w-full h-full object-cover">`
+                         : '<div class="w-full h-full bg-gray-200 flex items-center justify-center text-gray-400 text-sm">无图</div>'
+                     }
+                 </div>
+                 <div class="p-1.5 flex-grow flex flex-col justify-between">
+                     <div>
+                          <h3 class="font-semibold text-xs leading-tight line-clamp-1 mb-0.5" title="${rating.title || ''}"> ${rating.title || '无标题点评'} </h3>
+                          <p class="text-2xs text-gray-600 line-clamp-1 mb-0.5" title="${rating.cigarInfo?.name || ''}"> ${rating.cigarInfo?.name || '未命名雪茄'} </p>
+                     </div>
+                     <div class="flex justify-between items-end mt-auto pt-0.5">
+                          <span class="text-2xs text-gray-500 line-clamp-1 flex items-center" title="${author}"> ${author} </span>
+                          <div class="text-right flex-shrink-0"> <p class="font-bold text-indigo-600 text-sm leading-none">${score}</p> </div>
+                     </div>
+                      ${isAdmin && accessToken ? `
+                      <div class="border-t pt-1.5 mt-1.5 flex justify-end">
+                          <button onclick="window.updateCertification('${rating.id}', false, event)" class="admin-action-btn"> 取消认证 </button>
+                      </div>
+                      ` : ''}
+                 </div>
+             `;
+             return div;
         }
 
 
-        // --- 按钮点击事件 ---
-
+        // --- Button Click Events ---
         /**
-         * 4. 查看详情
+         * viewRatingDetails - constructs full data object for results.html
          */
         window.viewRatingDetails = function(ratingId) {
+            /* ... (viewRatingDetails remains the same as previous version) ... */
             const ratingData = allCertifiedRatings.find(r => r.id === ratingId);
-            if (ratingData && ratingData.fullData) {
-                const resultsData = { ...ratingData.fullData, isDraft: false };
-                sessionStorage.setItem('cigarRatingResults', JSON.stringify(resultsData));
-                window.location.href = 'results.html';
+            if (!ratingData) { alert("无法加载该评分的详细信息 (数据未找到)。"); return; }
+            let detailedData = {};
+            const cigarInfo = ratingData.cigarInfo || { name: ratingData.cigarName, size: ratingData.cigarSize, origin: ratingData.cigarOrigin };
+            const foundGrade = GRADING_SCALE.find(g => ratingData.normalizedScore >= g.min_score) || GRADING_SCALE[GRADING_SCALE.length - 1];
+            const finalGrade = foundGrade ? { grade: foundGrade.grade, name_cn: foundGrade.name_cn, name_en: foundGrade.name_en, color: foundGrade.color } : null;
+            let imageUrls = ratingData.imageUrl;
+            if (typeof imageUrls === 'string') { try { imageUrls = JSON.parse(imageUrls); if (!Array.isArray(imageUrls)) imageUrls = [ratingData.imageUrl]; } catch(e){ imageUrls = imageUrls ? [imageUrls] : []; } }
+            else if (!Array.isArray(imageUrls)) { imageUrls = imageUrls ? [imageUrls] : []; }
+            const selectedFlavors = Array.isArray(ratingData.fullData?.selectedFlavors) ? ratingData.fullData.selectedFlavors : [];
+            const hasCompleteFullData = ratingData.fullData && ratingData.fullData.config && ratingData.fullData.ratings && ratingData.fullData.calculatedScore !== undefined;
+            if (hasCompleteFullData && finalGrade) {
+                 detailedData = { config: ratingData.fullData.config, ratings: ratingData.fullData.ratings, calculatedScore: ratingData.fullData.calculatedScore, title: ratingData.title || '无标题点评', cigarInfo: cigarInfo, cigarReview: ratingData.cigarReview || '无', imageUrls: imageUrls, normalizedScore: ratingData.normalizedScore, finalGrade: finalGrade, selectedFlavors: selectedFlavors, timestamp: ratingData.timestamp, userNickname: ratingData.userNickname, userEmail: ratingData.userEmail, isDraft: false };
+                 console.log("Sending COMPLETE data to results.html:", detailedData);
             } else {
-                alert("无法加载该评分的详细信息。");
+                 console.warn(`fullData for certified rating ${ratingId} is missing or incomplete. Sending only top-level data.`);
+                 detailedData = { title: ratingData.title || '无标题点评', cigarInfo: cigarInfo, cigarReview: ratingData.cigarReview || '无', imageUrls: imageUrls, normalizedScore: ratingData.normalizedScore, finalGrade: finalGrade, selectedFlavors: selectedFlavors, timestamp: ratingData.timestamp, userNickname: ratingData.userNickname, userEmail: ratingData.userEmail, isDraft: false };
+                 console.log("Sending INCOMPLETE data to results.html:", detailedData);
             }
+            try { sessionStorage.setItem('cigarRatingResults', JSON.stringify(detailedData)); window.location.href = 'results.html'; }
+            catch (e) { console.error("Error setting sessionStorage:", e); alert("无法保存会话数据以查看详情。"); }
         }
-        
+
         /**
-         * 5. 取消认证
+         * Uncertify Action
          */
         window.updateCertification = async function(ratingId, certify, event) {
-            event.stopPropagation();
-            if (!accessToken) {
-                return alert("请登录以执行此操作。");
-            }
-            
-            const button = event.target;
-            const originalText = button.textContent;
-            button.textContent = '取消中...';
-            button.disabled = true;
-
-            try {
-                const response = await fetch('/api/certify', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${accessToken}`
-                    },
-                    body: JSON.stringify({ ratingId, certify })
-                });
-                
-                if (!response.ok) {
-                    const err = await response.json();
-                    throw new Error(err.error || '操作失败');
-                }
-                
-                // **FIX**: 修复了语法错误 (添加了 ``)
-                const cardToRemove = document.getElementById(`rating-card-${ratingId}`);
-                if (cardToRemove) {
-                    cardToRemove.style.transition = 'opacity 0.5s ease-out, transform 0.5s ease-out';
-                    cardToRemove.style.opacity = '0';
-                    cardToRemove.style.transform = 'scale(0.95)';
-                    setTimeout(() => cardToRemove.remove(), 500);
-                }
-                
-            } catch (error) {
-                 alert(`操作失败: ${error.message}`);
-                 button.textContent = originalText;
-                 button.disabled = false;
-            }
+            /* ... (updateCertification remains the same as previous version) ... */
+             event.stopPropagation(); if (!accessToken) { return alert("请登录以执行此操作。"); } const button = event.target.closest('button'); const originalText = button.textContent; button.textContent = '取消中...'; button.disabled = true; try { const response = await fetch('/api/certify', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` }, body: JSON.stringify({ ratingId, certify }) }); if (!response.ok) { const err = await response.json(); throw new Error(err.error || '操作失败'); } const cardToRemove = document.getElementById(`rating-card-${ratingId}`); if (cardToRemove) { cardToRemove.style.transition = 'opacity 0.5s ease-out, transform 0.5s ease-out'; cardToRemove.style.opacity = '0'; cardToRemove.style.transform = 'scale(0.95)'; setTimeout(() => { cardToRemove.remove(); allCertifiedRatings = allCertifiedRatings.filter(r => r.id !== ratingId); if (allCertifiedRatings.length === 0) { loadingIndicator.innerHTML = `<div class="col-span-full text-center p-6 bg-white rounded-lg shadow"><p>还没有任何认证评分。</p></div>`; loadingIndicator.style.display = 'block'; } }, 500); } } catch (error) { alert(`操作失败: ${error.message}`); button.textContent = originalText; button.disabled = false; }
         }
+
+        // --- Initialization ---
+        window.onload = async function() {
+            /* ... (onload remains the same as previous version) ... */
+             const urlParams = new URLSearchParams(window.location.search); const code = urlParams.get('code'); let user = null; if (code) { user = await handleOidcCallback(code); } else { user = await validateSessionAndGetUser(); } currentAuthUser = user; accessToken = sessionStorage.getItem('accessToken'); userRole = currentAuthUser?.db_role ?? 'guest'; renderLoginStatus(currentAuthUser); await fetchAndRenderCertified(); if (code) { window.history.replaceState({}, document.title, window.location.pathname); }
+        };
     </script>
 </body>
 </html>
