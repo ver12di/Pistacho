@@ -48,15 +48,30 @@
         /* Style for the element being dragged */
         .sortable-ghost { opacity: 0.4; background: #c8ebfb; }
         .sortable-drag { opacity: 1 !important; /* Ensure dragged item is fully visible */ }
-        /* Style for flavor buttons */
+
+        /* **FIXED**: Replaced @apply with standard CSS for flavor buttons */
         .flavor-btn {
-            @apply px-3 py-1.5 border border-gray-300 rounded-full text-sm transition mr-2 mb-2 cursor-pointer;
+            padding: 0.375rem 0.75rem; /* px-3 py-1.5 */
+            border: 1px solid #d1d5db; /* border-gray-300 */
+            border-radius: 9999px; /* rounded-full */
+            font-size: 0.875rem; /* text-sm */
+            line-height: 1.25rem;
+            color: #374151; /* Default text color (gray-700) */
+            background-color: white; /* Default background */
+            transition: background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s;
+            margin-right: 0.5rem; /* mr-2 */
+            margin-bottom: 0.5rem; /* mb-2 */
+            cursor: pointer;
         }
         .flavor-btn.selected {
-            @apply bg-indigo-600 text-white border-indigo-600 shadow-sm;
+            background-color: #4f46e5; /* bg-indigo-600 */
+            color: white;
+            border-color: #4f46e5; /* border-indigo-600 */
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); /* shadow-sm */
         }
         .flavor-btn:not(.selected):hover {
-            @apply bg-gray-100 border-gray-400;
+            background-color: #f3f4f6; /* bg-gray-100 */
+            border-color: #9ca3af; /* border-gray-400 */
         }
     </style>
 </head>
@@ -122,7 +137,7 @@
             <!-- Review Section -->
             <section class="mb-8 p-6 bg-white rounded-xl shadow-lg">
                 <h2 class="text-xl font-bold text-gray-800 mb-4">文字评价与风味选择</h2>
-                <!-- **NEW**: Flavor Selection Area -->
+                <!-- Flavor Selection Area -->
                 <div class="mb-4 border-b pb-4">
                     <label class="block text-sm font-medium text-gray-700 mb-2">选择您感受到的主要风味 (可选):</label>
                     <div id="flavor-buttons-container" class="flex flex-wrap">
@@ -170,18 +185,14 @@
         let ratingConfig = null; let userRatings = {}; let currentAuthUser = null;
         let currentImageKeys = []; let sortableInstance = null;
         let isEditMode = false; let editRatingId = null; let cropper = null;
-        let selectedFlavors = []; // **NEW**: Array to store selected flavor names
+        let selectedFlavors = []; // Array to store selected flavor names
         const cropperModal = document.getElementById('cropper-modal');
         const cropperImage = document.getElementById('cropper-image');
         const cropperStatus = document.getElementById('cropper-status');
         const AUTHING_APP_ID = '68f5b0b6875017c02b3bfdb3';
         const AUTHING_HOST = 'https://xfvu647mcdbk-demo.authing.cn';
         const GRADING_SCALE = [ /* ... (grading scale remains the same) ... */ { "grade": "P", "name_en": "Pinnacle", "name_cn": "顶峰 / 登峰造极", "min_score": 95 }, { "grade": "I", "name_en": "Impeccable", "name_cn": "无暇 / 完美无瑕", "min_score": 90 }, { "grade": "S", "name_en": "Superior", "name_cn": "卓越 / 出众", "min_score": 80 }, { "grade": "T", "name_en": "Terrific", "name_cn": "极好 / 绝佳", "min_score": 70 }, { "grade": "A", "name_en": "Appreciable", "name_cn": "可圈可点 / 值得欣赏", "min_score": 60 }, { "grade": "C", "name_en": "Commonplace", "name_cn": "平庸 / 普通", "min_score": 50 }, { "grade": "H", "name_en": "Hesitant", "name_cn": "犹豫 / 瑕瑜互见", "min_score": 30 }, { "grade": "O", "name_en": "Objectionable", "name_cn": "令人反感 / 极差", "min_score": 0 } ];
-        // **NEW**: Flavor List
-        const COMMON_FLAVORS = [
-            "咖啡", "巧克力", "雪松", "泥土", "干草", "皮革", "坚果", "香料",
-            "木质", "甜味", "奶油", "花香", "果香", "焦糖", "香草", "柑橘"
-        ];
+        const COMMON_FLAVORS = [ /* ... (flavor list remains the same) ... */ "咖啡", "巧克力", "雪松", "泥土", "干草", "皮革", "坚果", "香料", "木质", "甜味", "奶油", "花香", "果香", "焦糖", "香草", "柑橘" ];
 
         // --- Authentication ---
          /* ... (Authentication functions remain the same) ... */
@@ -193,14 +204,15 @@
          async function validateSessionAndGetUser() { const token = sessionStorage.getItem('accessToken'); if (!token) return null; try { const apiUrl = new URL('/api/me', window.location.origin); const response = await fetch(apiUrl, { headers: { 'Authorization': `Bearer ${token}` } }); if (!response.ok) { sessionStorage.removeItem('userInfo'); sessionStorage.removeItem('accessToken'); return null; } const fullUserProfile = await response.json(); sessionStorage.setItem('userInfo', JSON.stringify(fullUserProfile)); return fullUserProfile; } catch (e) { console.error("Session validation failed:", e); return null; } }
          function setUser(user) { currentAuthUser = user; renderLoginStatus(currentAuthUser); setTimeout(() => { renderAdminLinks(); }, 0); }
 
-        // --- **NEW**: Flavor Selection Logic ---
+        // --- Flavor Selection Logic ---
         function renderFlavorButtons() {
             const container = document.getElementById('flavor-buttons-container');
             container.innerHTML = ''; // Clear existing
             COMMON_FLAVORS.forEach(flavor => {
                 const isSelected = selectedFlavors.includes(flavor);
                 const button = document.createElement('button');
-                button.type = 'button'; // Prevent form submission
+                button.type = 'button';
+                // Apply the 'selected' class directly here
                 button.className = `flavor-btn ${isSelected ? 'selected' : ''}`;
                 button.textContent = flavor;
                 button.onclick = () => toggleFlavorSelection(flavor, button);
@@ -211,13 +223,13 @@
         function toggleFlavorSelection(flavor, button) {
             const index = selectedFlavors.indexOf(flavor);
             if (index > -1) {
-                selectedFlavors.splice(index, 1); // Remove flavor
-                button.classList.remove('selected');
+                selectedFlavors.splice(index, 1);
+                button.classList.remove('selected'); // Update class on toggle
             } else {
-                selectedFlavors.push(flavor); // Add flavor
-                button.classList.add('selected');
+                selectedFlavors.push(flavor);
+                button.classList.add('selected'); // Update class on toggle
             }
-            console.log("Selected flavors:", selectedFlavors); // For debugging
+            console.log("Selected flavors:", selectedFlavors);
         }
         // --- End Flavor Selection ---
 
@@ -255,8 +267,8 @@
                 document.getElementById('cigar-origin').value = '';
                 document.getElementById('cigar-review').value = '';
                 currentImageKeys = [];
-                selectedFlavors = []; // **NEW**: Clear selected flavors
-                renderFlavorButtons(); // **NEW**: Re-render flavor buttons
+                selectedFlavors = []; // Clear selected flavors
+                renderFlavorButtons(); // Re-render flavor buttons (will show unselected)
                 renderImagePreviews();
 
                 if (isEditMode) {
@@ -270,7 +282,6 @@
             }
         }
 
-        // **MODIFIED**: Added selectedFlavors to resultsData
         window.showResults = async function() {
             const token = sessionStorage.getItem('accessToken');
             if (!isEditMode && (!currentAuthUser || !token)) { return alert("请登录后才能提交点评。"); }
@@ -293,14 +304,13 @@
                 title: title, config: ratingConfig, ratings: userRatings,
                 calculatedScore: finalScore, cigarInfo: cigarInfo, cigarReview: cigarReview,
                 imageUrls: currentImageKeys, normalizedScore: normalizedScore, finalGrade: finalGrade,
-                selectedFlavors: selectedFlavors, // **NEW**: Add selected flavors
+                selectedFlavors: selectedFlavors, // Include selected flavors
                 isDraft: !isEditMode
             };
             console.log("Data being prepared for results/save:", resultsData);
 
             if (isEditMode && editRatingId) {
                 // --- Save Changes Logic ---
-                /* ... (Save changes logic remains the same) ... */
                  const actionButton = document.getElementById('main-action-button'); actionButton.textContent = "正在保存..."; actionButton.disabled = true; try { if (!token) throw new Error("会话已过期，请重新登录。"); resultsData.ratingId = editRatingId; const apiUrl = new URL(`/api/ratings`, window.location.origin); const response = await fetch(apiUrl, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify(resultsData) }); if (!response.ok) { const err = await response.json(); throw new Error(err.error || '更新失败'); } alert("更改已保存！"); window.location.href = 'history.html'; } catch (e) { alert(`保存失败: ${e.message}`); actionButton.textContent = "保存更改"; actionButton.disabled = false; }
             } else {
                 // --- Show Results Logic (New Rating) ---
@@ -314,7 +324,6 @@
 
 
         // --- Edit Mode Logic ---
-        // **MODIFIED**: Populate selectedFlavors and render buttons when loading for edit
         async function loadRatingForEdit(ratingId) {
             console.log(`[loadRatingForEdit] Started for ID: ${ratingId}`);
             const token = sessionStorage.getItem('accessToken');
@@ -341,7 +350,7 @@
                 userRatings = ratingData.fullData.ratings || {};
                 currentImageKeys = Array.isArray(ratingData.imageUrl) ? ratingData.imageUrl : [];
 
-                // **NEW**: Populate selected flavors
+                // Populate selected flavors
                 selectedFlavors = Array.isArray(ratingData.fullData.selectedFlavors) ? ratingData.fullData.selectedFlavors : [];
                 renderFlavorButtons(); // Render flavor buttons based on loaded data
 
@@ -367,7 +376,7 @@
 
         // Character Counters
         function updateCharCounts() {
-            /* ... (updateCharCounts remains the same) ... */
+             /* ... (updateCharCounts remains the same) ... */
              const titleInput = document.getElementById('rating-title'); const reviewInput = document.getElementById('cigar-review'); const titleCount = document.getElementById('title-char-count'); const reviewCount = document.getElementById('review-char-count'); if(titleInput && titleCount) titleCount.textContent = `${titleInput.value.length} / 22`; if(reviewInput && reviewCount) reviewCount.textContent = `${reviewInput.value.length} / 1500`;
         }
 
@@ -385,15 +394,17 @@
             
             await loadConfig(); // Load config first
             
-            // **NEW**: Render flavor buttons AFTER config load
+            // Render flavor buttons AFTER config load
             renderFlavorButtons();
 
             if (editId) { await loadRatingForEdit(editId); } // Loads ratings, images, AND flavors
             else { renderImagePreviews(); updateCharCounts(); } // Normal load
 
+            // Initialize SortableJS at the end
             try { initializeSortable(); }
             catch (e) { console.error("Failed to initialize SortableJS on load:", e); }
 
+            // Add event listeners
             document.getElementById('rating-title')?.addEventListener('input', updateCharCounts);
             document.getElementById('cigar-review')?.addEventListener('input', updateCharCounts);
             
