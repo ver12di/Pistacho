@@ -5,20 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>雪茄品鉴 - 点评报告</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Swiper.js CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/swiper/swiper-bundle.min.css"/>
-    <!-- (已修复) Swiper.js JS 已移至 <head> 并添加 defer, 确保它在主逻辑运行前加载 -->
-    <script src="https://unpkg.com/swiper/swiper-bundle.min.js" defer></script>
+    <!-- **MODIFIED**: Swiper.js CSS from cdnjs -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/Swiper/8.4.7/swiper-bundle.min.css"/>
+    <!-- **MODIFIED**: Swiper.js JS from cdnjs, moved to HEAD with defer -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Swiper/8.4.7/swiper-bundle.min.js" defer></script>
     <script>
         if (typeof tailwind !== 'undefined') {
             tailwind.config = {
                 theme: {
                     extend: {
                         fontFamily: { sans: ['Inter', 'Noto Sans SC', 'system-ui', 'sans-serif'], },
-                        keyframes: {
-                            fadeInUp: { '0%': { opacity: '0', transform: 'translateY(20px)' }, '100%': { opacity: '1', transform: 'translateY(0)' }, },
-                            highlight: { '0%, 100%': { transform: 'scale(1)', boxShadow: '0 0 0 rgba(66, 153, 225, 0)' }, '50%': { transform: 'scale(1.02)', boxShadow: '0 0 15px rgba(66, 153, 225, 0.4)' }, }
-                        },
+                        keyframes: { /* ... keyframes ... */ fadeInUp: { '0%': { opacity: '0', transform: 'translateY(20px)' }, '100%': { opacity: '1', transform: 'translateY(0)' }, }, highlight: { '0%, 100%': { transform: 'scale(1)', boxShadow: '0 0 0 rgba(66, 153, 225, 0)' }, '50%': { transform: 'scale(1.02)', boxShadow: '0 0 15px rgba(66, 153, 225, 0.4)' }, } },
                         animation: { fadeInUp: 'fadeInUp 0.8s ease-out forwards', highlight: 'highlight 2.5s ease-in-out infinite', }
                     }
                 }
@@ -27,7 +24,7 @@
     </script>
     <style>
         /* Tooltip styles */ .tooltip { position: relative; display: inline-block; } .tooltip .tooltiptext { visibility: hidden; width: 80px; background-color: #555; color: #fff; text-align: center; border-radius: 6px; padding: 5px 0; position: absolute; z-index: 1; bottom: 125%; left: 50%; margin-left: -40px; opacity: 0; transition: opacity 0.3s; } .tooltip .tooltiptext::after { content: ""; position: absolute; top: 100%; left: 50%; margin-left: -5px; border-width: 5px; border-style: solid; border-color: #555 transparent transparent transparent; } .tooltip:hover .tooltiptext { visibility: visible; opacity: 1; }
-        /* Swiper styles adjustments */ .swiper-container { width: 100%; } .swiper-slide img { display: block; width: 100%; height: 100%; object-fit: cover; } .swiper-button-next, .swiper-button-prev { color: #fff; background-color: rgba(0,0,0,0.3); padding: 10px; border-radius: 50%; width: 40px; height: 40px; } .swiper-button-next::after, .swiper-button-prev::after { font-size: 1.2rem; } .swiper-pagination-bullet-active { background: #4f46e5; /* Indigo */ } .thumbnail-swiper .swiper-slide { width: 60px !important; /* Fixed width for thumbnails */ height: 80px; opacity: 0.6; cursor: pointer; border: 2px solid transparent; transition: opacity 0.3s, border-color 0.3s; } .thumbnail-swiper .swiper-slide-thumb-active { opacity: 1; border-color: #4f46e5; /* Indigo */ } .thumbnail-swiper { margin-top: 0.5rem; padding: 5px 0; }
+        /* Swiper styles adjustments */ .swiper { width: 100%; } .swiper-slide img { display: block; width: 100%; height: 100%; object-fit: cover; } .swiper-button-next, .swiper-button-prev { color: #fff; background-color: rgba(0,0,0,0.3); padding: 10px; border-radius: 50%; width: 40px; height: 40px; } .swiper-button-next::after, .swiper-button-prev::after { font-size: 1.2rem; } .swiper-pagination-bullet-active { background: #4f46e5; /* Indigo */ } .thumbnail-swiper .swiper-slide { width: 60px !important; /* Fixed width for thumbnails */ height: 80px; opacity: 0.6; cursor: pointer; border: 2px solid transparent; transition: opacity 0.3s, border-color 0.3s; } .thumbnail-swiper .swiper-slide-thumb-active { opacity: 1; border-color: #4f46e5; /* Indigo */ } .thumbnail-swiper { margin-top: 0.5rem; padding: 5px 0; }
         /* Ensure prose respects container width */ #narrative-summary-container, #cigar-review-container { max-width: 100%; }
     </style>
 </head>
@@ -47,10 +44,10 @@
                 <!-- Left Column: Image Gallery -->
                 <div class="w-full md:w-2/5 flex-shrink-0">
                      <div id="image-gallery-container" class="bg-white rounded-lg shadow-md overflow-hidden">
-                         <!-- Main Swiper -->
-                         <div class="swiper-container main-swiper aspect-[1179/1572] bg-gray-200"> <div class="swiper-wrapper" id="main-swiper-wrapper"> <div class="swiper-slide flex items-center justify-center text-gray-400">无图</div> </div> <div class="swiper-pagination"></div> <div class="swiper-button-next"></div> <div class="swiper-button-prev"></div> </div>
+                         <!-- **MODIFIED**: Updated Swiper class to 'swiper' -->
+                         <div class="swiper main-swiper aspect-[1179/1572] bg-gray-200"> <div class="swiper-wrapper" id="main-swiper-wrapper"> <div class="swiper-slide flex items-center justify-center text-gray-400">无图</div> </div> <div class="swiper-pagination"></div> <div class="swiper-button-next"></div> <div class="swiper-button-prev"></div> </div>
                          <!-- Thumbnail Swiper -->
-                         <div class="swiper-container thumbnail-swiper hidden"> <div class="swiper-wrapper" id="thumbnail-swiper-wrapper"> </div> </div>
+                         <div class="swiper thumbnail-swiper hidden"> <div class="swiper-wrapper" id="thumbnail-swiper-wrapper"> </div> </div>
                      </div>
                 </div>
                  <!-- Right Column: Details -->
@@ -83,79 +80,58 @@
         </div>
     </div>
 
-    <!-- (已修复) Swiper.js JS 已被移至 <head> -->
-    <!-- <script src="https://unpkg.com/swiper/swiper-bundle.min.js"></script> -->
+    <!-- Swiper.js JS is now in HEAD with defer -->
 
     <script type="module">
         // --- Constants and Global Vars ---
-        const GRADING_SCALE = [
-          { "grade": "P", "name_en": "Pinnacle", "name_cn": "顶峰 / 登峰造极", "min_score": 95, "color": "gold" },
-          { "grade": "I", "name_en": "Impeccable", "name_cn": "无暇 / 完美无瑕", "min_score": 90, "color": "indigo" },
-          { "grade": "S", "name_en": "Superior", "name_cn": "卓越 / 出众", "min_score": 80, "color": "purple" },
-          { "grade": "T", "name_en": "Terrific", "name_cn": "极好 / 绝佳", "min_score": 70, "color": "blue" },
-          { "grade": "A", "name_en": "Appreciable", "name_cn": "可圈可点 / 值得欣赏", "min_score": 60, "color": "green" },
-          { "grade": "C", "name_en": "Commonplace", "name_cn": "平庸 / 普通", "min_score": 50, "color": "gray" },
-          { "grade": "H", "name_en": "Hesitant", "name_cn": "犹豫 / 瑕瑜互见", "min_score": 30, "color": "orange" },
-          { "grade": "O", "name_en": "Objectionable", "name_cn": "令人反感 / 极差", "min_score": 0, "color": "red" }
-        ];
+        const GRADING_SCALE = [ /* ... (grading scale remains the same) ... */ { "grade": "P", "name_en": "Pinnacle", "name_cn": "顶峰 / 登峰造极", "min_score": 95, "color": "gold" }, { "grade": "I", "name_en": "Impeccable", "name_cn": "无暇 / 完美无瑕", "min_score": 90, "color": "indigo" }, { "grade": "S", "name_en": "Superior", "name_cn": "卓越 / 出众", "min_score": 80, "color": "purple" }, { "grade": "T", "name_en": "Terrific", "name_cn": "极好 / 绝佳", "min_score": 70, "color": "blue" }, { "grade": "A", "name_en": "Appreciable", "name_cn": "可圈可点 / 值得欣赏", "min_score": 60, "color": "green" }, { "grade": "C", "name_en": "Commonplace", "name_cn": "平庸 / 普通", "min_score": 50, "color": "gray" }, { "grade": "H", "name_en": "Hesitant", "name_cn": "犹豫 / 瑕瑜互见", "min_score": 30, "color": "orange" }, { "grade": "O", "name_en": "Objectionable", "name_cn": "令人反感 / 极差", "min_score": 0, "color": "red" } ];
         let currentAuthUser = null; let resultsData = null; let normalizedScore = 0; let finalGrade = null;
         const AUTHING_APP_ID = '68f5b0b6875017c02b3bfdb3'; const AUTHING_HOST = 'https://xfvu647mcdbk-demo.authing.cn';
         let mainSwiper = null; let thumbnailSwiper = null;
 
         // --- Authentication ---
-         // **FIX**: Removed duplicate auth functions
+         /* ... (Authentication functions remain the same) ... */
          window.login = function() { const redirectUri = window.location.origin; const authorizeUrl = new URL('/oidc/auth', AUTHING_HOST); authorizeUrl.search = new URLSearchParams({ client_id: AUTHING_APP_ID, redirect_uri: redirectUri, response_type: 'code', scope: 'openid profile email phone', state: Math.random().toString(36).substring(2) }).toString(); window.location.href = authorizeUrl.toString(); }
          window.logout = function() { const logoutUrl = new URL('/oidc/session/end', AUTHING_HOST); logoutUrl.search = new URLSearchParams({ post_logout_redirect_uri: window.location.origin }).toString(); sessionStorage.removeItem('userInfo'); sessionStorage.removeItem('accessToken'); window.location.href = logoutUrl.toString(); }
          function renderLoginStatus(user) { const container = document.getElementById('login-status-container'); if (!container) return; if (user) { const displayName = user.nickname || user.name || user.preferred_username || user.email || '已登录'; container.innerHTML = `<span class="text-sm font-medium text-gray-700 mr-2 hidden sm:inline">${displayName}</span><button onclick="logout()" class="px-3 py-1 text-xs font-medium rounded-full bg-red-500 text-white hover:bg-red-600">退出</button>`; } else { container.innerHTML = `<button onclick="login()" class="px-3 py-1 text-xs font-medium rounded-full bg-green-500 text-white hover:bg-green-600">登录/注册</button>`; } }
          async function handleOidcCallback(code) { try { const redirectUri = window.location.origin; const apiUrl = new URL('/api/authing/callback', window.location.origin); const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: code, redirect_uri: redirectUri }) }); if (!response.ok) { const err = await response.json(); throw new Error(err.error || '认证回调失败'); } const fullUserProfile = await response.json(); sessionStorage.setItem('userInfo', JSON.stringify(fullUserProfile)); sessionStorage.setItem('accessToken', fullUserProfile.accessToken); return fullUserProfile; } catch (e) { console.error('认证回调处理失败:', e); alert(`登录失败: ${e.message}`); sessionStorage.removeItem('userInfo'); sessionStorage.removeItem('accessToken'); return null; } finally { window.history.replaceState({}, document.title, window.location.pathname); } }
          async function validateSessionAndGetUser() { const token = sessionStorage.getItem('accessToken'); if (!token) return null; try { const apiUrl = new URL('/api/me', window.location.origin); const response = await fetch(apiUrl, { headers: { 'Authorization': `Bearer ${token}` } }); if (!response.ok) { sessionStorage.removeItem('userInfo'); sessionStorage.removeItem('accessToken'); return null; } const fullUserProfile = await response.json(); sessionStorage.setItem('userInfo', JSON.stringify(fullUserProfile)); return fullUserProfile; } catch (e) { console.error("Session validation failed:", e); return null; } }
-        // --- End Auth ---
 
 
         // --- Save Rating ---
-        window.saveRating = async function() {
-            // Placeholder for save logic
-        };
+        window.saveRating = async function() { /* ... */ };
 
         // --- Copy Summary Function ---
         window.copySummary = function(event) {
-            // Placeholder for copy logic
+             const summaryContainer = document.getElementById('narrative-summary-container');
+             const tooltip = document.getElementById('copy-tooltip');
+             if (summaryContainer && tooltip) {
+                 const textToCopy = summaryContainer.innerText || summaryContainer.textContent;
+                 // Use execCommand for broader compatibility within potential iframe restrictions
+                 const textArea = document.createElement("textarea");
+                 textArea.value = textToCopy;
+                 textArea.style.position = "fixed"; // Prevent scrolling to bottom
+                 document.body.appendChild(textArea);
+                 textArea.focus();
+                 textArea.select();
+                 try {
+                     const successful = document.execCommand('copy');
+                     tooltip.textContent = successful ? '已复制!' : '复制失败';
+                 } catch (err) {
+                     tooltip.textContent = '复制失败';
+                     console.error('Copy failed:', err);
+                 }
+                 document.body.removeChild(textArea);
+                 // Reset tooltip text after a short delay
+                 setTimeout(() => { tooltip.textContent = '复制'; }, 2000);
+             }
+             event?.stopPropagation(); // Prevent details section from toggling
         };
 
-        // --- **FIX**: Restored full initSwipers function from 'results (1).html' ---
+        // --- Initialize Swiper ---
         function initSwipers(imageUrls = []) {
-             const mainWrapper = document.getElementById('main-swiper-wrapper');
-             const thumbWrapper = document.getElementById('thumbnail-swiper-wrapper');
-             const thumbContainer = document.querySelector('.thumbnail-swiper');
-
-             mainWrapper.innerHTML = ''; thumbWrapper.innerHTML = '';
-
-             if (!imageUrls || imageUrls.length === 0) { // 额外检查 null 或 undefined
-                 mainWrapper.innerHTML = '<div class="swiper-slide flex items-center justify-center text-gray-400">无图</div>';
-                 thumbContainer.classList.add('hidden');
-                 if(mainSwiper) mainSwiper.destroy(true, true); if(thumbnailSwiper) thumbnailSwiper.destroy(true, true);
-                 mainSwiper = null; thumbnailSwiper = null; return;
-             }
-            
-             // 确保 /api/image/ 路径被正确添加
-             imageUrls.forEach(key => { 
-                const imageUrl = `/api/image/${key}`;
-                // 添加错误处理
-                const imgElement = `<img src="${imageUrl}" alt="雪茄图片" onerror="this.src='https://placehold.co/600x800/gray/white?text=Loading+Failed'; this.onerror=null;">`;
-                mainWrapper.innerHTML += `<div class="swiper-slide">${imgElement}</div>`; 
-                thumbWrapper.innerHTML += `<div class="swiper-slide thumbnail-slide">${imgElement}</div>`; 
-             });
-
-             if(mainSwiper) mainSwiper.destroy(true, true); if(thumbnailSwiper) thumbnailSwiper.destroy(true, true);
-
-             if (imageUrls.length > 1) {
-                  thumbContainer.classList.remove('hidden');
-                 thumbnailSwiper = new Swiper('.thumbnail-swiper', { spaceBetween: 10, slidesPerView: 'auto', freeMode: true, watchSlidesProgress: true, });
-                 mainSwiper = new Swiper('.main-swiper', { spaceBetween: 10, navigation: { nextEl: '.swiper-button-next', prevEl: '.swiper-button-prev', }, pagination: { el: '.swiper-pagination', clickable: true, }, thumbs: { swiper: thumbnailSwiper, }, simulateTouch: true, touchRatio: 1, touchAngle: 45, grabCursor: true, });
-             } else {
-                  thumbContainer.classList.add('hidden');
-                 mainSwiper = new Swiper('.main-swiper', { allowTouchMove: false, });
-             }
+             /* ... (initSwipers function remains the same, using new Swiper(...) ) ... */
+             const mainWrapper = document.getElementById('main-swiper-wrapper'); const thumbWrapper = document.getElementById('thumbnail-swiper-wrapper'); const thumbContainer = document.querySelector('.thumbnail-swiper'); mainWrapper.innerHTML = ''; thumbWrapper.innerHTML = ''; if (!imageUrls || imageUrls.length === 0) { mainWrapper.innerHTML = '<div class="swiper-slide flex items-center justify-center text-gray-400">无图</div>'; thumbContainer.classList.add('hidden'); if(mainSwiper) mainSwiper.destroy(true, true); if(thumbnailSwiper) thumbnailSwiper.destroy(true, true); mainSwiper = null; thumbnailSwiper = null; return; } imageUrls.forEach(key => { const imageUrl = `/api/image/${key}`; const imgElement = `<img src="${imageUrl}" alt="雪茄图片" onerror="this.src='https://placehold.co/600x800/gray/white?text=Loading+Failed'; this.onerror=null;">`; mainWrapper.innerHTML += `<div class="swiper-slide">${imgElement}</div>`; thumbWrapper.innerHTML += `<div class="swiper-slide thumbnail-slide">${imgElement}</div>`; }); if(mainSwiper) mainSwiper.destroy(true, true); if(thumbnailSwiper) thumbnailSwiper.destroy(true, true); if (imageUrls.length > 1) { thumbContainer.classList.remove('hidden'); thumbnailSwiper = new Swiper('.thumbnail-swiper', { spaceBetween: 10, slidesPerView: 'auto', freeMode: true, watchSlidesProgress: true, }); mainSwiper = new Swiper('.main-swiper', { spaceBetween: 10, navigation: { nextEl: '.swiper-button-next', prevEl: '.swiper-button-prev', }, pagination: { el: '.swiper-pagination', clickable: true, }, thumbs: { swiper: thumbnailSwiper, }, simulateTouch: true, touchRatio: 1, touchAngle: 45, grabCursor: true, }); } else { thumbContainer.classList.add('hidden'); mainSwiper = new Swiper('.main-swiper', { allowTouchMove: false, }); }
         }
 
 
@@ -178,13 +154,14 @@
 
                 if (!resultsData || resultsData.normalizedScore === undefined || !resultsData.finalGrade || !resultsData.cigarInfo || !resultsData.title) { throw new Error("存储的点评数据缺少基本信息 (标题, 分数, 评级, 雪茄信息)。"); }
 
-                // **FIX**: 优先检查 'imageUrls' (复数), 如果不存在, 则回退检查 'imageUrl' (单数)
-                const { title, cigarInfo, cigarReview, normalizedScore: score, isDraft } = resultsData;
-                const imageUrlsData = resultsData.imageUrls || resultsData.imageUrl; // <-- 保留了兼容性修复
-                
+                // **MODIFIED**: Retrieve selectedFlavors
+                const { title, cigarInfo, cigarReview, normalizedScore: score, isDraft, selectedFlavors } = resultsData;
+                const imageUrlsData = resultsData.imageUrls || resultsData.imageUrl;
+
                 normalizedScore = score;
+                // **FIX**: Use local GRADING_SCALE to find the *full* grade definition including color
                 const currentGradeDefinition = GRADING_SCALE.find(g => normalizedScore >= g.min_score) || GRADING_SCALE[GRADING_SCALE.length - 1];
-                finalGrade = currentGradeDefinition;
+                finalGrade = currentGradeDefinition; // Store the full object
 
                 // --- Render Static Content ---
                  document.getElementById('user-nickname').textContent = resultsData.userNickname || resultsData.userEmail || '匿名用户';
@@ -200,25 +177,13 @@
 
                 // --- Initialize Image Gallery ---
                 let images = [];
-                // **NOTE**: 此处逻辑已兼容 imageUrls 为数组或单个字符串
-                if(Array.isArray(imageUrlsData)) { 
-                    images = imageUrlsData; 
-                }
-                else if (typeof imageUrlsData === 'string' && imageUrlsData) { 
-                    try { 
-                        images = JSON.parse(imageUrlsData); 
-                        if (!Array.isArray(images)) images = [imageUrlsData]; // 如果解析出来不是数组，就当做单个字符串处理
-                    } catch(e){ 
-                        images = [imageUrlsData]; // 解析失败，当做单个字符串处理
-                    } 
-                }
-                
-                console.log("Initializing swiper with images:", images); // 调试日志
-                initSwipers(images); // <-- 现在会调用正确的函数
+                if(Array.isArray(imageUrlsData)) { images = imageUrlsData; }
+                else if (typeof imageUrlsData === 'string' && imageUrlsData) { try { images = JSON.parse(imageUrlsData); if (!Array.isArray(images)) images = [imageUrlsData];} catch(e){ images = [imageUrlsData]; } }
+                initSwipers(images);
 
 
                  // --- Render Integrated Score Section ---
-                 renderScoreSection(document.getElementById('score-section'), normalizedScore, finalGrade);
+                 renderScoreSection(document.getElementById('score-section'), normalizedScore, finalGrade); // Pass the full grade object
 
 
                 const saveButtonContainer = document.getElementById('save-button-container');
@@ -230,7 +195,10 @@
 
                 if (hasFullData) {
                     const { config, ratings } = resultsData;
-                    const narrativeSummary = generateNarrativeSummary(cigarInfo, config, ratings, finalGrade); document.getElementById('narrative-summary-container').innerHTML = narrativeSummary; narrativeDetails.classList.remove('hidden');
+                    // **MODIFIED**: Pass selectedFlavors to generateNarrativeSummary
+                    const narrativeSummary = generateNarrativeSummary(cigarInfo, config, ratings, finalGrade, selectedFlavors);
+                    document.getElementById('narrative-summary-container').innerHTML = narrativeSummary;
+                    narrativeDetails.classList.remove('hidden');
                     renderSummary(document.getElementById('summary-container'), config, ratings); summaryDetails.classList.remove('hidden');
                 } else {
                     narrativeDetails.classList.add('hidden'); summaryDetails.classList.add('hidden');
@@ -243,27 +211,43 @@
         };
 
         // --- Rendering Utilities ---
-        function generateNarrativeSummary(cigarInfo, config, ratings, finalGrade) { if (!config || !ratings) { return '<p class="text-gray-500 italic">无法生成综合评价 (缺少原始评分数据)。</p>'; } let summary = `<p class="text-base text-gray-700 leading-relaxed">`; summary += `本次品鉴的雪茄是来自<strong class="font-semibold">${cigarInfo?.origin || '未知'}</strong>的<strong class="font-semibold">${cigarInfo?.name || '未知'}</strong>，尺寸为<strong class="font-semibold">${cigarInfo?.size || '未知'}</strong>。`; let observations = []; (config?.ratingCriteria || []).forEach(category => { (category.criteriaList || []).forEach(criterion => { const id = getRatingId(category.category, criterion.name); const selectedOptionIndex = ratings[id]; if (selectedOptionIndex !== undefined && criterion.options?.[selectedOptionIndex]) { const option = criterion.options[selectedOptionIndex]; observations.push(`在<strong class="font-semibold">${criterion.name}</strong>方面，其表现为“${option.description}”`); } }); }); if (observations.length > 0) { summary += ` 品鉴过程中，我们观察到：${observations.join('；')}。`; } else { summary += ` (未记录详细评分选项)。`; } const gradeHierarchy = GRADING_SCALE.map(g => g.name_en).join('-'); summary += ` 综合来看，本次基于Pistacho Cigar Rating System（Pistacho雪茄评分）的最终评级为<strong class="font-semibold text-indigo-600">“${finalGrade.grade} - ${finalGrade.name_cn}”</strong>。Pistacho品分等级从高到低为${gradeHierarchy}`; summary += `</p>`; return summary; }
+        // **MODIFIED**: Added 'selectedFlavors' parameter and logic to include them
+        function generateNarrativeSummary(cigarInfo, config, ratings, finalGrade, selectedFlavors = []) {
+            if (!config || !ratings) { return '<p class="text-gray-500 italic">无法生成综合评价 (缺少原始评分数据)。</p>'; }
+            let summary = `<p class="text-base text-gray-700 leading-relaxed">`;
+            summary += `本次品鉴的雪茄是来自<strong class="font-semibold">${cigarInfo?.origin || '未知'}</strong>的<strong class="font-semibold">${cigarInfo?.name || '未知'}</strong>，尺寸为<strong class="font-semibold">${cigarInfo?.size || '未知'}</strong>。`;
+            let observations = [];
+            (config?.ratingCriteria || []).forEach(category => {
+                (category.criteriaList || []).forEach(criterion => {
+                    const id = getRatingId(category.category, criterion.name);
+                    const selectedOptionIndex = ratings[id];
+                    if (selectedOptionIndex !== undefined && criterion.options?.[selectedOptionIndex]) {
+                        const option = criterion.options[selectedOptionIndex];
+                        observations.push(`在<strong class="font-semibold">${criterion.name}</strong>方面，其表现为“${option.description}”`);
+                    }
+                });
+            });
+            if (observations.length > 0) { summary += ` 品鉴过程中，我们观察到：${observations.join('；')}。`; }
+            else { summary += ` (未记录详细评分选项)。`; }
+
+            // **NEW**: Add selected flavors sentence if any exist
+            if (selectedFlavors && selectedFlavors.length > 0) {
+                const flavorString = selectedFlavors.join('、'); // Join with Chinese comma
+                summary += ` 主要感受到的风味包括：<strong class="font-semibold">${flavorString}</strong>。`;
+            }
+
+            const gradeHierarchy = GRADING_SCALE.map(g => g.name_en).join('-');
+            summary += ` 综合来看，本次基于Pistacho Cigar Rating System（Pistacho雪茄评分）的最终评级为<strong class="font-semibold text-indigo-600">“${finalGrade.grade} - ${finalGrade.name_cn}”</strong>。Pistacho品分等级从高到低为${gradeHierarchy}`;
+            summary += `</p>`;
+            return summary;
+        }
+
+        /* ... (getRatingId, renderSummary, getScoreRange, getGradeStyles, renderScoreSection remain the same) ... */
         function getRatingId(category, criterion) { const catStr = String(category || '').trim(); const critStr = String(criterion || '').trim(); return `${catStr}-${critStr}`; }
         function renderSummary(container, config, ratings) { if (!container) return; if (!config || !ratings) { container.innerHTML = '<p class="text-gray-500 italic">无法生成评分详情汇总 (缺少原始评分数据)。</p>'; return; } let summaryHtml = ''; (config?.ratingCriteria || []).forEach((category) => { summaryHtml += `<div class="mb-4"><h4 class="text-md font-semibold text-gray-600 mb-2 border-b pb-1">${category.category}</h4><ul class="list-none space-y-1 text-sm">`; let hasCriteria = false; (category.criteriaList || []).forEach((criterion) => { const id = getRatingId(category.category, criterion.name); const selectedOptionIndex = ratings[id]; if (selectedOptionIndex !== undefined && criterion.options?.[selectedOptionIndex]) { const option = criterion.options[selectedOptionIndex]; summaryHtml += `<li class="flex justify-between items-center p-1"><div><span class="font-medium text-gray-700">${criterion.name}:</span><span class="text-gray-500 ml-2">${option.description}</span></div></li>`; hasCriteria = true; } }); if (!hasCriteria) { summaryHtml += `<li class="text-gray-400 italic text-xs">(无评分项)</li>`; } summaryHtml += `</ul></div>`; }); container.innerHTML = summaryHtml || '<p class="text-gray-500 italic">(无评分详情)</p>'; }
         function getScoreRange(gradeCode) { const index = GRADING_SCALE.findIndex(g => g.grade === gradeCode); if (index === -1) return ''; const min = GRADING_SCALE[index].min_score; if (index === 0) return `${min}-100`; const gradeAbove = GRADING_SCALE[index - 1]; if (!gradeAbove) return `< ${min}`; const max = gradeAbove.min_score - 0.01; if (gradeCode === 'O') return `0-${max.toFixed(2)}`; return `${min.toFixed(0)}-${max.toFixed(2)}`; }
         function getGradeStyles(color) { const stylesMap = { 'gold': { bgColor: 'bg-yellow-400', textColor: 'text-yellow-800', bgGradient: 'bg-gradient-to-br from-yellow-400 to-amber-500', shadowColor: 'shadow-yellow-500/50' }, 'indigo': { bgColor: 'bg-indigo-300', textColor: 'text-indigo-800', bgGradient: 'bg-gradient-to-br from-indigo-500 to-purple-600', shadowColor: 'shadow-indigo-500/50' }, 'purple': { bgColor: 'bg-purple-300', textColor: 'text-purple-800', bgGradient: 'bg-gradient-to-br from-purple-500 to-violet-600', shadowColor: 'shadow-purple-500/50' }, 'blue': { bgColor: 'bg-blue-300', textColor: 'text-blue-800', bgGradient: 'bg-gradient-to-br from-blue-500 to-cyan-600', shadowColor: 'shadow-blue-500/50' }, 'green': { bgColor: 'bg-green-300', textColor: 'text-green-800', bgGradient: 'bg-gradient-to-br from-green-500 to-lime-600', shadowColor: 'shadow-green-500/50' }, 'gray': { bgColor: 'bg-gray-300', textColor: 'text-gray-800', bgGradient: 'bg-gradient-to-br from-gray-500 to-slate-600', shadowColor: 'shadow-gray-500/50' }, 'orange': { bgColor: 'bg-orange-300', textColor: 'text-orange-800', bgGradient: 'bg-gradient-to-br from-orange-500 to-amber-600', shadowColor: 'shadow-orange-500/50' }, 'red': { bgColor: 'bg-red-300', textColor: 'text-red-800', bgGradient: 'bg-gradient-to-br from-red-500 to-rose-600', shadowColor: 'shadow-red-500/50' } }; return stylesMap[color] || stylesMap['gray']; }
-
-         // **FIX**: Restored renderScoreSection function from 'results (1).html'
-         function renderScoreSection(container, score, grade) {
-             if (!container || !grade) return;
-             const styles = getGradeStyles(grade.color);
-             const scoreHtml = ` <div class="text-center md:text-left"> 
-                <p class="text-xl font-bold text-yellow-500 mb-1">Pistacho 评分</p> 
-                <p class="text-7xl font-black ${styles.textColor}">${score.toFixed(2)}</p> 
-                <div class="mt-2 text-3xl lg:text-4xl font-black ${styles.textColor} leading-tight"> ${grade.name_en} - ${grade.name_cn} </div> 
-                <!-- <p class="text-xs text-gray-400 mt-1">${grade.name_en}</p> --> 
-             </div> `;
-             let scaleHtml = '<div class="space-y-1 text-sm">';
-             GRADING_SCALE.forEach(g => { const gStyles = getGradeStyles(g.color); const isCurrent = g.grade === grade.grade; scaleHtml += ` <div class="flex items-center p-1 rounded ${isCurrent ? 'bg-gray-100' : ''}"> <div class="w-5 h-5 flex-shrink-0 rounded-full flex items-center justify-center font-bold text-xs ${gStyles.bgColor} ${gStyles.textColor} mr-2">${g.grade}</div> <div class="flex-grow ${isCurrent ? 'font-semibold' : ''} ${gStyles.textColor}">${g.name_cn}</div> <div class="font-mono text-xs text-gray-500 ml-2">${getScoreRange(g.grade)}</div> </div> `; });
-             scaleHtml += '</div>';
-             container.innerHTML = ` <div id="score-display" class="w-full md:w-1/3 flex-shrink-0"> ${scoreHtml} </div> <div id="grading-scale-explanation" class="w-full md:w-2/3 flex-grow border-t md:border-t-0 md:border-l border-gray-200 pt-4 md:pt-0 md:pl-6"> ${scaleHtml} </div> `;
-         }
+         function renderScoreSection(container, score, grade) { if (!container || !grade) return; const styles = getGradeStyles(grade.color); const scoreHtml = ` <div class="text-center md:text-left"> <p class="text-xl font-bold text-yellow-500 mb-1">Pistacho 评分</p> <p class="text-7xl font-black ${styles.textColor}">${score.toFixed(2)}</p> <div class="mt-2 text-3xl lg:text-4xl font-black ${styles.textColor} leading-tight"> ${grade.name_en} - ${grade.name_cn} </div> </div> `; let scaleHtml = '<div class="space-y-1 text-sm">'; GRADING_SCALE.forEach(g => { const gStyles = getGradeStyles(g.color); const isCurrent = g.grade === grade.grade; scaleHtml += ` <div class="flex items-center p-1 rounded ${isCurrent ? 'bg-gray-100' : ''}"> <div class="w-5 h-5 flex-shrink-0 rounded-full flex items-center justify-center font-bold text-xs ${gStyles.bgColor} ${gStyles.textColor} mr-2">${g.grade}</div> <div class="flex-grow ${isCurrent ? 'font-semibold' : ''} ${gStyles.textColor}">${g.name_cn}</div> <div class="font-mono text-xs text-gray-500 ml-2">${getScoreRange(g.grade)}</div> </div> `; }); scaleHtml += '</div>'; container.innerHTML = ` <div id="score-display" class="w-full md:w-1/3 flex-shrink-0"> ${scoreHtml} </div> <div id="grading-scale-explanation" class="w-full md:w-2/3 flex-grow border-t md:border-t-0 md:border-l border-gray-200 pt-4 md:pt-0 md:pl-6"> ${scaleHtml} </div> `; }
 
     </script>
 </body>

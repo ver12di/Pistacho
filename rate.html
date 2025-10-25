@@ -48,6 +48,16 @@
         /* Style for the element being dragged */
         .sortable-ghost { opacity: 0.4; background: #c8ebfb; }
         .sortable-drag { opacity: 1 !important; /* Ensure dragged item is fully visible */ }
+        /* Style for flavor buttons */
+        .flavor-btn {
+            @apply px-3 py-1.5 border border-gray-300 rounded-full text-sm transition mr-2 mb-2 cursor-pointer;
+        }
+        .flavor-btn.selected {
+            @apply bg-indigo-600 text-white border-indigo-600 shadow-sm;
+        }
+        .flavor-btn:not(.selected):hover {
+            @apply bg-gray-100 border-gray-400;
+        }
     </style>
 </head>
 <body class="bg-gray-100 font-sans antialiased text-gray-800">
@@ -96,7 +106,6 @@
             <section class="mb-8 p-6 bg-white rounded-xl shadow-lg">
                 <h2 class="text-xl font-bold text-gray-800 mb-4">上传图片 (最多5张, 可拖拽排序) <span class="text-red-500">*</span></h2>
                 <p class="text-sm text-gray-600 mb-3">第一张图片将作为封面图显示。点击图片左下角按钮更换封面。</p>
-                <!-- **MODIFIED**: Added ID for SortableJS -->
                 <div class="preview-grid mb-4" id="image-preview-grid">
                     <!-- Image previews will be added here -->
                 </div>
@@ -112,9 +121,18 @@
 
             <!-- Review Section -->
             <section class="mb-8 p-6 bg-white rounded-xl shadow-lg">
-                <h2 class="text-xl font-bold text-gray-800 mb-4">文字评价</h2>
+                <h2 class="text-xl font-bold text-gray-800 mb-4">文字评价与风味选择</h2>
+                <!-- **NEW**: Flavor Selection Area -->
+                <div class="mb-4 border-b pb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">选择您感受到的主要风味 (可选):</label>
+                    <div id="flavor-buttons-container" class="flex flex-wrap">
+                        <!-- Flavor buttons will be dynamically added here -->
+                    </div>
+                </div>
+                <!-- Existing Textarea -->
                 <div>
-                    <textarea id="cigar-review" rows="8" maxlength="1500" class="w-full p-3 border rounded-md focus:border-indigo-500 focus:ring-indigo-500" placeholder="在此处输入您的详细品吸感受..."></textarea>
+                    <label for="cigar-review" class="block text-sm font-medium text-gray-700 mb-2">详细文字评价:</label>
+                    <textarea id="cigar-review" rows="6" maxlength="1500" class="w-full p-3 border rounded-md focus:border-indigo-500 focus:ring-indigo-500" placeholder="在此处输入您的详细品吸感受..."></textarea>
                     <p id="review-char-count" class="text-xs text-gray-500 text-right mt-1">0 / 1500</p>
                 </div>
             </section>
@@ -122,7 +140,6 @@
             <!-- Cigar Info Section -->
             <section class="mb-8 p-6 bg-white rounded-xl shadow-lg">
                 <h2 class="text-xl font-bold text-gray-800 mb-4">雪茄信息</h2>
-                 <!-- Inputs remain the same -->
                  <div class="grid grid-cols-1 md:grid-cols-3 gap-6"> <div> <label for="cigar-name" class="block text-sm font-medium text-gray-700">名称 <span class="text-red-500">*</span></label> <input type="text" id="cigar-name" autocomplete="off" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" placeholder="例如：帕特加斯D4"> </div> <div> <label for="cigar-size" class="block text-sm font-medium text-gray-700">尺寸</label> <input type="text" id="cigar-size" autocomplete="off" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" placeholder="例如：Robusto"> </div> <div> <label for="cigar-origin" class="block text-sm font-medium text-gray-700">产地</label> <input type="text" id="cigar-origin" autocomplete="off" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" placeholder="例如：古巴"> </div> </div>
             </section>
 
@@ -141,7 +158,6 @@
 
     <!-- Cropper Modal -->
     <div id="cropper-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50 hidden">
-        <!-- Modal content remains the same -->
          <div class="bg-white rounded-lg shadow-xl p-6 cropper-modal-content"> <h2 class="text-2xl font-bold mb-4">裁切图片</h2> <div class="cropper-container"> <img id="cropper-image" src="" alt="Image to crop"> </div> <p id="cropper-status" class="text-sm font-medium text-indigo-600 my-2"></p> <div class="flex justify-end gap-4 mt-4"> <button onclick="cancelCrop()" class="py-2 px-5 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400">取消</button> <button onclick="confirmCropAndUpload()" class="py-2 px-5 bg-blue-600 text-white rounded-lg hover:bg-blue-700">确认并上传</button> </div> </div>
     </div>
 
@@ -152,27 +168,23 @@
     <script type="module">
         // --- Global Variables ---
         let ratingConfig = null; let userRatings = {}; let currentAuthUser = null;
-        let currentImageKeys = []; // Stores the ordered image keys
-        let sortableInstance = null; // To hold the SortableJS instance
+        let currentImageKeys = []; let sortableInstance = null;
         let isEditMode = false; let editRatingId = null; let cropper = null;
+        let selectedFlavors = []; // **NEW**: Array to store selected flavor names
         const cropperModal = document.getElementById('cropper-modal');
         const cropperImage = document.getElementById('cropper-image');
         const cropperStatus = document.getElementById('cropper-status');
         const AUTHING_APP_ID = '68f5b0b6875017c02b3bfdb3';
         const AUTHING_HOST = 'https://xfvu647mcdbk-demo.authing.cn';
-        // **FIX**: Corrected grading scale based on results.html
-        const GRADING_SCALE = [
-          { "grade": "P", "name_en": "Pinnacle", "name_cn": "顶峰 / 登峰造极", "min_score": 95 },
-          { "grade": "I", "name_en": "Impeccable", "name_cn": "无暇 / 完美无瑕", "min_score": 90 },
-          { "grade": "S", "name_en": "Superior", "name_cn": "卓越 / 出众", "min_score": 80 }, // 80 not 85
-          { "grade": "T", "name_en": "Terrific", "name_cn": "极好 / 绝佳", "min_score": 70 }, // 70 not 80
-          { "grade": "A", "name_en": "Appreciable", "name_cn": "可圈可点 / 值得欣赏", "min_score": 60 }, // 60 not 70
-          { "grade": "C", "name_en": "Commonplace", "name_cn": "平庸 / 普通", "min_score": 50 }, // 50 not 60
-          { "grade": "H", "name_en": "Hesitant", "name_cn": "犹豫 / 瑕瑜互见", "min_score": 30 }, // 30 not 40
-          { "grade": "O", "name_en": "Objectionable", "name_cn": "令人反感 / 极差", "min_score": 0 } // Objectionable, not Ordinary
+        const GRADING_SCALE = [ /* ... (grading scale remains the same) ... */ { "grade": "P", "name_en": "Pinnacle", "name_cn": "顶峰 / 登峰造极", "min_score": 95 }, { "grade": "I", "name_en": "Impeccable", "name_cn": "无暇 / 完美无瑕", "min_score": 90 }, { "grade": "S", "name_en": "Superior", "name_cn": "卓越 / 出众", "min_score": 80 }, { "grade": "T", "name_en": "Terrific", "name_cn": "极好 / 绝佳", "min_score": 70 }, { "grade": "A", "name_en": "Appreciable", "name_cn": "可圈可点 / 值得欣赏", "min_score": 60 }, { "grade": "C", "name_en": "Commonplace", "name_cn": "平庸 / 普通", "min_score": 50 }, { "grade": "H", "name_en": "Hesitant", "name_cn": "犹豫 / 瑕瑜互见", "min_score": 30 }, { "grade": "O", "name_en": "Objectionable", "name_cn": "令人反感 / 极差", "min_score": 0 } ];
+        // **NEW**: Flavor List
+        const COMMON_FLAVORS = [
+            "咖啡", "巧克力", "雪松", "泥土", "干草", "皮革", "坚果", "香料",
+            "木质", "甜味", "奶油", "花香", "果香", "焦糖", "香草", "柑橘"
         ];
 
         // --- Authentication ---
+         /* ... (Authentication functions remain the same) ... */
          window.login = function() { const redirectUri = window.location.origin; const authorizeUrl = new URL('/oidc/auth', AUTHING_HOST); authorizeUrl.search = new URLSearchParams({ client_id: AUTHING_APP_ID, redirect_uri: redirectUri, response_type: 'code', scope: 'openid profile email phone', state: Math.random().toString(36).substring(2) }).toString(); window.location.href = authorizeUrl.toString(); }
          window.logout = function() { const logoutUrl = new URL('/oidc/session/end', AUTHING_HOST); logoutUrl.search = new URLSearchParams({ post_logout_redirect_uri: window.location.origin }).toString(); sessionStorage.removeItem('userInfo'); sessionStorage.removeItem('accessToken'); window.location.href = logoutUrl.toString(); }
          function renderLoginStatus(user) { const container = document.getElementById('login-status-container'); if (!container) return; if (user) { const displayName = user.nickname || user.name || user.preferred_username || user.email || '已登录'; container.innerHTML = `<span class="text-sm font-medium text-gray-700 mr-2 hidden sm:inline">${displayName}</span><button onclick="logout()" class="px-3 py-1 text-xs font-medium rounded-full bg-red-500 text-white hover:bg-red-600">退出</button>`; } else { container.innerHTML = `<button onclick="login()" class="px-3 py-1 text-xs font-medium rounded-full bg-green-500 text-white hover:bg-green-600">登录/注册</button>`; } }
@@ -181,320 +193,56 @@
          async function validateSessionAndGetUser() { const token = sessionStorage.getItem('accessToken'); if (!token) return null; try { const apiUrl = new URL('/api/me', window.location.origin); const response = await fetch(apiUrl, { headers: { 'Authorization': `Bearer ${token}` } }); if (!response.ok) { sessionStorage.removeItem('userInfo'); sessionStorage.removeItem('accessToken'); return null; } const fullUserProfile = await response.json(); sessionStorage.setItem('userInfo', JSON.stringify(fullUserProfile)); return fullUserProfile; } catch (e) { console.error("Session validation failed:", e); return null; } }
          function setUser(user) { currentAuthUser = user; renderLoginStatus(currentAuthUser); setTimeout(() => { renderAdminLinks(); }, 0); }
 
+        // --- **NEW**: Flavor Selection Logic ---
+        function renderFlavorButtons() {
+            const container = document.getElementById('flavor-buttons-container');
+            container.innerHTML = ''; // Clear existing
+            COMMON_FLAVORS.forEach(flavor => {
+                const isSelected = selectedFlavors.includes(flavor);
+                const button = document.createElement('button');
+                button.type = 'button'; // Prevent form submission
+                button.className = `flavor-btn ${isSelected ? 'selected' : ''}`;
+                button.textContent = flavor;
+                button.onclick = () => toggleFlavorSelection(flavor, button);
+                container.appendChild(button);
+            });
+        }
+
+        function toggleFlavorSelection(flavor, button) {
+            const index = selectedFlavors.indexOf(flavor);
+            if (index > -1) {
+                selectedFlavors.splice(index, 1); // Remove flavor
+                button.classList.remove('selected');
+            } else {
+                selectedFlavors.push(flavor); // Add flavor
+                button.classList.add('selected');
+            }
+            console.log("Selected flavors:", selectedFlavors); // For debugging
+        }
+        // --- End Flavor Selection ---
+
+
         // --- Image Handling (with Sorting and Cover Selection) ---
-        const MAX_IMAGES = 5;
-        let filesToProcess = []; let currentFileIndex = 0;
-
-        /** Renders image previews based on currentImageKeys order */
-        function renderImagePreviews() {
-            const grid = document.getElementById('image-preview-grid');
-            const uploadLabel = document.getElementById('image-upload-label');
-            const uploadInput = document.getElementById('image-upload-input');
-            grid.innerHTML = ''; // Clear existing previews
-
-            currentImageKeys.forEach((key, index) => {
-                const item = document.createElement('div');
-                item.className = `preview-item ${index === 0 ? 'is-cover' : ''}`;
-                // Store the key in a data attribute for SortableJS update
-                item.dataset.key = key;
-
-                item.innerHTML = `
-                    <img src="/api/image/${key}" alt="Preview ${index + 1}">
-                    <button class="remove-btn" onclick="removeImage(${index})" title="删除图片">&times;</button>
-                    <button class="set-cover-btn" onclick="setCoverImage(${index})" title="设为封面">
-                        ${index === 0 ? '封面' : '设为封面'}
-                    </button>
-                `;
-                grid.appendChild(item);
-            });
-
-            // Update upload button state
-            if (currentImageKeys.length >= MAX_IMAGES) {
-                uploadLabel.classList.add('opacity-50', 'cursor-not-allowed', 'bg-gray-400');
-                uploadLabel.classList.remove('bg-blue-600', 'hover:bg-blue-700');
-                uploadInput.disabled = true;
-            } else {
-                uploadLabel.classList.remove('opacity-50', 'cursor-not-allowed', 'bg-gray-400');
-                uploadLabel.classList.add('bg-blue-600', 'hover:bg-blue-700');
-                uploadInput.disabled = false;
-            }
-            
-            // **FIX**: Moved initializeSortable() call to window.onload
-        }
-
-        /** Initialize SortableJS on the preview grid */
-        function initializeSortable() {
-            const grid = document.getElementById('image-preview-grid');
-            if (sortableInstance) {
-                sortableInstance.destroy(); // Destroy previous instance if exists
-            }
-            if (grid && currentImageKeys.length > 1) { // Only enable sorting if more than one image
-                sortableInstance = new Sortable(grid, {
-                    animation: 150, // Animation speed
-                    ghostClass: 'sortable-ghost', // Class for the drop placeholder
-                    dragClass: 'sortable-drag', // Class for the item being dragged
-                    onEnd: function (evt) {
-                        // Update the currentImageKeys array based on the new DOM order
-                        const items = grid.querySelectorAll('.preview-item');
-                        const newOrderKeys = Array.from(items).map(item => item.dataset.key);
-                        currentImageKeys = newOrderKeys;
-                        console.log("Image order updated:", currentImageKeys);
-                        // Re-render to update cover button states
-                        renderImagePreviews();
-                    }
-                });
-            } else {
-                sortableInstance = null; // Ensure instance is null if not sortable
-            }
-        }
-
-        /** Sets the image at the given index as the cover (moves it to the start) */
-        window.setCoverImage = function(index) {
-            if (index > 0 && index < currentImageKeys.length) { // Only move if it's not already the cover
-                const keyToMove = currentImageKeys.splice(index, 1)[0]; // Remove the item
-                currentImageKeys.unshift(keyToMove); // Add it to the beginning
-                console.log("Set new cover image. New order:", currentImageKeys);
-                renderImagePreviews(); // Re-render to reflect the change
-            }
-        }
-
-        /** Removes an image by index */
-        window.removeImage = function(indexToRemove) {
-            if (indexToRemove >= 0 && indexToRemove < currentImageKeys.length) {
-                const removedKey = currentImageKeys.splice(indexToRemove, 1);
-                console.log("Removed image key:", removedKey);
-                renderImagePreviews(); // Re-render after removal
-            }
-        }
-
-        // --- File Selection and Cropping ---
-        window.handleFileSelect = function(event) {
-            const status = document.getElementById('image-upload-status');
-            status.textContent = '';
-            const selectedFiles = Array.from(event.target.files);
-            if (selectedFiles.length === 0) return;
-            if (!currentAuthUser) {
-                alert("请先登录再上传图片。");
-                return;
-            }
-            const allowedFiles = [];
-            for (const file of selectedFiles) {
-                if (currentImageKeys.length + allowedFiles.length >= MAX_IMAGES) {
-                    alert(`最多只能上传 ${MAX_IMAGES} 张图片。`);
-                    break;
-                }
-                if (file.size > 5 * 1024 * 1024) {
-                    alert(`图片 "${file.name}" 太大 (超过5MB)，已跳过。`);
-                    continue;
-                }
-                if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-                    alert(`文件 "${file.name}" 类型不受支持，已跳过。`);
-                    continue;
-                }
-                allowedFiles.push(file);
-            }
-            if (allowedFiles.length > 0) {
-                filesToProcess = allowedFiles;
-                currentFileIndex = 0;
-                showCropperForNextFile();
-            }
-            event.target.value = null; // Clear input to allow re-selecting same file
-        }
-        
-        function showCropperForNextFile() {
-            if (currentFileIndex >= filesToProcess.length) {
-                console.log("All selected files processed.");
-                filesToProcess = [];
-                cancelCrop(); // Hide modal
-                return;
-            }
-            const file = filesToProcess[currentFileIndex];
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                cropperModal.classList.remove('hidden');
-                cropperImage.src = e.target.result;
-                if (cropper) cropper.destroy();
-                cropper = new Cropper(cropperImage, {
-                    aspectRatio: 1179 / 1572,
-                    viewMode: 1,
-                    autoCropArea: 0.9,
-                    background: false,
-                });
-                cropperStatus.textContent = `正在处理第 ${currentFileIndex + 1} / ${filesToProcess.length} 张图片。请调整裁切框。`;
-            };
-            reader.readAsDataURL(file);
-        }
-
-        window.confirmCropAndUpload = async function() {
-            if (!cropper || !filesToProcess[currentFileIndex]) return;
-            const token = sessionStorage.getItem('accessToken');
-            if (!token) {
-                alert("会话已过期，请重新登录。");
-                return;
-            }
-            cropperStatus.textContent = `正在裁切并上传第 ${currentFileIndex + 1} 张...`;
-            const fileName = filesToProcess[currentFileIndex].name;
-            const canvas = cropper.getCroppedCanvas({
-                width: 600, // Standard width
-                height: 800, // Standard height based on 1179/1572 ratio
-                imageSmoothingQuality: 'high',
-            });
-            canvas.toBlob(async (blob) => {
-                if (!blob) {
-                    cropperStatus.textContent = '裁切失败，请重试。';
-                    return;
-                }
-                try {
-                    const formData = new FormData();
-                    formData.append('image', blob, fileName); // Use 'image' as the key
-                    const response = await fetch('/api/upload-image', {
-                        method: 'POST',
-                        headers: { 'Authorization': `Bearer ${token}` },
-                        body: formData
-                    });
-                    const result = await response.json();
-                    if (!response.ok) throw new Error(result.error || '上传失败');
-                    
-                    currentImageKeys.push(result.imageKey);
-                    renderImagePreviews(); // Re-render to show new image
-                    
-                    currentFileIndex++;
-                    showCropperForNextFile(); // Process next file
-                } catch (e) {
-                    console.error("上传图片失败:", e);
-                    cropperStatus.textContent = `上传失败: ${e.message}`;
-                }
-            }, 'image/jpeg', 0.9); // Compress as JPEG
-        }
-
-        window.cancelCrop = function() {
-            cropperModal.classList.add('hidden');
-            if (cropper) {
-                cropper.destroy();
-                cropper = null;
-            }
-            filesToProcess = [];
-            currentFileIndex = 0;
-            document.getElementById('image-upload-input').value = null;
-            cropperStatus.textContent = '';
-        }
+         /* ... (Image functions remain the same) ... */
+         const MAX_IMAGES = 5; let filesToProcess = []; let currentFileIndex = 0;
+         function renderImagePreviews() { const grid = document.getElementById('image-preview-grid'); const uploadLabel = document.getElementById('image-upload-label'); const uploadInput = document.getElementById('image-upload-input'); grid.innerHTML = ''; currentImageKeys.forEach((key, index) => { const item = document.createElement('div'); item.className = `preview-item ${index === 0 ? 'is-cover' : ''}`; item.dataset.key = key; item.innerHTML = ` <img src="/api/image/${key}" alt="Preview ${index + 1}"> <button class="remove-btn" onclick="removeImage(${index})" title="删除图片">&times;</button> <button class="set-cover-btn" onclick="setCoverImage(${index})" title="设为封面"> ${index === 0 ? '封面' : '设为封面'} </button> `; grid.appendChild(item); }); if (currentImageKeys.length >= MAX_IMAGES) { uploadLabel.classList.add('opacity-50', 'cursor-not-allowed', 'bg-gray-400'); uploadLabel.classList.remove('bg-blue-600', 'hover:bg-blue-700'); uploadInput.disabled = true; } else { uploadLabel.classList.remove('opacity-50', 'cursor-not-allowed', 'bg-gray-400'); uploadLabel.classList.add('bg-blue-600', 'hover:bg-blue-700'); uploadInput.disabled = false; } }
+         function initializeSortable() { const grid = document.getElementById('image-preview-grid'); if (sortableInstance) { sortableInstance.destroy(); } if (grid && currentImageKeys.length > 1) { sortableInstance = new Sortable(grid, { animation: 150, ghostClass: 'sortable-ghost', dragClass: 'sortable-drag', onEnd: function (evt) { const items = grid.querySelectorAll('.preview-item'); const newOrderKeys = Array.from(items).map(item => item.dataset.key); currentImageKeys = newOrderKeys; console.log("Image order updated:", currentImageKeys); renderImagePreviews(); } }); } else { sortableInstance = null; } }
+         window.setCoverImage = function(index) { if (index > 0 && index < currentImageKeys.length) { const keyToMove = currentImageKeys.splice(index, 1)[0]; currentImageKeys.unshift(keyToMove); console.log("Set new cover image. New order:", currentImageKeys); renderImagePreviews(); } }
+         window.removeImage = function(indexToRemove) { if (indexToRemove >= 0 && indexToRemove < currentImageKeys.length) { const removedKey = currentImageKeys.splice(indexToRemove, 1); console.log("Removed image key:", removedKey); renderImagePreviews(); } }
+         window.handleFileSelect = function(event) { const status = document.getElementById('image-upload-status'); status.textContent = ''; const selectedFiles = Array.from(event.target.files); if (selectedFiles.length === 0) return; if (!currentAuthUser) { alert("请先登录再上传图片。"); return; } const allowedFiles = []; for (const file of selectedFiles) { if (currentImageKeys.length + allowedFiles.length >= MAX_IMAGES) { alert(`最多只能上传 ${MAX_IMAGES} 张图片。`); break; } if (file.size > 5 * 1024 * 1024) { alert(`图片 "${file.name}" 太大 (超过5MB)，已跳过。`); continue; } if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) { alert(`文件 "${file.name}" 类型不受支持，已跳过。`); continue; } allowedFiles.push(file); } if (allowedFiles.length > 0) { filesToProcess = allowedFiles; currentFileIndex = 0; showCropperForNextFile(); } event.target.value = null; }
+         function showCropperForNextFile() { if (currentFileIndex >= filesToProcess.length) { console.log("All selected files processed."); filesToProcess = []; cancelCrop(); return; } const file = filesToProcess[currentFileIndex]; const reader = new FileReader(); reader.onload = (e) => { cropperModal.classList.remove('hidden'); cropperImage.src = e.target.result; if (cropper) cropper.destroy(); cropper = new Cropper(cropperImage, { aspectRatio: 1179 / 1572, viewMode: 1, autoCropArea: 0.9, background: false, }); cropperStatus.textContent = `正在处理第 ${currentFileIndex + 1} / ${filesToProcess.length} 张图片。请调整裁切框。`; }; reader.readAsDataURL(file); }
+         window.confirmCropAndUpload = async function() { if (!cropper || !filesToProcess[currentFileIndex]) return; const token = sessionStorage.getItem('accessToken'); if (!token) { alert("会话已过期，请重新登录。"); return; } cropperStatus.textContent = `正在裁切并上传第 ${currentFileIndex + 1} 张...`; const fileName = filesToProcess[currentFileIndex].name; const canvas = cropper.getCroppedCanvas({ width: 600, height: 800, imageSmoothingQuality: 'high', }); canvas.toBlob(async (blob) => { if (!blob) { cropperStatus.textContent = '裁切失败，请重试。'; return; } try { const formData = new FormData(); formData.append('image', blob, fileName); const response = await fetch('/api/upload-image', { method: 'POST', headers: { 'Authorization': `Bearer ${token}` }, body: formData }); const result = await response.json(); if (!response.ok) throw new Error(result.error || '上传失败'); currentImageKeys.push(result.imageKey); renderImagePreviews(); currentFileIndex++; showCropperForNextFile(); } catch (e) { console.error("上传图片失败:", e); cropperStatus.textContent = `上传失败: ${e.message}`; } }, 'image/jpeg', 0.9); }
+         window.cancelCrop = function() { cropperModal.classList.add('hidden'); if (cropper) { cropper.destroy(); cropper = null; } filesToProcess = []; currentFileIndex = 0; document.getElementById('image-upload-input').value = null; cropperStatus.textContent = ''; }
 
         // --- Core Rating Logic ---
-        async function loadConfig() {
-            document.getElementById('config-load-status').textContent = '正在同步配置...';
-            try {
-                const apiUrl = new URL('/api/config/latest', window.location.origin);
-                const response = await fetch(apiUrl);
-                if (!response.ok) throw new Error(`服务器错误: ${response.statusText}`);
-                ratingConfig = await response.json();
-                if (!ratingConfig || !ratingConfig.ratingCriteria) throw new Error("加载的配置无效。");
-                calculateWeights(ratingConfig);
-                userRatings = {};
-                renderRatingView();
-                document.getElementById('config-load-status').textContent = `配置已同步`;
-            } catch (error) {
-                console.error("加载配置失败:", error);
-                document.getElementById('config-load-status').textContent = '配置加载失败';
-                alert(`加载应用核心配置失败，请刷新页面重试。\n错误详情: ${error.message}`);
-            }
-        }
-        
-        function getRatingId(category, criterion) { return `${String(category || '').trim()}-${String(criterion || '').trim()}`; }
-        
-        function calculateWeights(config) {
-            if (!config || !config.ratingCriteria) return;
-            let grandTotal = 0, totalCriteriaCount = 0;
-            config.ratingCriteria.forEach(category => {
-                let categoryTotal = 0;
-                (category.criteriaList || []).forEach(criterion => {
-                    categoryTotal += (criterion.weight || 0);
-                    totalCriteriaCount++;
-                });
-                category.totalWeight = categoryTotal;
-                grandTotal += categoryTotal;
-            });
-            config.totalWeightMax = grandTotal;
-            config.totalCriteriaCount = totalCriteriaCount;
-        }
-
-        function calculateFinalScore() {
-            if (!ratingConfig || !ratingConfig.ratingCriteria) return 0;
-            let totalScore = 0;
-            ratingConfig.ratingCriteria.forEach(category => {
-                (category.criteriaList || []).forEach(criterion => {
-                    const id = getRatingId(category.category, criterion.name);
-                    const selectedOptionIndex = userRatings[id];
-                    if (selectedOptionIndex !== undefined && criterion.options?.[selectedOptionIndex]) {
-                        totalScore += (criterion.weight || 0) * (criterion.options[selectedOptionIndex].scorePct || 0);
-                    }
-                });
-            });
-            return totalScore;
-        }
-
-        window.updateRatingSelection = function(categoryName, criterionName, optionIndex) {
-            const id = getRatingId(categoryName, criterionName);
-            if (userRatings[id] === optionIndex) {
-                delete userRatings[id]; // Toggle off
-            } else {
-                userRatings[id] = optionIndex; // Select
-            }
-            renderRatingView(); // Update UI
-        };
-
-        function renderRatingView() {
-            if (!ratingConfig || !ratingConfig.ratingCriteria) {
-                const formContainer = document.getElementById('rating-form-container');
-                formContainer.innerHTML = `<div class="text-center p-6 bg-white rounded-lg shadow"><p>无法加载评分标准。</p></div>`;
-                return;
-            };
-            const totalScore = calculateFinalScore();
-            document.getElementById('app-title-display').textContent = ratingConfig.appTitle;
-            document.getElementById('app-description-display').textContent = ratingConfig.description;
-            document.getElementById('total-weight-max-display').textContent = ratingConfig.totalWeightMax ?? 0;
-            document.getElementById('current-score-display').textContent = totalScore.toFixed(2);
-            const ratedCount = Object.keys(userRatings).length;
-            const totalCount = ratingConfig.totalCriteriaCount || 1;
-            document.getElementById('progress-bar').style.width = `${(ratedCount / totalCount) * 100}%`;
-            document.getElementById('progress-text').textContent = `${ratedCount} / ${totalCount}`;
-            const formContainer = document.getElementById('rating-form-container');
-            formContainer.innerHTML = ratingConfig.ratingCriteria.map((category) => `
-                <div class="bg-white p-6 rounded-xl shadow-lg mb-8 border-l-4 border-indigo-500">
-                    <h3 class="text-xl font-bold text-indigo-700 mb-2">${category.category}</h3>
-                    <p class="text-gray-500 text-sm mb-4">${category.detail || ''}</p>
-                    <div class="space-y-6">${(category.criteriaList || []).map((criterion) => renderRatingCriterion(category.category, criterion)).join('')}</div>
-                </div>`).join('');
-        }
-
-        function renderRatingCriterion(categoryName, criterion) {
-            const id = getRatingId(categoryName, criterion.name);
-            const selectedOptionIndex = userRatings[id];
-            const currentWeight = criterion.weight || 0;
-            let currentScore = 0;
-            if (selectedOptionIndex !== undefined && criterion.options?.[selectedOptionIndex]) {
-                currentScore = currentWeight * (criterion.options[selectedOptionIndex].scorePct || 0);
-            }
-            const isSuperAdmin = currentAuthUser?.db_role === 'super_admin';
-            return `<div class="bg-gray-50 p-4 rounded-lg border">
-                <div class="flex justify-between items-center mb-3">
-                    <h4 class="text-lg font-semibold text-gray-800">${criterion.name} ${isSuperAdmin ? `(${currentWeight} 分)` : ''}</h4>
-                    ${isSuperAdmin ? `<span class="text-xl font-extrabold text-green-600">${currentScore.toFixed(2)}</span>` : ''}
-                </div>
-                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
-                    ${(criterion.options || []).map((option, optIndex) => {
-                        const isSelected = selectedOptionIndex === optIndex;
-                        const score = (currentWeight * (option.scorePct || 0)).toFixed(2);
-                        return `<button onclick="updateRatingSelection('${categoryName}', '${criterion.name}', ${optIndex})" class="p-2 text-sm text-center rounded-lg border transition ${
-                            isSelected ? 'bg-indigo-600 text-white shadow-md' : 'bg-white hover:bg-indigo-50'
-                        }">
-                            ${option.description}
-                            ${isSuperAdmin ? `<span class="block text-xs ${isSelected ? 'text-indigo-200' : 'text-gray-500'}">(得 ${score} 分)</span>` : ''}
-                        </button>`;
-                    }).join('')}
-                </div>
-            </div>`;
-        }
-        // --- End Core Rating Logic ---
+         /* ... (loadConfig, getRatingId, calculateWeights, calculateFinalScore, updateRatingSelection, renderRatingView, renderRatingCriterion remain the same) ... */
+         async function loadConfig() { document.getElementById('config-load-status').textContent = '正在同步配置...'; try { const apiUrl = new URL('/api/config/latest', window.location.origin); const response = await fetch(apiUrl); if (!response.ok) throw new Error(`服务器错误: ${response.statusText}`); ratingConfig = await response.json(); if (!ratingConfig || !ratingConfig.ratingCriteria) throw new Error("加载的配置无效。"); calculateWeights(ratingConfig); userRatings = {}; renderRatingView(); document.getElementById('config-load-status').textContent = `配置已同步`; } catch (error) { console.error("加载配置失败:", error); document.getElementById('config-load-status').textContent = '配置加载失败'; alert(`加载应用核心配置失败，请刷新页面重试。\n错误详情: ${error.message}`); } }
+         function getRatingId(category, criterion) { return `${String(category || '').trim()}-${String(criterion || '').trim()}`; }
+         function calculateWeights(config) { if (!config || !config.ratingCriteria) return; let grandTotal = 0, totalCriteriaCount = 0; config.ratingCriteria.forEach(category => { let categoryTotal = 0; (category.criteriaList || []).forEach(criterion => { categoryTotal += (criterion.weight || 0); totalCriteriaCount++; }); category.totalWeight = categoryTotal; grandTotal += categoryTotal; }); config.totalWeightMax = grandTotal; config.totalCriteriaCount = totalCriteriaCount; }
+         function calculateFinalScore() { if (!ratingConfig || !ratingConfig.ratingCriteria) return 0; let totalScore = 0; ratingConfig.ratingCriteria.forEach(category => { (category.criteriaList || []).forEach(criterion => { const id = getRatingId(category.category, criterion.name); const selectedOptionIndex = userRatings[id]; if (selectedOptionIndex !== undefined && criterion.options?.[selectedOptionIndex]) { totalScore += (criterion.weight || 0) * (criterion.options[selectedOptionIndex].scorePct || 0); } }); }); return totalScore; }
+         window.updateRatingSelection = function(categoryName, criterionName, optionIndex) { const id = getRatingId(categoryName, criterionName); if (userRatings[id] === optionIndex) { delete userRatings[id]; } else { userRatings[id] = optionIndex; } renderRatingView(); };
+         function renderRatingView() { if (!ratingConfig || !ratingConfig.ratingCriteria) { const formContainer = document.getElementById('rating-form-container'); formContainer.innerHTML = `<div class="text-center p-6 bg-white rounded-lg shadow"><p>无法加载评分标准。</p></div>`; return; }; const totalScore = calculateFinalScore(); document.getElementById('app-title-display').textContent = ratingConfig.appTitle; document.getElementById('app-description-display').textContent = ratingConfig.description; document.getElementById('total-weight-max-display').textContent = ratingConfig.totalWeightMax ?? 0; document.getElementById('current-score-display').textContent = totalScore.toFixed(2); const ratedCount = Object.keys(userRatings).length; const totalCount = ratingConfig.totalCriteriaCount || 1; document.getElementById('progress-bar').style.width = `${(ratedCount / totalCount) * 100}%`; document.getElementById('progress-text').textContent = `${ratedCount} / ${totalCount}`; const formContainer = document.getElementById('rating-form-container'); formContainer.innerHTML = ratingConfig.ratingCriteria.map((category) => ` <div class="bg-white p-6 rounded-xl shadow-lg mb-8 border-l-4 border-indigo-500"> <h3 class="text-xl font-bold text-indigo-700 mb-2">${category.category}</h3> <p class="text-gray-500 text-sm mb-4">${category.detail || ''}</p> <div class="space-y-6">${(category.criteriaList || []).map((criterion) => renderRatingCriterion(category.category, criterion)).join('')}</div> </div>`).join(''); }
+         function renderRatingCriterion(categoryName, criterion) { const id = getRatingId(categoryName, criterion.name); const selectedOptionIndex = userRatings[id]; const currentWeight = criterion.weight || 0; let currentScore = 0; if (selectedOptionIndex !== undefined && criterion.options?.[selectedOptionIndex]) { currentScore = currentWeight * (criterion.options[selectedOptionIndex].scorePct || 0); } const isSuperAdmin = currentAuthUser?.db_role === 'super_admin'; return `<div class="bg-gray-50 p-4 rounded-lg border"> <div class="flex justify-between items-center mb-3"> <h4 class="text-lg font-semibold text-gray-800">${criterion.name} ${isSuperAdmin ? `(${currentWeight} 分)` : ''}</h4> ${isSuperAdmin ? `<span class="text-xl font-extrabold text-green-600">${currentScore.toFixed(2)}</span>` : ''} </div> <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2"> ${(criterion.options || []).map((option, optIndex) => { const isSelected = selectedOptionIndex === optIndex; const score = (currentWeight * (option.scorePct || 0)).toFixed(2); return `<button onclick="updateRatingSelection('${categoryName}', '${criterion.name}', ${optIndex})" class="p-2 text-sm text-center rounded-lg border transition ${ isSelected ? 'bg-indigo-600 text-white shadow-md' : 'bg-white hover:bg-indigo-50' }"> ${option.description} ${isSuperAdmin ? `<span class="block text-xs ${isSelected ? 'text-indigo-200' : 'text-gray-500'}">(得 ${score} 分)</span>` : ''} </button>`; }).join('')} </div> </div>`; }
 
 
         // --- Actions (Reset, Show Results / Save Changes) ---
@@ -506,193 +254,121 @@
                 document.getElementById('cigar-size').value = '';
                 document.getElementById('cigar-origin').value = '';
                 document.getElementById('cigar-review').value = '';
-                currentImageKeys = []; // Clear image keys
-                renderImagePreviews(); // Re-render empty previews
-                
+                currentImageKeys = [];
+                selectedFlavors = []; // **NEW**: Clear selected flavors
+                renderFlavorButtons(); // **NEW**: Re-render flavor buttons
+                renderImagePreviews();
+
                 if (isEditMode) {
-                    isEditMode = false;
-                    editRatingId = null;
+                    isEditMode = false; editRatingId = null;
                     const actionButton = document.getElementById('main-action-button');
                     actionButton.textContent = "查看报告";
-                    actionButton.classList.remove('bg-blue-600', 'hover:bg-blue-700');
-                    actionButton.classList.add('bg-green-600', 'hover:bg-green-700');
+                    actionButton.classList.remove('bg-blue-600', 'hover:bg-blue-700'); actionButton.classList.add('bg-green-600', 'hover:bg-green-700');
                     window.history.replaceState({}, document.title, window.location.pathname);
                 }
-                renderRatingView();
-                updateCharCounts();
+                renderRatingView(); updateCharCounts();
             }
         }
 
+        // **MODIFIED**: Added selectedFlavors to resultsData
         window.showResults = async function() {
             const token = sessionStorage.getItem('accessToken');
-            if (!isEditMode && (!currentAuthUser || !token)) {
-                return alert("请登录后才能提交点评。");
-            }
-            if (!ratingConfig || Object.keys(userRatings).length === 0) {
-                return alert("请至少选择一个评分项后再操作。");
-            }
+            if (!isEditMode && (!currentAuthUser || !token)) { return alert("请登录后才能提交点评。"); }
+            if (!ratingConfig || Object.keys(userRatings).length === 0) { return alert("请至少选择一个评分项后再操作。"); }
             const title = document.getElementById('rating-title').value.trim();
-            if (!title) {
-                return alert("请填写点评标题。");
-            }
-
-            // --- 必填项验证 ---
-            if (currentImageKeys.length === 0) {
-                return alert("请至少上传一张图片。");
-            }
+            if (!title) { return alert("请填写点评标题。"); }
+            if (currentImageKeys.length === 0) { return alert("请至少上传一张图片。"); }
             const cigarNameValue = document.getElementById('cigar-name').value.trim();
-            if (!cigarNameValue) {
-                return alert("请填写雪茄名称。");
-            }
-            // --- 验证结束 ---
-            
+            if (!cigarNameValue) { return alert("请填写雪茄名称。"); }
+
             const cigarInfo = { name: cigarNameValue, size: document.getElementById('cigar-size').value || '未知尺寸', origin: document.getElementById('cigar-origin').value || '未知产地' };
             const cigarReview = document.getElementById('cigar-review').value || '无';
             const finalScore = calculateFinalScore();
             const maxScore = ratingConfig.totalWeightMax || 1;
             const normalizedScore = maxScore > 0 ? (finalScore / maxScore) * 100 : 0;
-            
             const foundGrade = GRADING_SCALE.find(g => normalizedScore >= g.min_score);
-            // **FIX**: Use correct grade names from GRADING_SCALE
-            const finalGrade = foundGrade 
-                ? { grade: foundGrade.grade, name_cn: foundGrade.name_cn, name_en: foundGrade.name_en } 
-                : GRADING_SCALE[GRADING_SCALE.length - 1]; // Default to lowest grade
+            const finalGrade = foundGrade ? { grade: foundGrade.grade, name_cn: foundGrade.name_cn, name_en: foundGrade.name_en } : GRADING_SCALE[GRADING_SCALE.length - 1];
 
-            // **IMPORTANT**: imageUrls uses the correctly ordered currentImageKeys
             const resultsData = {
-                title: title,
-                config: ratingConfig,
-                ratings: userRatings,
-                calculatedScore: finalScore,
-                cigarInfo: cigarInfo,
-                cigarReview: cigarReview,
-                imageUrls: currentImageKeys, // Already ordered
-                normalizedScore: normalizedScore,
-                finalGrade: finalGrade,
-                isDraft: !isEditMode // True if new, false if editing
+                title: title, config: ratingConfig, ratings: userRatings,
+                calculatedScore: finalScore, cigarInfo: cigarInfo, cigarReview: cigarReview,
+                imageUrls: currentImageKeys, normalizedScore: normalizedScore, finalGrade: finalGrade,
+                selectedFlavors: selectedFlavors, // **NEW**: Add selected flavors
+                isDraft: !isEditMode
             };
-            
             console.log("Data being prepared for results/save:", resultsData);
 
             if (isEditMode && editRatingId) {
                 // --- Save Changes Logic ---
-                const actionButton = document.getElementById('main-action-button');
-                actionButton.textContent = "正在保存...";
-                actionButton.disabled = true;
-                try {
-                    if (!token) throw new Error("会话已过期，请重新登录。");
-                    resultsData.ratingId = editRatingId; // Add ID for PUT request
-                    const apiUrl = new URL(`/api/ratings`, window.location.origin);
-                    const response = await fetch(apiUrl, {
-                        method: 'PUT',
-                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                        body: JSON.stringify(resultsData)
-                    });
-                    if (!response.ok) {
-                        const err = await response.json();
-                        throw new Error(err.error || '更新失败');
-                    }
-                    alert("更改已保存！");
-                    window.location.href = 'history.html';
-                } catch (e) {
-                    alert(`保存失败: ${e.message}`);
-                    actionButton.textContent = "保存更改";
-                    actionButton.disabled = false;
-                }
+                /* ... (Save changes logic remains the same) ... */
+                 const actionButton = document.getElementById('main-action-button'); actionButton.textContent = "正在保存..."; actionButton.disabled = true; try { if (!token) throw new Error("会话已过期，请重新登录。"); resultsData.ratingId = editRatingId; const apiUrl = new URL(`/api/ratings`, window.location.origin); const response = await fetch(apiUrl, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify(resultsData) }); if (!response.ok) { const err = await response.json(); throw new Error(err.error || '更新失败'); } alert("更改已保存！"); window.location.href = 'history.html'; } catch (e) { alert(`保存失败: ${e.message}`); actionButton.textContent = "保存更改"; actionButton.disabled = false; }
             } else {
                 // --- Show Results Logic (New Rating) ---
                 try {
                     sessionStorage.setItem('cigarRatingResults', JSON.stringify(resultsData));
                     window.location.href = 'results.html';
-                } catch (e) {
-                    alert("无法保存会话数据 (sessionStorage)。");
-                }
+                } catch (e) { alert("无法保存会话数据 (sessionStorage)。"); }
             }
         }
         // --- End Actions ---
 
 
         // --- Edit Mode Logic ---
+        // **MODIFIED**: Populate selectedFlavors and render buttons when loading for edit
         async function loadRatingForEdit(ratingId) {
             console.log(`[loadRatingForEdit] Started for ID: ${ratingId}`);
             const token = sessionStorage.getItem('accessToken');
-            if (!token) {
-                 alert("无法验证身份，请重新登录。");
-                 window.location.href = 'history.html';
-                 return;
-            }
+            if (!token) { alert("无法验证身份，请重新登录。"); window.location.href = 'history.html'; return; }
             document.getElementById('config-load-status').textContent = `正在加载点评 ${ratingId}...`;
             try {
                 const apiUrl = new URL(`/api/ratings?id=${ratingId}`, window.location.origin);
-                console.log(`[loadRatingForEdit] Fetching data from: ${apiUrl}`);
                 const response = await fetch(apiUrl, { headers: { 'Authorization': `Bearer ${token}` } });
-                console.log(`[loadRatingForEdit] API response status: ${response.status}`);
-
-                if (!response.ok) {
-                    let errorText = `加载点评失败: ${response.status}`;
-                    try { const err = await response.json(); errorText = err.error || errorText; } catch(e){}
-                    throw new Error(errorText);
-                }
+                if (!response.ok) { let errorText = `加载点评失败: ${response.status}`; try { const err = await response.json(); errorText = err.error || errorText; } catch(e){} throw new Error(errorText); }
 
                 const ratingData = await response.json();
                 console.log("[loadRatingForEdit] Received ratingData:", ratingData);
 
                 if (!ratingData) { throw new Error(`点评 ${ratingId} 未找到或无权访问。`); }
                 if (!ratingData.fullData || !ratingData.fullData.ratings) { throw new Error("加载的点评数据不完整(缺少fullData.ratings)，无法编辑。"); }
-                if (!ratingConfig) {
-                    console.log("[loadRatingForEdit] ratingConfig not loaded yet, loading now...");
-                    await loadConfig();
-                    if(!ratingConfig) throw new Error("无法加载评分配置，无法编辑。");
-                     console.log("[loadRatingForEdit] ratingConfig loaded successfully.");
-                }
+                if (!ratingConfig) { await loadConfig(); if(!ratingConfig) throw new Error("无法加载评分配置，无法编辑。"); }
 
-                // Populate fields
+                // Populate standard fields
                 document.getElementById('rating-title').value = ratingData.title || '';
                 document.getElementById('cigar-name').value = ratingData.cigarInfo?.name || ratingData.cigarName || '';
                 document.getElementById('cigar-size').value = ratingData.cigarInfo?.size || ratingData.cigarSize || '';
                 document.getElementById('cigar-origin').value = ratingData.cigarInfo?.origin || ratingData.cigarOrigin || '';
                 document.getElementById('cigar-review').value = ratingData.cigarReview || '';
-                
                 userRatings = ratingData.fullData.ratings || {};
-                console.log("[loadRatingForEdit] Set userRatings:", userRatings);
-                
-                // **FIX**: API now returns an array for imageUrl
                 currentImageKeys = Array.isArray(ratingData.imageUrl) ? ratingData.imageUrl : [];
-                console.log("[loadRatingForEdit] Set currentImageKeys:", currentImageKeys);
-                
+
+                // **NEW**: Populate selected flavors
+                selectedFlavors = Array.isArray(ratingData.fullData.selectedFlavors) ? ratingData.fullData.selectedFlavors : [];
+                renderFlavorButtons(); // Render flavor buttons based on loaded data
+
                 renderImagePreviews(); // Render images
-                console.log("[loadRatingForEdit] Image previews rendered.");
 
                 isEditMode = true; editRatingId = ratingId;
                 const actionButton = document.getElementById('main-action-button');
                 actionButton.textContent = "保存更改";
-                actionButton.classList.remove('bg-green-600', 'hover:bg-green-700');
-                actionButton.classList.add('bg-blue-600', 'hover:bg-blue-700');
-                console.log("[loadRatingForEdit] Set edit mode UI.");
+                actionButton.classList.remove('bg-green-600', 'hover:bg-green-700'); actionButton.classList.add('bg-blue-600', 'hover:bg-blue-700');
 
-                renderRatingView(); // Render selections
-                console.log("[loadRatingForEdit] Rating view rendered.");
-
+                renderRatingView(); // Render rating selections
                 document.getElementById('config-load-status').textContent = `已加载点评 ${ratingId} (编辑模式)`;
-                updateCharCounts(); // Update counts
+                updateCharCounts();
                 console.log("[loadRatingForEdit] Completed successfully.");
 
             } catch (e) {
                 console.error(`[loadRatingForEdit] Error loading rating ${ratingId}:`, e);
                 alert(`加载点评失败: ${e.message}`);
-                window.location.href = 'history.html'; // Redirect back
+                window.location.href = 'history.html';
             }
         }
         // --- End Edit Mode ---
 
         // Character Counters
         function updateCharCounts() {
-            const titleInput = document.getElementById('rating-title');
-            const reviewInput = document.getElementById('cigar-review');
-            const titleCount = document.getElementById('title-char-count');
-            const reviewCount = document.getElementById('review-char-count');
-            if(titleInput && titleCount) titleCount.textContent = `${titleInput.value.length} / 22`;
-            if(reviewInput && reviewCount) reviewCount.textContent = `${reviewInput.value.length} / 1500`;
+            /* ... (updateCharCounts remains the same) ... */
+             const titleInput = document.getElementById('rating-title'); const reviewInput = document.getElementById('cigar-review'); const titleCount = document.getElementById('title-char-count'); const reviewCount = document.getElementById('review-char-count'); if(titleInput && titleCount) titleCount.textContent = `${titleInput.value.length} / 22`; if(reviewInput && reviewCount) reviewCount.textContent = `${reviewInput.value.length} / 1500`;
         }
 
         // --- Initialization ---
@@ -702,38 +378,26 @@
             const editId = urlParams.get('edit');
             let user = null;
 
-            if (code) {
-                user = await handleOidcCallback(code);
-            } else {
-                user = await validateSessionAndGetUser();
-            }
+            if (code) { user = await handleOidcCallback(code); }
+            else { user = await validateSessionAndGetUser(); }
             setUser(user);
             console.log("Current User Object:", currentAuthUser);
             
             await loadConfig(); // Load config first
             
-            if (editId) {
-                await loadRatingForEdit(editId); // This populates images and ratings
-            } else {
-                renderImagePreviews(); // Initialize empty preview grid
-                updateCharCounts();
-            }
+            // **NEW**: Render flavor buttons AFTER config load
+            renderFlavorButtons();
 
-            // **FIX**: Moved SortableJS initialization to the very end
-            try {
-                initializeSortable();
-            } catch (e) {
-                console.error("Failed to initialize SortableJS on load:", e);
-            }
+            if (editId) { await loadRatingForEdit(editId); } // Loads ratings, images, AND flavors
+            else { renderImagePreviews(); updateCharCounts(); } // Normal load
 
-            // Add event listeners
+            try { initializeSortable(); }
+            catch (e) { console.error("Failed to initialize SortableJS on load:", e); }
+
             document.getElementById('rating-title')?.addEventListener('input', updateCharCounts);
             document.getElementById('cigar-review')?.addEventListener('input', updateCharCounts);
             
-            // Clean URL params if present
-            if (editId || code) {
-                window.history.replaceState({}, document.title, window.location.pathname);
-            }
+            if (editId || code) { window.history.replaceState({}, document.title, window.location.pathname); }
         };
     </script>
 </body>
