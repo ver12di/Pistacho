@@ -26,6 +26,19 @@
         /* Tooltip styles */ .tooltip { position: relative; display: inline-block; } .tooltip .tooltiptext { visibility: hidden; width: 80px; background-color: #555; color: #fff; text-align: center; border-radius: 6px; padding: 5px 0; position: absolute; z-index: 1; bottom: 125%; left: 50%; margin-left: -40px; opacity: 0; transition: opacity 0.3s; } .tooltip .tooltiptext::after { content: ""; position: absolute; top: 100%; left: 50%; margin-left: -5px; border-width: 5px; border-style: solid; border-color: #555 transparent transparent transparent; } .tooltip:hover .tooltiptext { visibility: visible; opacity: 1; }
         /* Swiper styles adjustments */ .swiper { width: 100%; } .swiper-slide img { display: block; width: 100%; height: 100%; object-fit: cover; } .swiper-button-next, .swiper-button-prev { color: #fff; background-color: rgba(0,0,0,0.3); padding: 10px; border-radius: 50%; width: 40px; height: 40px; } .swiper-button-next::after, .swiper-button-prev::after { font-size: 1.2rem; } .swiper-pagination-bullet-active { background: #4f46e5; /* Indigo */ } .thumbnail-swiper .swiper-slide { width: 60px !important; /* Fixed width for thumbnails */ height: 80px; opacity: 0.6; cursor: pointer; border: 2px solid transparent; transition: opacity 0.3s, border-color 0.3s; } .thumbnail-swiper .swiper-slide-thumb-active { opacity: 1; border-color: #4f46e5; /* Indigo */ } .thumbnail-swiper { margin-top: 0.5rem; padding: 5px 0; }
         /* Ensure prose respects container width */ #narrative-summary-container, #cigar-review-container { max-width: 100%; }
+        /* Style for flavor tags */
+        .flavor-tag {
+             /* Use standard CSS as @apply doesn't work in <style> */
+             display: inline-block;
+             background-color: #DBEAFE; /* bg-blue-100 */
+             color: #1E40AF; /* text-blue-800 */
+             font-size: 0.75rem; /* text-xs */
+             font-weight: 500; /* font-medium */
+             margin-right: 0.5rem; /* mr-2 */
+             margin-bottom: 0.5rem; /* mb-2 */
+             padding: 0.125rem 0.625rem; /* px-2.5 py-0.5 */
+             border-radius: 9999px; /* rounded-full */
+        }
     </style>
 </head>
 <body class="bg-gray-100 font-sans antialiased text-gray-800">
@@ -56,7 +69,17 @@
                      <h1 id="rating-title" class="text-3xl font-bold mb-3">加载中...</h1>
                      <h2 id="cigar-name" class="text-xl font-semibold mb-1">加载中...</h2>
                      <div class="mb-4 text-sm text-gray-600 flex space-x-4"> <span>尺寸: <strong id="cigar-size">...</strong></span> <span>产地: <strong id="cigar-origin">...</strong></span> </div>
-                     <div id="cigar-review-container" class="prose prose-sm max-w-none text-gray-700 border-t pt-4"> <p>加载中...</p> </div>
+
+                     <!-- **MOVED**: Cigar Review Container comes BEFORE flavors -->
+                     <div id="cigar-review-container" class="prose prose-sm max-w-none text-gray-700 border-t pt-4 mb-4"> <p>加载中...</p> </div>
+
+                     <!-- **MOVED**: Container for selected flavors comes AFTER review -->
+                     <div id="selected-flavors-container" class="pt-4 border-t hidden">
+                         <h3 class="text-sm font-medium text-gray-600 mb-2">主要风味:</h3>
+                         <div id="flavors-list" class="flex flex-wrap">
+                             <!-- Flavor tags will be added here -->
+                         </div>
+                     </div>
                  </div>
             </div>
 
@@ -100,47 +123,8 @@
 
         // --- Save Rating ---
         window.saveRating = async function() {
-            const token = sessionStorage.getItem('accessToken');
-            if (!currentAuthUser || !token) { return alert("请登录后才能保存评分。"); }
-            if (!resultsData || !resultsData.isDraft) { return alert("这不是一个待保存的草稿。"); }
-
-            const button = document.getElementById('save-rating-button');
-            button.textContent = "正在保存...";
-            button.disabled = true;
-
-            try {
-                // Ensure data is complete before sending
-                if (!resultsData.title || !resultsData.config || !resultsData.ratings || resultsData.calculatedScore === undefined) {
-                    throw new Error("草稿数据不完整，无法保存。");
-                }
-
-                // Remove the isDraft flag before saving
-                const dataToSave = { ...resultsData, isDraft: false };
-
-                const apiUrl = new URL('/api/ratings', window.location.origin);
-                const response = await fetch(apiUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify(dataToSave)
-                });
-
-                if (!response.ok) {
-                    const err = await response.json();
-                    throw new Error(err.error || '保存失败');
-                }
-
-                alert("评分已成功保存！");
-                sessionStorage.removeItem('cigarRatingResults'); // Clear draft data
-                window.location.href = 'history.html'; // Redirect to history
-
-            } catch (e) {
-                alert(`保存评分失败: ${e.message}`);
-                button.textContent = "保存为我的评分记录";
-                button.disabled = false;
-            }
+            /* ... (saveRating remains the same) ... */
+            const token = sessionStorage.getItem('accessToken'); if (!currentAuthUser || !token) { return alert("请登录后才能保存评分。"); } if (!resultsData || !resultsData.isDraft) { return alert("这不是一个待保存的草稿。"); } const button = document.getElementById('save-rating-button'); button.textContent = "正在保存..."; button.disabled = true; try { if (!resultsData.title || !resultsData.config || !resultsData.ratings || resultsData.calculatedScore === undefined) { throw new Error("草稿数据不完整，无法保存。"); } const dataToSave = { ...resultsData, isDraft: false }; const apiUrl = new URL('/api/ratings', window.location.origin); const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify(dataToSave) }); if (!response.ok) { const err = await response.json(); throw new Error(err.error || '保存失败'); } alert("评分已成功保存！"); sessionStorage.removeItem('cigarRatingResults'); window.location.href = 'history.html'; } catch (e) { alert(`保存评分失败: ${e.message}`); button.textContent = "保存为我的评分记录"; button.disabled = false; }
         };
 
         // --- Copy Summary Function ---
@@ -173,30 +157,28 @@
                 resultsData = JSON.parse(storedData);
                 console.log("Results data loaded from sessionStorage:", resultsData);
 
-                // **MODIFIED**: Relaxed the initial check - only require resultsData and normalizedScore
+                // Relaxed the initial check
                 if (!resultsData || resultsData.normalizedScore === undefined) {
                     throw new Error("存储的点评数据无效或缺少基本分数信息。");
                 }
 
-                // Extract data, providing defaults for potentially missing fields in old data
-                const title = resultsData.title || '无标题点评'; // Default title
-                // Ensure cigarInfo is an object
+                // Extract data with defaults
+                const title = resultsData.title || '无标题点评';
                 const cigarInfo = resultsData.cigarInfo || { name: '未知名称', size: '未知尺寸', origin: '未知产地' };
                 const cigarReview = resultsData.cigarReview || '无';
                 const score = resultsData.normalizedScore;
-                const isDraft = resultsData.isDraft || false; // Default isDraft to false
-                const selectedFlavors = resultsData.selectedFlavors || []; // Default flavors to empty array
+                const isDraft = resultsData.isDraft || false;
+                const selectedFlavors = resultsData.selectedFlavors || []; // Get flavors
                 const imageUrlsData = resultsData.imageUrls || resultsData.imageUrl;
 
                 normalizedScore = score;
-                // Find the full grade definition using local scale (this part was already correct)
                 const currentGradeDefinition = GRADING_SCALE.find(g => normalizedScore >= g.min_score) || GRADING_SCALE[GRADING_SCALE.length - 1];
-                finalGrade = currentGradeDefinition; // Store the full object (including color)
+                finalGrade = currentGradeDefinition;
 
                 // --- Render Static Content ---
                  document.getElementById('user-nickname').textContent = resultsData.userNickname || resultsData.userEmail || '匿名用户';
-                 document.getElementById('rating-title').textContent = title; // Use potentially defaulted title
-                 document.getElementById('cigar-name').textContent = cigarInfo.name; // Use potentially defaulted cigarInfo
+                 document.getElementById('rating-title').textContent = title;
+                 document.getElementById('cigar-name').textContent = cigarInfo.name;
                  document.getElementById('cigar-size').textContent = cigarInfo.size;
                  document.getElementById('cigar-origin').textContent = cigarInfo.origin;
 
@@ -204,6 +186,15 @@
                 if (cigarReview && cigarReview !== '无') { reviewContainer.innerHTML = `<p>${cigarReview}</p>`; }
                 else { reviewContainer.innerHTML = `<p class="text-gray-400 italic">未填写文字评价。</p>`; }
 
+                // --- Render Selected Flavors ---
+                const flavorsContainer = document.getElementById('selected-flavors-container');
+                const flavorsListDiv = document.getElementById('flavors-list');
+                if (selectedFlavors.length > 0) {
+                    flavorsListDiv.innerHTML = selectedFlavors.map(flavor => `<span class="flavor-tag">${flavor}</span>`).join('');
+                    flavorsContainer.classList.remove('hidden'); // Show the container
+                } else {
+                    flavorsContainer.classList.add('hidden'); // Hide if no flavors
+                }
 
                 // --- Initialize Image Gallery ---
                 let images = [];
@@ -213,7 +204,7 @@
 
 
                  // --- Render Integrated Score Section ---
-                 if (finalGrade) { // Only render if we could determine a grade
+                 if (finalGrade) {
                      renderScoreSection(document.getElementById('score-section'), normalizedScore, finalGrade);
                  } else {
                      console.error("Could not determine final grade, skipping score section rendering.");
@@ -226,19 +217,16 @@
 
                 // --- Conditionally Render Details ---
                 const narrativeDetails = document.getElementById('narrative-summary-details'); const summaryDetails = document.getElementById('summary-details');
-                // Check if the necessary data for details exists (config might be missing in very old data)
                 const hasFullData = resultsData.config && resultsData.ratings && resultsData.calculatedScore !== undefined;
 
-                if (hasFullData && finalGrade) { // Also require finalGrade for narrative
+                if (hasFullData && finalGrade) {
                     const { config, ratings } = resultsData;
-                    // Pass potentially empty selectedFlavors array
-                    const narrativeSummary = generateNarrativeSummary(cigarInfo, config, ratings, finalGrade, selectedFlavors);
+                    const narrativeSummary = generateNarrativeSummary(cigarInfo, config, ratings, finalGrade, selectedFlavors); // Pass flavors
                     document.getElementById('narrative-summary-container').innerHTML = narrativeSummary;
                     narrativeDetails.classList.remove('hidden');
                     renderSummary(document.getElementById('summary-container'), config, ratings); summaryDetails.classList.remove('hidden');
                 } else {
                     narrativeDetails.classList.add('hidden'); summaryDetails.classList.add('hidden');
-                    // Show message if *any* detail data is missing
                     if (!hasFullData) {
                         const limitedDataMessage = document.createElement('p');
                         limitedDataMessage.className = 'text-center text-sm text-gray-500 my-4 p-4 bg-yellow-100 rounded';
@@ -254,7 +242,7 @@
 
         // --- Rendering Utilities ---
         function generateNarrativeSummary(cigarInfo, config, ratings, finalGrade, selectedFlavors = []) {
-            /* ... (generateNarrativeSummary remains the same) ... */
+            /* ... (generateNarrativeSummary remains the same, already includes flavors) ... */
              if (!config || !ratings) { return '<p class="text-gray-500 italic">无法生成综合评价 (缺少原始评分数据)。</p>'; } let summary = `<p class="text-base text-gray-700 leading-relaxed">`; summary += `本次品鉴的雪茄是来自<strong class="font-semibold">${cigarInfo?.origin || '未知'}</strong>的<strong class="font-semibold">${cigarInfo?.name || '未知'}</strong>，尺寸为<strong class="font-semibold">${cigarInfo?.size || '未知'}</strong>。`; let observations = []; (config?.ratingCriteria || []).forEach(category => { (category.criteriaList || []).forEach(criterion => { const id = getRatingId(category.category, criterion.name); const selectedOptionIndex = ratings[id]; if (selectedOptionIndex !== undefined && criterion.options?.[selectedOptionIndex]) { const option = criterion.options[selectedOptionIndex]; observations.push(`在<strong class="font-semibold">${criterion.name}</strong>方面，其表现为“${option.description}”`); } }); }); if (observations.length > 0) { summary += ` 品鉴过程中，我们观察到：${observations.join('；')}。`; } else { summary += ` (未记录详细评分选项)。`; } if (selectedFlavors && selectedFlavors.length > 0) { const flavorString = selectedFlavors.join('、'); summary += ` 主要感受到的风味包括：<strong class="font-semibold">${flavorString}</strong>。`; } const gradeHierarchy = GRADING_SCALE.map(g => g.name_en).join('-'); summary += ` 综合来看，本次基于Pistacho Cigar Rating System（Pistacho雪茄评分）的最终评级为<strong class="font-semibold text-indigo-600">“${finalGrade.grade} - ${finalGrade.name_cn}”</strong>。Pistacho品分等级从高到低为${gradeHierarchy}`; summary += `</p>`; return summary;
         }
 
