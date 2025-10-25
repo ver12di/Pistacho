@@ -93,7 +93,7 @@
         let displayedRatings = [];
         let currentAuthUser = null;
         
-        // **NEW** 调试函数，用于处理徽章加载失败
+        // 调试函数，用于处理徽章加载失败
         window.handleStampError = function(imgElement) {
             console.error('[Debug] 认证徽章加载失败。尝试的路径:', imgElement.src);
             // 隐藏损坏的图片图标
@@ -123,7 +123,6 @@
         const AUTHING_APP_ID = '68f5b0b6875017c02b3bfdb3';
         const AUTHING_HOST = 'https://xfvu647mcdbk-demo.authing.cn';
 
-        // **NEW**: Grading scale needed to reconstruct finalGrade object
         const GRADING_SCALE = [
           { "grade": "P", "name_en": "Pinnacle", "name_cn": "顶峰 / 登峰造极", "min_score": 95, "color": "gold" },
           { "grade": "I", "name_en": "Impeccable", "name_cn": "无暇 / 完美无瑕", "min_score": 90, "color": "indigo" },
@@ -177,24 +176,21 @@
             div.onclick = () => viewRatingDetails(rating);
             const score = rating.normalizedScore !== undefined ? rating.normalizedScore.toFixed(2) : 'N/A';
             const author = rating.userNickname || rating.userEmail || '匿名';
-            // Use the first image URL as cover, or null if no images
-            // **FIX**: Handle imageUrl being array or single string/null from API
+            
             let coverImageUrl = null;
             if (Array.isArray(rating.imageUrl) && rating.imageUrl.length > 0) {
                  coverImageUrl = rating.imageUrl[0];
             } else if (typeof rating.imageUrl === 'string' && rating.imageUrl) {
-                 // Should ideally be parsed to array by API, but handle defensively
                  coverImageUrl = rating.imageUrl;
             }
             
-            // **NEW**: 检查是否被认证
             const isCertified = rating.isCertified;
-            // **NEW**: 添加缓存破坏者 (Cache Buster)
-            const cacheBuster = `?v=${new Date().getTime()}`;
+            const cacheBuster = `?v=${new Date().getTime()}`; // 强制浏览器重新加载
 
             div.innerHTML = `
-                <div class="aspect-[1179/1572] w-full overflow-hidden flex-shrink-0 relative"> <!-- 1. 添加 'relative' -->${isCertified
-                        ? `<img src="/certifiedstamp.png${cacheBuster}" alt="Certified" class="absolute top-1 left-1 w-12 h-12 md:w-16 md:h-16 z-10" title="Pistacho 认证评分" onerror="handleStampError(this)">` // 2. (已修复) 修正为小写 's' 并添加 onerror
+                <div class="aspect-[1179/1572] w-full overflow-hidden flex-shrink-0 relative"> 
+                    ${isCertified
+                        ? `<img src="/Certifiedstamp.png${cacheBuster}" alt="Certified" class="absolute top-1 left-1 w-12 h-12 md:w-16 md:h-16 z-10" title="Pistacho 认证评分" onerror="handleStampError(this)">` // (已修复) 使用 C大写 s小写
                         : ''
                     }
                     ${coverImageUrl
@@ -220,43 +216,36 @@
         }
 
         // --- Navigation ---
-        // **LOGIC UPDATED**: Always construct essential objects before sending
         window.viewRatingDetails = function(ratingData) {
             let detailedData = {};
 
-            // **1. Construct essential objects from top-level data (ALWAYS do this)**
-            const cigarInfo = ratingData.cigarInfo || { name: ratingData.cigarName, size: ratingData.cigarSize, origin: ratingData.cigarOrigin }; // Reconstruct if needed
-            // Find the full grade definition based on score using the *local* GRADING_SCALE
+            const cigarInfo = ratingData.cigarInfo || { name: ratingData.cigarName, size: ratingData.cigarSize, origin: ratingData.cigarOrigin }; 
             const foundGrade = GRADING_SCALE.find(g => ratingData.normalizedScore >= g.min_score) || GRADING_SCALE[GRADING_SCALE.length - 1];
-            const finalGrade = foundGrade ? { grade: foundGrade.grade, name_cn: foundGrade.name_cn, name_en: foundGrade.name_en, color: foundGrade.color } : null; // Include color!
+            const finalGrade = foundGrade ? { grade: foundGrade.grade, name_cn: foundGrade.name_cn, name_en: foundGrade.name_en, color: foundGrade.color } : null; 
 
-            // **2. Check if essential objects were successfully created/found**
             if (!ratingData || ratingData.normalizedScore === undefined || !finalGrade || !cigarInfo || !ratingData.title) {
                 console.error("viewRatingDetails: Essential data missing or couldn't be constructed!", {ratingData, finalGrade, cigarInfo});
                 alert("无法加载详情：缺少基本评分信息 (标题, 分数, 评级, 雪茄信息)。");
                 return;
             }
 
-            // **3. Handle imageUrl (ensure it's an array)**
             let imageUrls = ratingData.imageUrl;
             if (typeof imageUrls === 'string') { try { imageUrls = JSON.parse(imageUrls); if (!Array.isArray(imageUrls)) imageUrls = [ratingData.imageUrl]; } catch(e){ imageUrls = imageUrls ? [imageUrls] : []; } }
             else if (!Array.isArray(imageUrls)) { imageUrls = imageUrls ? [imageUrls] : []; }
 
-            // **4. Check if fullData is valid for detailed view**
             const hasCompleteFullData = ratingData.fullData && ratingData.fullData.config && ratingData.fullData.ratings && ratingData.fullData.calculatedScore !== undefined;
 
             if (hasCompleteFullData) {
-                 // If complete, send everything, using the reconstructed objects
                  detailedData = {
                      config: ratingData.fullData.config,
                      ratings: ratingData.fullData.ratings,
                      calculatedScore: ratingData.fullData.calculatedScore,
-                     title: ratingData.title, // Add title
-                     cigarInfo: cigarInfo,     // Use reconstructed
+                     title: ratingData.title, 
+                     cigarInfo: cigarInfo,     
                      cigarReview: ratingData.cigarReview,
-                     imageUrls: imageUrls,       // Use processed array
+                     imageUrls: imageUrls,       
                      normalizedScore: ratingData.normalizedScore,
-                     finalGrade: finalGrade,     // Use reconstructed
+                     finalGrade: finalGrade,     
                      timestamp: ratingData.timestamp,
                      userNickname: ratingData.userNickname,
                      userEmail: ratingData.userEmail,
@@ -264,16 +253,14 @@
                  };
                  console.log("Sending COMPLETE data to results.html:", detailedData);
             } else {
-                 // If incomplete, send only top-level data, using reconstructed objects
                  console.warn(`fullData for rating ${ratingData?.id} is missing or incomplete. Sending only top-level data.`);
                  detailedData = {
-                     // NO config, ratings, calculatedScore
-                     title: ratingData.title, // Add title
-                     cigarInfo: cigarInfo,    // Use reconstructed
+                     title: ratingData.title, 
+                     cigarInfo: cigarInfo,    
                      cigarReview: ratingData.cigarReview,
-                     imageUrls: imageUrls,      // Use processed array
+                     imageUrls: imageUrls,      
                      normalizedScore: ratingData.normalizedScore,
-                     finalGrade: finalGrade,    // Use reconstructed
+                     finalGrade: finalGrade,    
                      timestamp: ratingData.timestamp,
                      userNickname: ratingData.userNickname,
                      userEmail: ratingData.userEmail,
@@ -282,7 +269,6 @@
                  console.log("Sending INCOMPLETE (top-level) data to results.html:", detailedData);
             }
 
-            // **5. Navigate**
             try { sessionStorage.setItem('cigarRatingResults', JSON.stringify(detailedData)); window.location.href = `results.html`; }
             catch (e) { console.error("Error setting sessionStorage:", e); alert("无法保存会话数据以查看详情。"); }
         }
