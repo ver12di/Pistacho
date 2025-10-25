@@ -111,10 +111,14 @@
 
 
         // --- Save Rating ---
-        window.saveRating = async function() { /* ... (no changes) ... */ };
+        window.saveRating = async function() {
+            // Placeholder for save logic
+        };
 
         // --- Copy Summary Function ---
-        window.copySummary = function(event) { /* ... (no changes) ... */ };
+        window.copySummary = function(event) {
+            // Placeholder for copy logic
+        };
 
         // --- **FIX**: Restored full initSwipers function from 'results (1).html' ---
         function initSwipers(imageUrls = []) {
@@ -124,14 +128,21 @@
 
              mainWrapper.innerHTML = ''; thumbWrapper.innerHTML = '';
 
-             if (imageUrls.length === 0) {
+             if (!imageUrls || imageUrls.length === 0) { // 额外检查 null 或 undefined
                  mainWrapper.innerHTML = '<div class="swiper-slide flex items-center justify-center text-gray-400">无图</div>';
                  thumbContainer.classList.add('hidden');
                  if(mainSwiper) mainSwiper.destroy(true, true); if(thumbnailSwiper) thumbnailSwiper.destroy(true, true);
                  mainSwiper = null; thumbnailSwiper = null; return;
              }
-
-             imageUrls.forEach(key => { mainWrapper.innerHTML += `<div class="swiper-slide"><img src="/api/image/${key}" alt="雪茄图片"></div>`; thumbWrapper.innerHTML += `<div class="swiper-slide thumbnail-slide"><img src="/api/image/${key}" alt="缩略图"></div>`; });
+            
+             // 确保 /api/image/ 路径被正确添加
+             imageUrls.forEach(key => { 
+                const imageUrl = `/api/image/${key}`;
+                // 添加错误处理
+                const imgElement = `<img src="${imageUrl}" alt="雪茄图片" onerror="this.src='https://placehold.co/600x800/gray/white?text=Loading+Failed'; this.onerror=null;">`;
+                mainWrapper.innerHTML += `<div class="swiper-slide">${imgElement}</div>`; 
+                thumbWrapper.innerHTML += `<div class="swiper-slide thumbnail-slide">${imgElement}</div>`; 
+             });
 
              if(mainSwiper) mainSwiper.destroy(true, true); if(thumbnailSwiper) thumbnailSwiper.destroy(true, true);
 
@@ -167,7 +178,7 @@
 
                 // **FIX**: 优先检查 'imageUrls' (复数), 如果不存在, 则回退检查 'imageUrl' (单数)
                 const { title, cigarInfo, cigarReview, normalizedScore: score, isDraft } = resultsData;
-                const imageUrls = resultsData.imageUrls || resultsData.imageUrl; // <-- 保留了兼容性修复
+                const imageUrlsData = resultsData.imageUrls || resultsData.imageUrl; // <-- 保留了兼容性修复
                 
                 normalizedScore = score;
                 const currentGradeDefinition = GRADING_SCALE.find(g => normalizedScore >= g.min_score) || GRADING_SCALE[GRADING_SCALE.length - 1];
@@ -188,8 +199,19 @@
                 // --- Initialize Image Gallery ---
                 let images = [];
                 // **NOTE**: 此处逻辑已兼容 imageUrls 为数组或单个字符串
-                if(Array.isArray(imageUrls)) { images = imageUrls; }
-                else if (typeof imageUrls === 'string' && imageUrls) { try { images = JSON.parse(imageUrls); if (!Array.isArray(images)) images = [imageUrls];} catch(e){ images = [imageUrls]; } }
+                if(Array.isArray(imageUrlsData)) { 
+                    images = imageUrlsData; 
+                }
+                else if (typeof imageUrlsData === 'string' && imageUrlsData) { 
+                    try { 
+                        images = JSON.parse(imageUrlsData); 
+                        if (!Array.isArray(images)) images = [imageUrlsData]; // 如果解析出来不是数组，就当做单个字符串处理
+                    } catch(e){ 
+                        images = [imageUrlsData]; // 解析失败，当做单个字符串处理
+                    } 
+                }
+                
+                console.log("Initializing swiper with images:", images); // 调试日志
                 initSwipers(images); // <-- 现在会调用正确的函数
 
 
