@@ -3,271 +3,320 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>评分历史</title>
+    <!-- **MODIFIED**: Updated title -->
+    <title>我的评分</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['Inter', 'Noto Sans SC', 'system-ui', 'sans-serif'],
+        if (typeof tailwind !== 'undefined') {
+            tailwind.config = {
+                theme: {
+                    extend: {
+                        fontFamily: {
+                            sans: ['Inter', 'Noto Sans SC', 'system-ui', 'sans-serif'],
+                        }
                     }
                 }
             }
+        } else {
+             console.warn('Tailwind object not found. Skipping config.');
         }
     </script>
+    <style>
+        .rating-card:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+        /* Style for pinned items */
+        .pinned-indicator {
+             position: absolute;
+             top: 0.5rem;
+             right: 0.5rem;
+             background-color: #ec4899; /* Pink */
+             color: white;
+             padding: 0.1rem 0.5rem;
+             border-radius: 9999px;
+             font-size: 0.7rem;
+             font-weight: bold;
+             display: flex;
+             align-items: center;
+        }
+         .pinned-indicator svg {
+             width: 0.7rem;
+             height: 0.7rem;
+             margin-right: 0.2rem;
+         }
+    </style>
 </head>
 <body class="bg-gray-100 font-sans">
     <div class="max-w-4xl mx-auto p-4 md:p-8">
-        <nav class="mb-4 flex justify-between items-center bg-white p-3 rounded-lg shadow-sm">
-             <a href="index.html" class="text-xl font-bold text-indigo-600">Pistacho评分</a>
-             <div class="space-x-4">
-                 <a href="history.html" class="text-indigo-600 font-bold underline">历史记录</a>
-                 <a href="certified.html" class="text-gray-600 hover:text-indigo-600">认证评分</a>
-             </div>
+        <!-- Navbar -->
+        <nav class="mb-6 flex flex-wrap justify-between items-center bg-white p-3 rounded-lg shadow-sm gap-4">
+            <a href="index.html" class="text-xl font-bold text-indigo-600">Pistacho评分</a>
+            <div class="flex items-center space-x-4 flex-grow justify-center md:justify-start md:flex-grow-0 order-3 md:order-2 w-full md:w-auto">
+                <a href="index.html" class="text-gray-600 hover:text-indigo-600">社区动态</a>
+                <a href="rate.html" class="text-gray-600 hover:text-indigo-600">去评分</a>
+                <!-- **MODIFIED**: Updated link text -->
+                <a href="history.html" class="text-indigo-600 font-bold underline">我的评分</a>
+                <a href="certified.html" class="text-gray-600 hover:text-indigo-600">认证评分</a>
+            </div>
+            <div id="login-status-container" class="flex items-center order-2 md:order-3">
+                 <!-- Login/Logout button will be rendered here -->
+            </div>
         </nav>
+        <!-- End Navbar -->
+
         <header class="mb-6">
-            <h1 id="history-title" class="text-4xl font-extrabold text-gray-800">评分历史</h1>
+            <!-- **MODIFIED**: Updated heading text -->
+            <h1 id="history-title" class="text-4xl font-extrabold text-gray-800">我的评分</h1>
         </header>
-        <div id="history-container">
-            <!-- History items will be rendered here -->
+
+        <!-- Login Prompt (matches rate.html style) -->
+        <div id="login-prompt" class="hidden text-center p-6 bg-yellow-100 text-yellow-800 rounded-lg shadow mb-8">
+             <!-- **MODIFIED**: Updated prompt text -->
+             <p class="font-semibold mb-3">请先登录才能查看您的评分记录。</p>
+             <button onclick="login()" class="px-5 py-2 text-sm font-medium rounded-lg bg-green-500 text-white hover:bg-green-600">前往登录/注册</button>
         </div>
+
+        <!-- History Container (Hidden if not logged in) -->
+        <div id="history-container">
+            <!-- Loading message or initial content -->
+            <p id="loading-message" class="text-center text-gray-500 py-10">正在加载...</p>
+        </div>
+
          <footer class="mt-8 text-center">
-            <a href="index.html" class="py-2 px-4 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700">&larr; 返回主页</a>
+            <a href="index.html" class="py-2 px-4 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700">&larr; 返回社区首页</a>
         </footer>
     </div>
 
     <script type="module">
+        let historicalRatings = {}; // Cache for viewing details and pin status
         let currentAuthUser = null;
-        let accessToken = null;
-        let historicalRatings = {}; // 用于 "查看详情"
+        let userRole = 'guest'; // Default role
+        const loadingMessage = document.getElementById('loading-message');
+        const historyContainer = document.getElementById('history-container');
+        const historyTitle = document.getElementById('history-title');
+        const loginPrompt = document.getElementById('login-prompt'); // Get login prompt element
 
-        // --- API 调用封装 ---
-        async function apiFetch(endpoint, options = {}) {
-            const headers = { 'Content-Type': 'application/json', ...options.headers };
-            if (accessToken) {
-                 headers['Authorization'] = `Bearer ${accessToken}`;
-            }
-            const apiUrl = new URL(endpoint, window.location.origin);
-            const response = await fetch(apiUrl, { ...options, headers });
-            
-            if (!response.ok) {
-                let errorData = { error: `请求失败 (${response.status})` };
-                try { errorData = await response.json(); } catch(e) {}
-                let errorMessage = errorData.error || `请求失败 (${response.status})`;
-                if (response.status === 401) errorMessage = '认证失败，请重新登录。';
-                if (response.status === 403) errorMessage = '权限不足。';
-                throw new Error(errorMessage);
-            }
-            return response.json();
+        const AUTHING_APP_ID = '68f5b0b6875017c02b3bfdb3';
+        const AUTHING_HOST = 'https://xfvu647mcdbk-demo.authing.cn';
+
+        // --- Authentication ---
+         window.login = function() {
+            // **FIX**: Use only origin for redirectUri, matching rate.html
+            const redirectUri = window.location.origin;
+            const authorizeUrl = new URL('/oidc/auth', AUTHING_HOST);
+            authorizeUrl.search = new URLSearchParams({
+                 client_id: AUTHING_APP_ID,
+                 redirect_uri: redirectUri, // Corrected redirect URI
+                 response_type: 'code',
+                 scope: 'openid profile email phone',
+                 state: Math.random().toString(36).substring(2)
+             }).toString();
+            window.location.href = authorizeUrl.toString();
         }
-
-        // --- 认证功能 ---
-        async function updateCertification(ratingId, certify, button) {
-             const originalText = button.textContent;
-             button.textContent = '...';
-             button.disabled = true;
+        window.logout = function() {
+             const logoutUrl = new URL('/oidc/session/end', AUTHING_HOST);
+             logoutUrl.search = new URLSearchParams({ post_logout_redirect_uri: window.location.origin }).toString();
+             sessionStorage.removeItem('userInfo'); sessionStorage.removeItem('accessToken');
+             window.location.href = logoutUrl.toString();
+        }
+        function renderLoginStatus(user) {
+            const container = document.getElementById('login-status-container'); if (!container) return;
+            if (user) { const displayName = user.nickname || user.name || user.preferred_username || user.email || '已登录'; container.innerHTML = `<span class="text-sm font-medium text-gray-700 mr-2 hidden sm:inline">${displayName}</span><button onclick="logout()" class="px-3 py-1 text-xs font-medium rounded-full bg-red-500 text-white hover:bg-red-600">退出</button>`; }
+            else { container.innerHTML = `<button onclick="login()" class="px-3 py-1 text-xs font-medium rounded-full bg-green-500 text-white hover:bg-green-600">登录/注册</button>`; }
+        }
+        async function handleOidcCallback(code) {
              try {
-                // 调用新的 certify API
-                await apiFetch('/api/certify', {
-                    method: 'POST',
-                    body: JSON.stringify({ ratingId: ratingId, certify: certify })
-                });
-                // 成功后, 刷新列表
-                fetchAndRenderHistory();
-             } catch(e) {
-                alert(`操作失败: ${e.message}`);
-                button.textContent = originalText;
-                button.disabled = false;
+                // **FIX**: Use only origin for redirectUri verification
+                const redirectUri = window.location.origin;
+                const apiUrl = new URL('/api/authing/callback', window.location.origin);
+                const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: code, redirect_uri: redirectUri }) }); // Pass correct redirect_uri
+                console.log('handleOidcCallback response status:', response.status);
+                if (!response.ok) {
+                    let errorText = `认证回调失败: ${response.status}`;
+                    try { const err = await response.json(); errorText = err.error || errorText; } catch(e) {/* ignore */}
+                    throw new Error(errorText);
+                }
+                const fullUserProfile = await response.json();
+                sessionStorage.setItem('userInfo', JSON.stringify(fullUserProfile)); sessionStorage.setItem('accessToken', fullUserProfile.accessToken); return fullUserProfile;
+            } catch (e) { console.error('认证回调处理失败:', e); alert(`登录失败: ${e.message}`); sessionStorage.removeItem('userInfo'); sessionStorage.removeItem('accessToken'); return null; } finally {
+                 // Clear code from URL after processing
+                 window.history.replaceState({}, document.title, window.location.pathname);
              }
         }
-        
-        window.certifyRating = function(ratingId, event) {
-            event.stopPropagation();
-            updateCertification(ratingId, true, event.target);
-        }
-        
-        window.uncertifyRating = function(ratingId, event) {
-            event.stopPropagation();
-            updateCertification(ratingId, false, event.target);
-        }
-
-        // --- 评分管理 ---
-        window.viewRatingDetails = function(ratingId) {
-            const ratingData = historicalRatings[ratingId];
-            if (ratingData) {
-                // fullData 是保存时的原始 JSON
-                const fullData = (typeof ratingData.fullData === 'string') 
-                    ? JSON.parse(ratingData.fullData) 
-                    : ratingData.fullData;
-                
-                // 我们需要传递 isDraft: false 来告诉 results.html 这不是草稿
-                // 并且传递 ratingId
-                sessionStorage.setItem('cigarRatingResults', JSON.stringify({ ...fullData, isDraft: false, ratingId: ratingId }));
-                window.location.href = 'results.html';
-            } else {
-                alert("无法加载该评分的详细信息。");
-            }
-        }
-        
-        window.editRating = function(ratingId, event) {
-            event.stopPropagation();
-            const ratingData = historicalRatings[ratingId];
-            if (ratingData) {
-                // 告诉 index.html 我们要编辑这个 ratingId
-                sessionStorage.setItem('editRatingId', ratingId);
-                window.location.href = 'index.html';
-            } else {
-                alert("无法加载该评分进行编辑。");
-            }
-        }
-        
-        window.deleteRating = async function(ratingId, event) {
-            event.stopPropagation();
-            if (!confirm("确定要永久删除这条评分记录吗？此操作无法撤销。")) return;
-            
-            const button = event.target;
-            button.textContent = '...';
-            button.disabled = true;
-            
+        async function validateSessionAndGetUser() {
+            const token = sessionStorage.getItem('accessToken'); if (!token) return null;
             try {
-                await apiFetch('/api/ratings', {
-                    method: 'DELETE',
-                    body: JSON.stringify({ ratingId: ratingId })
-                });
-                // 成功后, 刷新列表
-                fetchAndRenderHistory();
-            } catch(e) {
-                 alert(`删除失败: ${e.message}`);
-                 button.textContent = '删除';
-                 button.disabled = false;
-            }
+                const apiUrl = new URL('/api/me', window.location.origin); const response = await fetch(apiUrl, { headers: { 'Authorization': `Bearer ${token}` } });
+                 console.log('validateSessionAndGetUser response status:', response.status);
+                if (!response.ok) { sessionStorage.removeItem('userInfo'); sessionStorage.removeItem('accessToken'); return null; }
+                const fullUserProfile = await response.json();
+                sessionStorage.setItem('userInfo', JSON.stringify(fullUserProfile)); return fullUserProfile;
+            } catch (e) { console.error("Session validation failed:", e); return null; }
         }
+        // --- End Auth ---
 
-        // --- 数据获取和渲染 ---
-        async function fetchAndRenderHistory() {
-            const container = document.getElementById('history-container');
-            const title = document.getElementById('history-title');
 
-            if (!currentAuthUser || !accessToken) {
-                title.textContent = "评分历史";
-                container.innerHTML = `<div class="text-center p-6 bg-white rounded-lg shadow"><p>请<a href="index.html" class="text-indigo-600 underline">登录</a>以查看您的评分历史。</p></div>`;
+        // --- Rating Actions ---
+        /* ... (editRating, deleteRating, updateCertification, updatePinStatus remain the same) ... */
+         window.editRating = function(ratingId, event) { event.stopPropagation(); window.location.href = `rate.html?edit=${ratingId}`; }
+         window.deleteRating = async function(ratingId, event) { event?.stopPropagation(); console.log(`[deleteRating] Initiated for ID: ${ratingId}`); if (!confirm("确定要永久删除这条点评记录吗？")) { console.log(`[deleteRating] User cancelled deletion.`); return; } const button = event ? (event.currentTarget || event.target) : null; const originalText = button ? button.textContent : '删除'; if (button) { button.textContent = '删除中...'; button.disabled = true; } console.log(`[deleteRating] Button updated to 'deleting'.`); const token = sessionStorage.getItem('accessToken'); if (!token) { alert("请先登录。"); console.warn(`[deleteRating] No token found.`); if (button) { button.textContent = originalText; button.disabled = false; } return; } console.log(`[deleteRating] Token found.`); try { const apiUrl = new URL(`/api/ratings`, window.location.origin); console.log(`[deleteRating] Sending DELETE request to: ${apiUrl}`); const response = await fetch(apiUrl, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ ratingId: ratingId }) }); console.log(`[deleteRating] Response Status: ${response.status}`); console.log(`[deleteRating] Response OK: ${response.ok}`); console.log(`[deleteRating] Response Headers:`, Object.fromEntries(response.headers.entries())); const responseText = await response.text(); console.log(`[deleteRating] Response Text: ${responseText}`); let data; try { data = JSON.parse(responseText); } catch (parseError) { console.error(`[deleteRating] Failed to parse response as JSON:`, parseError); if (response.ok) { console.log(`[deleteRating] Response was OK (${response.status}) but JSON parsing failed. Assuming success based on status.`); data = { success: true }; } else { data = { error: `服务器返回了无效的响应 (状态 ${response.status})` }; } } console.log(`[deleteRating] Parsed Response Data:`, data); if (!response.ok) { console.error(`[deleteRating] Response not OK. Error from data: ${data?.error}`); throw new Error(data?.error || `删除失败 (状态 ${response.status})`); } console.log(`[deleteRating] Deletion successful according to response status. Removing card...`); const cardToRemove = document.getElementById(`rating-card-${ratingId}`); if (cardToRemove) { cardToRemove.style.transition = 'opacity 0.5s ease-out'; cardToRemove.style.opacity = '0'; setTimeout(() => cardToRemove.remove(), 500); console.log(`[deleteRating] Card removal initiated for ${ratingId}.`); } else { console.warn(`[deleteRating] Card element not found for ID ${ratingId}.`); } alert("点评已删除。"); } catch (error) { console.error("[deleteRating] Caught error:", error); alert(`删除失败: ${error.message}`); if (button) { button.textContent = originalText; button.disabled = false; } } }
+         window.updateCertification = async function(ratingId, shouldCertify, event) { event?.stopPropagation(); const button = event ? (event.currentTarget || event.target) : null; const isCertifying = shouldCertify; const actionText = isCertifying ? '认证' : '取消认证'; const originalText = button ? button.textContent : actionText; if (button) { button.textContent = actionText + '中...'; button.disabled = true; } const token = sessionStorage.getItem('accessToken'); if (!token) { alert("请先登录。"); if (button) { button.textContent = originalText; button.disabled = false; } return; } try { const apiUrl = new URL('/api/certify', window.location.origin); const response = await fetch(apiUrl, { method: 'POST', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ ratingId: ratingId, certify: isCertifying }) }); if (!response.ok) { let errorText = `${actionText}失败: ${response.status}`; try { const err = await response.json(); errorText = err.error || errorText; } catch(e) {/*ignore*/} throw new Error(errorText); } const data = await response.json(); const card = document.getElementById(`rating-card-${ratingId}`); if (card) { const buttonContainer = card.querySelector('.action-buttons'); if (buttonContainer) { const certifyButton = buttonContainer.querySelector('button[data-action="certify"]'); const uncertifyButton = buttonContainer.querySelector('button[data-action="uncertify"]'); if (isCertifying) { if (certifyButton) certifyButton.classList.add('hidden'); if (uncertifyButton) { uncertifyButton.classList.remove('hidden'); uncertifyButton.disabled = false; } } else { if (certifyButton) { certifyButton.classList.remove('hidden'); certifyButton.disabled = false; } if (uncertifyButton) uncertifyButton.classList.add('hidden'); } } } alert(`操作成功！`); } catch (error) { console.error(`${actionText}失败:`, error); alert(`${actionText}失败: ${error.message}`); if (button) { button.textContent = originalText; button.disabled = false; } } }
+         window.updatePinStatus = async function(ratingId, shouldPin, event) { event?.stopPropagation(); const button = event ? (event.currentTarget || event.target) : null; const actionText = shouldPin ? '置顶' : '取消置顶'; const originalText = button ? button.textContent : actionText; if (button) { button.textContent = actionText + '中...'; button.disabled = true; } const token = sessionStorage.getItem('accessToken'); if (!token) { alert("请先登录。"); if (button) { button.textContent = originalText; button.disabled = false; } return; } try { const apiUrl = new URL('/api/pin', window.location.origin); const response = await fetch(apiUrl, { method: 'POST', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ ratingId: ratingId, pin: shouldPin }) }); if (!response.ok) { let errorText = `${actionText}失败: ${response.status}`; try { const err = await response.json(); errorText = err.error || errorText; } catch(e) {/*ignore*/} throw new Error(errorText); } const data = await response.json(); const card = document.getElementById(`rating-card-${ratingId}`); if (card) { if(historicalRatings[ratingId]) historicalRatings[ratingId].isPinned = shouldPin; const buttonContainer = card.querySelector('.action-buttons'); if (buttonContainer) { const pinButton = buttonContainer.querySelector('button[data-action="pin"]'); const unpinButton = buttonContainer.querySelector('button[data-action="unpin"]'); if (shouldPin) { if (pinButton) pinButton.classList.add('hidden'); if (unpinButton) { unpinButton.classList.remove('hidden'); unpinButton.disabled = false; } } else { if (pinButton) { pinButton.classList.remove('hidden'); pinButton.disabled = false; } if (unpinButton) unpinButton.classList.add('hidden'); } } const indicator = card.querySelector('.pinned-indicator'); if(indicator) indicator.style.display = shouldPin ? 'flex' : 'none'; } alert(`操作成功！`); } catch (error) { console.error(`${actionText}失败:`, error); alert(`${actionText}失败: ${error.message}`); if (button) { button.textContent = originalText; button.disabled = false; } } }
+
+         // **FIX**: Removed extra closing brace
+         window.viewRatingDetails = function(ratingId) {
+             const ratingData = historicalRatings[ratingId];
+             if (ratingData) {
+                 let detailedData = {
+                     title: ratingData.title || '无标题点评',
+                     cigarInfo: ratingData.cigarInfo || { name: ratingData.cigarName, size: ratingData.cigarSize, origin: ratingData.cigarOrigin },
+                     cigarReview: ratingData.cigarReview || '无',
+                     imageUrls: Array.isArray(ratingData.imageUrl) ? ratingData.imageUrl : [], // Ensure imageUrls is array
+                     normalizedScore: ratingData.normalizedScore,
+                     finalGrade: ratingData.finalGrade, // Already should be the correct object
+                     timestamp: ratingData.timestamp,
+                     userNickname: ratingData.userNickname,
+                     userEmail: ratingData.userEmail,
+                     selectedFlavors: Array.isArray(ratingData.fullData?.selectedFlavors) ? ratingData.fullData.selectedFlavors : [], // Ensure selectedFlavors is array
+                     isDraft: false
+                 };
+
+                 // Include fullData if available and complete
+                 const hasCompleteFullData = ratingData.fullData && ratingData.fullData.config && ratingData.fullData.ratings && ratingData.fullData.calculatedScore !== undefined;
+                 if (hasCompleteFullData) {
+                     detailedData.config = ratingData.fullData.config;
+                     detailedData.ratings = ratingData.fullData.ratings;
+                     detailedData.calculatedScore = ratingData.fullData.calculatedScore;
+                     console.log("Sending COMPLETE data from history:", detailedData);
+                 } else {
+                     console.warn(`fullData for rating ${ratingId} from history is missing or incomplete. Sending only top-level data.`);
+                     console.log("Sending INCOMPLETE data from history:", detailedData);
+                 }
+
+                 // Save to sessionStorage and navigate
+                 try {
+                     sessionStorage.setItem('cigarRatingResults', JSON.stringify(detailedData));
+                     window.location.href = `results.html`;
+                 } catch (e) {
+                     console.error("Error setting sessionStorage:", e);
+                     alert("无法保存会话数据以查看详情。");
+                 }
+             } else {
+                 alert("无法加载该点评的详细信息。");
+             }
+         } // This is the correct closing brace for viewRatingDetails
+
+        // --- Data Fetching and Rendering ---
+        async function fetchAndRenderHistory(user) {
+            // **MODIFIED**: Hide container, show prompt if not logged in
+            if (!user) {
+                // **MODIFIED**: Update title even if not logged in
+                historyTitle.textContent = "我的评分";
+                historyContainer.style.display = 'none'; // Hide list
+                loginPrompt.classList.remove('hidden'); // Show prompt
+                loadingMessage.style.display = 'none'; // Hide loading message
                 return;
+            } else {
+                 historyContainer.style.display = 'block'; // Show list
+                 loginPrompt.classList.add('hidden'); // Hide prompt
             }
 
-            container.innerHTML = `<div class="text-center p-6"><p>正在加载历史记录...</p></div>`;
-            
+            // --- Proceed only if logged in ---
+            const token = sessionStorage.getItem('accessToken');
+            if (!token) {
+                 // **MODIFIED**: Update title even if session expired
+                 historyTitle.textContent = "我的评分";
+                 historyContainer.style.display = 'none'; // Hide list
+                 loginPrompt.classList.remove('hidden'); // Show prompt
+                 loginPrompt.querySelector('p').textContent = '您的会话已过期，请重新登录。'; // Update prompt text
+                 loadingMessage.style.display = 'none'; // Hide loading
+                 return;
+            }
+
+            loadingMessage.textContent = '正在加载历史记录...';
+            loadingMessage.style.display = 'block';
+            historyContainer.innerHTML = ''; // Clear previous content before loading
+
             try {
-                // 调用 GET /api/ratings (会自动处理权限)
-                const results = await apiFetch('/api/ratings');
-                
-                if (results.length === 0) {
-                    container.innerHTML = `<div class="text-center p-6 bg-white rounded-lg shadow"><p>还没有任何评分记录。</p></div>`;
-                    return;
+                 const apiUrl = new URL('/api/ratings', window.location.origin); const response = await fetch(apiUrl, { headers: { 'Authorization': `Bearer ${token}` } });
+                 console.log('fetchAndRenderHistory response status:', response.status);
+                 if (!response.ok) { let errorText = `加载历史记录失败: ${response.status}`; try { const err = await response.json(); errorText = err.error || errorText; } catch(e){/*ignore*/} throw new Error(errorText); }
+                 const ratings = await response.json();
+                 historicalRatings = {}; ratings.forEach(r => historicalRatings[r.id] = r);
+                 userRole = currentAuthUser?.db_role || 'general'; // Use validated role
+
+                 // **MODIFIED**: Update title based on role
+                 if (userRole === 'admin' || userRole === 'super_admin') { historyTitle.textContent = "所有用户的评分"; }
+                 else { historyTitle.textContent = "我的评分"; }
+
+                if (ratings.length === 0) { historyContainer.innerHTML = `<div class="text-center p-6 bg-white rounded-lg shadow"><p>还没有任何评分记录。</p></div>`; }
+                else {
+                    let historyHtml = '<div class="space-y-4">';
+                    // Sort ratings: Pinned first, then by timestamp descending
+                    ratings.sort((a, b) => (b.isPinned - a.isPinned) || (new Date(b.timestamp) - new Date(a.timestamp)));
+                    ratings.forEach(data => {
+                        historyHtml += renderRatingCard(data, user.sub, userRole);
+                    });
+                    historyHtml += '</div>';
+                    historyContainer.innerHTML = historyHtml;
                 }
-
-                // 确定用户角色
-                const userId = currentAuthUser.sub;
-                const userRole = currentAuthUser.db_role;
-                const isAdmin = userRole === 'admin' || userRole === 'super_admin';
-                
-                if (isAdmin) {
-                     title.textContent = "所有用户的评分历史";
-                } else {
-                     title.textContent = "我的评分历史";
-                }
-
-                let historyHtml = '<div class="space-y-4">';
-                historicalRatings = {}; // 清空缓存
-                
-                results.forEach(data => {
-                    const ratingId = data.id;
-                    historicalRatings[ratingId] = data; // 缓存数据
-                    
-                    // fullData 是保存时的原始 JSON
-                    const fullData = (typeof data.fullData === 'string') 
-                        ? JSON.parse(data.fullData) 
-                        : data.fullData;
-
-                    const date = data.timestamp ? new Date(data.timestamp).toLocaleDateString('zh-CN') : '未知日期';
-                    const scoreDisplay = data.normalizedScore !== undefined ? data.normalizedScore.toFixed(2) : 'N/A';
-                    const gradeDisplay = data.finalGrade_grade ? `${data.finalGrade_grade} - ${data.finalGrade_name_cn}` : '未评级';
-                    // 优先使用 fullData 里的 cigarInfo, 其次使用数据库根字段
-                    const cigarInfo = fullData?.cigarInfo || { name: data.cigarName, size: data.cigarSize, origin: data.cigarOrigin };
-
-                    // 权限检查
-                    const isOwner = data.userId === userId;
-                    const canEdit = isOwner || isAdmin;
-                    
-                    // 作者信息 (仅管理员可见)
-                    // **注意**: 这里的 data.userNickname 依赖于后端修复
-                    let authorHtml = '';
-                    if (isAdmin) {
-                        // 优先显示昵称，其次 Email，最后 ID
-                        const authorName = data.userNickname || data.userEmail || data.userId;
-                        authorHtml = `<span class="text-xs text-gray-500"> | 用户: ${authorName}</span>`;
-                    }
-
-                    // 认证按钮
-                    let certifyButtonHtml = '';
-                    if (isAdmin) {
-                        if (data.isCertified) {
-                            certifyButtonHtml = `<button onclick="uncertifyRating('${ratingId}', event)" class="flex-shrink-0 text-xs py-1 px-3 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 transition">取消认证</button>`;
-                        } else {
-                            certifyButtonHtml = `<button onclick="certifyRating('${ratingId}', event)" class="flex-shrink-0 text-xs py-1 px-3 bg-green-500 text-white rounded-md hover:bg-green-600 transition">认证</button>`;
-                        }
-                    }
-
-                    // --- **新的紧凑型布局** ---
-                    historyHtml += `
-                        <a href="#" onclick="viewRatingDetails('${ratingId}'); return false;" class="block bg-white p-4 rounded-lg shadow-md hover:shadow-lg transition-shadow">
-                            <!-- 上方: 信息 -->
-                            <div class="mb-2">
-                                <p class="text-lg font-bold text-gray-800">${cigarInfo.name}</p>
-                                <p class="text-sm text-gray-500">${cigarInfo.size} | ${cigarInfo.origin} | ${date}${authorHtml}</p>
-                            </div>
-                            
-                            <!-- 下方: 分数 + 按钮 (如果可编辑) -->
-                            <div class="mt-2 border-t pt-2 flex justify-between items-center">
-                                <!-- 左侧: 分数 -->
-                                <div class="text-left flex-shrink-0">
-                                    <p class="text-2xl font-black text-indigo-600">${scoreDisplay}</p>
-                                    <p class="font-bold text-gray-600 text-sm">${gradeDisplay}</p>
-                                </div>
-                                
-                                <!-- 右侧: 按钮 -->
-                                ${canEdit ? `
-                                <div class="flex items-center justify-end space-x-2">
-                                    <button onclick="editRating('${ratingId}', event)" class="flex-shrink-0 text-xs py-1 px-3 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition">修改</button>
-                                    <button onclick="deleteRating('${ratingId}', event)" class="flex-shrink-0 text-xs py-1 px-3 bg-red-500 text-white rounded-md hover:bg-red-600 transition">删除</button>
-                                    ${certifyButtonHtml}
-                                </div>` : `<div></div>` /* 占位符保持布局 */ }
-                            </div>
-                        </a>
-                    `;
-                });
-                historyHtml += '</div>';
-                container.innerHTML = historyHtml;
-
+                 loadingMessage.style.display = 'none';
             } catch (error) {
                 console.error("获取历史记录失败:", error);
-                container.innerHTML = `<div class="text-center p-6 bg-red-100 text-red-700 rounded-lg shadow"><p>加载历史记录失败: ${error.message}</p></div>`;
+                // **MODIFIED**: Update title even on error
+                historyTitle.textContent = "我的评分";
+                historyContainer.innerHTML = `<div class="text-center p-6 bg-red-100 text-red-700 rounded-lg shadow"><p>加载评分记录失败: ${error.message}</p></div>`;
+                loadingMessage.style.display = 'none';
             }
         }
 
-        // --- 初始化 ---
-        window.onload = function() {
-            const storedUser = sessionStorage.getItem('userInfo');
-            accessToken = sessionStorage.getItem('accessToken');
-            
-            if (storedUser && accessToken) {
-                currentAuthUser = JSON.parse(storedUser);
-            } else {
-                currentAuthUser = null;
-            }
-            
-            fetchAndRenderHistory();
+        function renderRatingCard(data, currentUserId, currentUserRole) {
+            const ratingId = data.id;
+            const date = data.timestamp ? new Date(data.timestamp).toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' }) : '未知日期';
+            const scoreDisplay = data.normalizedScore !== undefined ? data.normalizedScore.toFixed(2) : 'N/A';
+            const gradeDisplay = data.finalGrade ? `${data.finalGrade.grade} - ${data.finalGrade.name_cn}` : '未评级';
+            const isOwner = data.userId === currentUserId;
+            const isAdmin = currentUserRole === 'admin' || currentUserRole === 'super_admin';
+            const canModify = isOwner || isAdmin;
+            const canCertifyOrPin = isAdmin;
+            const authorDisplay = data.userNickname || data.userEmail || data.userId || '未知用户';
+            const isPinned = data.isPinned;
+
+            let actionButtonsHtml = '';
+            if (canModify) { actionButtonsHtml += `<button onclick="editRating('${ratingId}', event)" class="py-1 px-3 bg-blue-500 text-white text-xs rounded hover:bg-blue-600 transition">修改</button>`; actionButtonsHtml += `<button onclick="deleteRating('${ratingId}', event)" class="py-1 px-3 bg-red-500 text-white text-xs rounded hover:bg-red-600 transition ml-2">删除</button>`; }
+            if (canCertifyOrPin) { actionButtonsHtml += `<button data-action="certify" onclick="updateCertification('${ratingId}', true, event)" class="py-1 px-3 bg-green-500 text-white text-xs rounded hover:bg-green-600 transition ml-2 ${data.isCertified ? 'hidden' : ''}">认证</button>`; actionButtonsHtml += `<button data-action="uncertify" onclick="updateCertification('${ratingId}', false, event)" class="py-1 px-3 bg-yellow-600 text-white text-xs rounded hover:bg-yellow-700 transition ml-2 ${!data.isCertified ? 'hidden' : ''}">取消认证</button>`; actionButtonsHtml += `<button data-action="pin" onclick="updatePinStatus('${ratingId}', true, event)" class="py-1 px-3 bg-pink-500 text-white text-xs rounded hover:bg-pink-600 transition ml-2 ${isPinned ? 'hidden' : ''}">置顶</button>`; actionButtonsHtml += `<button data-action="unpin" onclick="updatePinStatus('${ratingId}', false, event)" class="py-1 px-3 bg-gray-500 text-white text-xs rounded hover:bg-gray-600 transition ml-2 ${!isPinned ? 'hidden' : ''}">取消置顶</button>`; }
+
+            const pinIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor"><path d="M9.03 2.5a.75.75 0 0 0-1.06 0l-4 4a.75.75 0 1 0 1.06 1.06L7 5.81v4.44a3.752 3.752 0 0 0-1.36.47l-1.88 1.1-.31.18a.75.75 0 0 0 .8 1.3l.3-.18 1.88-1.1a2.252 2.252 0 0 1 2.12 0l1.88 1.1.3.18a.75.75 0 0 0 .8-1.3l-.3-.18-1.88-1.1a3.752 3.752 0 0 0-1.36-.47V5.81l1.97 1.97a.75.75 0 1 0 1.06-1.06l-4-4Z"/></svg>`;
+
+            return `
+                <div id="rating-card-${ratingId}" class="rating-card block bg-white p-4 rounded-lg shadow-md hover:shadow-lg transition-shadow cursor-pointer relative" onclick="viewRatingDetails('${ratingId}')">
+                     ${isAdmin && isPinned ? `<div class="pinned-indicator" title="已置顶">${pinIconSvg} 置顶</div>` : ''}
+                    <div class="flex flex-wrap justify-between items-center gap-2">
+                        <div class="flex-grow min-w-0 pr-4">
+                             <!-- **MODIFIED**: Display title first -->
+                             <p class="text-lg font-bold text-gray-800 truncate" title="${data.title || '无标题点评'}">${data.title || '无标题点评'}</p>
+                             <p class="text-sm text-gray-500 truncate" title="${data.cigarInfo?.name || ''}"> ${data.cigarInfo?.name || '未知名称'} | ${data.cigarInfo?.size || '未知尺寸'} | ${data.cigarInfo?.origin || '未知产地'} | ${date} ${ isAdmin ? `<span class="font-medium text-gray-600 ml-2">| 用户: ${authorDisplay}</span>` : '' } </p>
+                        </div>
+                        <div class="flex items-center flex-shrink-0 space-x-3">
+                            <div class="text-right"> <p class="text-xl font-black text-indigo-600">${scoreDisplay}</p> <p class="font-bold text-gray-600 text-xs">${gradeDisplay}</p> </div>
+                            <div class="action-buttons flex items-center space-x-2 flex-wrap gap-1 ${!actionButtonsHtml ? 'hidden' : ''}"> ${actionButtonsHtml} </div>
+                        </div>
+                    </div>
+                </div>
+            `;
         }
+        // --- End Data Fetching and Rendering ---
+
+        // --- Initialization ---
+        window.addEventListener('load', async function() {
+             const urlParams = new URLSearchParams(window.location.search); const code = urlParams.get('code'); let user = null;
+             if (code) { user = await handleOidcCallback(code); } else { user = await validateSessionAndGetUser(); }
+             currentAuthUser = user;
+             userRole = currentAuthUser?.db_role ?? 'guest'; // Get role after validating user
+             renderLoginStatus(currentAuthUser);
+             await fetchAndRenderHistory(currentAuthUser); // Pass user to fetch function
+        });
     </script>
 </body>
 </html>

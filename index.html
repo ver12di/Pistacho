@@ -3,19 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>雪茄品鉴评分主应用</title>
-    <!-- Tailwind CSS -->
+    <title>Pistacho 评分社区</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
-        // Check if tailwind exists before configuring, add onerror handler
         if (typeof tailwind !== 'undefined') {
             tailwind.config = {
                 theme: {
                     extend: {
                         fontFamily: {
+                            // Apply Noto Sans SC for Chinese, Inter for others
                             sans: ['Inter', 'Noto Sans SC', 'system-ui', 'sans-serif'],
                         },
-                        transitionProperty: { 'width': 'width' }
+                        aspectRatio: {
+                            '1179/1572': '1179 / 1572', // Standard aspect ratio for images
+                        },
+                         fontSize: {
+                            '2xs': ['0.625rem', { lineHeight: '0.8rem' }], // ~10px for smaller text
+                         }
                     }
                 }
             }
@@ -23,668 +27,468 @@
             console.warn('Tailwind object not found. Skipping config.');
         }
     </script>
+    <style>
+        /* Card hover effect */
+        .rating-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+        }
+        /* Navigation link styles */
+        .nav-link { @apply px-3 py-2 rounded-md text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-indigo-600 transition-colors; }
+        .nav-link-active { @apply px-3 py-2 rounded-md text-sm font-medium text-indigo-600 bg-indigo-50 font-semibold; }
+        /* Main container padding */
+        .main-container { padding-left: 1rem; padding-right: 1rem; padding-top: 1rem; padding-bottom: 2rem; margin-left: auto; margin-right: auto; }
+        @media (min-width: 640px) { /* sm breakpoint */ .main-container { padding-left: 1.5rem; padding-right: 1.5rem; } }
+        @media (min-width: 768px) { /* md breakpoint */ .main-container { padding-left: 2rem; padding-right: 2rem; padding-bottom: 2rem; } }
+
+        /* Text truncation utilities */
+        .line-clamp-2 { overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+        .line-clamp-1 { overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; }
+
+        /* **NEW**: Styles for admin action buttons, similar to history.html */
+        .action-buttons button {
+            @apply py-1 px-3 text-xs rounded transition;
+        }
+        .action-buttons .btn-edit { @apply bg-blue-500 text-white hover:bg-blue-600; }
+        .action-buttons .btn-delete { @apply bg-red-500 text-white hover:bg-red-600; }
+        .action-buttons .btn-certify { @apply bg-green-500 text-white hover:bg-green-600; }
+        .action-buttons .btn-uncertify { @apply bg-yellow-600 text-white hover:bg-yellow-700; }
+        .action-buttons .btn-pin { @apply bg-pink-500 text-white hover:bg-pink-600; }
+        .action-buttons .btn-unpin { @apply bg-gray-500 text-white hover:bg-gray-600; }
+
+        /* Style for pinned indicator, similar to history.html */
+        .pinned-indicator {
+             position: absolute;
+             top: 0.5rem; /* Adjust position if needed */
+             right: 0.5rem; /* Adjust position if needed */
+             background-color: #ec4899; /* Pink */
+             color: white;
+             padding: 0.1rem 0.5rem;
+             border-radius: 9999px;
+             font-size: 0.7rem;
+             font-weight: bold;
+             display: flex;
+             align-items: center;
+             z-index: 10; /* Ensure it's above the image */
+        }
+         .pinned-indicator svg {
+             width: 0.7rem;
+             height: 0.7rem;
+             margin-right: 0.2rem;
+         }
+    </style>
 </head>
-<body class="bg-gray-100 font-sans antialiased text-gray-800">
-    <div id="app-container" class="max-w-6xl mx-auto p-4 md:p-8">
-        <!-- 导航栏 (Navbar) -->
-        <nav class="mb-4 flex justify-between items-center bg-white p-3 rounded-lg shadow-sm">
-             <a href="index.html" class="text-xl font-bold text-indigo-600">Pistacho评分</a>
-             <div class="space-x-4">
-                 <a href="history.html" class="text-gray-600 hover:text-indigo-600">历史记录</a>
-                 <a href="certified.html" class="text-gray-600 hover:text-indigo-600">认证评分</a>
+<body class="bg-gray-100 font-sans">
+    <div class="main-container">
+        <!-- Navbar -->
+        <nav class="mb-6 flex flex-wrap justify-between items-center bg-white p-3 rounded-lg shadow-sm gap-4 max-w-7xl mx-auto">
+             <!-- **MODIFIED**: Smaller logo text on mobile -->
+             <a href="index.html" class="text-base sm:text-lg font-bold text-indigo-600 whitespace-nowrap">Pistacho评分</a>
+             <div class="flex items-center space-x-1 flex-grow justify-center md:justify-start md:flex-grow-0 order-3 md:order-2 w-full md:w-auto">
+                 <a href="index.html" class="nav-link-active">社区动态</a>
+                 <!-- **MODIFIED**: Smaller button text/padding on mobile -->
+                 <a href="rate.html" class="py-1.5 px-3 sm:py-2 sm:px-4 bg-green-500 text-white text-xs sm:text-sm font-semibold rounded-lg hover:bg-green-600 transition mx-2">去评分</a>
+                 <a href="history.html" class="nav-link">我的评分</a>
+                 <a href="certified.html" class="nav-link">认证评分</a>
              </div>
+             <div id="login-status-container" class="flex items-center order-2 md:order-3"></div>
         </nav>
+        <!-- End Navbar -->
 
-        <!-- 头部计分板 (Header Scoreboard) -->
-        <header class="mb-8 p-6 bg-indigo-700 text-white rounded-xl shadow-2xl">
-            <div class="flex justify-between items-start">
-                <div>
-                    <h1 id="app-title-display" class="text-3xl font-extrabold mb-1">雪茄评分应用</h1>
-                    <p id="app-description-display" class="text-indigo-200 text-sm max-w-lg">正在加载描述...</p>
-                </div>
-                 <div class="flex items-center space-x-3 flex-shrink-0">
-                    <div id="login-status-container" class="flex items-center"></div>
-                    <div id="admin-links-container" class="flex items-center space-x-3"></div>
-                </div>
-            </div>
-            <div class="mt-6 bg-black bg-opacity-20 p-4 rounded-lg">
-                <div class="flex justify-between items-end">
-                    <div>
-                        <p class="text-sm font-medium text-indigo-200">当前得分</p>
-                        <div class="flex items-baseline">
-                            <span id="current-score-display" class="text-6xl font-black leading-none">0.00</span>
-                            <span class="text-lg font-medium text-indigo-200 ml-2">/ <span id="total-weight-max-display">0</span></span>
-                        </div>
-                    </div>
-                    <div class="text-right">
-                         <p class="text-sm font-medium text-indigo-200">已评项目</p>
-                         <p id="progress-text" class="font-bold text-lg">0 / 0</p>
-                    </div>
-                </div>
-                <div class="w-full bg-indigo-900 rounded-full h-2.5 mt-2">
-                    <div id="progress-bar" class="bg-green-400 h-2.5 rounded-full transition-width duration-500" style="width: 0%"></div>
-                </div>
-            </div>
-             <p id="config-load-status" class="text-xs text-yellow-300 mt-2 text-right">正在连接...</p>
-        </header>
+        <!-- Header Removed -->
 
-        <!-- 内容区域 -->
-        <main id="main-content">
-            <!-- 雪茄信息输入区 (Cigar Info Section) -->
-            <section class="mb-8 p-6 bg-white rounded-xl shadow-lg">
-                <h2 class="text-xl font-bold text-gray-800 mb-4">雪茄信息</h2>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div>
-                        <label for="cigar-name" class="block text-sm font-medium text-gray-700">名称</label>
-                        <input type="text" id="cigar-name" autocomplete="off" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" placeholder="例如：帕特加斯D4">
-                    </div>
-                    <div>
-                        <label for="cigar-size" class="block text-sm font-medium text-gray-700">尺寸</label>
-                        <input type="text" id="cigar-size" autocomplete="off" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" placeholder="例如：Robusto">
-                    </div>
-                    <div>
-                        <label for="cigar-origin" class="block text-sm font-medium text-gray-700">产地</label>
-                        <input type="text" id="cigar-origin" autocomplete="off" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" placeholder="例如：古巴">
-                    </div>
-                </div>
-            </section>
+        <!-- Search and Sort Controls -->
+        <div class="mb-6 bg-white p-4 rounded-lg shadow-sm flex flex-col md:flex-row gap-4 items-center max-w-7xl mx-auto">
+            <input type="text" id="search-input" placeholder="搜索雪茄名称, 产地, 尺寸, 点评, 用户..." class="flex-grow p-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500">
+            <select id="sort-select" class="p-2 border border-gray-300 rounded-md">
+                <option value="latest">最新发布</option>
+                <option value="highest">评分最高</option>
+                <option value="lowest">评分最低</option>
+            </select>
+            <button onclick="applyFilters()" class="py-2 px-5 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition w-full md:w-auto">应用</button>
+        </div>
+        <!-- End Search and Sort -->
 
-            <!-- 动态评分表单容器 (Rating Form Container) -->
-            <div id="rating-form-container"></div>
+        <!-- Ratings Grid -->
+        <!-- **MODIFIED**: Reduced gap on mobile -->
+        <div id="ratings-grid" class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4 md:gap-6">
+            <p id="loading-message" class="col-span-full text-center text-gray-500 py-10">正在加载点评...</p>
+        </div>
+        <!-- End Ratings Grid -->
 
-            <!-- 文字评价区 (Review Section) -->
-            <section class="mt-8 p-6 bg-white rounded-xl shadow-lg">
-                <h2 class="text-xl font-bold text-gray-800 mb-4">文字评价</h2>
-                <div>
-                    <textarea id="cigar-review" rows="5" class="w-full p-3 border rounded-md" placeholder="在此处输入您的详细品吸感受..."></textarea>
-                </div>
-            </section>
-
-            <!-- **NEW** 图片上传区 (Image Upload Section) -->
-            <section class="mt-8 p-6 bg-white rounded-xl shadow-lg">
-                <h2 class="text-xl font-bold text-gray-800 mb-4">上传封面图片 (可选)</h2>
-                
-                <!-- 上传控件 -->
-                <div id="image-upload-container">
-                    <label for="cigar-image-upload" class="relative cursor-pointer bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-6 flex flex-col items-center justify-center hover:bg-gray-100 transition">
-                        <svg class="w-12 h-12 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
-                        </svg>
-                        <span class="mt-2 text-sm text-gray-600">点击上传图片 (JPG, PNG, 不超过 5MB)</span>
-                        <input id="cigar-image-upload" type="file" class="sr-only" accept="image/png, image/jpeg" onchange="uploadImage()">
-                    </label>
-                    <div id="image-upload-status" class="mt-2 text-sm text-indigo-600 h-5"></div>
-                </div>
-
-                <!-- 预览控件 -->
-                <div id="image-preview-container" class="hidden mt-4 relative w-full max-w-sm mx-auto">
-                    <img id="image-preview" src="" alt="Image preview" class="w-full h-auto rounded-lg shadow-md aspect-video object-cover">
-                    <button onclick="removeImage()" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow-lg hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
-                        <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                    </button>
-                </div>
-            </section>
-
-            <!-- 操作按钮 (Action Buttons) -->
-            <div class="mt-8 grid grid-cols-2 gap-4">
-                <button onclick="resetRatings()" class="w-full py-3 px-6 bg-red-500 text-white font-bold text-lg rounded-lg shadow-md hover:bg-red-600">重置</button>
-                <button id="main-action-button" onclick="showResults()" class="w-full py-3 px-6 bg-green-600 text-white font-bold text-lg rounded-lg shadow-md hover:bg-green-700">查看报告</button>
-            </div>
-        </main>
-        
-        <footer class="mt-8 text-center text-gray-500 text-sm p-4 border-t">评分应用数据由云端配置中心实时同步。</footer>
+         <footer class="mt-8 text-center text-gray-500 text-sm">
+             Pistacho 雪茄评分社区
+         </footer>
     </div>
-    
-    <!-- 新的 Javascript "大脑" (无 SDK 依赖) -->
+
     <script type="module">
-        // ---------------------------------------------------
-        // 1. 全局变量
-        // ---------------------------------------------------
-        let ratingConfig = null; 
-        let userRatings = {};    
-        let currentAuthUser = null; 
-        
-        // **NEW** (图片上传相关)
-        let uploadedImageKey = null; // 用于存储 R2 返回的图片 Key (例如: 'uuid.jpg')
-        let isUploading = false;     // 防止在上传时提交表单
-        let currentEditRatingId = null; // 用于存储当前正在编辑的评分ID
-        
+        let allRatings = [];
+        let displayedRatings = {}; // **MODIFIED**: Use object for easier updates by ID
+        let currentAuthUser = null;
+
+        // Debug function for stamp loading errors
+        window.handleStampError = function(imgElement) { /* ... (remains the same) ... */ console.error('[Debug] 认证徽章加载失败。尝试的路径:', imgElement.src); imgElement.style.display = 'none'; try { const fallback = document.createElement('span'); fallback.className = 'absolute top-1 left-1 bg-yellow-500 text-white text-xs font-bold px-2 py-1 rounded-full z-10'; fallback.textContent = '认证'; if (imgElement.parentNode) { imgElement.parentNode.appendChild(fallback); } else { console.error('[Debug] 无法找到父节点来添加备用徽章。'); } } catch (e) { console.error('[Debug] 创建备用徽章时出错:', e); } }
+
+
+        const ratingsGrid = document.getElementById('ratings-grid');
+        const loadingMessage = document.getElementById('loading-message');
+        const searchInput = document.getElementById('search-input');
+        const sortSelect = document.getElementById('sort-select');
+
         const AUTHING_APP_ID = '68f5b0b6875017c02b3bfdb3';
         const AUTHING_HOST = 'https://xfvu647mcdbk-demo.authing.cn';
 
-        // ---------------------------------------------------
-        // 2. 认证 (无 SDK 依赖)
-        // ---------------------------------------------------
-        window.login = function() {
-            // 清理旧的编辑状态
-            sessionStorage.removeItem('editRatingId');
-            const redirectUri = window.location.origin;
-            const authorizeUrl = new URL('/oidc/auth', AUTHING_HOST);
-            authorizeUrl.search = new URLSearchParams({
-                client_id: AUTHING_APP_ID,
-                redirect_uri: redirectUri,
-                response_type: 'code',
-                scope: 'openid profile email phone', 
-                state: Math.random().toString(36).substring(2)
-            }).toString();
-            window.location.href = authorizeUrl.toString();
-        }
+        const GRADING_SCALE = [ /* ... (remains the same) ... */ { "grade": "P", "name_en": "Pinnacle", "name_cn": "顶峰 / 登峰造极", "min_score": 95, "color": "gold" }, { "grade": "I", "name_en": "Impeccable", "name_cn": "无暇 / 完美无瑕", "min_score": 90, "color": "indigo" }, { "grade": "S", "name_en": "Superior", "name_cn": "卓越 / 出众", "min_score": 80, "color": "purple" }, { "grade": "T", "name_en": "Terrific", "name_cn": "极好 / 绝佳", "min_score": 70, "color": "blue" }, { "grade": "A", "name_en": "Appreciable", "name_cn": "可圈可点 / 值得欣赏", "min_score": 60, "color": "green" }, { "grade": "C", "name_en": "Commonplace", "name_cn": "平庸 / 普通", "min_score": 50, "color": "gray" }, { "grade": "H", "name_en": "Hesitant", "name_cn": "犹豫 / 瑕瑜互见", "min_score": 30, "color": "orange" }, { "grade": "O", "name_en": "Objectionable", "name_cn": "令人反感 / 极差", "min_score": 0, "color": "red" } ];
 
-        window.logout = function() {
-             // 清理旧的编辑状态
-             sessionStorage.removeItem('editRatingId');
-             const logoutUrl = new URL('/oidc/session/end', AUTHING_HOST);
-             logoutUrl.search = new URLSearchParams({
-                post_logout_redirect_uri: window.location.origin
-             }).toString();
-             sessionStorage.removeItem('userInfo');
-             sessionStorage.removeItem('accessToken');
-             window.location.href = logoutUrl.toString();
-        }
 
-        function renderLoginStatus(user) { 
-            const container = document.getElementById('login-status-container');
-            if (!container) return;
-            if (user) {
-                // 优先使用昵称
-                const displayName = user.name || user.nickname || user.preferred_username || user.email || '已登录';
-                container.innerHTML = `<span class="text-sm font-medium text-yellow-300 mr-2 hidden sm:inline">${displayName}</span><button onclick="logout()" class="px-3 py-1 text-xs font-medium rounded-full bg-red-500 text-white hover:bg-red-600">退出</button>`;
-            } else {
-                container.innerHTML = `<span class="text-sm font-medium text-indigo-300 mr-2 hidden sm:inline">未登录</span><button onclick="login()" class="px-3 py-1 text-xs font-medium rounded-full bg-green-500 text-white hover:bg-green-600">登录/注册</button>`;
-            }
-        }
+        // --- Authentication ---
+         /* ... (Authentication functions remain the same) ... */
+         window.login = function() { const redirectUri = window.location.origin; const authorizeUrl = new URL('/oidc/auth', AUTHING_HOST); authorizeUrl.search = new URLSearchParams({ client_id: AUTHING_APP_ID, redirect_uri: redirectUri, response_type: 'code', scope: 'openid profile email phone', state: Math.random().toString(36).substring(2) }).toString(); window.location.href = authorizeUrl.toString(); }
+         window.logout = function() { const logoutUrl = new URL('/oidc/session/end', AUTHING_HOST); logoutUrl.search = new URLSearchParams({ post_logout_redirect_uri: window.location.origin }).toString(); sessionStorage.removeItem('userInfo'); sessionStorage.removeItem('accessToken'); window.location.href = logoutUrl.toString(); }
+         function renderLoginStatus(user) { const container = document.getElementById('login-status-container'); if (!container) return; if (user) { const displayName = user.nickname || user.name || user.preferred_username || user.email || '已登录'; container.innerHTML = `<span class="text-sm font-medium text-gray-700 mr-2 hidden sm:inline">${displayName}</span><button onclick="logout()" class="px-3 py-1 text-xs font-medium rounded-full bg-red-500 text-white hover:bg-red-600">退出</button>`; } else { container.innerHTML = `<button onclick="login()" class="px-3 py-1 text-xs font-medium rounded-full bg-green-500 text-white hover:bg-green-600">登录/注册</button>`; } }
+         async function handleOidcCallback(code) { try { const redirectUri = window.location.origin; const apiUrl = new URL('/api/authing/callback', window.location.origin); const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: code, redirect_uri: redirectUri }) }); if (!response.ok) { const err = await response.json(); throw new Error(err.error || '认证回调失败'); } const fullUserProfile = await response.json(); sessionStorage.setItem('userInfo', JSON.stringify(fullUserProfile)); sessionStorage.setItem('accessToken', fullUserProfile.accessToken); return fullUserProfile; } catch (e) { console.error('认证回调处理失败:', e); alert(`登录失败: ${e.message}`); sessionStorage.removeItem('userInfo'); sessionStorage.removeItem('accessToken'); return null; } finally { window.history.replaceState({}, document.title, window.location.pathname); } }
+         async function validateSessionAndGetUser() { const token = sessionStorage.getItem('accessToken'); if (!token) return null; try { const apiUrl = new URL('/api/me', window.location.origin); const response = await fetch(apiUrl, { headers: { 'Authorization': `Bearer ${token}` } }); if (!response.ok) { sessionStorage.removeItem('userInfo'); sessionStorage.removeItem('accessToken'); return null; } const fullUserProfile = await response.json(); sessionStorage.setItem('userInfo', JSON.stringify(fullUserProfile)); return fullUserProfile; } catch (e) { console.error("Session validation failed:", e); return null; } }
 
-        function renderAdminLinks() { 
-            const adminLinksContainer = document.getElementById('admin-links-container');
-            adminLinksContainer.innerHTML = '';
-            if (!adminLinksContainer || !currentAuthUser) return;
-            
-            const userRole = currentAuthUser.db_role; 
-            const isAdmin = userRole === 'admin' || userRole === 'super_admin';
-            const isSuperAdmin = userRole === 'super_admin';
 
-            if (isAdmin) {
-                 adminLinksContainer.innerHTML += `<a href="cigar_rating_config.html" class="flex items-center px-3 py-1.5 border text-xs font-medium rounded-full text-white bg-blue-600 hover:bg-blue-500">评分配置</a>`;
-            }
-            if (isSuperAdmin) {
-                adminLinksContainer.innerHTML += `<a href="role_management.html" class="flex items-center px-3 py-1.5 border text-xs font-medium rounded-full text-yellow-100 bg-purple-600 hover:bg-purple-500 ml-2">用户管理</a>`;
-            }
-        }
+        // --- **NEW**: Copied Admin Action Functions from history.html ---
+        // (Includes deleteRating, updateCertification, updatePinStatus)
+        window.deleteRating = async function(ratingId, event) {
+             event?.stopPropagation(); // Prevent card click
+             console.log(`[deleteRating @ index] Initiated for ID: ${ratingId}`);
+             if (!confirm("确定要永久删除这条点评记录吗？")) {
+                 console.log(`[deleteRating @ index] User cancelled deletion.`);
+                 return;
+             }
 
-        // ---------------------------------------------------
-        // 3. **NEW** (图片上传逻辑)
-        // ---------------------------------------------------
-        window.uploadImage = async function() {
-            const fileInput = document.getElementById('cigar-image-upload');
-            const statusEl = document.getElementById('image-upload-status');
-            const file = fileInput.files[0];
+            const button = event ? (event.currentTarget || event.target) : null;
+            const originalText = button ? button.textContent : '删除';
+            if (button) { button.textContent = '删除中...'; button.disabled = true; }
 
-            if (!file) return;
-
-            // 检查文件大小 (5MB)
-            if (file.size > 5 * 1024 * 1024) {
-                alert("图片文件太大，请选择 5MB 以下的图片。");
-                fileInput.value = null; // 清空选择
-                return;
-            }
-
-            // 检查文件类型
-            if (!['image/jpeg', 'image/png'].includes(file.type)) {
-                alert("不支持的文件类型，请选择 JPG 或 PNG 图片。");
-                fileInput.value = null; // 清空选择
-                return;
-            }
-            
             const token = sessionStorage.getItem('accessToken');
             if (!token) {
-                alert("请先登录再上传图片。");
-                return;
+                 alert("请先登录。");
+                 if (button) { button.textContent = originalText; button.disabled = false; }
+                 return;
             }
 
-            isUploading = true;
-            statusEl.textContent = '正在上传...';
-            const formData = new FormData();
-            formData.append('image', file);
-
             try {
-                const response = await fetch('/api/upload-image', {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                        // 'Content-Type': 'multipart/form-data' (fetch 会自动设置)
-                    },
-                    body: formData
-                });
+                 const apiUrl = new URL(`/api/ratings`, window.location.origin);
+                 const response = await fetch(apiUrl, {
+                     method: 'DELETE',
+                     headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                     body: JSON.stringify({ ratingId: ratingId })
+                 });
 
-                if (!response.ok) {
-                    const err = await response.json();
-                    throw new Error(err.error || '上传失败');
-                }
+                 const responseText = await response.text();
+                 let data;
+                 try { data = JSON.parse(responseText); }
+                 catch (parseError) {
+                     if (response.ok) { data = { success: true }; }
+                     else { data = { error: `服务器返回了无效的响应 (状态 ${response.status})` }; }
+                 }
 
-                const result = await response.json();
-                
-                // ** 关键: 保存 R2 返回的 Key **
-                uploadedImageKey = result.imageKey; 
-                
-                statusEl.textContent = '上传成功！';
-                
-                // 显示预览
-                const previewImg = document.getElementById('image-preview');
-                previewImg.src = `/api/image/${uploadedImageKey}`; // 从我们的服务器安全加载
-                
-                document.getElementById('image-upload-container').classList.add('hidden');
-                document.getElementById('image-preview-container').classList.remove('hidden');
+                 if (!response.ok) throw new Error(data?.error || `删除失败 (状态 ${response.status})`);
+
+                 // Remove card from UI
+                 const cardToRemove = document.getElementById(`rating-card-${ratingId}`);
+                 if (cardToRemove) {
+                     cardToRemove.style.transition = 'opacity 0.5s ease-out';
+                     cardToRemove.style.opacity = '0';
+                     setTimeout(() => cardToRemove.remove(), 500);
+                 }
+                 delete displayedRatings[ratingId]; // Remove from internal cache
+                 // Optionally: Refetch or update allRatings if necessary
+                 alert("点评已删除。");
 
             } catch (error) {
-                console.error("Upload error:", error);
-                alert(`上传失败: ${error.message}`);
-                statusEl.textContent = '上传失败，请重试。';
-                fileInput.value = null;
-            } finally {
-                isUploading = false;
+                 console.error("[deleteRating @ index] Caught error:", error);
+                 alert(`删除失败: ${error.message}`);
+                 if (button) { button.textContent = originalText; button.disabled = false; }
             }
         }
 
-        window.removeImage = function() {
-            uploadedImageKey = null;
-            document.getElementById('image-upload-container').classList.remove('hidden');
-            document.getElementById('image-preview-container').classList.add('hidden');
-            document.getElementById('image-preview').src = '';
-            document.getElementById('cigar-image-upload').value = null; // 清空文件输入
-            document.getElementById('image-upload-status').textContent = '';
-            
-            // TODO: (可选) 如果需要，可以发送一个 API 请求到后端删除 R2 上的图片
-            // fetch(`/api/upload-image?key=${keyToDelete}`, { method: 'DELETE', ... })
-        }
+        window.updateCertification = async function(ratingId, shouldCertify, event) {
+            event?.stopPropagation(); // Prevent card click
+            const button = event ? (event.currentTarget || event.target) : null;
+            const isCertifying = shouldCertify;
+            const actionText = isCertifying ? '认证' : '取消认证';
+            const originalText = button ? button.textContent : actionText;
 
-        
-        // ---------------------------------------------------
-        // 4. 核心评分逻辑
-        // ---------------------------------------------------
-        
-        /**
-         * 加载配置
-         */
-        async function loadConfig() {
-            document.getElementById('config-load-status').textContent = '正在从 Cloudflare 同步配置...';
-            try {
-                const apiUrl = new URL('/api/config/latest', window.location.origin);
-                const response = await fetch(apiUrl);
-                if (!response.ok) throw new Error(`服务器错误: ${response.statusText}`);
-                ratingConfig = await response.json();
-                calculateWeights(ratingConfig); 
-                userRatings = {}; 
-                renderRatingView(); 
-                document.getElementById('config-load-status').textContent = `配置已同步`;
-            } catch (error) {
-                console.error("加载配置失败:", error);
-                document.getElementById('config-load-status').textContent = '配置加载失败';
-                alert(`加载应用核心配置失败，请刷新页面重试。\n错误详情: ${error.message}`);
-            }
-        }
+            if (button) { button.textContent = actionText + '中...'; button.disabled = true; }
 
-        function getRatingId(category, criterion) { return `${String(category || '').trim()}-${String(criterion || '').trim()}`; }
-        
-        function calculateWeights(config) {
-            if (!config) return;
-            let grandTotal = 0, totalCriteriaCount = 0;
-            (config.ratingCriteria || []).forEach(category => {
-                let categoryTotal = 0;
-                (category.criteriaList || []).forEach(criterion => {
-                    categoryTotal += (criterion.weight || 0);
-                    totalCriteriaCount++;
-                });
-                category.totalWeight = categoryTotal;
-                grandTotal += categoryTotal;
-            });
-            config.totalWeightMax = grandTotal;
-            config.totalCriteriaCount = totalCriteriaCount;
-        }
-        
-        function calculateFinalScore() {
-            if (!ratingConfig) return 0;
-            let totalScore = 0;
-            (ratingConfig.ratingCriteria || []).forEach(category => {
-                (category.criteriaList || []).forEach(criterion => {
-                    const id = getRatingId(category.category, criterion.name);
-                    const selectedOptionIndex = userRatings[id];
-                    if (selectedOptionIndex !== undefined && criterion.options?.[selectedOptionIndex]) {
-                        totalScore += (criterion.weight || 0) * (criterion.options[selectedOptionIndex].scorePct || 0);
-                    }
-                });
-            });
-            return totalScore;
-        }
-
-        /**
-         * **UPDATED** (查看报告 或 更新评分)
-         */
-        window.showResults = async function() {
-            if (!ratingConfig) return alert("配置未加载，请稍候。");
-            
-            if (Object.keys(userRatings).length === 0 && !currentEditRatingId) {
-                return alert("请至少选择一个评分项后再查看报告。");
-            }
-            
-            if (isUploading) {
-                return alert("图片正在上传，请稍候...");
-            }
-
-            const cigarInfo = { name: document.getElementById('cigar-name').value || '未命名雪茄', size: document.getElementById('cigar-size').value || '未知尺寸', origin: document.getElementById('cigar-origin').value || '未知产地' };
-            const cigarReview = document.getElementById('cigar-review').value || '无';
-            const finalScore = calculateFinalScore();
-            
-            const resultsData = { 
-                config: ratingConfig, 
-                ratings: userRatings, 
-                calculatedScore: finalScore, 
-                cigarInfo: cigarInfo, 
-                cigarReview: cigarReview,
-                isDraft: true, // 默认为 true
-                imageUrl: uploadedImageKey // **NEW**: 传递图片 key
-            };
-
-            // 检查是 "保存更改" (编辑模式) 还是 "查看报告" (新建模式)
-            if (currentEditRatingId) {
-                // --- 编辑模式：调用 PUT API ---
-                resultsData.ratingId = currentEditRatingId; // 告诉后端要更新哪条
-                
-                const token = sessionStorage.getItem('accessToken');
-                if (!token) return alert("会话已过期，请重新登录。");
-
-                const button = document.getElementById('main-action-button');
-                button.textContent = "正在保存...";
-                button.disabled = true;
-
-                try {
-                    const response = await fetch('/api/ratings', {
-                        method: 'PUT',
-                        headers: { 
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${token}`
-                        },
-                        body: JSON.stringify(resultsData)
-                    });
-                    
-                    if (!response.ok) {
-                        const err = await response.json();
-                        throw new Error(err.error || "保存失败");
-                    }
-                    
-                    alert("更改已保存！");
-                    sessionStorage.removeItem('editRatingId'); // 清除编辑状态
-                    window.location.href = 'history.html'; // 返回历史页
-
-                } catch (e) {
-                    console.error("Update rating error:", e);
-                    alert(`保存失败: ${e.message}`);
-                    button.textContent = "保存更改";
-                    button.disabled = false;
-                }
-
-            } else {
-                // --- 新建模式：跳转到 results.html ---
-                try {
-                    sessionStorage.setItem('cigarRatingResults', JSON.stringify(resultsData));
-                    window.location.href = 'results.html';
-                } catch (e) {
-                    alert("无法保存会话数据。");
-                }
-            }
-        }
-
-        /**
-         * **UPDATED** (重置)
-         */
-        window.resetRatings = function() {
-            if (confirm("确定要重置所有评分选择和雪茄信息吗？")) {
-                userRatings = {};
-                document.getElementById('cigar-name').value = '';
-                document.getElementById('cigar-size').value = '';
-                document.getElementById('cigar-origin').value = '';
-                document.getElementById('cigar-review').value = '';
-                
-                removeImage(); // **NEW**: 同时重置图片
-                
-                // 如果在编辑模式，重置会取消编辑
-                if (currentEditRatingId) {
-                    sessionStorage.removeItem('editRatingId');
-                    currentEditRatingId = null;
-                    const button = document.getElementById('main-action-button');
-                    button.textContent = "查看报告";
-                    button.classList.remove('bg-blue-600', 'hover:bg-blue-700');
-                    button.classList.add('bg-green-600', 'hover:bg-green-700');
-                }
-                
-                renderRatingView();
-            }
-        }
-        
-        window.updateRatingSelection = function(categoryName, criterionName, optionIndex) {
-            const id = getRatingId(categoryName, criterionName);
-            if (userRatings[id] === optionIndex) {
-                delete userRatings[id];
-            } else {
-                userRatings[id] = optionIndex;
-            }
-            renderRatingView(); 
-        };
-        
-        function renderRatingView() {
-            if (!ratingConfig) {
-                const formContainer = document.getElementById('rating-form-container');
-                formContainer.innerHTML = `<div class="text-center p-6 bg-white rounded-lg shadow"><p>无法加载评分标准。</p></div>`;
-                return;
-            };
-            const totalScore = calculateFinalScore();
-            document.getElementById('app-title-display').textContent = ratingConfig.appTitle;
-            document.getElementById('app-description-display').textContent = ratingConfig.description;
-            document.getElementById('total-weight-max-display').textContent = ratingConfig.totalWeightMax;
-            document.getElementById('current-score-display').textContent = totalScore.toFixed(2);
-            const ratedCount = Object.keys(userRatings).length;
-            const totalCount = ratingConfig.totalCriteriaCount || 1;
-            document.getElementById('progress-bar').style.width = `${(ratedCount / totalCount) * 100}%`;
-            document.getElementById('progress-text').textContent = `${ratedCount} / ${totalCount}`;
-            const formContainer = document.getElementById('rating-form-container');
-            formContainer.innerHTML = (ratingConfig.ratingCriteria || []).map((category) => `
-                <div class="bg-white p-6 rounded-xl shadow-lg mb-8 border-l-4 border-indigo-500">
-                    <h3 class="text-xl font-bold text-indigo-700 mb-2">${category.category}</h3>
-                    <p class="text-gray-500 text-sm mb-4">${category.detail || ''}</p>
-                    <div class="space-y-6">${(category.criteriaList || []).map((criterion) => renderRatingCriterion(category.category, criterion)).join('')}</div>
-                </div>`).join('');
-        }
-        
-        function renderRatingCriterion(categoryName, criterion) {
-            const id = getRatingId(categoryName, criterion.name);
-            const selectedOptionIndex = userRatings[id];
-            const currentWeight = criterion.weight || 0;
-            let currentScore = 0;
-            if (selectedOptionIndex !== undefined && criterion.options?.[selectedOptionIndex]) {
-                currentScore = currentWeight * (criterion.options[selectedOptionIndex].scorePct || 0);
-            }
-            
-            const isSuperAdmin = currentAuthUser?.db_role === 'super_admin';
-
-            return `<div class="bg-gray-50 p-4 rounded-lg border">
-                    <div class="flex justify-between items-center mb-3">
-                        <h4 class="text-lg font-semibold text-gray-800">${criterion.name} ${isSuperAdmin ? `(${currentWeight} 分)` : ''}</h4>
-                        ${isSuperAdmin ? `<span class="text-xl font-extrabold text-green-600">${currentScore.toFixed(2)}</span>` : ''}
-                    </div>
-                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
-                        ${(criterion.options || []).map((option, optIndex) => {
-                            const isSelected = selectedOptionIndex === optIndex;
-                            const score = (currentWeight * (option.scorePct || 0)).toFixed(2);
-                            return `<button onclick="updateRatingSelection('${categoryName}', '${criterion.name}', ${optIndex})" 
-                                    class="p-2 text-sm text-center rounded-lg border transition ${ isSelected ? 'bg-indigo-600 text-white shadow-md' : 'bg-white hover:bg-indigo-50' }">
-                                    ${option.description} 
-                                    ${isSuperAdmin ? `<span class="block text-xs ${isSelected ? 'text-indigo-200' : 'text-gray-500'}">(得 ${score} 分)</span>` : ''}
-                                </button>`;
-                        }).join('')}
-                    </div>
-                </div>`;
-        } // End of renderRatingCriterion
-            
-        // ---------------------------------------------------
-        // 5. 启动函数
-        // ---------------------------------------------------
-        
-        /**
-         * **NEW** (加载从 history.html 传来的评分数据)
-         */
-        async function loadRatingForEdit(ratingId) {
-            document.getElementById('config-load-status').textContent = '正在加载评分数据以供编辑...';
-            // 从 sessionStorage 获取完整数据
-            const ratingData = sessionStorage.getItem('editRatingData');
-            if (!ratingData) {
-                alert("加载编辑数据失败，未在会话中找到数据。");
-                sessionStorage.removeItem('editRatingId');
-                return;
-            }
-            
-            try {
-                const ratingToEdit = JSON.parse(ratingData);
-                
-                // 1. 填充雪茄信息
-                document.getElementById('cigar-name').value = ratingToEdit.cigarInfo.name;
-                document.getElementById('cigar-size').value = ratingToEdit.cigarInfo.size;
-                document.getElementById('cigar-origin').value = ratingToEdit.cigarInfo.origin;
-                
-                // 2. 填充文字评价
-                document.getElementById('cigar-review').value = ratingToEdit.cigarReview;
-
-                // 3. 填充评分选项
-                //    (需要先确保 config 加载完成, 但 loadConfig() 之后会调用 renderRatingView() 刷新)
-                userRatings = ratingToEdit.ratings; 
-                
-                // 4. **NEW** (填充图片)
-                if (ratingToEdit.imageUrl) {
-                    uploadedImageKey = ratingToEdit.imageUrl;
-                    const previewImg = document.getElementById('image-preview');
-                    previewImg.src = `/api/image/${uploadedImageKey}`;
-                    
-                    document.getElementById('image-upload-container').classList.add('hidden');
-                    document.getElementById('image-preview-container').classList.remove('hidden');
-                    document.getElementById('image-upload-status').textContent = '已加载保存的图片。';
-                }
-
-                // 5. 切换 UI 到编辑模式
-                currentEditRatingId = ratingId;
-                const button = document.getElementById('main-action-button');
-                button.textContent = "保存更改";
-                // 切换按钮颜色以示区别
-                button.classList.remove('bg-green-600', 'hover:bg-green-700');
-                button.classList.add('bg-blue-600', 'hover:bg-blue-700');
-                
-                document.getElementById('config-load-status').textContent = `已加载评分 ${ratingId}。`;
-                
-                // 渲染评分 (会使用已填充的 userRatings)
-                renderRatingView();
-
-            } catch (e) {
-                alert(`解析编辑数据时出错: ${e.message}`);
-                sessionStorage.removeItem('editRatingId');
-            } finally {
-                // 清理, 防止重复加载
-                sessionStorage.removeItem('editRatingData');
-            }
-        }
-        
-        async function handleOidcCallback(code) {
-            document.getElementById('main-content').style.opacity = '0.5';
-            document.getElementById('config-load-status').textContent = '正在验证登录...';
-            try {
-                const response = await fetch('/api/authing/callback', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ code: code })
-                });
-
-                if (!response.ok) {
-                    const err = await response.json();
-                    throw new Error(err.error || '认证回调失败');
-                }
-                
-                const fullUserProfile = await response.json();
-                
-                sessionStorage.setItem('userInfo', JSON.stringify(fullUserProfile));
-                sessionStorage.setItem('accessToken', fullUserProfile.accessToken);
-                
-                return fullUserProfile;
-
-            } catch (e) {
-                console.error('认证回调处理失败:', e);
-                alert(`登录失败: ${e.message}`);
-                sessionStorage.removeItem('userInfo');
-                sessionStorage.removeItem('accessToken');
-                return null;
-            } finally {
-                window.history.replaceState({}, document.title, window.location.pathname);
-                document.getElementById('main-content').style.opacity = '1';
-            }
-        }
-        
-        async function validateSessionAndGetUser() {
             const token = sessionStorage.getItem('accessToken');
-            if (!token) return null;
+            if (!token) { alert("请先登录。"); if (button) { button.textContent = originalText; button.disabled = false; } return; }
 
             try {
-                // **使用 /api/me 验证 session**
-                const response = await fetch('/api/me', {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                if (!response.ok) {
-                    // Token 过期或无效
-                    sessionStorage.removeItem('userInfo');
-                    sessionStorage.removeItem('accessToken');
-                    return null;
+                const apiUrl = new URL('/api/certify', window.location.origin);
+                const response = await fetch(apiUrl, { method: 'POST', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ ratingId: ratingId, certify: isCertifying }) });
+
+                if (!response.ok) { let errorText = `${actionText}失败: ${response.status}`; try { const err = await response.json(); errorText = err.error || errorText; } catch(e){/*ignore*/} throw new Error(errorText); }
+
+                const data = await response.json();
+
+                // Update internal state and UI
+                if (displayedRatings[ratingId]) {
+                    displayedRatings[ratingId].isCertified = isCertifying;
+                    // Re-render the specific card (more efficient than full redraw)
+                    const cardElement = document.getElementById(`rating-card-${ratingId}`);
+                    if (cardElement) {
+                        const newCard = createRatingCard(displayedRatings[ratingId]); // Pass updated data
+                        cardElement.replaceWith(newCard); // Replace old card with new one
+                    }
                 }
-                const fullUserProfile = await response.json();
-                // 刷新 userInfo
-                sessionStorage.setItem('userInfo', JSON.stringify(fullUserProfile)); 
-                return fullUserProfile;
-            } catch (e) {
-                console.error("Session validation failed:", e);
-                return null;
+                alert(`操作成功！`);
+
+            } catch (error) {
+                console.error(`${actionText}失败:`, error);
+                alert(`${actionText}失败: ${error.message}`);
+                 // Restore button only if it exists
+                 if (button) {
+                     button.textContent = originalText;
+                     button.disabled = false; // Re-enable on error
+                 }
             }
         }
-        
-        function setUser(user) {
-            currentAuthUser = user;
-            renderLoginStatus(currentAuthUser);
-            setTimeout(() => {
-                renderAdminLinks();
-            }, 0);
+
+        window.updatePinStatus = async function(ratingId, shouldPin, event) {
+             event?.stopPropagation(); // Prevent card click
+             const button = event ? (event.currentTarget || event.target) : null;
+             const actionText = shouldPin ? '置顶' : '取消置顶';
+             const originalText = button ? button.textContent : actionText;
+
+            if (button) { button.textContent = actionText + '中...'; button.disabled = true; }
+
+            const token = sessionStorage.getItem('accessToken');
+            if (!token) { alert("请先登录。"); if (button) { button.textContent = originalText; button.disabled = false; } return; }
+
+            try {
+                const apiUrl = new URL('/api/pin', window.location.origin);
+                const response = await fetch(apiUrl, { method: 'POST', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ ratingId: ratingId, pin: shouldPin }) });
+
+                if (!response.ok) { let errorText = `${actionText}失败: ${response.status}`; try { const err = await response.json(); errorText = err.error || errorText; } catch(e){/*ignore*/} throw new Error(errorText); }
+
+                const data = await response.json();
+
+                // Update internal state and UI
+                if (displayedRatings[ratingId]) {
+                     displayedRatings[ratingId].isPinned = shouldPin;
+                     // Re-render the specific card
+                     const cardElement = document.getElementById(`rating-card-${ratingId}`);
+                     if (cardElement) {
+                         const newCard = createRatingCard(displayedRatings[ratingId]);
+                         cardElement.replaceWith(newCard);
+                     }
+                     // Optionally re-sort and re-render the whole grid if default sort is by pin status
+                     // applyFilters(); // Uncomment if you want the grid to immediately reflect the new pin order
+                }
+                alert(`操作成功！`);
+
+            } catch (error) {
+                 console.error(`${actionText}失败:`, error);
+                 alert(`${actionText}失败: ${error.message}`);
+                 if (button) {
+                     button.textContent = originalText;
+                     button.disabled = false; // Re-enable on error
+                 }
+            }
+        }
+        // --- End Admin Action Functions ---
+
+        // --- Data Fetching ---
+        async function fetchRatings() {
+            loadingMessage.textContent = '正在加载点评...'; loadingMessage.style.display = 'block'; ratingsGrid.innerHTML = '';
+            try {
+                const apiUrl = new URL('/api/ratings', window.location.origin); const response = await fetch(apiUrl);
+                if (!response.ok) { let errorText = `加载失败: ${response.status}`; try { const err = await response.json(); errorText = err.error || errorText; } catch (e) {} throw new Error(errorText); }
+                allRatings = await response.json();
+                // **MODIFIED**: Populate displayedRatings object
+                displayedRatings = {};
+                allRatings.forEach(r => displayedRatings[r.id] = r);
+                applyFilters(); // Initial filter and render
+            } catch (error) { console.error("加载点评失败:", error); loadingMessage.textContent = `加载点评失败: ${error.message}`; loadingMessage.style.color = 'red'; }
         }
 
-        window.onload = async function() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const code = urlParams.get('code');
-            let user = null;
+        // --- Filtering and Sorting ---
+        window.applyFilters = function() {
+            const searchTerm = searchInput.value.toLowerCase().trim(); const sortBy = sortSelect.value;
+            // Filter from allRatings (array)
+            let filtered = allRatings.filter(rating => { const nameMatch = rating.cigarInfo?.name?.toLowerCase().includes(searchTerm); const originMatch = rating.cigarInfo?.origin?.toLowerCase().includes(searchTerm); const sizeMatch = rating.cigarInfo?.size?.toLowerCase().includes(searchTerm); const reviewMatch = rating.cigarReview?.toLowerCase().includes(searchTerm); const authorMatch = rating.userNickname?.toLowerCase().includes(searchTerm); return nameMatch || originMatch || sizeMatch || reviewMatch || authorMatch; });
+            // Sort the filtered array
+            if (sortBy === 'highest') { filtered.sort((a, b) => (b.normalizedScore ?? 0) - (a.normalizedScore ?? 0)); }
+            else if (sortBy === 'lowest') { filtered.sort((a, b) => (a.normalizedScore ?? 0) - (b.normalizedScore ?? 0)); }
+            else { filtered.sort((a, b) => (b.isPinned - a.isPinned) || (new Date(b.timestamp) - new Date(a.timestamp)));} // Default: Pinned first, then latest
+            // Render using the sorted filtered array
+            renderGrid(filtered);
+        }
 
-            if (code) {
-                // 1. 如果 URL 中有 code (从 Authing 重定向回来)
-                user = await handleOidcCallback(code);
+        // --- Rendering ---
+        function renderGrid(ratingsToRender) { // Accepts array
+            ratingsGrid.innerHTML = ''; // Clear grid
+            if (ratingsToRender.length === 0) { loadingMessage.textContent = '没有找到匹配的点评。'; loadingMessage.style.display = 'block'; return; }
+            loadingMessage.style.display = 'none';
+            // Render each card from the array
+            ratingsToRender.forEach(rating => {
+                // Update displayedRatings cache (optional but good practice)
+                displayedRatings[rating.id] = rating;
+                const card = createRatingCard(rating); // createRatingCard now expects a single rating object
+                ratingsGrid.appendChild(card);
+            });
+        }
+
+        function createRatingCard(rating) {
+            const div = document.createElement('div');
+            // Add ID for easier DOM manipulation
+            div.id = `rating-card-${rating.id}`;
+            div.className = 'rating-card bg-white rounded-lg shadow-md overflow-hidden transition-all duration-300 cursor-pointer flex flex-col';
+            // Main click navigates to details
+            div.onclick = (event) => {
+                 // Prevent navigation if a button inside the card was clicked
+                 if (event.target.tagName === 'BUTTON' || event.target.closest('button')) {
+                      return;
+                 }
+                 viewRatingDetails(rating.id); // Use rating ID
+            };
+
+            const score = rating.normalizedScore !== undefined ? rating.normalizedScore.toFixed(2) : 'N/A';
+            const author = rating.userNickname || rating.userEmail || '匿名';
+
+            let coverImageUrl = null;
+            if (Array.isArray(rating.imageUrl) && rating.imageUrl.length > 0) { coverImageUrl = rating.imageUrl[0]; }
+            else if (typeof rating.imageUrl === 'string' && rating.imageUrl) { coverImageUrl = rating.imageUrl; } // Fallback for single string
+
+            const isCertified = rating.isCertified;
+            const isPinned = rating.isPinned;
+            const cacheBuster = `?v=${new Date().getTime()}`; // Force refresh for stamp
+
+            // **NEW**: Determine if admin buttons should be shown
+            const isAdmin = currentAuthUser && (currentAuthUser.db_role === 'admin' || currentAuthUser.db_role === 'super_admin');
+            let adminButtonsHtml = '';
+            if (isAdmin) {
+                // Use template literals and correct function calls
+                adminButtonsHtml = `
+                    <div class="action-buttons mt-2 pt-2 border-t border-gray-100 flex items-center space-x-1 flex-wrap gap-1 justify-end">
+                        <button onclick="deleteRating('${rating.id}', event)" class="btn-delete">删除</button>
+                        <button data-action="certify" onclick="updateCertification('${rating.id}', true, event)" class="btn-certify ${isCertified ? 'hidden' : ''}">认证</button>
+                        <button data-action="uncertify" onclick="updateCertification('${rating.id}', false, event)" class="btn-uncertify ${!isCertified ? 'hidden' : ''}">取消认证</button>
+                        <button data-action="pin" onclick="updatePinStatus('${rating.id}', true, event)" class="btn-pin ${isPinned ? 'hidden' : ''}">置顶</button>
+                        <button data-action="unpin" onclick="updatePinStatus('${rating.id}', false, event)" class="btn-unpin ${!isPinned ? 'hidden' : ''}">取消置顶</button>
+                    </div>
+                `;
+            }
+
+            const pinIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor"><path d="M9.03 2.5a.75.75 0 0 0-1.06 0l-4 4a.75.75 0 1 0 1.06 1.06L7 5.81v4.44a3.752 3.752 0 0 0-1.36.47l-1.88 1.1-.31.18a.75.75 0 0 0 .8 1.3l.3-.18 1.88-1.1a2.252 2.252 0 0 1 2.12 0l1.88 1.1.3.18a.75.75 0 0 0 .8-1.3l-.3-.18-1.88-1.1a3.752 3.752 0 0 0-1.36-.47V5.81l1.97 1.97a.75.75 0 1 0 1.06-1.06l-4-4Z"/></svg>`;
+
+
+            div.innerHTML = `
+                <div class="aspect-[1179/1572] w-full overflow-hidden flex-shrink-0 relative">
+                     ${isAdmin && isPinned ? `<div class="pinned-indicator" title="已置顶">${pinIconSvg} 置顶</div>` : ''}
+                     ${isCertified ? `<img src="/Certifiedstamp.png${cacheBuster}" alt="Certified" class="absolute top-1 left-1 w-12 h-12 md:w-16 md:h-16 z-10" title="Pistacho 认证评分" onerror="handleStampError(this)">` : ''}
+                     ${coverImageUrl ? `<img src="/api/image/${coverImageUrl}" alt="${rating.cigarInfo?.name || '雪茄图片'}" class="w-full h-full object-cover">` : '<div class="w-full h-full bg-gray-200 flex items-center justify-center text-gray-400 text-sm">无图</div>'}
+                </div>
+                <div class="p-1.5 sm:p-2 flex-grow flex flex-col justify-between">
+                     <div>
+                         <h3 class="font-semibold text-xs sm:text-sm leading-tight line-clamp-1 mb-0.5" title="${rating.title || ''}"> ${rating.title || '无标题点评'} </h3>
+                         <p class="text-2xs sm:text-xs text-gray-500 line-clamp-1 mb-1" title="${rating.cigarInfo?.name || ''}"> ${rating.cigarInfo?.name || '未命名雪茄'} </p>
+                     </div>
+                     <div class="flex justify-between items-end mt-auto pt-0.5">
+                         <span class="text-2xs text-gray-500 line-clamp-1 flex items-center" title="${author}"> ${author} </span>
+                         <div class="text-right flex-shrink-0"> <p class="font-bold text-indigo-600 text-sm sm:text-base leading-none">${score}</p> </div>
+                     </div>
+                     <!-- **NEW**: Append admin buttons here -->
+                     ${adminButtonsHtml}
+                </div>
+            `;
+            return div;
+        }
+
+        // --- Navigation ---
+        window.viewRatingDetails = function(ratingId) {
+            // **MODIFIED**: Fetch data from displayedRatings object by ID
+            const ratingData = displayedRatings[ratingId];
+            if (!ratingData) {
+                 console.error(`viewRatingDetails: Rating data not found in cache for ID: ${ratingId}`);
+                 alert("无法加载详情：未找到评分数据。");
+                 return;
+            }
+
+            let detailedData = {};
+
+            const cigarInfo = ratingData.cigarInfo || { name: ratingData.cigarName, size: ratingData.cigarSize, origin: ratingData.cigarOrigin };
+            const foundGrade = GRADING_SCALE.find(g => ratingData.normalizedScore >= g.min_score) || GRADING_SCALE[GRADING_SCALE.length - 1];
+            const finalGrade = foundGrade ? { grade: foundGrade.grade, name_cn: foundGrade.name_cn, name_en: foundGrade.name_en, color: foundGrade.color } : null;
+
+            if (!ratingData || ratingData.normalizedScore === undefined || !finalGrade || !cigarInfo || !ratingData.title) {
+                console.error("viewRatingDetails: Essential data missing or couldn't be constructed!", {ratingData, finalGrade, cigarInfo});
+                alert("无法加载详情：缺少基本评分信息 (标题, 分数, 评级, 雪茄信息)。");
+                return;
+            }
+
+            let imageUrls = ratingData.imageUrl;
+            if (typeof imageUrls === 'string') { try { imageUrls = JSON.parse(imageUrls); if (!Array.isArray(imageUrls)) imageUrls = [ratingData.imageUrl]; } catch(e){ imageUrls = imageUrls ? [imageUrls] : []; } }
+            else if (!Array.isArray(imageUrls)) { imageUrls = imageUrls ? [imageUrls] : []; }
+
+            // **MODIFIED**: Ensure selectedFlavors is included and is an array
+            let selectedFlavors = [];
+            if (ratingData.fullData && Array.isArray(ratingData.fullData.selectedFlavors)) {
+                selectedFlavors = ratingData.fullData.selectedFlavors;
+            } else if (Array.isArray(ratingData.selectedFlavors)) { // Fallback check on top level
+                selectedFlavors = ratingData.selectedFlavors;
+            }
+
+            const hasCompleteFullData = ratingData.fullData && ratingData.fullData.config && ratingData.fullData.ratings && ratingData.fullData.calculatedScore !== undefined;
+
+            if (hasCompleteFullData) {
+                 detailedData = {
+                     config: ratingData.fullData.config,
+                     ratings: ratingData.fullData.ratings,
+                     calculatedScore: ratingData.fullData.calculatedScore,
+                     title: ratingData.title,
+                     cigarInfo: cigarInfo,
+                     cigarReview: ratingData.cigarReview,
+                     imageUrls: imageUrls,
+                     normalizedScore: ratingData.normalizedScore,
+                     finalGrade: finalGrade,
+                     selectedFlavors: selectedFlavors, // Add selectedFlavors
+                     timestamp: ratingData.timestamp,
+                     userNickname: ratingData.userNickname,
+                     userEmail: ratingData.userEmail,
+                     isDraft: false
+                 };
+                 console.log("Sending COMPLETE data to results.html:", detailedData);
             } else {
-                // 2. 正常加载, 检查 session
-                user = await validateSessionAndGetUser();
+                 console.warn(`fullData for rating ${ratingData?.id} is missing or incomplete. Sending only top-level data.`);
+                 detailedData = {
+                     title: ratingData.title,
+                     cigarInfo: cigarInfo,
+                     cigarReview: ratingData.cigarReview,
+                     imageUrls: imageUrls,
+                     normalizedScore: ratingData.normalizedScore,
+                     finalGrade: finalGrade,
+                     selectedFlavors: selectedFlavors, // Add selectedFlavors even if incomplete
+                     timestamp: ratingData.timestamp,
+                     userNickname: ratingData.userNickname,
+                     userEmail: ratingData.userEmail,
+                     isDraft: false
+                 };
+                 console.log("Sending INCOMPLETE (top-level) data to results.html:", detailedData);
             }
-            
-            // 3. 设置用户信息 (无论是否为 null)
-            setUser(user);
-            
-            console.log("Current User Object for role check:", currentAuthUser);
-            
-            // 4. 加载核心评分配置
-            await loadConfig();
 
-            // 5. **NEW**: 检查是否处于编辑模式
-            const editRatingId = sessionStorage.getItem('editRatingId');
-            if (editRatingId) {
-                await loadRatingForEdit(editRatingId);
-            }
-        }; // End of window.onload
+            try { sessionStorage.setItem('cigarRatingResults', JSON.stringify(detailedData)); window.location.href = `results.html`; }
+            catch (e) { console.error("Error setting sessionStorage:", e); alert("无法保存会话数据以查看详情。"); }
+        }
+
+
+        // --- Initialization ---
+        window.onload = async function() {
+             const urlParams = new URLSearchParams(window.location.search); const code = urlParams.get('code'); let user = null;
+             if (code) { user = await handleOidcCallback(code); } else { user = await validateSessionAndGetUser(); }
+             currentAuthUser = user; // Set global auth user
+             renderLoginStatus(currentAuthUser);
+             await fetchRatings(); // Fetch data
+
+             searchInput.addEventListener('keypress', function (e) { if (e.key === 'Enter') { applyFilters(); } });
+             sortSelect.addEventListener('change', applyFilters);
+        };
     </script>
 </body>
 </html>
