@@ -48,30 +48,28 @@
         /* Style for the element being dragged */
         .sortable-ghost { opacity: 0.4; background: #c8ebfb; }
         .sortable-drag { opacity: 1 !important; /* Ensure dragged item is fully visible */ }
-
-        /* **FIXED**: Replaced @apply with standard CSS for flavor buttons */
+        /* Style for flavor buttons */
         .flavor-btn {
             padding: 0.375rem 0.75rem; /* px-3 py-1.5 */
             border: 1px solid #d1d5db; /* border-gray-300 */
             border-radius: 9999px; /* rounded-full */
             font-size: 0.875rem; /* text-sm */
-            line-height: 1.25rem;
-            color: #374151; /* Default text color (gray-700) */
-            background-color: white; /* Default background */
-            transition: background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s;
             margin-right: 0.5rem; /* mr-2 */
             margin-bottom: 0.5rem; /* mb-2 */
             cursor: pointer;
+            transition: all 0.2s;
+            background-color: white;
+            color: #374151; /* text-gray-700 */
+        }
+        .flavor-btn:hover:not(.selected) { /* Apply hover only if not selected */
+            background-color: #f3f4f6; /* bg-gray-100 */
+            border-color: #9ca3af; /* border-gray-400 */
         }
         .flavor-btn.selected {
             background-color: #4f46e5; /* bg-indigo-600 */
             color: white;
             border-color: #4f46e5; /* border-indigo-600 */
-            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05); /* shadow-sm */
-        }
-        .flavor-btn:not(.selected):hover {
-            background-color: #f3f4f6; /* bg-gray-100 */
-            border-color: #9ca3af; /* border-gray-400 */
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
         }
     </style>
 </head>
@@ -107,7 +105,14 @@
               <p id="config-load-status" class="text-xs text-yellow-300 mt-2 text-right">正在连接...</p>
         </header>
 
-        <!-- Main Content -->
+        <!-- **NEW**: Login Prompt Area -->
+        <div id="login-prompt" class="hidden text-center p-6 bg-yellow-100 text-yellow-800 rounded-lg shadow mb-8">
+             <p class="font-semibold mb-3">请先登录才能进行评分。</p>
+             <button onclick="login()" class="px-5 py-2 text-sm font-medium rounded-lg bg-green-500 text-white hover:bg-green-600">前往登录/注册</button>
+        </div>
+
+
+        <!-- Main Content (Rating Form Area) -->
         <main id="main-content">
 
             <!-- Title Section -->
@@ -185,7 +190,7 @@
         let ratingConfig = null; let userRatings = {}; let currentAuthUser = null;
         let currentImageKeys = []; let sortableInstance = null;
         let isEditMode = false; let editRatingId = null; let cropper = null;
-        let selectedFlavors = []; // Array to store selected flavor names
+        let selectedFlavors = [];
         const cropperModal = document.getElementById('cropper-modal');
         const cropperImage = document.getElementById('cropper-image');
         const cropperStatus = document.getElementById('cropper-status');
@@ -205,34 +210,9 @@
          function setUser(user) { currentAuthUser = user; renderLoginStatus(currentAuthUser); setTimeout(() => { renderAdminLinks(); }, 0); }
 
         // --- Flavor Selection Logic ---
-        function renderFlavorButtons() {
-            const container = document.getElementById('flavor-buttons-container');
-            container.innerHTML = ''; // Clear existing
-            COMMON_FLAVORS.forEach(flavor => {
-                const isSelected = selectedFlavors.includes(flavor);
-                const button = document.createElement('button');
-                button.type = 'button';
-                // Apply the 'selected' class directly here
-                button.className = `flavor-btn ${isSelected ? 'selected' : ''}`;
-                button.textContent = flavor;
-                button.onclick = () => toggleFlavorSelection(flavor, button);
-                container.appendChild(button);
-            });
-        }
-
-        function toggleFlavorSelection(flavor, button) {
-            const index = selectedFlavors.indexOf(flavor);
-            if (index > -1) {
-                selectedFlavors.splice(index, 1);
-                button.classList.remove('selected'); // Update class on toggle
-            } else {
-                selectedFlavors.push(flavor);
-                button.classList.add('selected'); // Update class on toggle
-            }
-            console.log("Selected flavors:", selectedFlavors);
-        }
-        // --- End Flavor Selection ---
-
+         /* ... (Flavor functions remain the same) ... */
+         function renderFlavorButtons() { const container = document.getElementById('flavor-buttons-container'); container.innerHTML = ''; COMMON_FLAVORS.forEach(flavor => { const isSelected = selectedFlavors.includes(flavor); const button = document.createElement('button'); button.type = 'button'; button.className = `flavor-btn ${isSelected ? 'selected' : ''}`; button.textContent = flavor; button.onclick = () => toggleFlavorSelection(flavor, button); container.appendChild(button); }); }
+         function toggleFlavorSelection(flavor, button) { const index = selectedFlavors.indexOf(flavor); if (index > -1) { selectedFlavors.splice(index, 1); button.classList.remove('selected'); } else { selectedFlavors.push(flavor); button.classList.add('selected'); } console.log("Selected flavors:", selectedFlavors); }
 
         // --- Image Handling (with Sorting and Cover Selection) ---
          /* ... (Image functions remain the same) ... */
@@ -258,144 +238,47 @@
 
 
         // --- Actions (Reset, Show Results / Save Changes) ---
-        window.resetRatings = function() {
-            if (confirm("确定要重置所有评分选择和图片吗？")) {
-                userRatings = {};
-                document.getElementById('rating-title').value = '';
-                document.getElementById('cigar-name').value = '';
-                document.getElementById('cigar-size').value = '';
-                document.getElementById('cigar-origin').value = '';
-                document.getElementById('cigar-review').value = '';
-                currentImageKeys = [];
-                selectedFlavors = []; // Clear selected flavors
-                renderFlavorButtons(); // Re-render flavor buttons (will show unselected)
-                renderImagePreviews();
-
-                if (isEditMode) {
-                    isEditMode = false; editRatingId = null;
-                    const actionButton = document.getElementById('main-action-button');
-                    actionButton.textContent = "查看报告";
-                    actionButton.classList.remove('bg-blue-600', 'hover:bg-blue-700'); actionButton.classList.add('bg-green-600', 'hover:bg-green-700');
-                    window.history.replaceState({}, document.title, window.location.pathname);
-                }
-                renderRatingView(); updateCharCounts();
-            }
-        }
-
-        window.showResults = async function() {
-            const token = sessionStorage.getItem('accessToken');
-            if (!isEditMode && (!currentAuthUser || !token)) { return alert("请登录后才能提交点评。"); }
-            if (!ratingConfig || Object.keys(userRatings).length === 0) { return alert("请至少选择一个评分项后再操作。"); }
-            const title = document.getElementById('rating-title').value.trim();
-            if (!title) { return alert("请填写点评标题。"); }
-            if (currentImageKeys.length === 0) { return alert("请至少上传一张图片。"); }
-            const cigarNameValue = document.getElementById('cigar-name').value.trim();
-            if (!cigarNameValue) { return alert("请填写雪茄名称。"); }
-
-            const cigarInfo = { name: cigarNameValue, size: document.getElementById('cigar-size').value || '未知尺寸', origin: document.getElementById('cigar-origin').value || '未知产地' };
-            const cigarReview = document.getElementById('cigar-review').value || '无';
-            const finalScore = calculateFinalScore();
-            const maxScore = ratingConfig.totalWeightMax || 1;
-            const normalizedScore = maxScore > 0 ? (finalScore / maxScore) * 100 : 0;
-            const foundGrade = GRADING_SCALE.find(g => normalizedScore >= g.min_score);
-            const finalGrade = foundGrade ? { grade: foundGrade.grade, name_cn: foundGrade.name_cn, name_en: foundGrade.name_en } : GRADING_SCALE[GRADING_SCALE.length - 1];
-
-            const resultsData = {
-                title: title, config: ratingConfig, ratings: userRatings,
-                calculatedScore: finalScore, cigarInfo: cigarInfo, cigarReview: cigarReview,
-                imageUrls: currentImageKeys, normalizedScore: normalizedScore, finalGrade: finalGrade,
-                selectedFlavors: selectedFlavors, // Include selected flavors
-                isDraft: !isEditMode
-            };
-            console.log("Data being prepared for results/save:", resultsData);
-
-            if (isEditMode && editRatingId) {
-                // --- Save Changes Logic ---
-                 const actionButton = document.getElementById('main-action-button'); actionButton.textContent = "正在保存..."; actionButton.disabled = true; try { if (!token) throw new Error("会话已过期，请重新登录。"); resultsData.ratingId = editRatingId; const apiUrl = new URL(`/api/ratings`, window.location.origin); const response = await fetch(apiUrl, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify(resultsData) }); if (!response.ok) { const err = await response.json(); throw new Error(err.error || '更新失败'); } alert("更改已保存！"); window.location.href = 'history.html'; } catch (e) { alert(`保存失败: ${e.message}`); actionButton.textContent = "保存更改"; actionButton.disabled = false; }
-            } else {
-                // --- Show Results Logic (New Rating) ---
-                try {
-                    sessionStorage.setItem('cigarRatingResults', JSON.stringify(resultsData));
-                    window.location.href = 'results.html';
-                } catch (e) { alert("无法保存会话数据 (sessionStorage)。"); }
-            }
-        }
-        // --- End Actions ---
-
+         /* ... (resetRatings and showResults remain the same) ... */
+         window.resetRatings = function() { if (confirm("确定要重置所有评分选择和图片吗？")) { userRatings = {}; document.getElementById('rating-title').value = ''; document.getElementById('cigar-name').value = ''; document.getElementById('cigar-size').value = ''; document.getElementById('cigar-origin').value = ''; document.getElementById('cigar-review').value = ''; currentImageKeys = []; selectedFlavors = []; renderFlavorButtons(); renderImagePreviews(); if (isEditMode) { isEditMode = false; editRatingId = null; const actionButton = document.getElementById('main-action-button'); actionButton.textContent = "查看报告"; actionButton.classList.remove('bg-blue-600', 'hover:bg-blue-700'); actionButton.classList.add('bg-green-600', 'hover:bg-green-700'); window.history.replaceState({}, document.title, window.location.pathname); } renderRatingView(); updateCharCounts(); } }
+         window.showResults = async function() { const token = sessionStorage.getItem('accessToken'); if (!isEditMode && (!currentAuthUser || !token)) { return alert("请登录后才能提交点评。"); } if (!ratingConfig || Object.keys(userRatings).length === 0) { return alert("请至少选择一个评分项后再操作。"); } const title = document.getElementById('rating-title').value.trim(); if (!title) { return alert("请填写点评标题。"); } if (currentImageKeys.length === 0) { return alert("请至少上传一张图片。"); } const cigarNameValue = document.getElementById('cigar-name').value.trim(); if (!cigarNameValue) { return alert("请填写雪茄名称。"); } const cigarInfo = { name: cigarNameValue, size: document.getElementById('cigar-size').value || '未知尺寸', origin: document.getElementById('cigar-origin').value || '未知产地' }; const cigarReview = document.getElementById('cigar-review').value || '无'; const finalScore = calculateFinalScore(); const maxScore = ratingConfig.totalWeightMax || 1; const normalizedScore = maxScore > 0 ? (finalScore / maxScore) * 100 : 0; const foundGrade = GRADING_SCALE.find(g => normalizedScore >= g.min_score); const finalGrade = foundGrade ? { grade: foundGrade.grade, name_cn: foundGrade.name_cn, name_en: foundGrade.name_en } : GRADING_SCALE[GRADING_SCALE.length - 1]; const resultsData = { title: title, config: ratingConfig, ratings: userRatings, calculatedScore: finalScore, cigarInfo: cigarInfo, cigarReview: cigarReview, imageUrls: currentImageKeys, normalizedScore: normalizedScore, finalGrade: finalGrade, selectedFlavors: selectedFlavors, isDraft: !isEditMode }; console.log("Data being prepared for results/save:", resultsData); if (isEditMode && editRatingId) { const actionButton = document.getElementById('main-action-button'); actionButton.textContent = "正在保存..."; actionButton.disabled = true; try { if (!token) throw new Error("会话已过期，请重新登录。"); resultsData.ratingId = editRatingId; const apiUrl = new URL(`/api/ratings`, window.location.origin); const response = await fetch(apiUrl, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify(resultsData) }); if (!response.ok) { const err = await response.json(); throw new Error(err.error || '更新失败'); } alert("更改已保存！"); window.location.href = 'history.html'; } catch (e) { alert(`保存失败: ${e.message}`); actionButton.textContent = "保存更改"; actionButton.disabled = false; } } else { try { sessionStorage.setItem('cigarRatingResults', JSON.stringify(resultsData)); window.location.href = 'results.html'; } catch (e) { alert("无法保存会话数据 (sessionStorage)。"); } } }
 
         // --- Edit Mode Logic ---
-        async function loadRatingForEdit(ratingId) {
-            console.log(`[loadRatingForEdit] Started for ID: ${ratingId}`);
-            const token = sessionStorage.getItem('accessToken');
-            if (!token) { alert("无法验证身份，请重新登录。"); window.location.href = 'history.html'; return; }
-            document.getElementById('config-load-status').textContent = `正在加载点评 ${ratingId}...`;
-            try {
-                const apiUrl = new URL(`/api/ratings?id=${ratingId}`, window.location.origin);
-                const response = await fetch(apiUrl, { headers: { 'Authorization': `Bearer ${token}` } });
-                if (!response.ok) { let errorText = `加载点评失败: ${response.status}`; try { const err = await response.json(); errorText = err.error || errorText; } catch(e){} throw new Error(errorText); }
+         /* ... (loadRatingForEdit remains the same) ... */
+         async function loadRatingForEdit(ratingId) { console.log(`[loadRatingForEdit] Started for ID: ${ratingId}`); const token = sessionStorage.getItem('accessToken'); if (!token) { alert("无法验证身份，请重新登录。"); window.location.href = 'history.html'; return; } document.getElementById('config-load-status').textContent = `正在加载点评 ${ratingId}...`; try { const apiUrl = new URL(`/api/ratings?id=${ratingId}`, window.location.origin); const response = await fetch(apiUrl, { headers: { 'Authorization': `Bearer ${token}` } }); if (!response.ok) { let errorText = `加载点评失败: ${response.status}`; try { const err = await response.json(); errorText = err.error || errorText; } catch(e){} throw new Error(errorText); } const ratingData = await response.json(); console.log("[loadRatingForEdit] Received ratingData:", ratingData); if (!ratingData) { throw new Error(`点评 ${ratingId} 未找到或无权访问。`); } if (!ratingData.fullData || !ratingData.fullData.ratings) { throw new Error("加载的点评数据不完整(缺少fullData.ratings)，无法编辑。"); } if (!ratingConfig) { await loadConfig(); if(!ratingConfig) throw new Error("无法加载评分配置，无法编辑。"); } document.getElementById('rating-title').value = ratingData.title || ''; document.getElementById('cigar-name').value = ratingData.cigarInfo?.name || ratingData.cigarName || ''; document.getElementById('cigar-size').value = ratingData.cigarInfo?.size || ratingData.cigarSize || ''; document.getElementById('cigar-origin').value = ratingData.cigarInfo?.origin || ratingData.cigarOrigin || ''; document.getElementById('cigar-review').value = ratingData.cigarReview || ''; userRatings = ratingData.fullData.ratings || {}; currentImageKeys = Array.isArray(ratingData.imageUrl) ? ratingData.imageUrl : []; selectedFlavors = Array.isArray(ratingData.fullData.selectedFlavors) ? ratingData.fullData.selectedFlavors : []; renderFlavorButtons(); renderImagePreviews(); isEditMode = true; editRatingId = ratingId; const actionButton = document.getElementById('main-action-button'); actionButton.textContent = "保存更改"; actionButton.classList.remove('bg-green-600', 'hover:bg-green-700'); actionButton.classList.add('bg-blue-600', 'hover:bg-blue-700'); renderRatingView(); document.getElementById('config-load-status').textContent = `已加载点评 ${ratingId} (编辑模式)`; updateCharCounts(); console.log("[loadRatingForEdit] Completed successfully."); } catch (e) { console.error(`[loadRatingForEdit] Error loading rating ${ratingId}:`, e); alert(`加载点评失败: ${e.message}`); window.location.href = 'history.html'; } }
 
-                const ratingData = await response.json();
-                console.log("[loadRatingForEdit] Received ratingData:", ratingData);
-
-                if (!ratingData) { throw new Error(`点评 ${ratingId} 未找到或无权访问。`); }
-                if (!ratingData.fullData || !ratingData.fullData.ratings) { throw new Error("加载的点评数据不完整(缺少fullData.ratings)，无法编辑。"); }
-                if (!ratingConfig) { await loadConfig(); if(!ratingConfig) throw new Error("无法加载评分配置，无法编辑。"); }
-
-                // Populate standard fields
-                document.getElementById('rating-title').value = ratingData.title || '';
-                document.getElementById('cigar-name').value = ratingData.cigarInfo?.name || ratingData.cigarName || '';
-                document.getElementById('cigar-size').value = ratingData.cigarInfo?.size || ratingData.cigarSize || '';
-                document.getElementById('cigar-origin').value = ratingData.cigarInfo?.origin || ratingData.cigarOrigin || '';
-                document.getElementById('cigar-review').value = ratingData.cigarReview || '';
-                userRatings = ratingData.fullData.ratings || {};
-                currentImageKeys = Array.isArray(ratingData.imageUrl) ? ratingData.imageUrl : [];
-
-                // Populate selected flavors
-                selectedFlavors = Array.isArray(ratingData.fullData.selectedFlavors) ? ratingData.fullData.selectedFlavors : [];
-                renderFlavorButtons(); // Render flavor buttons based on loaded data
-
-                renderImagePreviews(); // Render images
-
-                isEditMode = true; editRatingId = ratingId;
-                const actionButton = document.getElementById('main-action-button');
-                actionButton.textContent = "保存更改";
-                actionButton.classList.remove('bg-green-600', 'hover:bg-green-700'); actionButton.classList.add('bg-blue-600', 'hover:bg-blue-700');
-
-                renderRatingView(); // Render rating selections
-                document.getElementById('config-load-status').textContent = `已加载点评 ${ratingId} (编辑模式)`;
-                updateCharCounts();
-                console.log("[loadRatingForEdit] Completed successfully.");
-
-            } catch (e) {
-                console.error(`[loadRatingForEdit] Error loading rating ${ratingId}:`, e);
-                alert(`加载点评失败: ${e.message}`);
-                window.location.href = 'history.html';
-            }
-        }
-        // --- End Edit Mode ---
-
-        // Character Counters
-        function updateCharCounts() {
-             /* ... (updateCharCounts remains the same) ... */
-             const titleInput = document.getElementById('rating-title'); const reviewInput = document.getElementById('cigar-review'); const titleCount = document.getElementById('title-char-count'); const reviewCount = document.getElementById('review-char-count'); if(titleInput && titleCount) titleCount.textContent = `${titleInput.value.length} / 22`; if(reviewInput && reviewCount) reviewCount.textContent = `${reviewInput.value.length} / 1500`;
-        }
+        // --- Character Counters ---
+         /* ... (updateCharCounts remains the same) ... */
+         function updateCharCounts() { const titleInput = document.getElementById('rating-title'); const reviewInput = document.getElementById('cigar-review'); const titleCount = document.getElementById('title-char-count'); const reviewCount = document.getElementById('review-char-count'); if(titleInput && titleCount) titleCount.textContent = `${titleInput.value.length} / 22`; if(reviewInput && reviewCount) reviewCount.textContent = `${reviewInput.value.length} / 1500`; }
 
         // --- Initialization ---
         window.onload = async function() {
             const urlParams = new URLSearchParams(window.location.search);
             const code = urlParams.get('code');
             const editId = urlParams.get('edit');
+            const mainContent = document.getElementById('main-content'); // Get main content area
+            const loginPrompt = document.getElementById('login-prompt'); // Get login prompt area
             let user = null;
 
             if (code) { user = await handleOidcCallback(code); }
             else { user = await validateSessionAndGetUser(); }
             setUser(user);
             console.log("Current User Object:", currentAuthUser);
-            
+
+            // **NEW**: Check login status
+            if (!currentAuthUser) {
+                mainContent.style.display = 'none'; // Hide the form
+                loginPrompt.classList.remove('hidden'); // Show the login prompt
+                document.getElementById('config-load-status').textContent = '请先登录'; // Update status text
+                // Stop further execution if not logged in
+                return;
+            } else {
+                 mainContent.style.display = 'block'; // Ensure form is visible if logged in
+                 loginPrompt.classList.add('hidden'); // Hide the prompt
+            }
+
+            // --- Proceed only if logged in ---
             await loadConfig(); // Load config first
-            
-            // Render flavor buttons AFTER config load
-            renderFlavorButtons();
+            renderFlavorButtons(); // Render flavor buttons AFTER config load
 
             if (editId) { await loadRatingForEdit(editId); } // Loads ratings, images, AND flavors
             else { renderImagePreviews(); updateCharCounts(); } // Normal load
@@ -407,7 +290,7 @@
             // Add event listeners
             document.getElementById('rating-title')?.addEventListener('input', updateCharCounts);
             document.getElementById('cigar-review')?.addEventListener('input', updateCharCounts);
-            
+
             if (editId || code) { window.history.replaceState({}, document.title, window.location.pathname); }
         };
     </script>
