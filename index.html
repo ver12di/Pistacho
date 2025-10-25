@@ -31,11 +31,18 @@
             transform: translateY(-2px);
             box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
         }
-        /* Adjusted nav link padding for better mobile fit */
-        .nav-link { @apply px-2 py-1 sm:px-3 sm:py-2 rounded-md text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-indigo-600 transition-colors; }
-        .nav-link-active { @apply px-2 py-1 sm:px-3 sm:py-2 rounded-md text-sm font-medium text-indigo-600 bg-indigo-50 font-semibold; }
-        /* Reduced overall container padding on mobile */
-        .main-container { padding-left: 0.5rem; padding-right: 0.5rem; padding-top: 1rem; padding-bottom: 2rem; margin-left: auto; margin-right: auto; }
+        /* **MODIFIED**: Added responsive styles for nav links */
+        .nav-link { @apply px-2 py-1 sm:px-3 sm:py-2 rounded-md text-xs sm:text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-indigo-600 transition-colors; }
+        .nav-link-active { @apply px-2 py-1 sm:px-3 sm:py-2 rounded-md text-xs sm:text-sm font-medium text-indigo-600 bg-indigo-50 font-semibold; }
+        .main-container {
+             /* **MODIFIED**: Smaller padding on mobile */
+             padding-left: 0.5rem; /* ~8px */
+             padding-right: 0.5rem;
+             padding-top: 1rem;
+             padding-bottom: 2rem;
+             margin-left: auto;
+             margin-right: auto;
+         }
         @media (min-width: 768px) { .main-container { padding-left: 2rem; padding-right: 2rem; padding-bottom: 2rem; } }
 
         .line-clamp-2 {
@@ -55,10 +62,12 @@
 </head>
 <body class="bg-gray-100 font-sans">
     <div class="main-container">
-        <!-- Navbar: Adjusted logo size, button padding, link spacing -->
-        <nav class="mb-6 flex flex-wrap justify-between items-center bg-white p-2 sm:p-3 rounded-lg shadow-sm gap-2 sm:gap-4 max-w-7xl mx-auto">
-             <a href="index.html" class="text-lg sm:text-xl font-bold text-indigo-600 whitespace-nowrap">Pistacho评分</a>
-             <div class="flex items-center space-x-1 sm:space-x-1 flex-grow justify-center md:justify-start md:flex-grow-0 order-3 md:order-2 w-full md:w-auto mt-2 md:mt-0">
+        <!-- Navbar -->
+        <nav class="mb-6 flex flex-wrap justify-between items-center bg-white p-3 rounded-lg shadow-sm gap-2 sm:gap-4 max-w-7xl mx-auto">
+             <!-- **MODIFIED**: Smaller logo text on mobile -->
+             <a href="index.html" class="text-base sm:text-lg font-bold text-indigo-600 whitespace-nowrap">Pistacho雪茄评分</a>
+             <!-- **MODIFIED**: Adjusted spacing and button size -->
+             <div class="flex items-center space-x-1 sm:space-x-1 flex-grow justify-center md:justify-start md:flex-grow-0 order-3 md:order-2 w-full md:w-auto">
                  <a href="index.html" class="nav-link-active">社区动态</a>
                  <a href="rate.html" class="py-1 px-3 sm:py-2 sm:px-4 bg-green-500 text-white text-xs sm:text-sm font-semibold rounded-lg hover:bg-green-600 transition mx-1 sm:mx-2">去评分</a>
                  <a href="history.html" class="nav-link">我的点评历史</a>
@@ -67,16 +76,16 @@
              <div id="login-status-container" class="flex items-center order-2 md:order-3"></div>
         </nav>
 
-        <!-- Header: Removed header text -->
+        <!-- Header Removed -->
         <!--
         <header class="mb-6 max-w-7xl mx-auto">
-            <h1 class="text-3xl sm:text-4xl font-extrabold text-gray-800 text-center">社区动态</h1>
-            <p class="mt-1 sm:mt-2 text-base sm:text-lg text-gray-600 text-center">发现大家的精彩点评</p>
+            <h1 class="text-4xl font-extrabold text-gray-800 text-center">社区动态</h1>
+            <p class="mt-2 text-lg text-gray-600 text-center">发现大家的精彩点评</p>
         </header>
         -->
 
-        <!-- Search and Sort Controls: Added max-width -->
-        <div class="mb-6 bg-white p-3 sm:p-4 rounded-lg shadow-sm flex flex-col md:flex-row gap-3 sm:gap-4 items-center max-w-7xl mx-auto">
+        <!-- Search and Sort Controls -->
+        <div class="mb-6 bg-white p-4 rounded-lg shadow-sm flex flex-col md:flex-row gap-4 items-center max-w-7xl mx-auto">
             <input type="text" id="search-input" placeholder="搜索雪茄名称, 产地, 尺寸, 点评, 用户..." class="flex-grow p-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 w-full">
             <select id="sort-select" class="p-2 border border-gray-300 rounded-md w-full md:w-auto">
                 <option value="latest">最新发布</option>
@@ -86,8 +95,9 @@
             <button onclick="applyFilters()" class="py-2 px-5 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition w-full md:w-auto">应用</button>
         </div>
 
-        <!-- Ratings Grid: Reduced gap on mobile -->
-        <div id="ratings-grid" class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4 lg:gap-6">
+        <!-- Ratings Grid -->
+        <!-- **MODIFIED**: Smaller gap on mobile -->
+        <div id="ratings-grid" class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 sm:gap-4 md:gap-6">
             <p id="loading-message" class="col-span-full text-center text-gray-500 py-10">正在加载点评...</p>
         </div>
 
@@ -101,27 +111,18 @@
         let displayedRatings = [];
         let currentAuthUser = null;
 
-        // 调试函数，用于处理徽章加载失败
+        // Debug function for badge loading errors
         window.handleStampError = function(imgElement) {
             console.error('[Debug] 认证徽章加载失败。尝试的路径:', imgElement.src);
-            // 隐藏损坏的图片图标
-            imgElement.style.display = 'none';
-
-            // 添加一个备用的文字徽章
+            imgElement.style.display = 'none'; // Hide broken icon
+            // Optionally add a fallback text badge
             try {
                 const fallback = document.createElement('span');
                 fallback.className = 'absolute top-1 left-1 bg-yellow-500 text-white text-xs font-bold px-2 py-1 rounded-full z-10';
                 fallback.textContent = '认证';
-                if (imgElement.parentNode) {
-                    imgElement.parentNode.appendChild(fallback);
-                } else {
-                    console.error('[Debug] 无法找到父节点来添加备用徽章。');
-                }
-            } catch (e) {
-                console.error('[Debug] 创建备用徽章时出错:', e);
-            }
+                if (imgElement.parentNode) { imgElement.parentNode.appendChild(fallback); }
+            } catch (e) { console.error('[Debug] 创建备用徽章时出错:', e); }
         }
-
 
         const ratingsGrid = document.getElementById('ratings-grid');
         const loadingMessage = document.getElementById('loading-message');
@@ -131,57 +132,40 @@
         const AUTHING_APP_ID = '68f5b0b6875017c02b3bfdb3';
         const AUTHING_HOST = 'https://xfvu647mcdbk-demo.authing.cn';
 
-        const GRADING_SCALE = [
-          { "grade": "P", "name_en": "Pinnacle", "name_cn": "顶峰 / 登峰造极", "min_score": 95, "color": "gold" },
-          { "grade": "I", "name_en": "Impeccable", "name_cn": "无暇 / 完美无瑕", "min_score": 90, "color": "indigo" },
-          { "grade": "S", "name_en": "Superior", "name_cn": "卓越 / 出众", "min_score": 80, "color": "purple" },
-          { "grade": "T", "name_en": "Terrific", "name_cn": "极好 / 绝佳", "min_score": 70, "color": "blue" },
-          { "grade": "A", "name_en": "Appreciable", "name_cn": "可圈可点 / 值得欣赏", "min_score": 60, "color": "green" },
-          { "grade": "C", "name_en": "Commonplace", "name_cn": "平庸 / 普通", "min_score": 50, "color": "gray" },
-          { "grade": "H", "name_en": "Hesitant", "name_cn": "犹豫 / 瑕瑜互见", "min_score": 30, "color": "orange" },
-          { "grade": "O", "name_en": "Objectionable", "name_cn": "令人反感 / 极差", "min_score": 0, "color": "red" }
-        ];
+        const GRADING_SCALE = [ /* ... (grading scale remains the same) ... */ { "grade": "P", "name_en": "Pinnacle", "name_cn": "顶峰 / 登峰造极", "min_score": 95, "color": "gold" }, { "grade": "I", "name_en": "Impeccable", "name_cn": "无暇 / 完美无瑕", "min_score": 90, "color": "indigo" }, { "grade": "S", "name_en": "Superior", "name_cn": "卓越 / 出众", "min_score": 80, "color": "purple" }, { "grade": "T", "name_en": "Terrific", "name_cn": "极好 / 绝佳", "min_score": 70, "color": "blue" }, { "grade": "A", "name_en": "Appreciable", "name_cn": "可圈可点 / 值得欣赏", "min_score": 60, "color": "green" }, { "grade": "C", "name_en": "Commonplace", "name_cn": "平庸 / 普通", "min_score": 50, "color": "gray" }, { "grade": "H", "name_en": "Hesitant", "name_cn": "犹豫 / 瑕瑜互见", "min_score": 30, "color": "orange" }, { "grade": "O", "name_en": "Objectionable", "name_cn": "令人反感 / 极差", "min_score": 0, "color": "red" } ];
 
 
         // --- Authentication ---
+         /* ... (Authentication functions remain the same) ... */
          window.login = function() { const redirectUri = window.location.origin; const authorizeUrl = new URL('/oidc/auth', AUTHING_HOST); authorizeUrl.search = new URLSearchParams({ client_id: AUTHING_APP_ID, redirect_uri: redirectUri, response_type: 'code', scope: 'openid profile email phone', state: Math.random().toString(36).substring(2) }).toString(); window.location.href = authorizeUrl.toString(); }
          window.logout = function() { const logoutUrl = new URL('/oidc/session/end', AUTHING_HOST); logoutUrl.search = new URLSearchParams({ post_logout_redirect_uri: window.location.origin }).toString(); sessionStorage.removeItem('userInfo'); sessionStorage.removeItem('accessToken'); window.location.href = logoutUrl.toString(); }
-         function renderLoginStatus(user) { const container = document.getElementById('login-status-container'); if (!container) return; if (user) { const displayName = user.nickname || user.name || user.preferred_username || user.email || '已登录'; container.innerHTML = `<span class="text-xs sm:text-sm font-medium text-gray-700 mr-1 sm:mr-2 hidden sm:inline">${displayName}</span><button onclick="logout()" class="px-2 py-0.5 sm:px-3 sm:py-1 text-xs font-medium rounded-full bg-red-500 text-white hover:bg-red-600">退出</button>`; } else { container.innerHTML = `<button onclick="login()" class="px-2 py-0.5 sm:px-3 sm:py-1 text-xs font-medium rounded-full bg-green-500 text-white hover:bg-green-600">登录/注册</button>`; } }
+         function renderLoginStatus(user) { const container = document.getElementById('login-status-container'); if (!container) return; if (user) { const displayName = user.nickname || user.name || user.preferred_username || user.email || '已登录'; container.innerHTML = `<span class="text-sm font-medium text-gray-700 mr-2 hidden sm:inline">${displayName}</span><button onclick="logout()" class="px-3 py-1 text-xs font-medium rounded-full bg-red-500 text-white hover:bg-red-600">退出</button>`; } else { container.innerHTML = `<button onclick="login()" class="px-3 py-1 text-xs font-medium rounded-full bg-green-500 text-white hover:bg-green-600">登录/注册</button>`; } }
          async function handleOidcCallback(code) { try { const redirectUri = window.location.origin; const apiUrl = new URL('/api/authing/callback', window.location.origin); const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: code, redirect_uri: redirectUri }) }); if (!response.ok) { const err = await response.json(); throw new Error(err.error || '认证回调失败'); } const fullUserProfile = await response.json(); sessionStorage.setItem('userInfo', JSON.stringify(fullUserProfile)); sessionStorage.setItem('accessToken', fullUserProfile.accessToken); return fullUserProfile; } catch (e) { console.error('认证回调处理失败:', e); alert(`登录失败: ${e.message}`); sessionStorage.removeItem('userInfo'); sessionStorage.removeItem('accessToken'); return null; } finally { window.history.replaceState({}, document.title, window.location.pathname); } }
          async function validateSessionAndGetUser() { const token = sessionStorage.getItem('accessToken'); if (!token) return null; try { const apiUrl = new URL('/api/me', window.location.origin); const response = await fetch(apiUrl, { headers: { 'Authorization': `Bearer ${token}` } }); if (!response.ok) { sessionStorage.removeItem('userInfo'); sessionStorage.removeItem('accessToken'); return null; } const fullUserProfile = await response.json(); sessionStorage.setItem('userInfo', JSON.stringify(fullUserProfile)); return fullUserProfile; } catch (e) { console.error("Session validation failed:", e); return null; } }
-        // --- End Auth ---
+
 
         // --- Data Fetching ---
         async function fetchRatings() {
-            loadingMessage.textContent = '正在加载点评...'; loadingMessage.style.display = 'block'; ratingsGrid.innerHTML = '';
-            try {
-                const apiUrl = new URL('/api/ratings', window.location.origin); const response = await fetch(apiUrl);
-                if (!response.ok) { let errorText = `加载失败: ${response.status}`; try { const err = await response.json(); errorText = err.error || errorText; } catch (e) {} throw new Error(errorText); }
-                allRatings = await response.json(); displayedRatings = [...allRatings]; applyFilters();
-            } catch (error) { console.error("加载点评失败:", error); loadingMessage.textContent = `加载点评失败: ${error.message}`; loadingMessage.style.color = 'red'; }
+            /* ... (fetchRatings remains the same) ... */
+             loadingMessage.textContent = '正在加载点评...'; loadingMessage.style.display = 'block'; ratingsGrid.innerHTML = ''; try { const apiUrl = new URL('/api/ratings', window.location.origin); const response = await fetch(apiUrl); if (!response.ok) { let errorText = `加载失败: ${response.status}`; try { const err = await response.json(); errorText = err.error || errorText; } catch (e) {} throw new Error(errorText); } allRatings = await response.json(); displayedRatings = [...allRatings]; applyFilters(); } catch (error) { console.error("加载点评失败:", error); loadingMessage.textContent = `加载点评失败: ${error.message}`; loadingMessage.style.color = 'red'; }
         }
 
         // --- Filtering and Sorting ---
         window.applyFilters = function() {
-            const searchTerm = searchInput.value.toLowerCase().trim(); const sortBy = sortSelect.value;
-            let filtered = allRatings.filter(rating => { const nameMatch = rating.cigarInfo?.name?.toLowerCase().includes(searchTerm); const originMatch = rating.cigarInfo?.origin?.toLowerCase().includes(searchTerm); const sizeMatch = rating.cigarInfo?.size?.toLowerCase().includes(searchTerm); const reviewMatch = rating.cigarReview?.toLowerCase().includes(searchTerm); const authorMatch = rating.userNickname?.toLowerCase().includes(searchTerm); return nameMatch || originMatch || sizeMatch || reviewMatch || authorMatch; });
-            if (sortBy === 'highest') { filtered.sort((a, b) => (b.normalizedScore ?? 0) - (a.normalizedScore ?? 0)); }
-            else if (sortBy === 'lowest') { filtered.sort((a, b) => (a.normalizedScore ?? 0) - (b.normalizedScore ?? 0)); }
-            else { filtered.sort((a, b) => (b.isPinned - a.isPinned) || (new Date(b.timestamp) - new Date(a.timestamp)));}
-            displayedRatings = filtered; renderGrid();
+            /* ... (applyFilters remains the same) ... */
+             const searchTerm = searchInput.value.toLowerCase().trim(); const sortBy = sortSelect.value; let filtered = allRatings.filter(rating => { const nameMatch = rating.cigarInfo?.name?.toLowerCase().includes(searchTerm); const originMatch = rating.cigarInfo?.origin?.toLowerCase().includes(searchTerm); const sizeMatch = rating.cigarInfo?.size?.toLowerCase().includes(searchTerm); const reviewMatch = rating.cigarReview?.toLowerCase().includes(searchTerm); const authorMatch = rating.userNickname?.toLowerCase().includes(searchTerm); return nameMatch || originMatch || sizeMatch || reviewMatch || authorMatch; }); if (sortBy === 'highest') { filtered.sort((a, b) => (b.normalizedScore ?? 0) - (a.normalizedScore ?? 0)); } else if (sortBy === 'lowest') { filtered.sort((a, b) => (a.normalizedScore ?? 0) - (b.normalizedScore ?? 0)); } else { filtered.sort((a, b) => (b.isPinned - a.isPinned) || (new Date(b.timestamp) - new Date(a.timestamp)));} displayedRatings = filtered; renderGrid();
         }
 
         // --- Rendering ---
         function renderGrid() {
-            ratingsGrid.innerHTML = ''; if (displayedRatings.length === 0) { loadingMessage.textContent = '没有找到匹配的点评。'; loadingMessage.style.display = 'block'; return; }
-            loadingMessage.style.display = 'none';
-            displayedRatings.forEach(rating => { const card = createRatingCard(rating); ratingsGrid.appendChild(card); });
+            /* ... (renderGrid remains the same) ... */
+             ratingsGrid.innerHTML = ''; if (displayedRatings.length === 0) { loadingMessage.textContent = '没有找到匹配的点评。'; loadingMessage.style.display = 'block'; return; } loadingMessage.style.display = 'none'; displayedRatings.forEach(rating => { const card = createRatingCard(rating); ratingsGrid.appendChild(card); });
         }
 
         function createRatingCard(rating) {
             const div = document.createElement('div');
             div.className = 'rating-card bg-white rounded-lg shadow-md overflow-hidden transition-all duration-300 cursor-pointer flex flex-col';
-            div.onclick = () => viewRatingDetails(rating);
+            div.onclick = () => viewRatingDetails(rating); // Make card clickable
             const score = rating.normalizedScore !== undefined ? rating.normalizedScore.toFixed(2) : 'N/A';
             const author = rating.userNickname || rating.userEmail || '匿名';
 
@@ -193,13 +177,12 @@
             }
 
             const isCertified = rating.isCertified;
-            const cacheBuster = `?v=${new Date().getTime()}`; // 强制浏览器重新加载
+            const cacheBuster = `?v=${new Date().getTime()}`;
 
             div.innerHTML = `
                 <div class="aspect-[1179/1572] w-full overflow-hidden flex-shrink-0 relative">
                     ${isCertified
-                        // Adjusted stamp size for mobile
-                        ? `<img src="/Certifiedstamp.png${cacheBuster}" alt="Certified" class="absolute top-1 left-1 w-16 h-16 sm:w-24 sm:h-24 md:w-32 md:h-32 z-10" title="Pistacho 认证评分" onerror="handleStampError(this)">`
+                        ? `<img src="/Certifiedstamp.png${cacheBuster}" alt="Certified" class="absolute top-1 left-1 w-24 h-24 md:w-32 md:h-32 z-10" title="Pistacho 认证评分" onerror="handleStampError(this)">`
                         : ''
                     }
                     ${coverImageUrl
@@ -207,21 +190,24 @@
                         : '<div class="w-full h-full bg-gray-200 flex items-center justify-center text-gray-400 text-sm">无图</div>'
                     }
                 </div>
-                <!-- Reduced padding in text area on mobile -->
+                <!-- **MODIFIED**: Adjusted padding -->
                 <div class="p-1 sm:p-1.5 flex-grow flex flex-col justify-between">
-                     <!-- Display rating title -->
-                     <h3 class="font-semibold text-xs leading-tight line-clamp-2 mb-0.5" title="${rating.title || ''}">
-                        ${rating.title || '（无标题）'}
-                    </h3>
-                    <!-- Display cigar name (smaller) -->
-                    <p class="text-2xs text-gray-600 line-clamp-1 mb-0.5" title="${rating.cigarInfo?.name || ''}">
-                        ${rating.cigarInfo?.name || '未命名雪茄'}
-                    </p>
+                    <div>
+                         <!-- Rating Title -->
+                         <h3 class="font-semibold text-xs leading-tight line-clamp-1 mb-0.5" title="${rating.title || ''}">
+                             ${rating.title || '无标题点评'}
+                         </h3>
+                         <!-- Cigar Name (Smaller) -->
+                         <p class="text-2xs text-gray-600 line-clamp-1 mb-0.5" title="${rating.cigarInfo?.name || ''}">
+                              ${rating.cigarInfo?.name || '未命名雪茄'}
+                         </p>
+                    </div>
                     <div class="flex justify-between items-end mt-auto pt-0.5">
-                         <!-- Display author (smaller) -->
+                         <!-- Author (Smallest) -->
                          <span class="text-2xs text-gray-500 line-clamp-1 flex items-center" title="${author}">
                               ${author}
                          </span>
+                         <!-- Score -->
                          <div class="text-right flex-shrink-0">
                             <p class="font-bold text-indigo-600 text-sm leading-none">${score}</p>
                         </div>
@@ -231,74 +217,96 @@
             return div;
         }
 
-        // --- Navigation ---
+        // --- Navigation (View Details) ---
+        /**
+         * **MODIFIED**: Ensures selectedFlavors is included when navigating to results.
+         */
         window.viewRatingDetails = function(ratingData) {
-            let detailedData = {};
-
-            const cigarInfo = ratingData.cigarInfo || { name: ratingData.cigarName, size: ratingData.cigarSize, origin: ratingData.cigarOrigin };
-            const foundGrade = GRADING_SCALE.find(g => ratingData.normalizedScore >= g.min_score) || GRADING_SCALE[GRADING_SCALE.length - 1];
-            const finalGrade = foundGrade ? { grade: foundGrade.grade, name_cn: foundGrade.name_cn, name_en: foundGrade.name_en, color: foundGrade.color } : null;
-
-            if (!ratingData || ratingData.normalizedScore === undefined || !finalGrade || !cigarInfo || !ratingData.title) {
-                console.error("viewRatingDetails: Essential data missing or couldn't be constructed!", {ratingData, finalGrade, cigarInfo});
-                alert("无法加载详情：缺少基本评分信息 (标题, 分数, 评级, 雪茄信息)。");
-                return;
+            // Find the full rating data from the allRatings cache using ratingData.id if needed
+            // This assumes ratingData passed to the function might be incomplete (e.g., just the card data)
+            // Let's assume ratingData is the full object from allRatings for simplicity now
+            let fullRatingData = ratingData;
+            // If ratingData is just an ID, find the object
+            if (typeof ratingData === 'string') {
+                 fullRatingData = allRatings.find(r => r.id === ratingData);
+                 if (!fullRatingData) {
+                     alert("无法加载详情：未找到对应的评分数据。");
+                     return;
+                 }
             }
 
-            let imageUrls = ratingData.imageUrl;
-            if (typeof imageUrls === 'string') { try { imageUrls = JSON.parse(imageUrls); if (!Array.isArray(imageUrls)) imageUrls = [ratingData.imageUrl]; } catch(e){ imageUrls = imageUrls ? [imageUrls] : []; } }
+
+            let detailedData = {};
+
+            // Reconstruct essential objects
+            const cigarInfo = fullRatingData.cigarInfo || { name: fullRatingData.cigarName, size: fullRatingData.cigarSize, origin: fullRatingData.cigarOrigin };
+            const foundGrade = GRADING_SCALE.find(g => fullRatingData.normalizedScore >= g.min_score) || GRADING_SCALE[GRADING_SCALE.length - 1];
+            const finalGrade = foundGrade ? { grade: foundGrade.grade, name_cn: foundGrade.name_cn, name_en: foundGrade.name_en, color: foundGrade.color } : null;
+
+            // Ensure imageUrls is an array
+            let imageUrls = fullRatingData.imageUrl;
+            if (typeof imageUrls === 'string') { try { imageUrls = JSON.parse(imageUrls); if (!Array.isArray(imageUrls)) imageUrls = [fullRatingData.imageUrl]; } catch(e){ imageUrls = imageUrls ? [imageUrls] : []; } }
             else if (!Array.isArray(imageUrls)) { imageUrls = imageUrls ? [imageUrls] : []; }
 
-            const hasCompleteFullData = ratingData.fullData && ratingData.fullData.config && ratingData.fullData.ratings && ratingData.fullData.calculatedScore !== undefined;
+            // **NEW**: Ensure selectedFlavors is an array (might be missing in older data)
+            const selectedFlavors = Array.isArray(fullRatingData.fullData?.selectedFlavors) ? fullRatingData.fullData.selectedFlavors : [];
 
-            if (hasCompleteFullData) {
+
+            // Check if fullData exists for detailed view components
+            const hasCompleteFullData = fullRatingData.fullData && fullRatingData.fullData.config && fullRatingData.fullData.ratings && fullRatingData.fullData.calculatedScore !== undefined;
+
+            if (hasCompleteFullData && finalGrade) {
                  detailedData = {
-                     config: ratingData.fullData.config,
-                     ratings: ratingData.fullData.ratings,
-                     calculatedScore: ratingData.fullData.calculatedScore,
-                     title: ratingData.title,
+                     config: fullRatingData.fullData.config,
+                     ratings: fullRatingData.fullData.ratings,
+                     calculatedScore: fullRatingData.fullData.calculatedScore,
+                     title: fullRatingData.title || '无标题点评',
                      cigarInfo: cigarInfo,
-                     cigarReview: ratingData.cigarReview,
+                     cigarReview: fullRatingData.cigarReview || '无',
                      imageUrls: imageUrls,
-                     normalizedScore: ratingData.normalizedScore,
+                     normalizedScore: fullRatingData.normalizedScore,
                      finalGrade: finalGrade,
-                     timestamp: ratingData.timestamp,
-                     userNickname: ratingData.userNickname,
-                     userEmail: ratingData.userEmail,
-                     isDraft: false
+                     selectedFlavors: selectedFlavors, // Include flavors
+                     timestamp: fullRatingData.timestamp,
+                     userNickname: fullRatingData.userNickname,
+                     userEmail: fullRatingData.userEmail,
+                     isDraft: false // Always false when viewing from index
                  };
                  console.log("Sending COMPLETE data to results.html:", detailedData);
             } else {
-                 console.warn(`fullData for rating ${ratingData?.id} is missing or incomplete. Sending only top-level data.`);
+                 // Send only top-level data if fullData is missing
+                 console.warn(`fullData for rating ${fullRatingData?.id} is missing or incomplete. Sending only top-level data.`);
                  detailedData = {
-                     title: ratingData.title,
+                     title: fullRatingData.title || '无标题点评',
                      cigarInfo: cigarInfo,
-                     cigarReview: ratingData.cigarReview,
+                     cigarReview: fullRatingData.cigarReview || '无',
                      imageUrls: imageUrls,
-                     normalizedScore: ratingData.normalizedScore,
+                     normalizedScore: fullRatingData.normalizedScore,
                      finalGrade: finalGrade,
-                     timestamp: ratingData.timestamp,
-                     userNickname: ratingData.userNickname,
-                     userEmail: ratingData.userEmail,
+                     selectedFlavors: selectedFlavors, // Still try to send flavors
+                     timestamp: fullRatingData.timestamp,
+                     userNickname: fullRatingData.userNickname,
+                     userEmail: fullRatingData.userEmail,
                      isDraft: false
                  };
-                 console.log("Sending INCOMPLETE (top-level) data to results.html:", detailedData);
+                 console.log("Sending INCOMPLETE data to results.html:", detailedData);
             }
 
-            try { sessionStorage.setItem('cigarRatingResults', JSON.stringify(detailedData)); window.location.href = `results.html`; }
-            catch (e) { console.error("Error setting sessionStorage:", e); alert("无法保存会话数据以查看详情。"); }
+            // Navigate
+            try {
+                sessionStorage.setItem('cigarRatingResults', JSON.stringify(detailedData));
+                window.location.href = `results.html`;
+            } catch (e) {
+                console.error("Error setting sessionStorage:", e);
+                alert("无法保存会话数据以查看详情。");
+            }
         }
 
 
         // --- Initialization ---
         window.onload = async function() {
-             const urlParams = new URLSearchParams(window.location.search); const code = urlParams.get('code'); let user = null;
-             if (code) { user = await handleOidcCallback(code); } else { user = await validateSessionAndGetUser(); }
-             currentAuthUser = user; renderLoginStatus(currentAuthUser);
-             fetchRatings();
-
-             searchInput.addEventListener('keypress', function (e) { if (e.key === 'Enter') { applyFilters(); } });
-             sortSelect.addEventListener('change', applyFilters);
+             /* ... (Initialization remains the same) ... */
+             const urlParams = new URLSearchParams(window.location.search); const code = urlParams.get('code'); let user = null; if (code) { user = await handleOidcCallback(code); } else { user = await validateSessionAndGetUser(); } currentAuthUser = user; renderLoginStatus(currentAuthUser); fetchRatings(); searchInput.addEventListener('keypress', function (e) { if (e.key === 'Enter') { applyFilters(); } }); sortSelect.addEventListener('change', applyFilters);
         };
     </script>
 </body>
