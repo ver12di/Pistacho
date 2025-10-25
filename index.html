@@ -168,9 +168,16 @@
                  // Should ideally be parsed to array by API, but handle defensively
                  coverImageUrl = rating.imageUrl;
             }
+            
+            // **NEW**: 检查是否被认证
+            const isCertified = rating.isCertified;
 
             div.innerHTML = `
-                <div class="aspect-[1179/1572] w-full overflow-hidden flex-shrink-0">
+                <div class="aspect-[1179/1572] w-full overflow-hidden flex-shrink-0 relative"> <!-- 1. 添加 'relative' -->
+                    ${isCertified
+                        ? `<img src="Gemini_Generated_Image_re2sxlre2sxlre2s.png" alt="Certified" class="absolute top-1 left-1 w-8 h-8 md:w-10 md:h-10 z-10" title="Pistacho 认证评分">` // 2. 添加认证图标
+                        : ''
+                    }
                     ${coverImageUrl
                         ? `<img src="/api/image/${coverImageUrl}" alt="${rating.cigarInfo?.name || '雪茄图片'}" class="w-full h-full object-cover">`
                         : '<div class="w-full h-full bg-gray-200 flex items-center justify-center text-gray-400 text-sm">无图</div>'
