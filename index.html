@@ -199,10 +199,19 @@
                     }
                 </div>
                 <div class="p-1.5 flex-grow flex flex-col justify-between">
-                    <h3 class="font-semibold text-xs leading-tight line-clamp-2 mb-0.5" title="${rating.cigarInfo?.name || ''}">
-                        ${rating.cigarInfo?.name || '未命名雪茄'}
-                    </h3>
+                    <div>
+                        <!-- 第 1 行: 点评标题 -->
+                        <h3 class="font-semibold text-xs leading-tight line-clamp-2 mb-0.5" title="${rating.title || '无标题'}">
+                            ${rating.title || '无标题'}
+                        </h3>
+                        <!-- 第 2 行: 雪茄名称 (字体稍小) -->
+                        <p class="text-2xs text-gray-600 line-clamp-1" title="${rating.cigarInfo?.name || ''}">
+                            ${rating.cigarInfo?.name || '未命名雪茄'}
+                        </p>
+                    </div>
+                    
                     <div class="flex justify-between items-end mt-auto pt-0.5">
+                         <!-- 第 3 行: 用户昵称 (字体稍小) -->
                          <span class="text-2xs text-gray-500 line-clamp-1 flex items-center" title="${author}">
                               ${author}
                          </span>
@@ -287,4 +296,5 @@
     </script>
 </body>
 </html>
+
 
