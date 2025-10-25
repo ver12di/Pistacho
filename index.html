@@ -190,7 +190,7 @@
             div.innerHTML = `
                 <div class="aspect-[1179/1572] w-full overflow-hidden flex-shrink-0 relative"> 
                     ${isCertified
-                        ? `<img src="/Certifiedstamp.png${cacheBuster}" alt="Certified" class="absolute top-1 left-1 w-12 h-12 md:w-16 md:h-16 z-10" title="Pistacho 认证评分" onerror="handleStampError(this)">` // (已修复) 使用 C大写 s小写
+                        ? `<img src="/Certifiedstamp.png${cacheBuster}" alt="Certified" class="absolute top-1 left-1 w-24 h-24 md:w-32 md:h-32 z-10" title="Pistacho 认证评分" onerror="handleStampError(this)">` // (已修复) 尺寸加倍
                         : ''
                     }
                     ${coverImageUrl
