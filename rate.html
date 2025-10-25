@@ -73,16 +73,7 @@
                 <p id="title-char-count" class="text-xs text-gray-500 text-right mt-1">0 / 22</p>
             </section>
 
-            <!-- Review Section -->
-            <section class="mb-8 p-6 bg-white rounded-xl shadow-lg">
-                <h2 class="text-xl font-bold text-gray-800 mb-4">文字评价</h2>
-                <div>
-                    <textarea id="cigar-review" rows="8" maxlength="1500" class="w-full p-3 border rounded-md focus:border-indigo-500 focus:ring-indigo-500" placeholder="在此处输入您的详细品吸感受..."></textarea>
-                    <p id="review-char-count" class="text-xs text-gray-500 text-right mt-1">0 / 1500</p>
-                </div>
-            </section>
-
-            <!-- Image Upload Section (Multiple) -->
+            <!-- **ORDER CHANGED**: Image Upload Section now BEFORE Text Review -->
             <section class="mb-8 p-6 bg-white rounded-xl shadow-lg">
                 <h2 class="text-xl font-bold text-gray-800 mb-4">上传图片 (最多5张) <span class="text-red-500">*</span></h2>
                 <p class="text-sm text-gray-600 mb-3">第一张图片将作为封面图显示。</p>
@@ -96,6 +87,15 @@
                     <input type="file" id="image-upload-input" class="hidden" accept="image/png, image/jpeg, image/webp" multiple onchange="handleFileSelect(event)">
                     <p class="text-sm text-gray-500 mt-2 inline-block md:ml-4">支持 JPG, PNG, WEBP。单张最大 5MB。</p>
                     <p id="image-upload-status" class="text-sm font-medium text-indigo-600 mt-2"></p>
+                </div>
+            </section>
+
+            <!-- **ORDER CHANGED**: Review Section now AFTER Image Upload -->
+            <section class="mb-8 p-6 bg-white rounded-xl shadow-lg">
+                <h2 class="text-xl font-bold text-gray-800 mb-4">文字评价</h2>
+                <div>
+                    <textarea id="cigar-review" rows="8" maxlength="1500" class="w-full p-3 border rounded-md focus:border-indigo-500 focus:ring-indigo-500" placeholder="在此处输入您的详细品吸感受..."></textarea>
+                    <p id="review-char-count" class="text-xs text-gray-500 text-right mt-1">0 / 1500</p>
                 </div>
             </section>
 
@@ -189,7 +189,7 @@
         window.showResults = async function() {
             const token = sessionStorage.getItem('accessToken'); if (!isEditMode && (!currentAuthUser || !token)) { return alert("请登录后才能提交点评。"); } if (!ratingConfig || Object.keys(userRatings).length === 0) { return alert("请至少选择一个评分项后再操作。"); } const title = document.getElementById('rating-title').value.trim(); if (!title) { return alert("请填写点评标题。"); }
             
-            // --- (已添加) 必填项验证 ---
+            // --- 必填项验证 ---
             if (currentImageKeys.length === 0) {
                 return alert("请至少上传一张图片。");
             }
