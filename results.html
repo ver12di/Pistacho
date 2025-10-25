@@ -251,7 +251,12 @@
          function renderScoreSection(container, score, grade) {
              if (!container || !grade) return;
              const styles = getGradeStyles(grade.color);
-             const scoreHtml = ` <div class="text-center md:text-left"> <p class="text-sm font-medium text-gray-500 mb-1">Pistacho 评分</p> <p class="text-7xl font-black ${styles.textColor}">${score.toFixed(2)}</p> <div class="mt-2 inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold ${styles.bgColor} ${styles.textColor} bg-opacity-20"> ${grade.grade} - ${grade.name_cn} </div> <p class="text-xs text-gray-400 mt-1">${grade.name_en}</p> </div> `;
+             const scoreHtml = ` <div class="text-center md:text-left"> 
+                <p class="text-xl font-bold text-yellow-500 mb-1">Pistacho 评分</p> 
+                <p class="text-7xl font-black ${styles.textColor}">${score.toFixed(2)}</p> 
+                <div class="mt-2 text-6xl font-black ${styles.textColor}"> ${grade.name_en} - ${grade.name_cn} </div> 
+                <!-- <p class="text-xs text-gray-400 mt-1">${grade.name_en}</p> --> 
+             </div> `;
              let scaleHtml = '<div class="space-y-1 text-sm">';
              GRADING_SCALE.forEach(g => { const gStyles = getGradeStyles(g.color); const isCurrent = g.grade === grade.grade; scaleHtml += ` <div class="flex items-center p-1 rounded ${isCurrent ? 'bg-gray-100' : ''}"> <div class="w-5 h-5 flex-shrink-0 rounded-full flex items-center justify-center font-bold text-xs ${gStyles.bgColor} ${gStyles.textColor} mr-2">${g.grade}</div> <div class="flex-grow ${isCurrent ? 'font-semibold' : ''} ${gStyles.textColor}">${g.name_cn}</div> <div class="font-mono text-xs text-gray-500 ml-2">${getScoreRange(g.grade)}</div> </div> `; });
              scaleHtml += '</div>';
@@ -261,4 +266,5 @@
     </script>
 </body>
 </html>
+
 
