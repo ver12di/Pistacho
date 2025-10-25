@@ -116,8 +116,34 @@
         // --- Copy Summary Function ---
         window.copySummary = function(event) { /* ... (no changes) ... */ };
 
-        // --- Initialize Swiper ---
-        function initSwipers(imageUrls = []) { /* ... (no changes) ... */ };
+        // --- **FIX**: Restored full initSwipers function from 'results (1).html' ---
+        function initSwipers(imageUrls = []) {
+             const mainWrapper = document.getElementById('main-swiper-wrapper');
+             const thumbWrapper = document.getElementById('thumbnail-swiper-wrapper');
+             const thumbContainer = document.querySelector('.thumbnail-swiper');
+
+             mainWrapper.innerHTML = ''; thumbWrapper.innerHTML = '';
+
+             if (imageUrls.length === 0) {
+                 mainWrapper.innerHTML = '<div class="swiper-slide flex items-center justify-center text-gray-400">无图</div>';
+                 thumbContainer.classList.add('hidden');
+                 if(mainSwiper) mainSwiper.destroy(true, true); if(thumbnailSwiper) thumbnailSwiper.destroy(true, true);
+                 mainSwiper = null; thumbnailSwiper = null; return;
+             }
+
+             imageUrls.forEach(key => { mainWrapper.innerHTML += `<div class="swiper-slide"><img src="/api/image/${key}" alt="雪茄图片"></div>`; thumbWrapper.innerHTML += `<div class="swiper-slide thumbnail-slide"><img src="/api/image/${key}" alt="缩略图"></div>`; });
+
+             if(mainSwiper) mainSwiper.destroy(true, true); if(thumbnailSwiper) thumbnailSwiper.destroy(true, true);
+
+             if (imageUrls.length > 1) {
+                  thumbContainer.classList.remove('hidden');
+                 thumbnailSwiper = new Swiper('.thumbnail-swiper', { spaceBetween: 10, slidesPerView: 'auto', freeMode: true, watchSlidesProgress: true, });
+                 mainSwiper = new Swiper('.main-swiper', { spaceBetween: 10, navigation: { nextEl: '.swiper-button-next', prevEl: '.swiper-button-prev', }, pagination: { el: '.swiper-pagination', clickable: true, }, thumbs: { swiper: thumbnailSwiper, }, simulateTouch: true, touchRatio: 1, touchAngle: 45, grabCursor: true, });
+             } else {
+                  thumbContainer.classList.add('hidden');
+                 mainSwiper = new Swiper('.main-swiper', { allowTouchMove: false, });
+             }
+        }
 
 
         // --- Page Load Logic ---
@@ -141,7 +167,7 @@
 
                 // **FIX**: 优先检查 'imageUrls' (复数), 如果不存在, 则回退检查 'imageUrl' (单数)
                 const { title, cigarInfo, cigarReview, normalizedScore: score, isDraft } = resultsData;
-                const imageUrls = resultsData.imageUrls || resultsData.imageUrl; // <-- 已修复: 兼容两个key
+                const imageUrls = resultsData.imageUrls || resultsData.imageUrl; // <-- 保留了兼容性修复
                 
                 normalizedScore = score;
                 const currentGradeDefinition = GRADING_SCALE.find(g => normalizedScore >= g.min_score) || GRADING_SCALE[GRADING_SCALE.length - 1];
@@ -164,7 +190,7 @@
                 // **NOTE**: 此处逻辑已兼容 imageUrls 为数组或单个字符串
                 if(Array.isArray(imageUrls)) { images = imageUrls; }
                 else if (typeof imageUrls === 'string' && imageUrls) { try { images = JSON.parse(imageUrls); if (!Array.isArray(images)) images = [imageUrls];} catch(e){ images = [imageUrls]; } }
-                initSwipers(images);
+                initSwipers(images); // <-- 现在会调用正确的函数
 
 
                  // --- Render Integrated Score Section ---
@@ -199,20 +225,11 @@
         function getScoreRange(gradeCode) { const index = GRADING_SCALE.findIndex(g => g.grade === gradeCode); if (index === -1) return ''; const min = GRADING_SCALE[index].min_score; if (index === 0) return `${min}-100`; const gradeAbove = GRADING_SCALE[index - 1]; if (!gradeAbove) return `< ${min}`; const max = gradeAbove.min_score - 0.01; if (gradeCode === 'O') return `0-${max.toFixed(2)}`; return `${min.toFixed(0)}-${max.toFixed(2)}`; }
         function getGradeStyles(color) { const stylesMap = { 'gold': { bgColor: 'bg-yellow-400', textColor: 'text-yellow-800', bgGradient: 'bg-gradient-to-br from-yellow-400 to-amber-500', shadowColor: 'shadow-yellow-500/50' }, 'indigo': { bgColor: 'bg-indigo-300', textColor: 'text-indigo-800', bgGradient: 'bg-gradient-to-br from-indigo-500 to-purple-600', shadowColor: 'shadow-indigo-500/50' }, 'purple': { bgColor: 'bg-purple-300', textColor: 'text-purple-800', bgGradient: 'bg-gradient-to-br from-purple-500 to-violet-600', shadowColor: 'shadow-purple-500/50' }, 'blue': { bgColor: 'bg-blue-300', textColor: 'text-blue-800', bgGradient: 'bg-gradient-to-br from-blue-500 to-cyan-600', shadowColor: 'shadow-blue-500/50' }, 'green': { bgColor: 'bg-green-300', textColor: 'text-green-800', bgGradient: 'bg-gradient-to-br from-green-500 to-lime-600', shadowColor: 'shadow-green-500/50' }, 'gray': { bgColor: 'bg-gray-300', textColor: 'text-gray-800', bgGradient: 'bg-gradient-to-br from-gray-500 to-slate-600', shadowColor: 'shadow-gray-500/50' }, 'orange': { bgColor: 'bg-orange-300', textColor: 'text-orange-800', bgGradient: 'bg-gradient-to-br from-orange-500 to-amber-600', shadowColor: 'shadow-orange-500/50' }, 'red': { bgColor: 'bg-red-300', textColor: 'text-red-800', bgGradient: 'bg-gradient-to-br from-red-500 to-rose-600', shadowColor: 'shadow-red-500/50' } }; return stylesMap[color] || stylesMap['gray']; }
 
-         // **UPDATED**: Render the integrated score section with corrected styles
+         // **FIX**: Restored renderScoreSection function from 'results (1).html'
          function renderScoreSection(container, score, grade) {
              if (!container || !grade) return;
              const styles = getGradeStyles(grade.color);
-             // **FIX**: Corrected HTML for score display
-             const scoreHtml = `
-                 <div class="text-center md:text-left">
-                     <p class="text-xl font-bold text-yellow-500 mb-1">Pistacho 评分</p>
-                     <p class="text-7xl font-black ${styles.textColor}">${score.toFixed(2)}</p>
-                     <div class="mt-2 text-xl font-semibold ${styles.textColor}">
-                         ${grade.name_en} - ${grade.name_cn}
-                     </div>
-                 </div>
-             `;
+             const scoreHtml = ` <div class="text-center md:text-left"> <p class="text-sm font-medium text-gray-500 mb-1">Pistacho 评分</p> <p class="text-7xl font-black ${styles.textColor}">${score.toFixed(2)}</p> <div class="mt-2 inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold ${styles.bgColor} ${styles.textColor} bg-opacity-20"> ${grade.grade} - ${grade.name_cn} </div> <p class="text-xs text-gray-400 mt-1">${grade.name_en}</p> </div> `;
              let scaleHtml = '<div class="space-y-1 text-sm">';
              GRADING_SCALE.forEach(g => { const gStyles = getGradeStyles(g.color); const isCurrent = g.grade === grade.grade; scaleHtml += ` <div class="flex items-center p-1 rounded ${isCurrent ? 'bg-gray-100' : ''}"> <div class="w-5 h-5 flex-shrink-0 rounded-full flex items-center justify-center font-bold text-xs ${gStyles.bgColor} ${gStyles.textColor} mr-2">${g.grade}</div> <div class="flex-grow ${isCurrent ? 'font-semibold' : ''} ${gStyles.textColor}">${g.name_cn}</div> <div class="font-mono text-xs text-gray-500 ml-2">${getScoreRange(g.grade)}</div> </div> `; });
              scaleHtml += '</div>';
@@ -222,3 +239,4 @@
     </script>
 </body>
 </html>
+
