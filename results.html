@@ -89,7 +89,7 @@
                 </div>
                  <div class="w-full md:flex-grow bg-white rounded-lg shadow-md p-6">
                      <p class="text-sm text-gray-500 mb-1">
-                         <span data-i18n="resultsPage.reviewFrom">点评来自:</span> 
+                         <span data-i18n="resultsPage.by">点评来自:</span> 
                          <span id="user-nickname" class="font-medium text-gray-700"></span>
                      </p>
                      <h1 id="rating-title" class="text-3xl font-bold mb-3"></h1>
@@ -282,8 +282,76 @@
         async function validateSessionAndGetUser() { const token = sessionStorage.getItem('accessToken'); if (!token) return null; try { const apiUrl = new URL('/api/me', window.location.origin); const response = await fetch(apiUrl, { headers: { 'Authorization': `Bearer ${token}` } }); if (!response.ok) { sessionStorage.removeItem('userInfo'); sessionStorage.removeItem('accessToken'); return null; } const fullUserProfile = await response.json(); sessionStorage.setItem('userInfo', JSON.stringify(fullUserProfile)); return fullUserProfile; } catch (e) { console.error("Session validation failed:", e); return null; } }
 
         // --- Main Functions ---
-        window.saveRating = async function() { /* Placeholder */ };
-        window.copySummary = function(event) { /* Placeholder */ };
+        window.saveRating = async function() { 
+            const token = sessionStorage.getItem('accessToken');
+            if (!currentAuthUser || !token) {
+                return alert(i18next.t('common.loginRequired'));
+            }
+            if (!resultsData || !resultsData.isDraft) {
+                return alert(i18next.t('errors.notADraft'));
+            }
+            
+            const button = document.getElementById('save-rating-button');
+            button.textContent = i18next.t('common.saving');
+            button.disabled = true;
+
+            try {
+                const apiUrl = new URL('/api/ratings', window.location.origin);
+                // We POST the full resultsData object
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(resultsData)
+                });
+
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.error || i18next.t('errors.saveFailedNoMsg'));
+                }
+                
+                const saveResult = await response.json();
+                const newRatingId = saveResult.id; // Get new ID from response
+
+                alert(i18next.t('common.saveSuccess'));
+                sessionStorage.removeItem('cigarRatingResults'); // Clear the draft
+                button.textContent = i18next.t('common.saveSuccess');
+                button.classList.remove('bg-green-600', 'hover:bg-green-700');
+                button.classList.add('bg-gray-400', 'cursor-not-allowed');
+                
+                // Update URL to reflect the saved rating ID without reloading
+                if (newRatingId) {
+                    ratingId = newRatingId;
+                    resultsData.isDraft = false;
+                    const newUrl = new URL(window.location.href);
+                    newUrl.searchParams.set('ratingId', newRatingId);
+                    window.history.replaceState({}, document.title, newUrl.toString());
+                }
+
+            } catch (e) {
+                console.error("保存评分失败:", e);
+                alert(i18next.t('common.saveFailed', { msg: e.message }));
+                button.textContent = i18next.t('resultsPage.saveAsMyRating');
+                button.disabled = false;
+            }
+        };
+        
+        window.copySummary = function(event) { 
+            event.preventDefault();
+            event.stopPropagation();
+            const summaryText = document.getElementById('narrative-summary-container').textContent || '';
+            const tooltip = document.getElementById('copy-tooltip');
+            navigator.clipboard.writeText(summaryText.trim()).then(() => {
+                tooltip.textContent = i18next.t('common.copied');
+                setTimeout(() => { tooltip.textContent = i18next.t('common.copy'); }, 2000);
+            }, (err) => {
+                console.error('Could not copy text: ', err);
+                tooltip.textContent = i18next.t('common.copyFailed');
+                setTimeout(() => { tooltip.textContent = i18next.t('common.copy'); }, 2000);
+            });
+        };
 
         function initSwipers(imageUrls = []) {
              const mainWrapper = document.getElementById('main-swiper-wrapper'); 
@@ -403,7 +471,7 @@
             // Populate Hidden Share Card
             const shareCardImage = document.getElementById('share-card-image');
             const gradeStyles = getGradeStyles(finalGrade.color);
-            document.getElementById('share-card-score').className = `text-5xl font-black ${gradeStyles.textColor}`;
+            document.getElementById('share-card-score').className = `text-5xl font-black ${styles.textColor}`;
             document.getElementById('share-card-grade-badge').className = `inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${gradeStyles.bgColor} ${gradeStyles.textColor} bg-opacity-20`;
             document.getElementById('share-card-score').textContent = normalizedScore.toFixed(2);
             document.getElementById('share-card-grade-badge').textContent = finalGrade.name;
