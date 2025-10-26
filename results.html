@@ -35,23 +35,51 @@
         .swiper-slide { height: auto; display: flex; flex-direction: column; }
         .swiper-slide img { display: block; width: 100%; height: auto; object-fit: contain; max-height: 80vh; }
         .swiper-slide.share-image-slide img { max-height: none; object-fit: contain; }
-        .swiper-button-next, .swiper-button-prev { color: #fff; background-color: rgba(0,0,0,0.3); padding: 10px; border-radius: 50%; width: 40px; height: 40px; } .swiper-button-next::after, .swiper-button-prev::after { font-size: 1.2rem; } .swiper-pagination-bullet-active { background: #4f46e5; }
+        .swiper-button-next, .swiper-button-prev { color: #fff; background-color: rgba(0,0,0,0.3); padding: 10px; border-radius: 50%; width: 40px; height: 40px; } .swiper-button-next::after, .swiper-button-prev::after { font-size: 1.2rem; }
+        /* **MODIFIED**: Pagination Styles */
+        .swiper-pagination {
+            position: absolute; /* Keep absolute positioning */
+            bottom: 10px; /* Adjust vertical position */
+            left: 50%;
+            transform: translateX(-50%);
+            width: auto; /* Allow width to fit content */
+            z-index: 10; /* Ensure it's above image */
+        }
+        .swiper-pagination-bullet {
+            background-color: rgba(255, 255, 255, 0.7); /* Lighter bullet color */
+            opacity: 1;
+            width: 8px;
+            height: 8px;
+        }
+        .swiper-pagination-bullet-active { background: #4f46e5; }
+
         .thumbnail-swiper .swiper-slide { width: 60px !important; height: 80px; opacity: 0.6; cursor: pointer; border: 2px solid transparent; transition: opacity 0.3s, border-color 0.3s; }
         .thumbnail-swiper .swiper-slide img { object-fit: cover; }
         .thumbnail-swiper .swiper-slide-thumb-active { opacity: 1; border-color: #4f46e5; } .thumbnail-swiper { margin-top: 0.5rem; padding: 5px 0; }
         #narrative-summary-container, #cigar-review-container, #selected-flavors-container { max-width: 100%; }
         .flavor-tag { display: inline-block; background-color: #e5e7eb; color: #374151; font-size: 0.75rem; font-weight: 600; margin-right: 0.5rem; margin-bottom: 0.5rem; padding: 0.125rem 0.625rem; border-radius: 9999px; }
-        /* **MODIFIED**: Ensure share card stays off-screen */
-        #share-card-container { position: absolute; left: -9999px; top: 0; width: 350px; background-color: white; border-radius: 0.5rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); overflow: hidden; border: 1px solid #e5e7eb; visibility: hidden; /* Start hidden */ z-index: -1; /* Keep behind */ }
+        #share-card-container { position: absolute; left: -9999px; top: 0; width: 350px; background-color: white; border-radius: 0.5rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); overflow: hidden; border: 1px solid #e5e7eb; visibility: hidden; z-index: -1; }
         #share-card-image-wrapper { height: calc(350px * 1572 / 1179); background-color: #e5e7eb; display: flex; align-items: center; justify-content: center; }
         #share-card-image { width: 100%; height: 100%; object-fit: cover; }
         #share-card-content { padding: 0.75rem; position: relative; }
-        #share-card-score-grade { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
-        #share-card-score { font-size: 2.5rem; font-weight: 900; line-height: 1; }
-        #share-card-grade { text-align: right; }
+        /* **MODIFIED**: Score/Grade Layout */
+        #share-card-score-grade {
+            display: flex; /* Use flexbox */
+            align-items: flex-start; /* Align items to the top */
+            justify-content: space-between; /* Space between score/grade and QR code */
+            margin-bottom: 0.5rem;
+        }
+        #share-card-score-wrapper { /* New wrapper for score and grade */
+            display: flex;
+            flex-direction: column; /* Stack score and grade */
+        }
+        #share-card-score { font-size: 2.5rem; font-weight: 900; line-height: 1; /* Removed margin-bottom */ }
+        #share-card-grade { text-align: left; /* Align grade text left */ margin-top: 0.1rem; /* Add small space above grade */ }
         #share-card-grade-badge { display: inline-block; padding: 0.125rem 0.5rem; border-radius: 9999px; font-size: 0.7rem; font-weight: 600; line-height: 1.1; }
-        #share-card-watermark { font-size: 0.65rem; color: #9ca3af; padding-top: 0.4rem; margin-top: 0.4rem; line-height: 1.2; width: calc(100% - 30% - 1rem); }
-        #share-card-qrcode { position: absolute; bottom: 0.4rem; right: 0.4rem; width: 28%; height: auto; background-color: white; padding: 2px; border: 1px solid #eee; box-shadow: 0 0 3px rgba(0,0,0,0.1); }
+        /* Watermark and QR positioning adjusted */
+        #share-card-bottom-row { display: flex; justify-content: space-between; align-items: flex-end; /* Align watermark text and QR code to bottom */ margin-top: 0.5rem; }
+        #share-card-watermark { font-size: 0.65rem; color: #9ca3af; line-height: 1.2; padding-right: 0.5rem; /* Add padding to prevent overlap */ flex-grow: 1; /* Allow watermark to take available space */ }
+        #share-card-qrcode { position: relative; /* Change from absolute to relative */ bottom: 0; right: 0; width: 28%; height: auto; background-color: white; padding: 2px; border: 1px solid #eee; box-shadow: 0 0 3px rgba(0,0,0,0.1); flex-shrink: 0; /* Prevent QR code from shrinking */ }
         #share-card-qrcode img { display: block; width: 100%; height: 100%; }
     </style>
 </head>
@@ -69,10 +97,12 @@
             <div class="flex flex-col md:flex-row gap-6 md:gap-8 mb-8">
                 <div class="w-full md:w-2/5 flex-shrink-0">
                      <div id="image-gallery-container" class="bg-white rounded-lg shadow-md overflow-hidden">
-                         <div class="swiper-container main-swiper bg-gray-200">
+                         <!-- **MODIFIED**: Moved pagination inside swiper container -->
+                         <div class="swiper-container main-swiper bg-gray-200 relative">
                               <div class="swiper-wrapper" id="main-swiper-wrapper">
                                   <div class="swiper-slide flex items-center justify-center text-gray-400 aspect-[1179/1572]">加载中...</div>
                               </div>
+                              <!-- Pagination moved inside -->
                               <div class="swiper-pagination"></div>
                               <div class="swiper-button-next"></div>
                               <div class="swiper-button-prev"></div>
@@ -112,13 +142,18 @@
                 <img id="share-card-image" src="" alt="Cigar Cover Image" crossorigin="anonymous">
             </div>
             <div id="share-card-content">
+                <!-- **MODIFIED**: Score/Grade Layout -->
                 <div id="share-card-score-grade">
-                    <span id="share-card-score">0.00</span>
-                    <div id="share-card-grade">
-                        <span id="share-card-grade-badge">? - ???</span>
-                    </div>
+                     <div id="share-card-score-wrapper">
+                         <span id="share-card-score">0.00</span>
+                         <div id="share-card-grade">
+                            <span id="share-card-grade-badge">? - ???</span>
+                         </div>
+                     </div>
+                     <!-- QR code moved to bottom row -->
                 </div>
-                <div class="flex justify-between items-end mt-2">
+                <!-- **MODIFIED**: Bottom row for watermark and QR -->
+                <div id="share-card-bottom-row">
                      <p id="share-card-watermark">
                          <span id="share-card-username">用户</span> 评分于 Pistacho评分系统 www.pista-cho.com
                      </p>
@@ -174,13 +209,19 @@
                  mainSwiper = new Swiper('.main-swiper', {
                      spaceBetween: 10, autoHeight: true,
                      navigation: { nextEl: '.swiper-button-next', prevEl: '.swiper-button-prev', },
-                     pagination: { el: '.swiper-pagination', clickable: true, },
+                     // **MODIFIED**: Point pagination to the specific element
+                     pagination: { el: '#image-gallery-container .swiper-pagination', clickable: true, },
                      thumbs: { swiper: thumbnailSwiper, },
                      simulateTouch: true, touchRatio: 1, touchAngle: 45, grabCursor: true,
                  });
              } else {
                  thumbContainer.classList.add('hidden');
-                 mainSwiper = new Swiper('.main-swiper', { autoHeight: true, allowTouchMove: false });
+                 mainSwiper = new Swiper('.main-swiper', {
+                      autoHeight: true,
+                      // **MODIFIED**: Point pagination even for single slide
+                      pagination: { el: '#image-gallery-container .swiper-pagination', clickable: true, },
+                      allowTouchMove: false
+                 });
              }
         }
 
@@ -202,11 +243,10 @@
 
             console.log("开始自动生成分享图...");
             shareCardElement.style.visibility = 'visible';
-            shareCardElement.style.left = '-9999px'; // Keep it off-screen but renderable
+            shareCardElement.style.left = '-9999px';
             shareCardElement.style.zIndex = '-1';
 
             try {
-                // Wait slightly longer to ensure rendering, especially QR code
                 await new Promise(resolve => setTimeout(resolve, 200));
 
                 const canvas = await html2canvas(shareCardElement, {
@@ -229,7 +269,6 @@
                      const newThumbImg = document.createElement('img');
                      newThumbImg.src = dataUrl;
                      newThumbImg.alt = '分享缩略图';
-                     // Make thumbnail clickable to go to the share image slide
                      newThumbSlide.onclick = () => { if(mainSwiper) mainSwiper.slideTo(mainSwiper.slides.length - 1); };
                      newThumbSlide.appendChild(newThumbImg);
                      thumbSwiperWrapper.appendChild(newThumbSlide);
@@ -277,15 +316,14 @@
                 if (ratingIdFromUrl) {
                     console.log(`Loading data via ratingId from URL: ${ratingIdFromUrl}`);
                     ratingId = ratingIdFromUrl;
-                    const token = sessionStorage.getItem('accessToken'); // Get token if available
+                    const token = sessionStorage.getItem('accessToken');
                     const apiUrl = new URL(`/api/ratings?id=${ratingId}`, window.location.origin);
-                    // **MODIFIED**: Send token if available, but don't require it
                     const fetchOptions = token ? { headers: { 'Authorization': `Bearer ${token}` } } : {};
                     const response = await fetch(apiUrl, fetchOptions);
                     if (!response.ok) { let errorText = `加载评分失败: ${response.status}`; try { const err = await response.json(); errorText = err.error || errorText; } catch(e){} throw new Error(errorText); }
                     resultsData = await response.json();
                     if (!resultsData) throw new Error("未找到指定的评分记录。");
-                    sessionStorage.removeItem('cigarRatingResults'); // Clear session data if loaded via URL
+                    sessionStorage.removeItem('cigarRatingResults');
 
                 } else {
                     console.log("Loading data from sessionStorage.");
@@ -331,7 +369,7 @@
                 const narrativeDetails = document.getElementById('narrative-summary-details'); const summaryDetails = document.getElementById('summary-details'); const hasFullData = resultsData.config && resultsData.ratings && resultsData.calculatedScore !== undefined; if (hasFullData) { const { config, ratings } = resultsData; const narrativeSummary = generateNarrativeSummary(cigarInfo, config, ratings, finalGrade, selectedFlavors); document.getElementById('narrative-summary-container').innerHTML = narrativeSummary; narrativeDetails.classList.remove('hidden'); renderSummary(document.getElementById('summary-container'), config, ratings); summaryDetails.classList.remove('hidden'); } else { narrativeDetails.classList.add('hidden'); summaryDetails.classList.add('hidden'); const limitedDataMessage = document.createElement('p'); limitedDataMessage.className = 'text-center text-sm text-gray-500 my-4 p-4 bg-yellow-100 rounded'; limitedDataMessage.textContent = '提示：此为旧版评分记录，部分详细信息无法显示。'; mainContent.insertBefore(limitedDataMessage, mainContent.querySelector('footer').previousSibling); }
 
 
-                // --- Populate Hidden Share Card (using ratingId for QR) ---
+                // --- Populate Hidden Share Card ---
                 const shareCardImage = document.getElementById('share-card-image');
                 const shareCardScore = document.getElementById('share-card-score');
                 const shareCardGradeBadge = document.getElementById('share-card-grade-badge');
@@ -346,7 +384,6 @@
 
                 if (shareCardQrCode && typeof QRCode !== 'undefined') {
                     shareCardQrCode.innerHTML = '';
-                    // **MODIFIED**: Ensure uniqueUrl uses ratingId if available
                     const uniqueUrl = ratingId ? `${window.location.origin}/results.html?ratingId=${ratingId}` : window.location.href;
                     console.log("Generating QR Code for URL:", uniqueUrl);
                     new QRCode(shareCardQrCode, { text: uniqueUrl, width: 90, height: 90, colorDark : "#000000", colorLight : "#ffffff", correctLevel : QRCode.CorrectLevel.H });
@@ -355,7 +392,7 @@
                 // Set image source and trigger generation
                 if (images.length > 0 && shareCardImage) {
                      shareCardImage.src = `/api/image/${images[0]}`;
-                     shareCardImage.onload = () => { autoGenerateShareImage(); }; // Trigger auto-generation on load
+                     shareCardImage.onload = () => { autoGenerateShareImage(); };
                      shareCardImage.onerror = () => { console.error("Share card cover image failed to load."); };
                 } else {
                      document.getElementById('share-card-image-wrapper').innerHTML = '<span class="text-gray-400 text-sm">无封面图</span>';
