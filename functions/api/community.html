@@ -4,13 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pistacho 评分社区</title>
-    
+
     <script src="https://cdn.tailwindcss.com"></script>
-    
+
     <script src="https://unpkg.com/i18next/i18next.min.js"></script>
     <script src="https://unpkg.com/i18next-http-backend/i18nextHttpBackend.min.js"></script>
     <script src="https://unpkg.com/i18next-browser-languagedetector/i18nextBrowserLanguageDetector.min.js"></script>
-    
+
     <script>
         if (typeof tailwind !== 'undefined') {
             tailwind.config = {
@@ -28,13 +28,17 @@
     </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/masonry/4.2.2/masonry.pkgd.min.js" integrity="sha512-NrSOvoRT3VoF8AhlXBOhDLaBFVfB/iN5xefpXkUaU/L/Y2R5jL/btbQVpabMvM1EBlEqxAcU1N0isj1XhKQr1g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <style>
-        /* ... (Your Masonry styles remain) ... */
+        .grid-item { width: 48%; margin-bottom: 20px; border-radius: 8px; overflow: hidden; }
+        .grid-sizer { width: 48%; }
+        /* Add other styles if needed, e.g., for different screen sizes */
+        @media (min-width: 640px) { .grid-item, .grid-sizer { width: 31%; } }
+        @media (min-width: 1024px) { .grid-item, .grid-sizer { width: 23%; } }
     </style>
 </head>
 <body class="bg-gray-100 font-sans antialiased text-gray-800">
 
     <div id="app-container" class="max-w-7xl mx-auto p-4 md:p-8">
-        
+
         <nav class="mb-4 flex flex-wrap justify-between items-center bg-white p-3 rounded-lg shadow-sm">
              <a href="index.html" class="text-xl font-bold text-indigo-600" data-i18n="nav.title">Pistacho评分</a>
              <div class="flex items-center space-x-4">
@@ -80,18 +84,17 @@
 
     <script type="module">
         // --- **NEW**: i18n Initialization Functions ---
-        
         async function initI18n() {
             await i18next
                 .use(i18nextHttpBackend)
                 .use(i18nextBrowserLanguageDetector)
                 .init({
                     fallbackLng: 'zh',
-                    debug: true,
+                    debug: false, // Turn off debug for production
                     ns: ['translation'],
                     defaultNS: 'translation',
                     backend: {
-                        loadPath: '/locales/{{lng}}.json'
+                        loadPath: '/locales/{{lng}}.json?v=1' // Add versioning if needed
                     },
                     detection: {
                         order: ['localStorage', 'navigator'],
@@ -121,11 +124,8 @@
             const switcher = document.getElementById('language-switcher');
             if (!switcher) return;
             const currentLang = i18next.language.split('-')[0];
-            if ([...switcher.options].some(opt => opt.value === currentLang)) {
-                switcher.value = currentLang;
-            } else {
-                switcher.value = i18next.options.fallbackLng[0];
-            }
+            switcher.value = ['zh', 'en', 'es'].includes(currentLang) ? currentLang : 'zh';
+
             switcher.addEventListener('change', async (e) => {
                 await i18next.changeLanguage(e.target.value);
                 updateContent();
@@ -134,12 +134,26 @@
                 filterAndRender();
             });
         }
-        
+        // --- End i18n Functions ---
+
         // --- 全局变量 ---
-        let allRatings = []; 
-        let masonry; 
+        let allRatings = [];
+        let masonry;
         const gridContainer = document.getElementById('grid-container');
         const loadingIndicator = document.getElementById('loading-indicator');
+
+        // **NEW**: GRADING_SCALE constant definition
+        const GRADING_SCALE = [
+            { "grade": "P", "nameKey": "resultsPage.grade.P", "min_score": 95, "color": "gold" },
+            { "grade": "I", "nameKey": "resultsPage.grade.I", "min_score": 90, "color": "indigo" },
+            { "grade": "S", "nameKey": "resultsPage.grade.S", "min_score": 80, "color": "purple" },
+            { "grade": "T", "nameKey": "resultsPage.grade.T", "min_score": 70, "color": "blue" },
+            { "grade": "A", "nameKey": "resultsPage.grade.A", "min_score": 60, "color": "green" },
+            { "grade": "C", "nameKey": "resultsPage.grade.C", "min_score": 50, "color": "gray" },
+            { "grade": "H", "nameKey": "resultsPage.grade.H", "min_score": 30, "color": "orange" },
+            { "grade": "O", "nameKey": "resultsPage.grade.O", "min_score": 0, "color": "red" }
+        ];
+        // --- End Global Variables ---
 
         // --- 核心功能 ---
 
@@ -151,26 +165,28 @@
             await initI18n();
 
             try {
+                // Fetch public ratings (no token needed, as handled by API)
                 const response = await fetch('/api/ratings');
                 if (!response.ok) {
                     throw new Error(i18next.t('errors.apiError', { status: response.statusText }));
                 }
                 const ratings = await response.json();
+                // Filter out potentially incomplete data
                 allRatings = ratings.filter(r => r.cigarName && r.normalizedScore !== undefined);
-                
+
                 if (allRatings.length === 0) {
                     loadingIndicator.textContent = i18next.t('common.noPublicRatings');
                     return;
                 }
-                
-                sortRatings("newest");
+
+                sortRatings("newest", allRatings); // Sort initial data
                 renderGrid(allRatings);
 
             } catch (error) {
                 console.error("加载评分失败:", error);
                 loadingIndicator.innerHTML = `<p class="text-red-500">${i18next.t('errors.loadFailed', { msg: error.message })}</p>`;
             }
-            
+
             // **NEW**: 2. Setup switcher at the end
             setupLanguageSwitcher();
         };
@@ -182,82 +198,107 @@
             const searchTerm = document.getElementById('search-input').value.toLowerCase();
             const sortValue = document.getElementById('sort-select').value;
             let filteredRatings = allRatings.filter(rating => {
+                // Ensure fields exist before trying to access them
                 const nameMatch = rating.cigarName?.toLowerCase().includes(searchTerm);
                 const userMatch = rating.userNickname?.toLowerCase().includes(searchTerm);
-                return nameMatch || userMatch;
+                const reviewMatch = rating.cigarReview?.toLowerCase().includes(searchTerm);
+                const originMatch = rating.cigarOrigin?.toLowerCase().includes(searchTerm);
+                const sizeMatch = rating.cigarSize?.toLowerCase().includes(searchTerm);
+                return nameMatch || userMatch || reviewMatch || originMatch || sizeMatch;
             });
             sortRatings(sortValue, filteredRatings);
             renderGrid(filteredRatings);
         }
-        
+
         /**
          * 3. 渲染瀑布流网格
          */
         function renderGrid(ratingsToShow) {
             if (!gridContainer) return;
-            gridContainer.innerHTML = '<div class="grid-sizer"></div>'; 
+            gridContainer.innerHTML = '<div class="grid-sizer"></div>'; // Clear previous items
             if (ratingsToShow.length === 0) {
                  loadingIndicator.textContent = i18next.t('common.noMatch');
                  loadingIndicator.style.display = 'block';
-                 if(masonry) masonry.destroy();
+                 if(masonry) masonry.destroy(); // Destroy masonry instance if no items
                  masonry = null;
                  return;
             }
             loadingIndicator.style.display = 'none';
             gridContainer.style.opacity = 1;
+
             const fragment = document.createDocumentFragment();
             ratingsToShow.forEach(rating => {
                 const card = document.createElement('div');
-                card.className = 'grid-item bg-white shadow-lg';
+                card.className = 'grid-item bg-white shadow-lg rounded-lg overflow-hidden'; // Added rounded-lg
                 card.innerHTML = createCardHTML(rating);
+                // Attach click listener to view details
                 card.onclick = () => viewRatingDetails(rating.id);
                 fragment.appendChild(card);
             });
             gridContainer.appendChild(fragment);
+
+            // Re-initialize or update Masonry
             if (masonry) {
                 masonry.reloadItems();
                 masonry.layout();
-            } else {
+            } else if (typeof Masonry !== 'undefined') {
                 masonry = new Masonry(gridContainer, {
                     itemSelector: '.grid-item',
                     columnWidth: '.grid-sizer',
                     percentPosition: true,
-                    gutter: 20
+                    gutter: 20 // Adjust gutter as needed
                 });
+            } else {
+                 console.warn("Masonry library not loaded. Layout might be incorrect.");
             }
         }
 
         /**
          * 4. 创建单个评分卡的 HTML
-         * **MODIFIED**: Uses i18next.t()
+         * **MODIFIED**: Uses i18next.t() and GRADING_SCALE
          */
         function createCardHTML(rating) {
             const date = formatDate(rating.timestamp);
             const author = rating.userNickname || i18next.t('common.anonymous');
             const grade = rating.finalGrade_grade || 'N/A';
-            // **MODIFIED**: Need to get translated grade name
-            // This is tricky as GRADING_SCALE isn't defined here.
-            // We'll just use the name_cn or a fallback.
-            // For full i18n, GRADING_SCALE should be defined here too.
-            const gradeName = rating.finalGrade_name_cn || i18next.t('common.unrated');
             const score = rating.normalizedScore?.toFixed(2) || '0.00';
-            
-            const imageUrl = rating.imageUrl 
-                ? `/api/image/${rating.imageUrl}` 
-                : `https://placehold.co/600x400/94a3b8/ffffff?text=${encodeURIComponent(rating.cigarName)}`;
-            const placeholder = `https://placehold.co/600x400/94a3b8/ffffff?text=${encodeURIComponent(rating.cigarName)}`;
 
-            const cigarName = rating.cigarName || i18next.t('common.unnamed');
+            // **MODIFIED**: Get translated grade name using GRADING_SCALE and i18n
+            let gradeName = i18next.t('common.unrated'); // Default text
+            if (rating.finalGrade_grade) {
+                 const foundGrade = GRADING_SCALE.find(g => g.grade === rating.finalGrade_grade);
+                 if (foundGrade) {
+                     gradeName = i18next.t(foundGrade.nameKey); // Use i18n to get translated name
+                 } else {
+                     gradeName = '?'; // Fallback if grade letter not found
+                 }
+            }
+            // --- End Modification ---
+
+            // Handle potential array or string imageUrl
+            let coverImageUrl = null;
+            if (Array.isArray(rating.imageUrl) && rating.imageUrl.length > 0) { coverImageUrl = rating.imageUrl[0]; }
+            else if (typeof rating.imageUrl === 'string' && rating.imageUrl) { coverImageUrl = rating.imageUrl; }
+
+            const imageUrl = coverImageUrl
+                ? `/api/image/${coverImageUrl}`
+                : `https://placehold.co/600x400/94a3b8/ffffff?text=${encodeURIComponent(rating.cigarName || '?')}`;
+            const placeholder = `https://placehold.co/600x400/94a3b8/ffffff?text=${encodeURIComponent(rating.cigarName || '?')}`;
+
+            const cigarName = rating.cigarName || i18next.t('common.unnamedCigar');
             const cigarSize = rating.cigarSize || i18next.t('common.unknown');
             const cigarOrigin = rating.cigarOrigin || i18next.t('common.unknown');
             const cigarReview = rating.cigarReview || i18next.t('common.noReview');
+            // Truncate review for display
+            const truncatedReview = cigarReview.length > 100 ? cigarReview.substring(0, 100) + '...' : cigarReview;
+
 
             return `
-                <a href="#" class="block cursor-pointer">
-                    <img 
-                        src="${imageUrl}" 
-                        alt="${cigarName}" 
-                        class="w-full h-auto object-cover"
+                <a href="#" onclick="event.preventDefault();" class="block cursor-pointer">
+                    <img
+                        src="${imageUrl}"
+                        alt="${cigarName}"
+                        class="w-full h-auto object-cover aspect-[3/2]"
                         onerror="this.onerror=null; this.src='${placeholder}';"
                     >
                     <div class="p-4">
@@ -268,9 +309,9 @@
                                 <span class="block text-sm text-gray-500">${gradeName}</span>
                             </span>
                         </div>
-                        <h3 class="text-xl font-bold text-gray-900">${cigarName}</h3>
-                        <p class="text-sm text-gray-500 mb-3">${cigarSize} | ${cigarOrigin}</p>
-                        <p class="text-gray-700 text-sm mb-4">${cigarReview}</p>
+                        <h3 class="text-lg font-bold text-gray-900 truncate" title="${cigarName}">${cigarName}</h3>
+                        <p class="text-xs text-gray-500 mb-3">${cigarSize} | ${cigarOrigin}</p>
+                        <p class="text-gray-700 text-sm mb-4 h-12 overflow-hidden">${truncatedReview}</p>
                         <div class="border-t pt-2 text-xs text-gray-400">
                             <span>${i18next.t('common.by')} <strong>${author}</strong></span>
                             <span class="float-right">${date}</span>
@@ -279,42 +320,98 @@
                 </a>
             `;
         }
-        
-        // --- 辅助工具 ---
-        
-        function sortRatings(sortBy, arrayToSort) { /* ... (no changes needed) ... */ }
 
-        // **MODIFIED**: Uses i18n
+        // --- 辅助工具 ---
+        function sortRatings(sortBy, arrayToSort) {
+            if (!Array.isArray(arrayToSort)) return; // Guard against undefined array
+            arrayToSort.sort((a, b) => {
+                // Always prioritize pinned items
+                if (a.isPinned !== b.isPinned) {
+                    return b.isPinned - a.isPinned; // Pinned first (true = 1, false = 0)
+                }
+                // If pin status is the same, sort by chosen criteria
+                if (sortBy === 'highest') {
+                    return (b.normalizedScore ?? 0) - (a.normalizedScore ?? 0);
+                } else if (sortBy === 'lowest') {
+                    return (a.normalizedScore ?? 0) - (b.normalizedScore ?? 0);
+                } else { // 'newest' (default)
+                    // Compare timestamps, fallback to 0 if null/undefined
+                    const dateA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+                    const dateB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+                    return dateB - dateA;
+                }
+            });
+        }
+
         function formatDate(isoString) {
             if (!isoString) return i18next.t('common.unknownDate');
             try {
                 // Use i18next.language to format date correctly
-                const lang = i18next.language || 'zh-CN';
+                const lang = i18next.language || 'zh-CN'; // Default to Chinese if language not detected
                 return new Date(isoString).toLocaleDateString(lang, {
                     year: 'numeric',
                     month: '2-digit',
                     day: '2-digit'
                 });
             } catch (e) {
+                console.warn("Invalid date format:", isoString, e);
                 return i18next.t('common.invalidDate');
             }
         }
-        
-        // **MODIFIED**: Uses i18n
+
         window.viewRatingDetails = function(ratingId) {
             const ratingData = allRatings.find(r => r.id === ratingId);
-            if (ratingData) {
-                const resultsData = ratingData.fullData; 
-                if (resultsData && resultsData.config && resultsData.ratings) {
-                    resultsData.isDraft = false; 
-                    sessionStorage.setItem('cigarRatingResults', JSON.stringify(resultsData));
-                    window.location.href = 'results.html';
-                } else {
-                    alert(i18next.t('errors.loadFullDetailsFailed'));
-                    console.warn("缺少 fullData: ", ratingData);
-                }
+            if (!ratingData) {
+                 alert(i18next.t('common.loadDetailFailed'));
+                 return;
+            }
+
+            // **MODIFIED**: Construct finalGrade with nameKey for results.html
+            const foundGrade = ratingData.finalGrade_grade ? GRADING_SCALE.find(g => g.grade === ratingData.finalGrade_grade) : null;
+            const finalGrade = foundGrade ? {
+                grade: foundGrade.grade,
+                nameKey: foundGrade.nameKey, // Pass the key
+                color: foundGrade.color
+            } : null;
+
+             if (!ratingData || ratingData.normalizedScore === undefined || !finalGrade || !ratingData.cigarName) {
+                console.error("viewRatingDetails: Essential data missing or couldn't be constructed!", {ratingData, finalGrade});
+                alert(i18next.t('resultsPage.loadErrorMissing'));
+                return;
+             }
+
+            // Prepare data for results page
+            let detailedData = {
+                ratingId: ratingData.id,
+                title: ratingData.title || i18next.t('certifiedPage.noTitle'),
+                cigarInfo: { name: ratingData.cigarName, size: ratingData.cigarSize, origin: ratingData.cigarOrigin },
+                cigarReview: ratingData.cigarReview || i18next.t('resultsPage.noReview'),
+                imageUrls: Array.isArray(ratingData.imageUrl) ? ratingData.imageUrl : (ratingData.imageUrl ? [ratingData.imageUrl] : []),
+                normalizedScore: ratingData.normalizedScore,
+                finalGrade: finalGrade, // Pass grade object with nameKey
+                timestamp: ratingData.timestamp,
+                userNickname: ratingData.userNickname,
+                userEmail: ratingData.userEmail,
+                selectedFlavors: Array.isArray(ratingData.fullData?.selectedFlavors) ? ratingData.fullData.selectedFlavors : [],
+                isDraft: false // Ratings from community are never drafts
+            };
+
+            // Include full config/ratings if available
+            const hasCompleteFullData = ratingData.fullData && ratingData.fullData.config && ratingData.fullData.ratings && ratingData.fullData.calculatedScore !== undefined;
+            if (hasCompleteFullData) {
+                detailedData.config = ratingData.fullData.config;
+                detailedData.ratings = ratingData.fullData.ratings;
+                detailedData.calculatedScore = ratingData.fullData.calculatedScore;
             } else {
-                alert(i18next.t('errors.loadDetailsFailed'));
+                 console.warn(`fullData for rating ${ratingId} from community is missing or incomplete.`);
+            }
+
+            try {
+                sessionStorage.setItem('cigarRatingResults', JSON.stringify(detailedData));
+                window.location.href = 'results.html';
+            } catch (e) {
+                console.error("Error setting sessionStorage:", e);
+                alert(i18next.t('common.sessionStoreFailed'));
             }
         }
 

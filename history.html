@@ -5,11 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title data-i18n="historyPage.title">我的评分</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    
+
     <script src="https://unpkg.com/i18next/i18next.min.js"></script>
     <script src="https://unpkg.com/i18next-http-backend/i18nextHttpBackend.min.js"></script>
     <script src="https://unpkg.com/i18next-browser-languagedetector/i18nextBrowserLanguageDetector.min.js"></script>
-    
+
     <script>
         if (typeof tailwind !== 'undefined') {
             tailwind.config = {
@@ -30,7 +30,13 @@
             transform: translateY(-1px);
             box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
         }
-        /* ... (other styles remain same) ... */
+        .action-buttons button, .action-buttons a {
+            padding: 0.25rem 0.75rem; /* py-1 px-3 */
+            font-size: 0.75rem; /* text-xs */
+            border-radius: 0.25rem; /* rounded */
+            transition: background-color 0.2s;
+            white-space: nowrap;
+        }
         .pinned-indicator {
              position: absolute;
              top: 0.5rem;
@@ -43,6 +49,7 @@
              font-weight: bold;
              display: flex;
              align-items: center;
+             z-index: 10;
         }
          .pinned-indicator svg {
              width: 0.7rem;
@@ -130,7 +137,7 @@
             if (!switcher) return;
             const currentLang = i18next.language.split('-')[0];
             switcher.value = ['zh', 'en', 'es'].includes(currentLang) ? currentLang : 'zh';
-            
+
             switcher.addEventListener('change', async (e) => {
                 const newLang = e.target.value;
                 await i18next.changeLanguage(newLang);
@@ -142,6 +149,7 @@
         }
         // --- End i18n Functions ---
 
+        // --- Global Variables ---
         let historicalRatings = {};
         let currentAuthUser = null;
         let userRole = 'guest';
@@ -153,10 +161,24 @@
         const AUTHING_APP_ID = '68f5b0b6875017c02b3bfdb3';
         const AUTHING_HOST = 'https://xfvu647mcdbk-demo.authing.cn';
 
+        // **NEW**: GRADING_SCALE constant definition
+        const GRADING_SCALE = [
+            { "grade": "P", "nameKey": "resultsPage.grade.P", "min_score": 95, "color": "gold" },
+            { "grade": "I", "nameKey": "resultsPage.grade.I", "min_score": 90, "color": "indigo" },
+            { "grade": "S", "nameKey": "resultsPage.grade.S", "min_score": 80, "color": "purple" },
+            { "grade": "T", "nameKey": "resultsPage.grade.T", "min_score": 70, "color": "blue" },
+            { "grade": "A", "nameKey": "resultsPage.grade.A", "min_score": 60, "color": "green" },
+            { "grade": "C", "nameKey": "resultsPage.grade.C", "min_score": 50, "color": "gray" },
+            { "grade": "H", "nameKey": "resultsPage.grade.H", "min_score": 30, "color": "orange" },
+            { "grade": "O", "nameKey": "resultsPage.grade.O", "min_score": 0, "color": "red" }
+        ];
+        // --- End Global Variables ---
+
+
         // --- Authentication ---
-         window.login = function() { /* ... (same) ... */ }
-         window.logout = function() { /* ... (same) ... */ }
-         
+         window.login = function() { const redirectUri = window.location.origin; const authorizeUrl = new URL('/oidc/auth', AUTHING_HOST); authorizeUrl.search = new URLSearchParams({ client_id: AUTHING_APP_ID, redirect_uri: redirectUri, response_type: 'code', scope: 'openid profile email phone', state: Math.random().toString(36).substring(2) }).toString(); window.location.href = authorizeUrl.toString(); }
+         window.logout = function() { const logoutUrl = new URL('/oidc/session/end', AUTHING_HOST); logoutUrl.search = new URLSearchParams({ post_logout_redirect_uri: window.location.origin }).toString(); sessionStorage.removeItem('userInfo'); sessionStorage.removeItem('accessToken'); window.location.href = logoutUrl.toString(); }
+
          function renderLoginStatus(user) {
             const container = document.getElementById('login-status-container');
             if (!container) return;
@@ -167,15 +189,18 @@
                 container.innerHTML = `<button onclick="login()" class="px-3 py-1 text-xs font-medium rounded-full bg-green-500 text-white hover:bg-green-600">${i18next.t('nav.login')}</button>`;
             }
          }
-         
-         async function handleOidcCallback(code) { /* ... (same) ... */ }
-         async function validateSessionAndGetUser() { /* ... (same) ... */ }
+
+         async function handleOidcCallback(code) { try { const redirectUri = window.location.origin; const apiUrl = new URL('/api/authing/callback', window.location.origin); const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: code, redirect_uri: redirectUri }) }); if (!response.ok) { const err = await response.json(); throw new Error(err.error || `Token exchange failed (status ${response.status})`); } const fullUserProfile = await response.json(); sessionStorage.setItem('userInfo', JSON.stringify(fullUserProfile)); sessionStorage.setItem('accessToken', fullUserProfile.accessToken); return fullUserProfile; } catch (e) { console.error('认证回调处理失败:', e); alert(`登录失败: ${e.message}`); sessionStorage.removeItem('userInfo'); sessionStorage.removeItem('accessToken'); return null; } finally { window.history.replaceState({}, document.title, window.location.pathname); } }
+         async function validateSessionAndGetUser() { const token = sessionStorage.getItem('accessToken'); if (!token) return null; try { const apiUrl = new URL('/api/me', window.location.origin); const response = await fetch(apiUrl, { headers: { 'Authorization': `Bearer ${token}` } }); if (!response.ok) { console.warn("Session validation failed:", response.status); sessionStorage.removeItem('userInfo'); sessionStorage.removeItem('accessToken'); return null; } const fullUserProfile = await response.json(); sessionStorage.setItem('userInfo', JSON.stringify(fullUserProfile)); return fullUserProfile; } catch (e) { console.error("Session validation failed:", e); return null; } }
         // --- End Auth ---
 
 
         // --- Rating Actions ---
-         window.editRating = function(ratingId, event) { /* ... (same) ... */ }
-         
+         window.editRating = function(ratingId, event) {
+            event?.stopPropagation();
+            window.location.href = `rate.html?edit=${ratingId}`;
+         }
+
          window.deleteRating = async function(ratingId, event) {
             event?.stopPropagation();
             if (!confirm(i18next.t('common.confirmDeletion'))) { return; }
@@ -204,7 +229,7 @@
                 if (button) { button.textContent = originalText; button.disabled = false; }
             }
          }
-         
+
          window.updateCertification = async function(ratingId, shouldCertify, event) {
             event?.stopPropagation();
             const button = event ? (event.currentTarget || event.target) : null;
@@ -225,6 +250,7 @@
                 const data = await response.json();
                 const card = document.getElementById(`rating-card-${ratingId}`);
                 if (card) {
+                    if(historicalRatings[ratingId]) historicalRatings[ratingId].isCertified = isCertifying; // Update cache
                     const buttonContainer = card.querySelector('.action-buttons');
                     if (buttonContainer) {
                         const certifyButton = buttonContainer.querySelector('button[data-action="certify"]');
@@ -245,7 +271,7 @@
                 if (button) { button.textContent = originalText; button.disabled = false; }
             }
          }
-         
+
          window.updatePinStatus = async function(ratingId, shouldPin, event) {
             event?.stopPropagation();
             const button = event ? (event.currentTarget || event.target) : null;
@@ -265,7 +291,7 @@
                 const data = await response.json();
                 const card = document.getElementById(`rating-card-${ratingId}`);
                 if (card) {
-                    if(historicalRatings[ratingId]) historicalRatings[ratingId].isPinned = shouldPin;
+                    if(historicalRatings[ratingId]) historicalRatings[ratingId].isPinned = shouldPin; // Update cache
                     const buttonContainer = card.querySelector('.action-buttons');
                     if (buttonContainer) {
                         const pinButton = buttonContainer.querySelector('button[data-action="pin"]');
@@ -280,6 +306,14 @@
                     }
                     const indicator = card.querySelector('.pinned-indicator');
                     if(indicator) indicator.style.display = shouldPin ? 'flex' : 'none';
+                    else if (shouldPin) { // Add indicator if missing
+                         const pinIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor"><path d="M9.03 2.5a.75.75 0 0 0-1.06 0l-4 4a.75.75 0 1 0 1.06 1.06L7 5.81v4.44a3.752 3.752 0 0 0-1.36.47l-1.88 1.1-.31.18a.75.75 0 0 0 .8 1.3l.3-.18 1.88-1.1a2.252 2.252 0 0 1 2.12 0l1.88 1.1.3.18a.75.75 0 0 0 .8-1.3l-.3-.18-1.88-1.1a3.752 3.752 0 0 0-1.36-.47V5.81l1.97 1.97a.75.75 0 1 0 1.06-1.06l-4-4Z"/></svg>`;
+                         const newIndicator = document.createElement('div');
+                         newIndicator.className = 'pinned-indicator';
+                         newIndicator.title = i18next.t('common.pin');
+                         newIndicator.innerHTML = `${pinIconSvg} ${i18next.t('common.pin')}`;
+                         card.prepend(newIndicator); // Add to the top
+                    }
                 }
                 alert(i18next.t('common.opSuccess'));
             } catch (error) {
@@ -291,41 +325,55 @@
 
          window.viewRatingDetails = function(ratingId) {
              const ratingData = historicalRatings[ratingId];
-             if (ratingData) {
-                 let detailedData = {
-                     ratingId: ratingData.id,
-                     title: ratingData.title || '无标题点评',
-                     cigarInfo: ratingData.cigarInfo || { name: ratingData.cigarName, size: ratingData.cigarSize, origin: ratingData.cigarOrigin },
-                     cigarReview: ratingData.cigarReview || '无',
-                     imageUrls: Array.isArray(ratingData.imageUrl) ? ratingData.imageUrl : [],
-                     normalizedScore: ratingData.normalizedScore,
-                     // **MODIFIED**: Pass the raw grade data. results.html will handle translation.
-                     finalGrade: ratingData.finalGrade ? { grade: ratingData.finalGrade.grade } : { grade: 'O' },
-                     timestamp: ratingData.timestamp,
-                     userNickname: ratingData.userNickname,
-                     userEmail: ratingData.userEmail,
-                     selectedFlavors: Array.isArray(ratingData.fullData?.selectedFlavors) ? ratingData.fullData.selectedFlavors : [],
-                     isDraft: false
-                 };
-
-                 const hasCompleteFullData = ratingData.fullData && ratingData.fullData.config && ratingData.fullData.ratings && ratingData.fullData.calculatedScore !== undefined;
-                 if (hasCompleteFullData) {
-                     detailedData.config = ratingData.fullData.config;
-                     detailedData.ratings = ratingData.fullData.ratings;
-                     detailedData.calculatedScore = ratingData.fullData.calculatedScore;
-                 } else {
-                     console.warn(`fullData for rating ${ratingId} from history is missing or incomplete.`);
-                 }
-
-                 try {
-                     sessionStorage.setItem('cigarRatingResults', JSON.stringify(detailedData));
-                     window.location.href = `results.html`;
-                 } catch (e) {
-                     console.error("Error setting sessionStorage:", e);
-                     alert(i18next.t('common.sessionStoreFailed'));
-                 }
-             } else {
+             if (!ratingData) {
                  alert(i18next.t('common.loadDetailFailed'));
+                 return;
+             }
+
+             // **MODIFIED**: Construct finalGrade with nameKey for results.html
+             const foundGrade = ratingData.finalGrade?.grade ? GRADING_SCALE.find(g => g.grade === ratingData.finalGrade.grade) : null;
+             const finalGrade = foundGrade ? {
+                 grade: foundGrade.grade,
+                 nameKey: foundGrade.nameKey, // Pass the key
+                 color: foundGrade.color
+             } : null; // If grade is missing or invalid, pass null
+
+             if (!ratingData || ratingData.normalizedScore === undefined || !finalGrade || !ratingData.cigarInfo) {
+                console.error("viewRatingDetails: Essential data missing or couldn't be constructed!", {ratingData, finalGrade});
+                alert(i18next.t('resultsPage.loadErrorMissing'));
+                return;
+             }
+
+             let detailedData = {
+                 ratingId: ratingData.id,
+                 title: ratingData.title || i18next.t('certifiedPage.noTitle'),
+                 cigarInfo: ratingData.cigarInfo || { name: ratingData.cigarName, size: ratingData.cigarSize, origin: ratingData.cigarOrigin },
+                 cigarReview: ratingData.cigarReview || i18next.t('resultsPage.noReview'),
+                 imageUrls: Array.isArray(ratingData.imageUrl) ? ratingData.imageUrl : (ratingData.imageUrl ? [ratingData.imageUrl] : []),
+                 normalizedScore: ratingData.normalizedScore,
+                 finalGrade: finalGrade, // Pass grade object with nameKey
+                 timestamp: ratingData.timestamp,
+                 userNickname: ratingData.userNickname,
+                 userEmail: ratingData.userEmail,
+                 selectedFlavors: Array.isArray(ratingData.fullData?.selectedFlavors) ? ratingData.fullData.selectedFlavors : [],
+                 isDraft: false
+             };
+
+             const hasCompleteFullData = ratingData.fullData && ratingData.fullData.config && ratingData.fullData.ratings && ratingData.fullData.calculatedScore !== undefined;
+             if (hasCompleteFullData) {
+                 detailedData.config = ratingData.fullData.config;
+                 detailedData.ratings = ratingData.fullData.ratings;
+                 detailedData.calculatedScore = ratingData.fullData.calculatedScore;
+             } else {
+                 console.warn(`fullData for rating ${ratingId} from history is missing or incomplete.`);
+             }
+
+             try {
+                 sessionStorage.setItem('cigarRatingResults', JSON.stringify(detailedData));
+                 window.location.href = `results.html`;
+             } catch (e) {
+                 console.error("Error setting sessionStorage:", e);
+                 alert(i18next.t('common.sessionStoreFailed'));
              }
          }
         // --- End Rating Actions ---
@@ -378,10 +426,9 @@
                     let historyHtml = '<div class="space-y-4">';
                     ratings.sort((a, b) => (b.isPinned - a.isPinned) || (new Date(b.timestamp) - new Date(a.timestamp)));
                     ratings.forEach(data => {
-                        // Ensure finalGrade exists (from DB)
-                        if (!data.finalGrade || !data.finalGrade.grade || !data.finalGrade.name_cn) {
-                            data.finalGrade = { grade: 'N/A', name_cn: i18next.t('historyPage.unrated') };
-                        }
+                        // Ensure required fields exist, provide defaults if not
+                        data.finalGrade = data.finalGrade || {};
+                        data.cigarInfo = data.cigarInfo || {};
                         historyHtml += renderRatingCard(data, user.sub, userRole);
                     });
                     historyHtml += '</div>';
@@ -398,12 +445,22 @@
 
         function renderRatingCard(data, currentUserId, currentUserRole) {
             const ratingId = data.id;
-            const date = data.timestamp ? new Date(data.timestamp).toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' }) : i18next.t('historyPage.unknownDate');
+            const date = data.timestamp ? new Date(data.timestamp).toLocaleDateString(i18next.language, { year: 'numeric', month: '2-digit', day: '2-digit' }) : i18next.t('historyPage.unknownDate');
             const scoreDisplay = data.normalizedScore !== undefined ? data.normalizedScore.toFixed(2) : 'N/A';
-            
-            // **NOTE**: This name_cn comes from the DB and will remain in Chinese
-            const gradeDisplay = data.finalGrade ? `${data.finalGrade.grade} - ${data.finalGrade.name_cn}` : i18next.t('historyPage.unrated');
-            
+
+            // **MODIFIED**: Use GRADING_SCALE and i18n
+            let gradeDisplay = i18next.t('historyPage.unrated'); // Default text
+            if (data.finalGrade && data.finalGrade.grade) {
+                const foundGrade = GRADING_SCALE.find(g => g.grade === data.finalGrade.grade);
+                if (foundGrade) {
+                    const gradeName = i18next.t(foundGrade.nameKey); // Use i18n to get translated name
+                    gradeDisplay = `${data.finalGrade.grade} - ${gradeName}`;
+                } else {
+                    gradeDisplay = `${data.finalGrade.grade} - ?`; // Fallback if grade letter not found
+                }
+            }
+            // --- End Modification ---
+
             const isOwner = data.userId === currentUserId;
             const isAdmin = currentUserRole === 'admin' || currentUserRole === 'super_admin';
             const canModify = isOwner || isAdmin;
@@ -451,18 +508,21 @@
         // --- Initialization ---
         window.addEventListener('load', async function() {
              await initI18n(); // Wait for i18n
-             
+
              const urlParams = new URLSearchParams(window.location.search);
              const code = urlParams.get('code');
              let user = null;
              if (code) { user = await handleOidcCallback(code); } else { user = await validateSessionAndGetUser(); }
              currentAuthUser = user;
              userRole = currentAuthUser?.db_role ?? 'guest';
-             
+
              renderLoginStatus(currentAuthUser); // Render login *after* i18n
              setupLanguageSwitcher(); // Setup switcher
-             
+
              await fetchAndRenderHistory(currentAuthUser); // Pass user object
+
+             // Clean URL after callback
+             if (code) { window.history.replaceState({}, document.title, window.location.pathname); }
         });
     </script>
 </body>
