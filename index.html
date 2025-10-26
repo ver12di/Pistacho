@@ -219,58 +219,30 @@
             { "grade": "O", "nameKey": "resultsPage.grade.O", "min_score": 0, "color": "red" }
         ];
 
-        // --- 认证功能已修复 ---
-
+        // --- Authentication ---
         window.login = function() {
-            try {
-                // 1. 获取当前的 URL 作为登录成功后的重定向地址
-                const redirectUri = window.location.origin + window.location.pathname;
-
-                // 2. 构建 Authing OIDC 授权 URL
-                const authUrl = new URL(`${AUTHING_HOST}/oidc/auth`);
-                authUrl.searchParams.append('client_id', AUTHING_APP_ID);
-                authUrl.searchParams.append('redirect_uri', redirectUri);
-                authUrl.searchParams.append('response_type', 'code'); // OIDC 授权码模式
-                authUrl.searchParams.append('scope', 'openid profile email phone'); // 请求的权限
-                // authUrl.searchParams.append('state', 'YOUR_RANDOM_STATE'); // (可选) 增加一个随机 state 参数可以提高安全性
-
-                // 3. 重定向用户到 Authing 登录页面
-                window.location.href = authUrl.toString();
-            } catch (error) {
-                console.error("登录重定向时发生错误:", error);
-                alert("无法启动登录，请稍后重试。");
-            }
+            const redirectUri = window.location.origin;
+            const authorizeUrl = new URL('/oidc/auth', AUTHING_HOST);
+            authorizeUrl.search = new URLSearchParams({
+                client_id: AUTHING_APP_ID,
+                redirect_uri: redirectUri,
+                response_type: 'code',
+                scope: 'openid profile email phone',
+                state: Math.random().toString(36).substring(2)
+            }).toString();
+            window.location.href = authorizeUrl.toString();
         }
-        
+
         window.logout = function() {
-            try {
-                // 1. 清除存储在 sessionStorage 中的认证信息
-                sessionStorage.removeItem('accessToken');
-                sessionStorage.removeItem('idToken');
-                sessionStorage.removeItem('userInfo'); // 如果你存储了用户信息
-
-                // 2. 准备登出后的重定向 URI
-                // 通常我们希望用户登出后返回首页
-                const postLogoutRedirectUri = window.location.origin + window.location.pathname;
-
-                // 3. 构建 Authing 登出 URL
-                const logoutUrl = new URL(`${AUTHING_HOST}/oidc/session/end`);
-                logoutUrl.searchParams.append('post_logout_redirect_uri', postLogoutRedirectUri);
-                // (可选) 如果你希望 Authing 同时退出 idToken 对应的会话，可以传入 idToken
-                // const idToken = sessionStorage.getItem('idToken');
-                // if (idToken) {
-                //     logoutUrl.searchParams.append('id_token_hint', idToken);
-                // }
-                
-                // 4. 重定向到登出页面
-                window.location.href = logoutUrl.toString();
-
-            } catch (error) {
-                console.error("登出时发生错误:", error);
-                alert("登出失败，请稍后重试。");
-            }
+            const logoutUrl = new URL('/oidc/session/end', AUTHING_HOST);
+            logoutUrl.search = new URLSearchParams({
+                post_logout_redirect_uri: window.location.origin
+            }).toString();
+            sessionStorage.removeItem('userInfo');
+            sessionStorage.removeItem('accessToken');
+            window.location.href = logoutUrl.toString();
         }
-        
+
         function renderLoginStatus(user) {
             const container = document.getElementById('login-status-container');
             if (!container) return;
@@ -281,126 +253,57 @@
                 container.innerHTML = `<button onclick="login()" class="px-3 py-1 text-xs font-medium rounded-full bg-green-500 text-white hover:bg-green-600">${i18next.t('nav.login')}</button>`;
             }
         }
-        
+
         async function handleOidcCallback(code) {
-            // 当用户从 Authing 登录页重定向回来时，URL 中会带有 code
-            // 此函数用 code 去交换 access token
-            const tokenUrl = new URL(`${AUTHING_HOST}/oidc/token`);
-            const redirectUri = window.location.origin + window.location.pathname;
-
-            const params = new URLSearchParams();
-            params.append('client_id', AUTHING_APP_ID);
-            params.append('grant_type', 'authorization_code');
-            params.append('code', code);
-            params.append('redirect_uri', redirectUri);
-            // 注意：如果你的 Authing 应用配置了需要客户端密钥 (Client Secret)，
-            // 在前端这样直接交换是不安全的。
-            // 目前这个示例假设应用是"公共客户端"(Public Client)，不需要密钥。
-
             try {
-                const response = await fetch(tokenUrl, {
+                const redirectUri = window.location.origin;
+                const apiUrl = new URL('/api/authing/callback', window.location.origin);
+                const response = await fetch(apiUrl, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                    },
-                    body: params
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code: code, redirect_uri: redirectUri })
                 });
-
                 if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.error_description || '交换 Token 失败');
+                    const err = await response.json();
+                    throw new Error(err.error || '认证回调失败');
                 }
-
-                const data = await response.json();
-                
-                // 存储 Token
-                sessionStorage.setItem('accessToken', data.access_token);
-                sessionStorage.setItem('idToken', data.id_token);
-
-                // 清理 URL 中的 code 和 state 参数
-                window.history.replaceState({}, document.title, window.location.pathname);
-
-                // 获取并返回用户信息
-                return await fetchUserInfo(data.access_token);
-                
-            } catch (error) {
-                console.error('OIDC 回调处理失败:', error);
-                // 清理 URL，以防刷新时再次触发
-                window.history.replaceState({}, document.title, window.location.pathname);
+                const fullUserProfile = await response.json();
+                sessionStorage.setItem('userInfo', JSON.stringify(fullUserProfile));
+                sessionStorage.setItem('accessToken', fullUserProfile.accessToken);
+                return fullUserProfile;
+            } catch (e) {
+                console.error('认证回调处理失败:', e);
+                alert(`登录失败: ${e.message}`);
+                sessionStorage.removeItem('userInfo');
+                sessionStorage.removeItem('accessToken');
                 return null;
+            } finally {
+                window.history.replaceState({}, document.title, window.location.pathname);
             }
         }
 
         async function validateSessionAndGetUser() {
-            // 检查 sessionStorage 中是否已存在 token
             const token = sessionStorage.getItem('accessToken');
-            if (!token) {
-                return null; // 没有 token，用户未登录
-            }
-
-            // 如果有 token，尝试用它获取用户信息，以验证 token 是否有效
+            if (!token) return null;
             try {
-                const user = await fetchUserInfo(token);
-                if (!user) {
-                    // token 可能已过期或无效
+                const apiUrl = new URL('/api/me', window.location.origin);
+                const response = await fetch(apiUrl, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!response.ok) {
+                    console.warn("Session validation failed:", response.status);
+                    sessionStorage.removeItem('userInfo');
                     sessionStorage.removeItem('accessToken');
-                    sessionStorage.removeItem('idToken');
                     return null;
                 }
-                return user; // Token 有效，返回用户信息
-            } catch (error) {
-                console.error('会话验证失败:', error);
-                sessionStorage.removeItem('accessToken');
-                sessionStorage.removeItem('idToken');
+                const fullUserProfile = await response.json();
+                sessionStorage.setItem('userInfo', JSON.stringify(fullUserProfile));
+                return fullUserProfile;
+            } catch (e) {
+                console.error("Session validation failed:", e);
                 return null;
             }
         }
-
-        // 这是一个辅助函数，被上面两个函数调用
-        async function fetchUserInfo(token) {
-            // 从 Authing 的 userinfo 端点获取用户信息
-            const userInfoUrl = new URL(`${AUTHING_HOST}/oidc/userinfo`);
-            
-            try {
-                const response = await fetch(userInfoUrl, {
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
-                });
-
-                if (response.status === 401) {
-                    // 401 Unauthorized，Token 无效或已过期
-                    console.warn('Access Token 已过期或无效');
-                    return null;
-                }
-
-                if (!response.ok) {
-                    throw new Error(`获取用户信息失败: ${response.statusText}`);
-                }
-
-                const userInfo = await response.json();
-                
-                // userInfo 中包含了 sub, name, nickname, picture, email 等
-                // 我们还需要从 /api/user 获取数据库角色
-                const dbUserResponse = await fetch('/api/user', {
-                     headers: { 'Authorization': `Bearer ${token}` }
-                });
-
-                if (dbUserResponse.ok) {
-                    const dbInfo = await dbUserResponse.json();
-                    // 将 OIDC 信息和数据库信息合并
-                    return { ...userInfo, ...dbInfo };
-                } else {
-                     console.warn('无法获取数据库角色信息，将仅使用 OIDC 用户信息。');
-                     return { ...userInfo, db_role: 'user' }; // 默认角色
-                }
-
-            } catch (error) {
-                console.error('fetchUserInfo 失败:', error);
-                throw error; // 抛出异常让调用者处理
-            }
-        }
-
         // --- 认证功能结束 ---
 
 
