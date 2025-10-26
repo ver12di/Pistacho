@@ -29,30 +29,28 @@
         }
         .line-clamp-2 { overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
         .line-clamp-1 { overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; }
-        /* **FIXED**: Removed @apply, using standard CSS for admin button */
         .admin-action-btn {
-             padding: 0.25rem 0.75rem; /* px-3 py-1 */
-             font-size: 0.75rem; /* text-xs */
-             font-weight: 600; /* font-semibold */
-             background-color: #D97706; /* bg-yellow-600 */
+             padding: 0.25rem 0.75rem;
+             font-size: 0.75rem;
+             font-weight: 600;
+             background-color: #D97706;
              color: white;
-             border-radius: 0.375rem; /* rounded-md */
+             border-radius: 0.375rem;
              transition: background-color 0.2s;
         }
         .admin-action-btn:hover {
-             background-color: #B45309; /* hover:bg-yellow-700 */
+             background-color: #B45309;
         }
     </style>
 </head>
 <body class="bg-gray-100 font-sans">
     <div class="max-w-4xl mx-auto p-4 md:p-8">
-        <!-- Navbar -->
         <nav class="mb-6 flex flex-wrap justify-between items-center bg-white p-3 rounded-lg shadow-sm gap-4">
              <a href="index.html" class="text-xl font-bold text-indigo-600">Pistacho评分</a>
              <div class="flex items-center space-x-4 flex-grow justify-center md:justify-start md:flex-grow-0 order-3 md:order-2 w-full md:w-auto">
                  <a href="index.html" class="text-gray-600 hover:text-indigo-600">社区动态</a>
                  <a href="rate.html" class="text-gray-600 hover:text-indigo-600">去评分</a>
-                 <a href="history.html" class="text-gray-600 hover:text-indigo-600">我的点评历史</a>
+                 <a href="history.html" class="text-gray-600 hover:text-indigo-600">我的评分</a>
                  <a href="certified.html" class="text-indigo-600 font-bold underline">认证评分</a>
              </div>
              <div id="login-status-container" class="flex items-center order-2 md:order-3"></div>
@@ -86,7 +84,7 @@
         const loadingIndicator = document.getElementById('loading-indicator');
         const loginStatusContainer = document.getElementById('login-status-container');
 
-        const GRADING_SCALE = [ /* ... (grading scale remains the same) ... */ { "grade": "P", "name_en": "Pinnacle", "name_cn": "顶峰 / 登峰造极", "min_score": 95, "color": "gold" }, { "grade": "I", "name_en": "Impeccable", "name_cn": "无暇 / 完美无瑕", "min_score": 90, "color": "indigo" }, { "grade": "S", "name_en": "Superior", "name_cn": "卓越 / 出众", "min_score": 80, "color": "purple" }, { "grade": "T", "name_en": "Terrific", "name_cn": "极好 / 绝佳", "min_score": 70, "color": "blue" }, { "grade": "A", "name_en": "Appreciable", "name_cn": "可圈可点 / 值得欣赏", "min_score": 60, "color": "green" }, { "grade": "C", "name_en": "Commonplace", "name_cn": "平庸 / 普通", "min_score": 50, "color": "gray" }, { "grade": "H", "name_en": "Hesitant", "name_cn": "犹豫 / 瑕瑜互见", "min_score": 30, "color": "orange" }, { "grade": "O", "name_en": "Objectionable", "name_cn": "令人反感 / 极差", "min_score": 0, "color": "red" } ];
+        const GRADING_SCALE = [ { "grade": "P", "name_en": "Pinnacle", "name_cn": "顶峰 / 登峰造极", "min_score": 95, "color": "gold" }, { "grade": "I", "name_en": "Impeccable", "name_cn": "无暇 / 完美无瑕", "min_score": 90, "color": "indigo" }, { "grade": "S", "name_en": "Superior", "name_cn": "卓越 / 出众", "min_score": 80, "color": "purple" }, { "grade": "T", "name_en": "Terrific", "name_cn": "极好 / 绝佳", "min_score": 70, "color": "blue" }, { "grade": "A", "name_en": "Appreciable", "name_cn": "可圈可点 / 值得欣赏", "min_score": 60, "color": "green" }, { "grade": "C", "name_en": "Commonplace", "name_cn": "平庸 / 普通", "min_score": 50, "color": "gray" }, { "grade": "H", "name_en": "Hesitant", "name_cn": "犹豫 / 瑕瑜互见", "min_score": 30, "color": "orange" }, { "grade": "O", "name_en": "Objectionable", "name_cn": "令人反感 / 极差", "min_score": 0, "color": "red" } ];
 
         // --- Authentication Functions ---
         const AUTHING_APP_ID = '68f5b0b6875017c02b3bfdb3';
@@ -108,10 +106,9 @@
 
             try {
                 const apiUrl = new URL('/api/ratings', window.location.origin);
-                apiUrl.searchParams.set('certified', 'true');
+                apiUrl.searchParams.set('certified', 'true'); // Fetch only certified
                 const response = await fetch(apiUrl);
 
-                // **NEW**: Improved Error Handling
                 if (!response.ok) {
                     const contentType = response.headers.get("content-type");
                     let errorText;
@@ -119,18 +116,15 @@
                         const err = await response.json();
                         errorText = err.error || `服务器错误: ${response.status}`;
                     } else {
-                        // If not JSON, read as text (likely HTML error page)
                         errorText = await response.text();
-                        console.error("Received non-JSON error response:", errorText); // Log the HTML
-                        // Display a more generic error if HTML is received
+                        console.error("Received non-JSON error response:", errorText);
                         errorText = `加载失败，服务器返回了意外的内容 (状态 ${response.status})。请检查网络或联系管理员。`;
                     }
                     throw new Error(errorText);
                 }
 
-                // If response is OK, proceed assuming JSON
                 let ratings = await response.json();
-                allCertifiedRatings = ratings;
+                allCertifiedRatings = ratings; // Store all data
 
                 if (ratings.length === 0) {
                     loadingIndicator.innerHTML = `<div class="col-span-full text-center p-6 bg-white rounded-lg shadow"><p>还没有任何认证评分。</p></div>`;
@@ -146,7 +140,6 @@
 
             } catch (error) {
                 console.error("获取认证评分失败:", error);
-                // Display the potentially more informative error message
                 loadingIndicator.innerHTML = `<div class="col-span-full text-center p-6 bg-red-100 text-red-700 rounded-lg shadow"><p>加载认证评分失败: ${error.message}</p></div>`;
             }
         }
@@ -155,10 +148,10 @@
          * Creates card HTML similar to index.html
          */
         function createCardHTML(rating, isAdmin) {
-            /* ... (createCardHTML remains the same as previous version) ... */
              const div = document.createElement('div');
              div.className = 'rating-card bg-white rounded-lg shadow-md overflow-hidden transition-all duration-300 cursor-pointer flex flex-col';
              div.id = `rating-card-${rating.id}`;
+             // **MODIFIED**: Added onclick event to the card div
              div.onclick = () => viewRatingDetails(rating.id);
 
              const score = rating.normalizedScore !== undefined ? rating.normalizedScore.toFixed(2) : 'N/A';
@@ -199,29 +192,75 @@
         // --- Button Click Events ---
         /**
          * viewRatingDetails - constructs full data object for results.html
+         * **MODIFIED**: Pass ratingId to detailedData
          */
         window.viewRatingDetails = function(ratingId) {
-            /* ... (viewRatingDetails remains the same as previous version) ... */
             const ratingData = allCertifiedRatings.find(r => r.id === ratingId);
             if (!ratingData) { alert("无法加载该评分的详细信息 (数据未找到)。"); return; }
             let detailedData = {};
             const cigarInfo = ratingData.cigarInfo || { name: ratingData.cigarName, size: ratingData.cigarSize, origin: ratingData.cigarOrigin };
+            // Reconstruct finalGrade with color
             const foundGrade = GRADING_SCALE.find(g => ratingData.normalizedScore >= g.min_score) || GRADING_SCALE[GRADING_SCALE.length - 1];
             const finalGrade = foundGrade ? { grade: foundGrade.grade, name_cn: foundGrade.name_cn, name_en: foundGrade.name_en, color: foundGrade.color } : null;
+
+            // Ensure imageUrls and selectedFlavors are arrays
             let imageUrls = ratingData.imageUrl;
             if (typeof imageUrls === 'string') { try { imageUrls = JSON.parse(imageUrls); if (!Array.isArray(imageUrls)) imageUrls = [ratingData.imageUrl]; } catch(e){ imageUrls = imageUrls ? [imageUrls] : []; } }
             else if (!Array.isArray(imageUrls)) { imageUrls = imageUrls ? [imageUrls] : []; }
             const selectedFlavors = Array.isArray(ratingData.fullData?.selectedFlavors) ? ratingData.fullData.selectedFlavors : [];
-            const hasCompleteFullData = ratingData.fullData && ratingData.fullData.config && ratingData.fullData.ratings && ratingData.fullData.calculatedScore !== undefined;
-            if (hasCompleteFullData && finalGrade) {
-                 detailedData = { config: ratingData.fullData.config, ratings: ratingData.fullData.ratings, calculatedScore: ratingData.fullData.calculatedScore, title: ratingData.title || '无标题点评', cigarInfo: cigarInfo, cigarReview: ratingData.cigarReview || '无', imageUrls: imageUrls, normalizedScore: ratingData.normalizedScore, finalGrade: finalGrade, selectedFlavors: selectedFlavors, timestamp: ratingData.timestamp, userNickname: ratingData.userNickname, userEmail: ratingData.userEmail, isDraft: false };
-                 console.log("Sending COMPLETE data to results.html:", detailedData);
-            } else {
-                 console.warn(`fullData for certified rating ${ratingId} is missing or incomplete. Sending only top-level data.`);
-                 detailedData = { title: ratingData.title || '无标题点评', cigarInfo: cigarInfo, cigarReview: ratingData.cigarReview || '无', imageUrls: imageUrls, normalizedScore: ratingData.normalizedScore, finalGrade: finalGrade, selectedFlavors: selectedFlavors, timestamp: ratingData.timestamp, userNickname: ratingData.userNickname, userEmail: ratingData.userEmail, isDraft: false };
-                 console.log("Sending INCOMPLETE data to results.html:", detailedData);
+
+            // Check if essential data exists before proceeding
+            if (!ratingData || ratingData.normalizedScore === undefined || !finalGrade || !cigarInfo) {
+                 console.error("viewRatingDetails (certified): Essential data missing!", {ratingData, finalGrade, cigarInfo});
+                 alert("无法加载详情：缺少基本评分信息。");
+                 return;
             }
-            try { sessionStorage.setItem('cigarRatingResults', JSON.stringify(detailedData)); window.location.href = 'results.html'; }
+
+            // Always include ratingId
+            detailedData.ratingId = ratingData.id;
+
+            const hasCompleteFullData = ratingData.fullData && ratingData.fullData.config && ratingData.fullData.ratings && ratingData.fullData.calculatedScore !== undefined;
+            if (hasCompleteFullData) {
+                 detailedData = {
+                     ...detailedData, // Spread existing ratingId
+                     config: ratingData.fullData.config,
+                     ratings: ratingData.fullData.ratings,
+                     calculatedScore: ratingData.fullData.calculatedScore,
+                     title: ratingData.title || '无标题点评',
+                     cigarInfo: cigarInfo,
+                     cigarReview: ratingData.cigarReview || '无',
+                     imageUrls: imageUrls,
+                     normalizedScore: ratingData.normalizedScore,
+                     finalGrade: finalGrade, // Use reconstructed grade
+                     selectedFlavors: selectedFlavors,
+                     timestamp: ratingData.timestamp,
+                     userNickname: ratingData.userNickname,
+                     userEmail: ratingData.userEmail,
+                     isDraft: false
+                 };
+                 console.log("Sending COMPLETE data from certified:", detailedData);
+            } else {
+                 console.warn(`fullData for certified rating ${ratingId} is missing or incomplete.`);
+                 detailedData = {
+                     ...detailedData, // Spread existing ratingId
+                     title: ratingData.title || '无标题点评',
+                     cigarInfo: cigarInfo,
+                     cigarReview: ratingData.cigarReview || '无',
+                     imageUrls: imageUrls,
+                     normalizedScore: ratingData.normalizedScore,
+                     finalGrade: finalGrade, // Use reconstructed grade
+                     selectedFlavors: selectedFlavors,
+                     timestamp: ratingData.timestamp,
+                     userNickname: ratingData.userNickname,
+                     userEmail: ratingData.userEmail,
+                     isDraft: false
+                 };
+                 console.log("Sending INCOMPLETE data from certified:", detailedData);
+            }
+            try {
+                 sessionStorage.setItem('cigarRatingResults', JSON.stringify(detailedData));
+                 window.location.href = 'results.html'; // Navigate without ratingId in URL
+            }
             catch (e) { console.error("Error setting sessionStorage:", e); alert("无法保存会话数据以查看详情。"); }
         }
 
@@ -229,13 +268,12 @@
          * Uncertify Action
          */
         window.updateCertification = async function(ratingId, certify, event) {
-            /* ... (updateCertification remains the same as previous version) ... */
+            /* ... (remains same) ... */
              event.stopPropagation(); if (!accessToken) { return alert("请登录以执行此操作。"); } const button = event.target.closest('button'); const originalText = button.textContent; button.textContent = '取消中...'; button.disabled = true; try { const response = await fetch('/api/certify', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${accessToken}` }, body: JSON.stringify({ ratingId, certify }) }); if (!response.ok) { const err = await response.json(); throw new Error(err.error || '操作失败'); } const cardToRemove = document.getElementById(`rating-card-${ratingId}`); if (cardToRemove) { cardToRemove.style.transition = 'opacity 0.5s ease-out, transform 0.5s ease-out'; cardToRemove.style.opacity = '0'; cardToRemove.style.transform = 'scale(0.95)'; setTimeout(() => { cardToRemove.remove(); allCertifiedRatings = allCertifiedRatings.filter(r => r.id !== ratingId); if (allCertifiedRatings.length === 0) { loadingIndicator.innerHTML = `<div class="col-span-full text-center p-6 bg-white rounded-lg shadow"><p>还没有任何认证评分。</p></div>`; loadingIndicator.style.display = 'block'; } }, 500); } } catch (error) { alert(`操作失败: ${error.message}`); button.textContent = originalText; button.disabled = false; }
         }
 
         // --- Initialization ---
         window.onload = async function() {
-            /* ... (onload remains the same as previous version) ... */
              const urlParams = new URLSearchParams(window.location.search); const code = urlParams.get('code'); let user = null; if (code) { user = await handleOidcCallback(code); } else { user = await validateSessionAndGetUser(); } currentAuthUser = user; accessToken = sessionStorage.getItem('accessToken'); userRole = currentAuthUser?.db_role ?? 'guest'; renderLoginStatus(currentAuthUser); await fetchAndRenderCertified(); if (code) { window.history.replaceState({}, document.title, window.location.pathname); }
         };
     </script>
