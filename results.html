@@ -470,8 +470,12 @@
 
             // Populate Hidden Share Card
             const shareCardImage = document.getElementById('share-card-image');
-            const gradeStyles = getGradeStyles(finalGrade.color);
-            document.getElementById('share-card-score').className = `text-5xl font-black ${styles.textColor}`;
+            const gradeStyles = getGradeStyles(finalGrade.color); // This is defined below
+
+            // --- 修复开始 ---
+            document.getElementById('share-card-score').className = `text-5xl font-black ${gradeStyles.textColor}`; // Changed 'styles' to 'gradeStyles'
+            // --- 修复结束 ---
+
             document.getElementById('share-card-grade-badge').className = `inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${gradeStyles.bgColor} ${gradeStyles.textColor} bg-opacity-20`;
             document.getElementById('share-card-score').textContent = normalizedScore.toFixed(2);
             document.getElementById('share-card-grade-badge').textContent = finalGrade.name;
@@ -558,27 +562,38 @@
         function generateNarrativeSummary(cigarInfo, config, ratings, finalGrade, selectedFlavors) {
             if (!config || !ratings) return `<p class="text-gray-500 italic">${i18next.t('errors.noNarrativeData')}</p>`;
             const { origin = i18next.t('common.unknown'), name = i18next.t('common.unknown'), size = i18next.t('common.unknown') } = cigarInfo;
-            let summary = `<p>${i18next.t('narrative.intro', { origin, name, size })}`;
+            let summary = `<p>${i18next.t('resultsPage.narrative.part1', { origin, name, size })}`; // Corrected key usage
             let observations = [];
             (config.ratingCriteria || []).forEach(category => {
                 (category.criteriaList || []).forEach(criterion => {
-                    const id = `${category.categoryKey}-${criterion.nameKey}`;
+                    const id = `${category.categoryKey}-${criterion.nameKey}`; // Use keys
                     const selectedOptionIndex = ratings[id];
                     if (selectedOptionIndex !== undefined) {
                         const option = criterion.options[selectedOptionIndex];
-                        observations.push(i18next.t('narrative.observation', { 
+                        observations.push(i18next.t('resultsPage.narrative.observation', { // Corrected key usage
                             criterion: i18next.t(criterion.nameKey), 
-                            option: i18next.t(option.descriptionKey) 
+                            option: i18next.t(option.descriptionKey) // Use keys
                         }));
                     }
                 });
             });
-            if (observations.length > 0) summary += ` ${i18next.t('narrative.observationsPrefix')} ${observations.join('；')}。`;
-            if (selectedFlavors.length > 0) summary += ` ${i18next.t('narrative.flavorsPrefix')} <strong>${selectedFlavors.join(', ')}</strong>。`;
-            summary += ` ${i18next.t('narrative.conclusion', { grade: `${finalGrade.grade} - ${finalGrade.name}` })}`;
+            
+            if (observations.length > 0) {
+                summary += ` ${i18next.t('resultsPage.narrative.part2', { observations: observations.join('；') })}`; // Corrected key usage
+            } else {
+                 summary += ` ${i18next.t('resultsPage.narrative.noObservations')}`;
+            }
+
+            if (selectedFlavors.length > 0) {
+                summary += ` ${i18next.t('resultsPage.narrative.part3', { flavors: selectedFlavors.join(', ') })}`; // Corrected key usage
+            }
+
+            const hierarchy = GRADING_SCALE.map(g => `${g.grade}(${i18next.t(g.nameKey)})`).join(', ');
+            summary += ` ${i18next.t('resultsPage.narrative.part4', { grade: finalGrade.grade, gradeName: finalGrade.name, hierarchy: hierarchy })}`; // Corrected key usage
             summary += `</p>`;
             return summary;
         }
+
 
         function renderSummary(container, config, ratings) {
             if (!container || !config || !ratings) { 
@@ -587,17 +602,23 @@
             } 
             let summaryHtml = (config.ratingCriteria || []).map(category => {
                 const criteriaHtml = (category.criteriaList || []).map(criterion => {
-                    const id = `${category.categoryKey}-${criterion.nameKey}`;
+                    const id = `${category.categoryKey}-${criterion.nameKey}`; // Use keys
                     const selectedOptionIndex = ratings[id];
                     if (selectedOptionIndex !== undefined) {
                         const option = criterion.options[selectedOptionIndex];
-                        return `<li><strong>${i18next.t(criterion.nameKey)}:</strong> ${i18next.t(option.descriptionKey)}</li>`;
+                        return `<li><strong>${i18next.t(criterion.nameKey)}:</strong> ${i18next.t(option.descriptionKey)}</li>`; // Use keys
                     }
                     return '';
                 }).join('');
-                return `<h4>${i18next.t(category.categoryKey)}</h4><ul>${criteriaHtml}</ul>`;
+                
+                // Only render category if it has rated criteria
+                if (criteriaHtml.trim()) {
+                     return `<h4 class="font-semibold mt-4 mb-1 text-gray-700">${i18next.t(category.categoryKey)}</h4><ul class="list-disc list-inside space-y-1 text-sm">${criteriaHtml}</ul>`; // Use keys
+                }
+                return '';
+                
             }).join('');
-            container.innerHTML = summaryHtml || `<p>${i18next.t('common.noDetails')}</p>`;
+            container.innerHTML = summaryHtml || `<p>${i18next.t('resultsPage.summary.noItems')}</p>`; // Corrected key usage
         }
         
         function getScoreRange(gradeCode) { const index = GRADING_SCALE.findIndex(g => g.grade === gradeCode); if (index === -1) return ''; const min = GRADING_SCALE[index].min_score; if (index === 0) return `${min}-100`; const max = GRADING_SCALE[index - 1].min_score - 0.01; return `${min.toFixed(0)}-${max.toFixed(2)}`; }
@@ -608,8 +629,7 @@
              const styles = getGradeStyles(grade.color);
              const scoreHtml = `
                  <div>
-                     <p class="text-xl font-bold text-yellow-500 mb-1">${i18next.t('resultsPage.pistachoScore')}</p>
-                     <p class="text-7xl font-black ${styles.textColor}">${score.toFixed(2)}</p>
+                     <p class="text-xl font-bold text-yellow-500 mb-1">${i18next.t('resultsPage.scoreSectionTitle')}</p> <p class="text-7xl font-black ${styles.textColor}">${score.toFixed(2)}</p>
                      <div class="mt-2 text-3xl font-black ${styles.textColor}">${grade.name}</div>
                  </div>
              `;
