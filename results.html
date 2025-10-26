@@ -19,75 +19,26 @@
         .swiper-slide img { display: block; width: 100%; height: auto; object-fit: contain; max-height: 80vh; }
         .swiper-slide.share-image-slide img { max-height: none; object-fit: contain; }
         .swiper-button-next, .swiper-button-prev { color: #fff; background-color: rgba(0,0,0,0.3); padding: 10px; border-radius: 50%; width: 40px; height: 40px; } .swiper-button-next::after, .swiper-button-prev::after { font-size: 1.2rem; }
-
-        /* **MODIFIED**: Pagination Styles based on user code (positioning only) */
-        .swiper-pagination {
-            position: absolute;
-            bottom: 20px !important; /* Positioned near the bottom black bar */
-            left: 50%;
-            transform: translateX(-50%);
-            width: auto;
-            z-index: 10;
-        }
+        .swiper-pagination { position: absolute; bottom: 20px !important; left: 50%; transform: translateX(-50%); width: auto; z-index: 10; }
         .swiper-pagination-bullet { background-color: rgba(128, 128, 128, 0.7); opacity: 1; width: 8px; height: 8px; }
         .swiper-pagination-bullet-active { background: #FFFFFF; }
-
         .thumbnail-swiper .swiper-slide { width: 60px !important; height: 80px; opacity: 0.6; cursor: pointer; border: 2px solid transparent; transition: opacity 0.3s, border-color 0.3s; }
         .thumbnail-swiper .swiper-slide img { object-fit: cover; }
         .thumbnail-swiper .swiper-slide-thumb-active { opacity: 1; border-color: #4f46e5; } .thumbnail-swiper { margin-top: 0.5rem; padding: 5px 0; }
         #narrative-summary-container, #cigar-review-container, #selected-flavors-container { max-width: 100%; }
         .flavor-tag { display: inline-block; background-color: #e5e7eb; color: #374151; font-size: 0.75rem; font-weight: 600; margin-right: 0.5rem; margin-bottom: 0.5rem; padding: 0.125rem 0.625rem; border-radius: 9999px; }
 
-        /* Share Card Styles */
+        /* **MODIFIED**: Share Card Styles based on latest user provided CSS */
         #share-card-container { position: absolute; left: -9999px; top: 0; width: 350px; background-color: white; border-radius: 0.5rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); overflow: hidden; border: 1px solid #e5e7eb; visibility: hidden; z-index: -1; }
         #share-card-image-wrapper { background-color: #e5e7eb; display: flex; align-items: center; justify-content: center; aspect-ratio: 1179 / 1572; }
         #share-card-image { width: 100%; height: 100%; object-fit: cover; }
-        #share-card-content { padding: 0.5rem; position: relative; } /* Reduced padding */
-
-        /* **MODIFIED**: Score/Grade Layout */
-        #share-card-score-grade {
-             display: flex;
-             flex-direction: column; /* Stack vertically */
-             align-items: flex-start; /* Align left */
-             margin-bottom: 0.25rem;
-        }
-        #share-card-score {
-            font-size: 2.75rem;
-            font-weight: 900;
-            line-height: 1;
-            margin-bottom: 0.15rem; /* Added small margin between score and grade */
-        }
-        #share-card-grade-badge {
-            display: inline-block;
-            padding: 0.1rem 0.4rem;
-            border-radius: 9999px;
-            font-size: 0.65rem;
-            font-weight: 600;
-        }
-
-        /* **MODIFIED**: Footer Layout (Watermark & QR on one line) */
-        .share-card-footer {
-            display: flex;            /* Use flexbox */
-            justify-content: space-between; /* Space items apart */
-            align-items: flex-end;    /* Align items to the bottom */
-            margin-top: 0.25rem;
-        }
-        #share-card-watermark {
-            font-size: 0.55rem;
-            color: #9ca3af;
-            width: calc(100% - 30% - 0.5rem); /* Adjust width to make space, add gap */
-            line-height: 1.1;
-            margin: 0;
-        }
-        #share-card-qrcode {
-            width: 28%;
-            height: auto;
-            background-color: white;
-            padding: 1px;
-            border: 1px solid #eee;
-            box-shadow: 0 0 2px rgba(0,0,0,0.1);
-            flex-shrink: 0; /* Prevent QR code from shrinking */
-        }
+        #share-card-content { padding: 0.25rem; position: relative; }
+        #share-card-score-grade { display: flex; flex-direction: column; align-items: flex-start; margin-bottom: 0.1rem; }
+        #share-card-score { font-size: 2.75rem; font-weight: 900; line-height: 1; margin-bottom: 0.3rem; /* Increased margin */ }
+        #share-card-grade-badge { display: inline-block; padding: 0.1rem 0.4rem; border-radius: 9999px; font-size: 0.6rem; /* Slightly smaller */ font-weight: 600; margin-bottom: 0.2rem; /* Added margin */ }
+        .share-card-footer { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 0; /* Removed margin */ }
+        #share-card-watermark { font-size: 0.55rem; /* Smaller */ color: #9ca3af; width: 65%; /* Reduced width */ line-height: 1.1; margin: 0; }
+        #share-card-qrcode { width: 32%; /* Increased width */ height: auto; background-color: white; padding: 0; /* Removed padding */ border: 1px solid #eee; box-shadow: 0 0 2px rgba(0,0,0,0.1); }
         #share-card-qrcode img { display: block; width: 100%; height: 100%; }
     </style>
 </head>
@@ -149,12 +100,10 @@
                 <img id="share-card-image" src="" alt="Cigar Cover Image" crossorigin="anonymous">
             </div>
             <div id="share-card-content">
-                <!-- Score/Grade grouped vertically -->
                 <div id="share-card-score-grade">
                     <span id="share-card-score">0.00</span>
                     <span id="share-card-grade-badge">? - ???</span>
                 </div>
-                <!-- Footer containing Watermark and QR Code -->
                 <div class="share-card-footer">
                      <p id="share-card-watermark">
                          <span id="share-card-username">用户</span> 评分于 Pistacho评分系统 www.pista-cho.com
@@ -164,7 +113,6 @@
             </div>
         </div>
     </div>
-
 
     <script type="module">
         // --- Constants and Global Vars ---
@@ -377,8 +325,8 @@
                 const gradeStyles = getGradeStyles(finalGrade.color);
 
                 // Apply styles immediately
-                if (shareCardScore) shareCardScore.className = `text-5xl font-black ${gradeStyles.textColor}`; // Apply color class
-                if (shareCardGradeBadge) shareCardGradeBadge.className = `inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${gradeStyles.bgColor} ${gradeStyles.textColor} bg-opacity-20`; // Apply color classes
+                if (shareCardScore) shareCardScore.className = `text-5xl font-black ${gradeStyles.textColor}`;
+                if (shareCardGradeBadge) shareCardGradeBadge.className = `inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${gradeStyles.bgColor} ${gradeStyles.textColor} bg-opacity-20`;
 
 
                 if (shareCardScore) shareCardScore.textContent = normalizedScore.toFixed(2);
