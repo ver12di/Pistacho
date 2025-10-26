@@ -16,11 +16,19 @@
     <script src="https://unpkg.com/i18next-browser-languagedetector/i18nextBrowserLanguageDetector.min.js"></script>
 
     <script>
-        if (typeof tailwind !== 'undefined') { /* Tailwind config */ } else { console.warn('Tailwind object not found.'); }
+        // Tailwind config (omitted for brevity, remains the same)
+        if (typeof tailwind !== 'undefined') { 
+             tailwind.config = {
+                 theme: { extend: { fontFamily: { sans: ['Inter', 'Noto Sans SC', 'system-ui', 'sans-serif'], }, } }
+             }
+         } else { console.warn('Tailwind object not found.'); }
     </script>
     <style>
-        /* 您的所有 CSS 样式保持不变 */
-        .tooltip { /* ... */ } .tooltip .tooltiptext { /* ... */ } .tooltip .tooltiptext::after { /* ... */ } .tooltip:hover .tooltiptext { /* ... */ }
+        /* CSS styles (omitted for brevity, remains the same) */
+        .tooltip { position: relative; display: inline-block; } 
+        .tooltip .tooltiptext { visibility: hidden; width: 60px; background-color: #555; color: #fff; text-align: center; border-radius: 6px; padding: 5px 0; position: absolute; z-index: 1; bottom: 125%; left: 50%; margin-left: -30px; opacity: 0; transition: opacity 0.3s; font-size: 10px; } 
+        .tooltip .tooltiptext::after { content: ""; position: absolute; top: 100%; left: 50%; margin-left: -5px; border-width: 5px; border-style: solid; border-color: #555 transparent transparent transparent; } 
+        .tooltip:hover .tooltiptext { visibility: visible; opacity: 1; }
         .swiper-container.main-swiper { width: 100%; position: relative; }
         .swiper-slide { height: auto; display: flex; flex-direction: column; }
         .swiper-slide img { display: block; width: 100%; height: auto; object-fit: contain; max-height: 80vh; }
@@ -30,7 +38,7 @@
         .swiper-pagination-bullet { background-color: rgba(128, 128, 128, 0.7); opacity: 1; width: 8px; height: 8px; }
         .swiper-pagination-bullet-active { background: #FFFFFF; }
         .thumbnail-swiper .swiper-slide { width: 60px !important; height: 80px; opacity: 0.6; cursor: pointer; border: 2px solid transparent; transition: opacity 0.3s, border-color 0.3s; }
-        .thumbnail-swiper .swiper-slide img { object-fit: cover; }
+        .thumbnail-swiper .swiper-slide img { object-fit: cover; width: 100%; height: 100%;}
         .thumbnail-swiper .swiper-slide-thumb-active { opacity: 1; border-color: #4f46e5; } .thumbnail-swiper { margin-top: 0.5rem; padding: 5px 0; }
         #narrative-summary-container, #cigar-review-container, #selected-flavors-container { max-width: 100%; }
         .flavor-tag { display: inline-block; background-color: #e5e7eb; color: #374151; font-size: 0.75rem; font-weight: 600; margin-right: 0.5rem; margin-bottom: 0.5rem; padding: 0.125rem 0.625rem; border-radius: 9999px; }
@@ -101,7 +109,8 @@
                      <div id="cigar-review-container" class="prose prose-sm max-w-none text-gray-700 border-t pt-4">
                      </div>
                      <div id="selected-flavors-container" class="hidden pt-2">
-                         <h4 class="text-sm font-semibold text-gray-600 mb-2" data-i18n="resultsPage.mainFlavors">主要风味:</h4>
+                         <!-- --- 修复 #1 --- -->
+                         <h4 class="text-sm font-semibold text-gray-600 mb-2" data-i18n="resultsPage.flavors">主要风味:</h4>
                          <div id="flavors-display" class="flex flex-wrap"></div>
                      </div>
                  </div>
@@ -111,7 +120,7 @@
             </section>
 
              <div id="save-button-container" class="hidden mb-6">
-                 <button id="save-rating-button" onclick="saveRating()" class="w-full py-3 px-6 bg-green-600 text-white font-bold text-lg rounded-lg shadow-md hover:bg-green-700 transition" data-i18n="resultsPage.saveAsMyRating">
+                 <button id="save-rating-button" onclick="saveRating()" class="w-full py-3 px-6 bg-green-600 text-white font-bold text-lg rounded-lg shadow-md hover:bg-green-700 transition" data-i18n="resultsPage.saveRating"> <!-- Changed key -->
                      保存为我的评分记录
                  </button>
              </div>
@@ -120,21 +129,24 @@
                  <details id="narrative-summary-details" class="group bg-white rounded-xl shadow-lg p-6 transition-all duration-300" open>
                      <summary class="flex justify-between items-center cursor-pointer font-bold text-lg text-gray-800">
                          <span>
-                             <span data-i18n="resultsPage.narrativeSummary">综合评价</span>
+                             <!-- --- 修复 #2 --- -->
+                             <span data-i18n="resultsPage.narrativeTitle">综合评价</span>
                              <svg class="inline w-5 h-5 transform group-open:rotate-180 transition-transform ml-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
                          </span>
                          <div class="tooltip">
                              <button id="copy-summary-button" onclick="copySummary(event)" class="ml-4 p-1.5 bg-gray-100 text-gray-600 rounded-full hover:bg-gray-200 transition text-xs">
                                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"> <path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /> </svg>
                              </button>
-                             <span id="copy-tooltip" class="tooltiptext" data-i18n="common.copy">复制</span>
+                             <!-- --- 修复 #3 --- -->
+                             <span id="copy-tooltip" class="tooltiptext" data-i18n="resultsPage.copy">复制</span>
                          </div>
                      </summary>
                      <div id="narrative-summary-container" class="mt-4 prose max-w-none"></div>
                  </details>
                  <details id="summary-details" class="group bg-white rounded-xl shadow-lg p-6">
                      <summary class="flex justify-between items-center cursor-pointer font-bold text-lg text-gray-800">
-                         <span data-i18n="resultsPage.summaryDetails">评分详情汇总</span>
+                         <!-- --- 修复 #4 --- -->
+                         <span data-i18n="resultsPage.detailsTitle">评分详情汇总</span>
                          <svg class="w-5 h-5 transform group-open:rotate-180 transition-transform" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
                      </summary>
                      <div id="summary-container" class="mt-4"></div>
@@ -218,10 +230,16 @@
                 } else if (el.tagName === 'OPTION') {
                     el.textContent = value;
                 } else {
-                    el.innerHTML = value;
+                    // Check if the element is the tooltip span specifically
+                    if (el.id === 'copy-tooltip') {
+                         el.textContent = value; // Use textContent for the tooltip span
+                    } else {
+                         el.innerHTML = value; // Use innerHTML for others
+                    }
                 }
             });
         }
+
 
         function setupLanguageSwitcher() {
             const switcher = document.getElementById('language-switcher');
@@ -240,7 +258,7 @@
             });
         }
 
-        // --- Authentication ---
+        // --- Authentication --- (remains the same)
         window.login = function() { const redirectUri = window.location.origin; const authorizeUrl = new URL('/oidc/auth', AUTHING_HOST); authorizeUrl.search = new URLSearchParams({ client_id: AUTHING_APP_ID, redirect_uri: redirectUri, response_type: 'code', scope: 'openid profile email phone', state: Math.random().toString(36).substring(2) }).toString(); window.location.href = authorizeUrl.toString(); }
         window.logout = function() { const logoutUrl = new URL('/oidc/session/end', AUTHING_HOST); logoutUrl.search = new URLSearchParams({ post_logout_redirect_uri: window.location.origin }).toString(); sessionStorage.removeItem('userInfo'); sessionStorage.removeItem('accessToken'); window.location.href = logoutUrl.toString(); }
         
@@ -281,7 +299,7 @@
         }
         async function validateSessionAndGetUser() { const token = sessionStorage.getItem('accessToken'); if (!token) return null; try { const apiUrl = new URL('/api/me', window.location.origin); const response = await fetch(apiUrl, { headers: { 'Authorization': `Bearer ${token}` } }); if (!response.ok) { sessionStorage.removeItem('userInfo'); sessionStorage.removeItem('accessToken'); return null; } const fullUserProfile = await response.json(); sessionStorage.setItem('userInfo', JSON.stringify(fullUserProfile)); return fullUserProfile; } catch (e) { console.error("Session validation failed:", e); return null; } }
 
-        // --- Main Functions ---
+        // --- Main Functions --- (saveRating remains the same)
         window.saveRating = async function() { 
             const token = sessionStorage.getItem('accessToken');
             if (!currentAuthUser || !token) {
@@ -297,31 +315,19 @@
 
             try {
                 const apiUrl = new URL('/api/ratings', window.location.origin);
-                // We POST the full resultsData object
                 const response = await fetch(apiUrl, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                     body: JSON.stringify(resultsData)
                 });
-
-                if (!response.ok) {
-                    const err = await response.json();
-                    throw new Error(err.error || i18next.t('errors.saveFailedNoMsg'));
-                }
-                
+                if (!response.ok) { const err = await response.json(); throw new Error(err.error || i18next.t('errors.saveFailedNoMsg')); }
                 const saveResult = await response.json();
-                const newRatingId = saveResult.id; // Get new ID from response
-
+                const newRatingId = saveResult.id; 
                 alert(i18next.t('common.saveSuccess'));
-                sessionStorage.removeItem('cigarRatingResults'); // Clear the draft
+                sessionStorage.removeItem('cigarRatingResults'); 
                 button.textContent = i18next.t('common.saveSuccess');
                 button.classList.remove('bg-green-600', 'hover:bg-green-700');
                 button.classList.add('bg-gray-400', 'cursor-not-allowed');
-                
-                // Update URL to reflect the saved rating ID without reloading
                 if (newRatingId) {
                     ratingId = newRatingId;
                     resultsData.isDraft = false;
@@ -329,30 +335,31 @@
                     newUrl.searchParams.set('ratingId', newRatingId);
                     window.history.replaceState({}, document.title, newUrl.toString());
                 }
-
             } catch (e) {
                 console.error("保存评分失败:", e);
                 alert(i18next.t('common.saveFailed', { msg: e.message }));
-                button.textContent = i18next.t('resultsPage.saveAsMyRating');
+                button.textContent = i18next.t('resultsPage.saveRating'); // Use correct key
                 button.disabled = false;
             }
         };
         
+        // copySummary remains the same
         window.copySummary = function(event) { 
             event.preventDefault();
             event.stopPropagation();
             const summaryText = document.getElementById('narrative-summary-container').textContent || '';
             const tooltip = document.getElementById('copy-tooltip');
             navigator.clipboard.writeText(summaryText.trim()).then(() => {
-                tooltip.textContent = i18next.t('common.copied');
-                setTimeout(() => { tooltip.textContent = i18next.t('common.copy'); }, 2000);
+                tooltip.textContent = i18next.t('common.copied'); 
+                setTimeout(() => { tooltip.textContent = i18next.t('resultsPage.copy'); }, 2000); // Reset using correct key
             }, (err) => {
                 console.error('Could not copy text: ', err);
-                tooltip.textContent = i18next.t('common.copyFailed');
-                setTimeout(() => { tooltip.textContent = i18next.t('common.copy'); }, 2000);
+                tooltip.textContent = i18next.t('common.copyFailed'); 
+                setTimeout(() => { tooltip.textContent = i18next.t('resultsPage.copy'); }, 2000); // Reset using correct key
             });
         };
 
+        // initSwipers remains the same
         function initSwipers(imageUrls = []) {
              const mainWrapper = document.getElementById('main-swiper-wrapper'); 
              const thumbWrapper = document.getElementById('thumbnail-swiper-wrapper'); 
@@ -392,6 +399,7 @@
              }
         }
 
+        // autoGenerateShareImage remains the same
         async function autoGenerateShareImage() {
             const shareCardElement = document.getElementById('share-card-container');
             const coverImageElement = document.getElementById('share-card-image');
@@ -420,6 +428,7 @@
             }
         }
         
+        // renderPageContent remains mostly the same, just the error part was fixed previously
         function renderPageContent(data) {
             if (!data) return;
             
@@ -470,18 +479,13 @@
 
             // Populate Hidden Share Card
             const shareCardImage = document.getElementById('share-card-image');
-            const gradeStyles = getGradeStyles(finalGrade.color); // This is defined below
-
-            // --- 修复开始 ---
-            document.getElementById('share-card-score').className = `text-5xl font-black ${gradeStyles.textColor}`; // Changed 'styles' to 'gradeStyles'
-            // --- 修复结束 ---
-
+            const gradeStyles = getGradeStyles(finalGrade.color); 
+            document.getElementById('share-card-score').className = `text-5xl font-black ${gradeStyles.textColor}`; // Fixed here
             document.getElementById('share-card-grade-badge').className = `inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${gradeStyles.bgColor} ${gradeStyles.textColor} bg-opacity-20`;
             document.getElementById('share-card-score').textContent = normalizedScore.toFixed(2);
             document.getElementById('share-card-grade-badge').textContent = finalGrade.name;
-            document.getElementById('share-card-watermark').innerHTML = i18next.t('resultsPage.shareWatermark', { 
-                user: `<span id="share-card-username">${userNickname}</span>`,
-                url: "www.pista-cho.com"
+            document.getElementById('share-card-watermark').innerHTML = i18next.t('resultsPage.shareCard.userRatingOn', { // Using correct key structure
+                user: `<span id="share-card-username">${userNickname}</span>`
             });
             
             const shareCardQrCode = document.getElementById('share-card-qrcode');
@@ -489,16 +493,19 @@
                 shareCardQrCode.innerHTML = '';
                 const uniqueUrl = ratingId ? `${window.location.origin}/results.html?ratingId=${ratingId}` : window.location.href;
                 new QRCode(shareCardQrCode, { text: uniqueUrl, width: 90, height: 90 });
+            } else if (!ratingId && typeof QRCode !== 'undefined') {
+                console.warn(i18next.t('resultsPage.shareCard.qrError'));
             }
             
             const images = data.imageUrls || [];
             if (images.length > 0) {
                  shareCardImage.src = `/api/image/${images[0]}`;
             } else {
-                 document.getElementById('share-card-image-wrapper').innerHTML = `<span class="text-gray-400 text-sm">${i18next.t('common.noCoverImage')}</span>`;
+                 document.getElementById('share-card-image-wrapper').innerHTML = `<span class="text-gray-400 text-sm">${i18next.t('resultsPage.shareCard.noCover')}</span>`; // Using correct key structure
             }
         }
 
+        // window.onload remains the same
         window.onload = async function() {
             await initI18n();
             updateContent();
@@ -529,7 +536,7 @@
                     const storedData = sessionStorage.getItem('cigarRatingResults');
                     if (!storedData) throw new Error(i18next.t('errors.noRatingDataFound'));
                     resultsData = JSON.parse(storedData);
-                    ratingId = resultsData.ratingId;
+                    ratingId = resultsData.ratingId; // Get ratingId if loaded from session
                 }
 
                 if (!resultsData || resultsData.normalizedScore === undefined) { 
@@ -539,11 +546,21 @@
                 initSwipers(resultsData.imageUrls || []);
                 renderPageContent(resultsData);
 
-                if ((resultsData.imageUrls || []).length > 0) {
-                     document.getElementById('share-card-image').onload = autoGenerateShareImage;
-                } else {
-                     console.warn("No cover image, cannot generate share image.");
+                // Wait for the share card's image to potentially load before generating the canvas
+                const shareImg = document.getElementById('share-card-image');
+                if (shareImg.src && !shareImg.src.includes('placehold.co')) {
+                    if (shareImg.complete) {
+                        autoGenerateShareImage();
+                    } else {
+                        shareImg.onload = autoGenerateShareImage;
+                        shareImg.onerror = () => console.warn("Share card image failed to load, cannot generate share image.");
+                    }
+                } else if (ratingId) { // Only generate if it's a saved rating (has ID)
+                     console.warn(i18next.t('resultsPage.shareCard.noCover')); // Using correct key structure
+                     // Still attempt to generate, might show placeholder
+                     autoGenerateShareImage();
                 }
+
 
                 loadingIndicator.classList.add('hidden');
                 mainContent.classList.remove('opacity-0');
@@ -558,67 +575,48 @@
             }
         };
 
-        // --- Rendering Utilities ---
+        // --- Rendering Utilities --- (generateNarrativeSummary, renderSummary, getScoreRange, getGradeStyles, renderScoreSection remain the same)
         function generateNarrativeSummary(cigarInfo, config, ratings, finalGrade, selectedFlavors) {
             if (!config || !ratings) return `<p class="text-gray-500 italic">${i18next.t('errors.noNarrativeData')}</p>`;
             const { origin = i18next.t('common.unknown'), name = i18next.t('common.unknown'), size = i18next.t('common.unknown') } = cigarInfo;
-            let summary = `<p>${i18next.t('resultsPage.narrative.part1', { origin, name, size })}`; // Corrected key usage
+            let summary = `<p>${i18next.t('resultsPage.narrative.part1', { origin, name, size })}`; 
             let observations = [];
             (config.ratingCriteria || []).forEach(category => {
                 (category.criteriaList || []).forEach(criterion => {
-                    const id = `${category.categoryKey}-${criterion.nameKey}`; // Use keys
+                    const id = `${category.categoryKey}-${criterion.nameKey}`; 
                     const selectedOptionIndex = ratings[id];
                     if (selectedOptionIndex !== undefined) {
                         const option = criterion.options[selectedOptionIndex];
-                        observations.push(i18next.t('resultsPage.narrative.observation', { // Corrected key usage
+                        observations.push(i18next.t('resultsPage.narrative.observation', { 
                             criterion: i18next.t(criterion.nameKey), 
-                            option: i18next.t(option.descriptionKey) // Use keys
+                            option: i18next.t(option.descriptionKey) 
                         }));
                     }
                 });
             });
-            
-            if (observations.length > 0) {
-                summary += ` ${i18next.t('resultsPage.narrative.part2', { observations: observations.join('；') })}`; // Corrected key usage
-            } else {
-                 summary += ` ${i18next.t('resultsPage.narrative.noObservations')}`;
-            }
-
-            if (selectedFlavors.length > 0) {
-                summary += ` ${i18next.t('resultsPage.narrative.part3', { flavors: selectedFlavors.join(', ') })}`; // Corrected key usage
-            }
-
+            if (observations.length > 0) { summary += ` ${i18next.t('resultsPage.narrative.part2', { observations: observations.join('；') })}`; } 
+            else { summary += ` ${i18next.t('resultsPage.narrative.noObservations')}`; }
+            if (selectedFlavors.length > 0) { summary += ` ${i18next.t('resultsPage.narrative.part3', { flavors: selectedFlavors.join(', ') })}`; }
             const hierarchy = GRADING_SCALE.map(g => `${g.grade}(${i18next.t(g.nameKey)})`).join(', ');
-            summary += ` ${i18next.t('resultsPage.narrative.part4', { grade: finalGrade.grade, gradeName: finalGrade.name, hierarchy: hierarchy })}`; // Corrected key usage
+            summary += ` ${i18next.t('resultsPage.narrative.part4', { grade: finalGrade.grade, gradeName: finalGrade.name, hierarchy: hierarchy })}`; 
             summary += `</p>`;
             return summary;
         }
 
-
         function renderSummary(container, config, ratings) {
-            if (!container || !config || !ratings) { 
-                container.innerHTML = `<p class="text-gray-500 italic">${i18next.t('errors.noSummaryData')}</p>`; 
-                return; 
-            } 
+            if (!container || !config || !ratings) { container.innerHTML = `<p class="text-gray-500 italic">${i18next.t('errors.noSummaryData')}</p>`; return; } 
             let summaryHtml = (config.ratingCriteria || []).map(category => {
                 const criteriaHtml = (category.criteriaList || []).map(criterion => {
-                    const id = `${category.categoryKey}-${criterion.nameKey}`; // Use keys
+                    const id = `${category.categoryKey}-${criterion.nameKey}`; 
                     const selectedOptionIndex = ratings[id];
                     if (selectedOptionIndex !== undefined) {
                         const option = criterion.options[selectedOptionIndex];
-                        return `<li><strong>${i18next.t(criterion.nameKey)}:</strong> ${i18next.t(option.descriptionKey)}</li>`; // Use keys
-                    }
-                    return '';
+                        return `<li><strong>${i18next.t(criterion.nameKey)}:</strong> ${i18next.t(option.descriptionKey)}</li>`; 
+                    } return '';
                 }).join('');
-                
-                // Only render category if it has rated criteria
-                if (criteriaHtml.trim()) {
-                     return `<h4 class="font-semibold mt-4 mb-1 text-gray-700">${i18next.t(category.categoryKey)}</h4><ul class="list-disc list-inside space-y-1 text-sm">${criteriaHtml}</ul>`; // Use keys
-                }
-                return '';
-                
+                if (criteriaHtml.trim()) { return `<h4 class="font-semibold mt-4 mb-1 text-gray-700">${i18next.t(category.categoryKey)}</h4><ul class="list-disc list-inside space-y-1 text-sm">${criteriaHtml}</ul>`; } return '';
             }).join('');
-            container.innerHTML = summaryHtml || `<p>${i18next.t('resultsPage.summary.noItems')}</p>`; // Corrected key usage
+            container.innerHTML = summaryHtml || `<p>${i18next.t('resultsPage.summary.noItems')}</p>`; 
         }
         
         function getScoreRange(gradeCode) { const index = GRADING_SCALE.findIndex(g => g.grade === gradeCode); if (index === -1) return ''; const min = GRADING_SCALE[index].min_score; if (index === 0) return `${min}-100`; const max = GRADING_SCALE[index - 1].min_score - 0.01; return `${min.toFixed(0)}-${max.toFixed(2)}`; }
@@ -627,29 +625,9 @@
          function renderScoreSection(container, score, grade) {
              if (!container || !grade) return; 
              const styles = getGradeStyles(grade.color);
-             const scoreHtml = `
-                 <div>
-                     <p class="text-xl font-bold text-yellow-500 mb-1">${i18next.t('resultsPage.scoreSectionTitle')}</p> <p class="text-7xl font-black ${styles.textColor}">${score.toFixed(2)}</p>
-                     <div class="mt-2 text-3xl font-black ${styles.textColor}">${grade.name}</div>
-                 </div>
-             `;
-             
-             const scaleHtml = GRADING_SCALE.map(g => {
-                 const gStyles = getGradeStyles(g.color);
-                 const isCurrent = g.grade === grade.grade;
-                 return `
-                     <div class="flex items-center p-1 rounded ${isCurrent ? 'bg-gray-100' : ''}">
-                         <div class="w-5 h-5 rounded-full flex items-center justify-center font-bold text-xs ${gStyles.bgColor} ${gStyles.textColor} mr-2">${g.grade}</div>
-                         <div class="flex-grow ${isCurrent ? 'font-semibold' : ''} ${gStyles.textColor}">${i18next.t(g.nameKey)}</div>
-                         <div class="font-mono text-xs text-gray-500 ml-2">${getScoreRange(g.grade)}</div>
-                     </div>
-                 `;
-             }).join('');
-             
-             container.innerHTML = `
-                 <div class="w-full md:w-1/3">${scoreHtml}</div>
-                 <div class="w-full md:w-2/3 border-t md:border-t-0 md:border-l border-gray-200 pt-4 md:pt-0 md:pl-6"><div class="space-y-1">${scaleHtml}</div></div>
-             `;
+             const scoreHtml = `<div><p class="text-xl font-bold text-yellow-500 mb-1">${i18next.t('resultsPage.scoreSectionTitle')}</p><p class="text-7xl font-black ${styles.textColor}">${score.toFixed(2)}</p><div class="mt-2 text-3xl font-black ${styles.textColor}">${grade.name}</div></div>`;
+             const scaleHtml = GRADING_SCALE.map(g => { const gStyles = getGradeStyles(g.color); const isCurrent = g.grade === grade.grade; return `<div class="flex items-center p-1 rounded ${isCurrent ? 'bg-gray-100' : ''}"><div class="w-5 h-5 rounded-full flex items-center justify-center font-bold text-xs ${gStyles.bgColor} ${gStyles.textColor} mr-2">${g.grade}</div><div class="flex-grow ${isCurrent ? 'font-semibold' : ''} ${gStyles.textColor}">${i18next.t(g.nameKey)}</div><div class="font-mono text-xs text-gray-500 ml-2">${getScoreRange(g.grade)}</div></div>`; }).join('');
+             container.innerHTML = `<div class="w-full md:w-1/3">${scoreHtml}</div><div class="w-full md:w-2/3 border-t md:border-t-0 md:border-l border-gray-200 pt-4 md:pt-0 md:pl-6"><div class="space-y-1">${scaleHtml}</div></div>`;
          }
     </script>
 </body>
