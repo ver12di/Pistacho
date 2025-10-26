@@ -5,6 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pistacho 评分社区</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    
+    <script src="https://unpkg.com/i18next/i18next.min.js"></script>
+    <script src="https://unpkg.com/i18next-http-backend/i18nextHttpBackend.min.js"></script>
+    <script src="https://unpkg.com/i18next-browser-languagedetector/i18nextBrowserLanguageDetector.min.js"></script>
+    
     <script>
         if (typeof tailwind !== 'undefined') {
             tailwind.config = {
@@ -81,7 +86,7 @@
     <div class="main-container max-w-7xl">
         <nav class="mb-6 bg-white p-3 rounded-lg shadow-sm">
              <div class="flex flex-wrap justify-between items-center">
-                 <a href="index.html" class="text-base sm:text-lg font-bold text-indigo-600 whitespace-nowrap">Pistacho评分</a>
+                 <a href="index.html" class="text-base sm:text-lg font-bold text-indigo-600 whitespace-nowrap" data-i18n="nav.title">Pistacho评分</a>
 
                  <button id="menu-toggle" class="md:hidden p-2 rounded-md text-gray-500 hover:text-indigo-600 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500">
                      <svg class="h-6 w-6" stroke="currentColor" fill="none" viewBox="0 0 24 24">
@@ -90,28 +95,35 @@
                  </button>
 
                  <div id="nav-links" class="hidden md:flex md:items-center md:space-x-1 w-full md:w-auto mt-4 md:mt-0">
-                     <a href="index.html" class="nav-link-active">社区动态</a>
-                     <a href="rate.html" class="py-1.5 px-3 sm:py-2 sm:px-4 bg-green-500 text-white text-xs sm:text-sm font-semibold rounded-lg hover:bg-green-600 transition mx-2">去评分</a>
-                     <a href="history.html" class="nav-link">我的评分</a>
-                     <a href="certified.html" class="nav-link">认证评分</a>
+                     <a href="index.html" class="nav-link-active" data-i18n="nav.community">社区动态</a>
+                     <a href="rate.html" class="py-1.5 px-3 sm:py-2 sm:px-4 bg-green-500 text-white text-xs sm:text-sm font-semibold rounded-lg hover:bg-green-600 transition mx-2" data-i18n="nav.rate">去评分</a>
+                     <a href="history.html" class="nav-link" data-i18n="nav.myRatings">我的评分</a>
+                     <a href="certified.html" class="nav-link" data-i18n="nav.certified">认证评分</a>
                  </div>
 
-                 <div id="login-status-container" class="flex items-center ml-auto md:ml-0"></div>
+                 <div class="flex items-center ml-auto md:ml-0">
+                    <select id="language-switcher" class="text-xs p-1 rounded border border-gray-300 mr-2 h-7" style="line-height: 1;">
+                        <option value="zh">简体中文</option>
+                        <option value="en">English</option>
+                        <option value="es">Español</option>
+                    </select>
+                    <div id="login-status-container" class="flex items-center"></div>
+                 </div>
              </div>
         </nav>
 
         <div class="mb-6 bg-white p-4 rounded-lg shadow-sm flex flex-col md:flex-row gap-3 items-stretch md:items-center">
-            <input type="text" id="search-input" placeholder="搜索雪茄名称, 产地, 尺寸, 点评, 用户..." class="flex-grow p-3 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 text-sm md:text-base">
+            <input type="text" id="search-input" data-i18n="indexPage.searchPlaceholder" placeholder="搜索雪茄名称, 产地, 尺寸, 点评, 用户..." class="flex-grow p-3 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 text-sm md:text-base">
             <select id="sort-select" class="p-3 border border-gray-300 rounded-md w-full md:w-auto text-sm md:text-base">
-                <option value="latest">最新发布</option>
-                <option value="highest">评分最高</option>
-                <option value="lowest">评分最低</option>
+                <option value="latest" data-i18n="indexPage.sortLatest">最新发布</option>
+                <option value="highest" data-i18n="indexPage.sortHighest">评分最高</option>
+                <option value="lowest" data-i18n="indexPage.sortLowest">评分最低</option>
             </select>
-            <button onclick="applyFilters()" class="py-3 px-5 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition w-full md:w-auto text-sm md:text-base">应用</button>
+            <button onclick="applyFilters()" class="py-3 px-5 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition w-full md:w-auto text-sm md:text-base" data-i18n="common.apply">应用</button>
         </div>
 
         <div id="ratings-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-4">
-            <p id="loading-message" class="col-span-full text-center text-gray-500 py-10">正在加载点评...</p>
+            <p id="loading-message" class="col-span-full text-center text-gray-500 py-10" data-i18n="indexPage.loadingRatings">正在加载点评...</p>
         </div>
 
          <footer class="mt-8 text-center text-gray-500 text-sm">
@@ -124,7 +136,62 @@
         let displayedRatings = {};
         let currentAuthUser = null;
 
-        window.handleStampError = function(imgElement) { console.error('[Debug] 认证徽章加载失败。尝试的路径:', imgElement.src); imgElement.style.display = 'none'; try { const fallback = document.createElement('span'); fallback.className = 'absolute top-1 left-1 bg-yellow-500 text-white text-xs font-bold px-2 py-1 rounded-full z-10'; fallback.textContent = '认证'; if (imgElement.parentNode) { imgElement.parentNode.appendChild(fallback); } else { console.error('[Debug] 无法找到父节点来添加备用徽章。'); } } catch (e) { console.error('[Debug] 创建备用徽章时出错:', e); } }
+        // --- i18n Functions ---
+        async function initI18n() {
+            await i18next
+                .use(i18nextHttpBackend)
+                .use(i18nextBrowserLanguageDetector)
+                .init({
+                    fallbackLng: 'zh',
+                    debug: false,
+                    ns: ['translation'],
+                    defaultNS: 'translation',
+                    backend: {
+                        loadPath: '/locales/{{lng}}.json?v=1' // 确保更新
+                    },
+                    detection: {
+                        order: ['localStorage', 'navigator'],
+                        caches: ['localStorage']
+                    }
+                });
+            updateContent();
+        }
+
+        function updateContent() {
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                const value = i18next.t(key);
+                if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+                    el.placeholder = value;
+                } else if (el.tagName === 'OPTION') {
+                    el.textContent = value;
+                } else {
+                    el.innerHTML = value;
+                }
+            });
+            // 更新 document title
+            document.title = i18next.t('nav.title') + ' - ' + i18next.t('nav.community');
+        }
+
+        function setupLanguageSwitcher() {
+            const switcher = document.getElementById('language-switcher');
+            if (!switcher) return;
+            const currentLang = i18next.language.split('-')[0];
+            switcher.value = ['zh', 'en', 'es'].includes(currentLang) ? currentLang : 'zh';
+            
+            switcher.addEventListener('change', async (e) => {
+                const newLang = e.target.value;
+                await i18next.changeLanguage(newLang);
+                updateContent();
+                // 重新渲染动态内容
+                applyFilters(); // 这会重新渲染网格
+                renderLoginStatus(currentAuthUser); // 重新渲染登录/退出按钮
+            });
+        }
+        // --- End i18n Functions ---
+
+
+        window.handleStampError = function(imgElement) { /* ... (same) ... */ }
 
         const ratingsGrid = document.getElementById('ratings-grid');
         const loadingMessage = document.getElementById('loading-message');
@@ -136,23 +203,180 @@
         const AUTHING_APP_ID = '68f5b0b6875017c02b3bfdb3';
         const AUTHING_HOST = 'https://xfvu647mcdbk-demo.authing.cn';
 
-        const GRADING_SCALE = [ { "grade": "P", "name_en": "Pinnacle", "name_cn": "顶峰 / 登峰造极", "min_score": 95, "color": "gold" }, { "grade": "I", "name_en": "Impeccable", "name_cn": "无暇 / 完美无瑕", "min_score": 90, "color": "indigo" }, { "grade": "S", "name_en": "Superior", "name_cn": "卓越 / 出众", "min_score": 80, "color": "purple" }, { "grade": "T", "name_en": "Terrific", "name_cn": "极好 / 绝佳", "min_score": 70, "color": "blue" }, { "grade": "A", "name_en": "Appreciable", "name_cn": "可圈可点 / 值得欣赏", "min_score": 60, "color": "green" }, { "grade": "C", "name_en": "Commonplace", "name_cn": "平庸 / 普通", "min_score": 50, "color": "gray" }, { "grade": "H", "name_en": "Hesitant", "name_cn": "犹豫 / 瑕瑜互见", "min_score": 30, "color": "orange" }, { "grade": "O", "name_en": "Objectionable", "name_cn": "令人反感 / 极差", "min_score": 0, "color": "red" } ];
+        // **MODIFIED**: GRADING_SCALE uses nameKey
+        const GRADING_SCALE = [
+            { "grade": "P", "nameKey": "resultsPage.grade.P", "min_score": 95, "color": "gold" },
+            { "grade": "I", "nameKey": "resultsPage.grade.I", "min_score": 90, "color": "indigo" },
+            { "grade": "S", "nameKey": "resultsPage.grade.S", "min_score": 80, "color": "purple" },
+            { "grade": "T", "nameKey": "resultsPage.grade.T", "min_score": 70, "color": "blue" },
+            { "grade": "A", "nameKey": "resultsPage.grade.A", "min_score": 60, "color": "green" },
+            { "grade": "C", "nameKey": "resultsPage.grade.C", "min_score": 50, "color": "gray" },
+            { "grade": "H", "nameKey": "resultsPage.grade.H", "min_score": 30, "color": "orange" },
+            { "grade": "O", "nameKey": "resultsPage.grade.O", "min_score": 0, "color": "red" }
+        ];
 
-        window.login = function() { const redirectUri = window.location.origin; const authorizeUrl = new URL('/oidc/auth', AUTHING_HOST); authorizeUrl.search = new URLSearchParams({ client_id: AUTHING_APP_ID, redirect_uri: redirectUri, response_type: 'code', scope: 'openid profile email phone', state: Math.random().toString(36).substring(2) }).toString(); window.location.href = authorizeUrl.toString(); }
-        window.logout = function() { const logoutUrl = new URL('/oidc/session/end', AUTHING_HOST); logoutUrl.search = new URLSearchParams({ post_logout_redirect_uri: window.location.origin }).toString(); sessionStorage.removeItem('userInfo'); sessionStorage.removeItem('accessToken'); window.location.href = logoutUrl.toString(); }
-        function renderLoginStatus(user) { const container = document.getElementById('login-status-container'); if (!container) return; if (user) { const displayName = user.nickname || user.name || user.preferred_username || user.email || '已登录'; container.innerHTML = `<span class="text-xs sm:text-sm font-medium text-gray-700 mr-2 hidden sm:inline">${displayName}</span><button onclick="logout()" class="px-3 py-1 text-xs font-medium rounded-full bg-red-500 text-white hover:bg-red-600">退出</button>`; } else { container.innerHTML = `<button onclick="login()" class="px-3 py-1 text-xs font-medium rounded-full bg-green-500 text-white hover:bg-green-600">登录/注册</button>`; } }
-        async function handleOidcCallback(code) { try { const redirectUri = window.location.origin; const apiUrl = new URL('/api/authing/callback', window.location.origin); const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: code, redirect_uri: redirectUri }) }); if (!response.ok) { const err = await response.json(); throw new Error(err.error || '认证回调失败'); } const fullUserProfile = await response.json(); sessionStorage.setItem('userInfo', JSON.stringify(fullUserProfile)); sessionStorage.setItem('accessToken', fullUserProfile.accessToken); return fullUserProfile; } catch (e) { console.error('认证回调处理失败:', e); alert(`登录失败: ${e.message}`); sessionStorage.removeItem('userInfo'); sessionStorage.removeItem('accessToken'); return null; } finally { window.history.replaceState({}, document.title, window.location.pathname); } }
-        async function validateSessionAndGetUser() { const token = sessionStorage.getItem('accessToken'); if (!token) return null; try { const apiUrl = new URL('/api/me', window.location.origin); const response = await fetch(apiUrl, { headers: { 'Authorization': `Bearer ${token}` } }); if (!response.ok) { sessionStorage.removeItem('userInfo'); sessionStorage.removeItem('accessToken'); return null; } const fullUserProfile = await response.json(); sessionStorage.setItem('userInfo', JSON.stringify(fullUserProfile)); return fullUserProfile; } catch (e) { console.error("Session validation failed:", e); return null; } }
+        window.login = function() { /* ... (same) ... */ }
+        window.logout = function() { /* ... (same) ... */ }
+        
+        function renderLoginStatus(user) {
+            const container = document.getElementById('login-status-container');
+            if (!container) return;
+            if (user) {
+                const displayName = user.nickname || user.name || user.preferred_username || user.email || i18next.t('nav.login');
+                container.innerHTML = `<span class="text-xs sm:text-sm font-medium text-gray-700 mr-2 hidden sm:inline">${displayName}</span><button onclick="logout()" class="px-3 py-1 text-xs font-medium rounded-full bg-red-500 text-white hover:bg-red-600">${i18next.t('nav.logout')}</button>`;
+            } else {
+                container.innerHTML = `<button onclick="login()" class="px-3 py-1 text-xs font-medium rounded-full bg-green-500 text-white hover:bg-green-600">${i18next.t('nav.login')}</button>`;
+            }
+        }
+        
+        async function handleOidcCallback(code) { /* ... (same) ... */ }
+        async function validateSessionAndGetUser() { /* ... (same) ... */ }
 
-        window.deleteRating = async function(ratingId, event) { /* ... */ event?.stopPropagation(); console.log(`[deleteRating @ index] Initiated for ID: ${ratingId}`); if (!confirm("确定要永久删除这条点评记录吗？")) { console.log(`[deleteRating @ index] User cancelled deletion.`); return; } const button = event ? (event.currentTarget || event.target) : null; const originalText = button ? button.textContent : '删除'; if (button) { button.textContent = '删除中...'; button.disabled = true; } const token = sessionStorage.getItem('accessToken'); if (!token) { alert("请先登录。"); if (button) { button.textContent = originalText; button.disabled = false; } return; } try { const apiUrl = new URL(`/api/ratings`, window.location.origin); const response = await fetch(apiUrl, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ ratingId: ratingId }) }); const responseText = await response.text(); let data; try { data = JSON.parse(responseText); } catch (parseError) { if (response.ok) { data = { success: true }; } else { data = { error: `服务器返回了无效的响应 (状态 ${response.status})` }; } } if (!response.ok) throw new Error(data?.error || `删除失败 (状态 ${response.status})`); const cardToRemove = document.getElementById(`rating-card-${ratingId}`); if (cardToRemove) { cardToRemove.style.transition = 'opacity 0.5s ease-out'; cardToRemove.style.opacity = '0'; setTimeout(() => cardToRemove.remove(), 500); } delete displayedRatings[ratingId]; alert("点评已删除。"); } catch (error) { console.error("[deleteRating @ index] Caught error:", error); alert(`删除失败: ${error.message}`); if (button) { button.textContent = originalText; button.disabled = false; } } }
-        window.updateCertification = async function(ratingId, shouldCertify, event) { /* ... */ event?.stopPropagation(); const button = event ? (event.currentTarget || event.target) : null; const isCertifying = shouldCertify; const actionText = isCertifying ? '认证' : '取消认证'; const originalText = button ? button.textContent : actionText; if (button) { button.textContent = actionText + '中...'; button.disabled = true; } const token = sessionStorage.getItem('accessToken'); if (!token) { alert("请先登录。"); if (button) { button.textContent = originalText; button.disabled = false; } return; } try { const apiUrl = new URL('/api/certify', window.location.origin); const response = await fetch(apiUrl, { method: 'POST', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ ratingId: ratingId, certify: isCertifying }) }); if (!response.ok) { let errorText = `${actionText}失败: ${response.status}`; try { const err = await response.json(); errorText = err.error || errorText; } catch(e){/*ignore*/} throw new Error(errorText); } const data = await response.json(); if (displayedRatings[ratingId]) { displayedRatings[ratingId].isCertified = isCertifying; const cardElement = document.getElementById(`rating-card-${ratingId}`); if (cardElement) { const newCard = createRatingCard(displayedRatings[ratingId]); cardElement.replaceWith(newCard); } } alert(`操作成功！`); } catch (error) { console.error(`${actionText}失败:`, error); alert(`${actionText}失败: ${error.message}`); if (button) { button.textContent = originalText; button.disabled = false; } } }
-        window.updatePinStatus = async function(ratingId, shouldPin, event) { /* ... */ event?.stopPropagation(); const button = event ? (event.currentTarget || event.target) : null; const actionText = shouldPin ? '置顶' : '取消置顶'; const originalText = button ? button.textContent : actionText; if (button) { button.textContent = actionText + '中...'; button.disabled = true; } const token = sessionStorage.getItem('accessToken'); if (!token) { alert("请先登录。"); if (button) { button.textContent = originalText; button.disabled = false; } return; } try { const apiUrl = new URL('/api/pin', window.location.origin); const response = await fetch(apiUrl, { method: 'POST', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ ratingId: ratingId, pin: shouldPin }) }); if (!response.ok) { let errorText = `${actionText}失败: ${response.status}`; try { const err = await response.json(); errorText = err.error || errorText; } catch(e){/*ignore*/} throw new Error(errorText); } const data = await response.json(); if (displayedRatings[ratingId]) { displayedRatings[ratingId].isPinned = shouldPin; const cardElement = document.getElementById(`rating-card-${ratingId}`); if (cardElement) { const newCard = createRatingCard(displayedRatings[ratingId]); cardElement.replaceWith(newCard); } } alert(`操作成功！`); } catch (error) { console.error(`${actionText}失败:`, error); alert(`${actionText}失败: ${error.message}`); if (button) { button.textContent = originalText; button.disabled = false; } } }
+        window.deleteRating = async function(ratingId, event) {
+            event?.stopPropagation();
+            if (!confirm(i18next.t('common.confirmDeletion'))) { return; }
+            const button = event ? (event.currentTarget || event.target) : null;
+            const originalText = button ? button.textContent : i18next.t('common.delete');
+            if (button) { button.textContent = i18next.t('common.loading'); button.disabled = true; }
+            const token = sessionStorage.getItem('accessToken');
+            if (!token) {
+                alert(i18next.t('common.loginRequired'));
+                if (button) { button.textContent = originalText; button.disabled = false; }
+                return;
+            }
+            try {
+                const apiUrl = new URL(`/api/ratings`, window.location.origin);
+                const response = await fetch(apiUrl, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ ratingId: ratingId }) });
+                const responseText = await response.text();
+                let data;
+                try { data = JSON.parse(responseText); } catch (parseError) { if (response.ok) { data = { success: true }; } else { data = { error: `Server returned invalid response (status ${response.status})` }; } }
+                if (!response.ok) throw new Error(data?.error || `Delete failed (status ${response.status})`);
+                const cardToRemove = document.getElementById(`rating-card-${ratingId}`);
+                if (cardToRemove) { cardToRemove.style.transition = 'opacity 0.5s ease-out'; cardToRemove.style.opacity = '0'; setTimeout(() => cardToRemove.remove(), 500); }
+                delete displayedRatings[ratingId];
+                alert(i18next.t('common.deleteSuccess'));
+            } catch (error) {
+                console.error("[deleteRating @ index] Caught error:", error);
+                alert(i18next.t('common.deleteFailed', { msg: error.message }));
+                if (button) { button.textContent = originalText; button.disabled = false; }
+            }
+        }
+        
+        window.updateCertification = async function(ratingId, shouldCertify, event) {
+            event?.stopPropagation();
+            const button = event ? (event.currentTarget || event.target) : null;
+            const isCertifying = shouldCertify;
+            const actionText = isCertifying ? i18next.t('common.certify') : i18next.t('common.uncertify');
+            const originalText = button ? button.textContent : actionText;
+            if (button) { button.textContent = i18next.t('common.loading'); button.disabled = true; }
+            const token = sessionStorage.getItem('accessToken');
+            if (!token) {
+                alert(i18next.t('common.loginRequired'));
+                if (button) { button.textContent = originalText; button.disabled = false; }
+                return;
+            }
+            try {
+                const apiUrl = new URL('/api/certify', window.location.origin);
+                const response = await fetch(apiUrl, { method: 'POST', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ ratingId: ratingId, certify: isCertifying }) });
+                if (!response.ok) { let errorText = `${actionText} failed: ${response.status}`; try { const err = await response.json(); errorText = err.error || errorText; } catch(e){/*ignore*/} throw new Error(errorText); }
+                const data = await response.json();
+                if (displayedRatings[ratingId]) {
+                    displayedRatings[ratingId].isCertified = isCertifying;
+                    const cardElement = document.getElementById(`rating-card-${ratingId}`);
+                    if (cardElement) { const newCard = createRatingCard(displayedRatings[ratingId]); cardElement.replaceWith(newCard); }
+                }
+                alert(i18next.t('common.opSuccess'));
+            } catch (error) {
+                console.error(`${actionText} failed:`, error);
+                alert(i18next.t('common.opFailed', { msg: error.message }));
+                if (button) { button.textContent = originalText; button.disabled = false; }
+            }
+        }
+        
+        window.updatePinStatus = async function(ratingId, shouldPin, event) {
+            event?.stopPropagation();
+            const button = event ? (event.currentTarget || event.target) : null;
+            const actionText = shouldPin ? i18next.t('common.pin') : i18next.t('common.unpin');
+            const originalText = button ? button.textContent : actionText;
+            if (button) { button.textContent = i18next.t('common.loading'); button.disabled = true; }
+            const token = sessionStorage.getItem('accessToken');
+            if (!token) {
+                alert(i18next.t('common.loginRequired'));
+                if (button) { button.textContent = originalText; button.disabled = false; }
+                return;
+            }
+            try {
+                const apiUrl = new URL('/api/pin', window.location.origin);
+                const response = await fetch(apiUrl, { method: 'POST', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ ratingId: ratingId, pin: shouldPin }) });
+                if (!response.ok) { let errorText = `${actionText} failed: ${response.status}`; try { const err = await response.json(); errorText = err.error || errorText; } catch(e){/*ignore*/} throw new Error(errorText); }
+                const data = await response.json();
+                if (displayedRatings[ratingId]) {
+                    displayedRatings[ratingId].isPinned = shouldPin;
+                    const cardElement = document.getElementById(`rating-card-${ratingId}`);
+                    if (cardElement) { const newCard = createRatingCard(displayedRatings[ratingId]); cardElement.replaceWith(newCard); }
+                }
+                alert(i18next.t('common.opSuccess'));
+            } catch (error) {
+                console.error(`${actionText} failed:`, error);
+                alert(i18next.t('common.opFailed', { msg: error.message }));
+                if (button) { button.textContent = originalText; button.disabled = false; }
+            }
+        }
 
-        async function fetchRatings() { loadingMessage.textContent = '正在加载点评...'; loadingMessage.style.display = 'block'; ratingsGrid.innerHTML = ''; try { const apiUrl = new URL('/api/ratings', window.location.origin); const response = await fetch(apiUrl); if (!response.ok) { let errorText = `加载失败: ${response.status}`; try { const err = await response.json(); errorText = err.error || errorText; } catch (e) {} throw new Error(errorText); } allRatings = await response.json(); displayedRatings = {}; allRatings.forEach(r => displayedRatings[r.id] = r); applyFilters(); } catch (error) { console.error("加载点评失败:", error); loadingMessage.textContent = `加载点评失败: ${error.message}`; loadingMessage.style.color = 'red'; } }
+        async function fetchRatings() {
+            loadingMessage.textContent = i18next.t('indexPage.loadingRatings');
+            loadingMessage.style.display = 'block';
+            ratingsGrid.innerHTML = '';
+            try {
+                const apiUrl = new URL('/api/ratings', window.location.origin);
+                const response = await fetch(apiUrl);
+                if (!response.ok) {
+                    let errorText = `Load failed: ${response.status}`;
+                    try { const err = await response.json(); errorText = err.error || errorText; } catch (e) {}
+                    throw new Error(errorText);
+                }
+                allRatings = await response.json();
+                displayedRatings = {};
+                allRatings.forEach(r => displayedRatings[r.id] = r);
+                applyFilters();
+            } catch (error) {
+                console.error("加载点评失败:", error);
+                loadingMessage.textContent = i18next.t('indexPage.loadFailed', { msg: error.message });
+                loadingMessage.style.color = 'red';
+            }
+        }
 
-        window.applyFilters = function() { const searchTerm = searchInput.value.toLowerCase().trim(); const sortBy = sortSelect.value; let filtered = allRatings.filter(rating => { const nameMatch = rating.cigarInfo?.name?.toLowerCase().includes(searchTerm); const originMatch = rating.cigarInfo?.origin?.toLowerCase().includes(searchTerm); const sizeMatch = rating.cigarInfo?.size?.toLowerCase().includes(searchTerm); const reviewMatch = rating.cigarReview?.toLowerCase().includes(searchTerm); const authorMatch = rating.userNickname?.toLowerCase().includes(searchTerm); return nameMatch || originMatch || sizeMatch || reviewMatch || authorMatch; }); if (sortBy === 'highest') { filtered.sort((a, b) => (b.normalizedScore ?? 0) - (a.normalizedScore ?? 0)); } else if (sortBy === 'lowest') { filtered.sort((a, b) => (a.normalizedScore ?? 0) - (b.normalizedScore ?? 0)); } else { filtered.sort((a, b) => (b.isPinned - a.isPinned) || (new Date(b.timestamp) - new Date(a.timestamp)));} renderGrid(filtered); }
+        window.applyFilters = function() {
+            const searchTerm = searchInput.value.toLowerCase().trim();
+            const sortBy = sortSelect.value;
+            let filtered = allRatings.filter(rating => {
+                const nameMatch = rating.cigarInfo?.name?.toLowerCase().includes(searchTerm);
+                const originMatch = rating.cigarInfo?.origin?.toLowerCase().includes(searchTerm);
+                const sizeMatch = rating.cigarInfo?.size?.toLowerCase().includes(searchTerm);
+                const reviewMatch = rating.cigarReview?.toLowerCase().includes(searchTerm);
+                const authorMatch = rating.userNickname?.toLowerCase().includes(searchTerm);
+                return nameMatch || originMatch || sizeMatch || reviewMatch || authorMatch;
+            });
+            if (sortBy === 'highest') { filtered.sort((a, b) => (b.normalizedScore ?? 0) - (a.normalizedScore ?? 0)); }
+            else if (sortBy === 'lowest') { filtered.sort((a, b) => (a.normalizedScore ?? 0) - (b.normalizedScore ?? 0)); }
+            else { filtered.sort((a, b) => (b.isPinned - a.isPinned) || (new Date(b.timestamp) - new Date(a.timestamp)));}
+            renderGrid(filtered);
+        }
 
-        function renderGrid(ratingsToRender) { ratingsGrid.innerHTML = ''; if (ratingsToRender.length === 0) { loadingMessage.textContent = '没有找到匹配的点评。'; loadingMessage.style.display = 'block'; return; } loadingMessage.style.display = 'none'; ratingsToRender.forEach(rating => { displayedRatings[rating.id] = rating; const card = createRatingCard(rating); ratingsGrid.appendChild(card); }); }
+        function renderGrid(ratingsToRender) {
+            ratingsGrid.innerHTML = '';
+            if (ratingsToRender.length === 0) {
+                loadingMessage.textContent = i18next.t('indexPage.noMatches');
+                loadingMessage.style.display = 'block';
+                return;
+            }
+            loadingMessage.style.display = 'none';
+            ratingsToRender.forEach(rating => {
+                displayedRatings[rating.id] = rating;
+                const card = createRatingCard(rating);
+                ratingsGrid.appendChild(card);
+            });
+        }
 
         function createRatingCard(rating) {
             const div = document.createElement('div');
@@ -161,7 +385,7 @@
             div.onclick = (event) => { if (event.target.tagName === 'BUTTON' || event.target.closest('button, details')) { return; } viewRatingDetails(rating.id); };
 
             const score = rating.normalizedScore !== undefined ? rating.normalizedScore.toFixed(2) : 'N/A';
-            const author = rating.userNickname || rating.userEmail || '匿名';
+            const author = rating.userNickname || rating.userEmail || i18next.t('common.anonymous');
 
             let coverImageUrl = null;
             if (Array.isArray(rating.imageUrl) && rating.imageUrl.length > 0) { coverImageUrl = rating.imageUrl[0]; }
@@ -177,13 +401,13 @@
                 adminActionsHtml = `
                     <div class="admin-actions mt-1">
                         <details>
-                            <summary>管理操作</summary>
+                            <summary>${i18next.t('common.adminActions')}</summary>
                             <div class="action-buttons-content action-buttons pt-2 border-t border-gray-100 flex items-center space-x-1 flex-wrap gap-1 justify-end">
-                                <button onclick="deleteRating('${rating.id}', event)" class="btn-delete">删除</button>
-                                <button data-action="certify" onclick="updateCertification('${rating.id}', true, event)" class="btn-certify ${isCertified ? 'hidden' : ''}">认证</button>
-                                <button data-action="uncertify" onclick="updateCertification('${rating.id}', false, event)" class="btn-uncertify ${!isCertified ? 'hidden' : ''}">取消认证</button>
-                                <button data-action="pin" onclick="updatePinStatus('${rating.id}', true, event)" class="btn-pin ${isPinned ? 'hidden' : ''}">置顶</button>
-                                <button data-action="unpin" onclick="updatePinStatus('${rating.id}', false, event)" class="btn-unpin ${!isPinned ? 'hidden' : ''}">取消置顶</button>
+                                <button onclick="deleteRating('${rating.id}', event)" class="btn-delete">${i18next.t('common.delete')}</button>
+                                <button data-action="certify" onclick="updateCertification('${rating.id}', true, event)" class="btn-certify ${isCertified ? 'hidden' : ''}">${i18next.t('common.certify')}</button>
+                                <button data-action="uncertify" onclick="updateCertification('${rating.id}', false, event)" class="btn-uncertify ${!isCertified ? 'hidden' : ''}">${i18next.t('common.uncertify')}</button>
+                                <button data-action="pin" onclick="updatePinStatus('${rating.id}', true, event)" class="btn-pin ${isPinned ? 'hidden' : ''}">${i18next.t('common.pin')}</button>
+                                <button data-action="unpin" onclick="updatePinStatus('${rating.id}', false, event)" class="btn-unpin ${!isPinned ? 'hidden' : ''}">${i18next.t('common.unpin')}</button>
                             </div>
                         </details>
                     </div>
@@ -192,17 +416,16 @@
 
             const pinIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor"><path d="M9.03 2.5a.75.75 0 0 0-1.06 0l-4 4a.75.75 0 1 0 1.06 1.06L7 5.81v4.44a3.752 3.752 0 0 0-1.36.47l-1.88 1.1-.31.18a.75.75 0 0 0 .8 1.3l.3-.18 1.88-1.1a2.252 2.252 0 0 1 2.12 0l1.88 1.1.3.18a.75.75 0 0 0 .8-1.3l-.3-.18-1.88-1.1a3.752 3.752 0 0 0-1.36-.47V5.81l1.97 1.97a.75.75 0 1 0 1.06-1.06l-4-4Z"/></svg>`;
 
-
             div.innerHTML = `
                 <div class="aspect-[1179/1572] w-full overflow-hidden flex-shrink-0 relative">
-                     ${isAdmin && isPinned ? `<div class="pinned-indicator" title="已置顶">${pinIconSvg} 置顶</div>` : ''}
+                     ${isAdmin && isPinned ? `<div class="pinned-indicator" title="${i18next.t('common.pin')}">${pinIconSvg} ${i18next.t('common.pin')}</div>` : ''}
                      ${isCertified ? `<img src="/Certifiedstamp.png${cacheBuster}" alt="Certified" class="absolute top-2 left-2 w-1/3 h-auto z-10" title="Pistacho 认证评分" onerror="handleStampError(this)">` : ''}
-                     ${coverImageUrl ? `<img src="/api/image/${coverImageUrl}" alt="${rating.cigarInfo?.name || '雪茄图片'}" class="w-full h-full object-cover">` : '<div class="w-full h-full bg-gray-200 flex items-center justify-center text-gray-400 text-sm">无图</div>'}
+                     ${coverImageUrl ? `<img src="/api/image/${coverImageUrl}" alt="${rating.cigarInfo?.name || '雪茄图片'}" class="w-full h-full object-cover">` : `<div class="w-full h-full bg-gray-200 flex items-center justify-center text-gray-400 text-sm">${i18next.t('certifiedPage.noImage')}</div>`}
                 </div>
                 <div class="p-1.5 sm:p-2 flex-grow flex flex-col justify-between">
                      <div>
-                         <h3 class="font-semibold text-xs sm:text-sm leading-tight line-clamp-1 mb-0.5" title="${rating.title || ''}"> ${rating.title || '无标题点评'} </h3>
-                         <p class="text-2xs sm:text-xs text-gray-500 line-clamp-1 mb-1" title="${rating.cigarInfo?.name || ''}"> ${rating.cigarInfo?.name || '未命名雪茄'} </p>
+                         <h3 class="font-semibold text-xs sm:text-sm leading-tight line-clamp-1 mb-0.5" title="${rating.title || ''}"> ${rating.title || i18next.t('certifiedPage.noTitle')} </h3>
+                         <p class="text-2xs sm:text-xs text-gray-500 line-clamp-1 mb-1" title="${rating.cigarInfo?.name || ''}"> ${rating.cigarInfo?.name || i18next.t('certifiedPage.unnamedCigar')} </p>
                      </div>
                      <div class="flex justify-between items-end mt-auto pt-0.5">
                          <span class="text-2xs sm:text-xs text-gray-500 line-clamp-1 flex items-center" title="${author}"> ${author} </span>
@@ -214,22 +437,27 @@
             return div;
         }
 
-        // **MODIFIED**: Pass ratingId to detailedData
         window.viewRatingDetails = function(ratingId) {
             const ratingData = displayedRatings[ratingId];
             if (!ratingData) {
                 console.error(`viewRatingDetails: Rating data not found in cache for ID: ${ratingId}`);
-                alert("无法加载详情：未找到评分数据。");
+                alert(i18next.t('common.loadDetailFailed'));
                 return;
             }
             let detailedData = {};
             const cigarInfo = ratingData.cigarInfo || { name: ratingData.cigarName, size: ratingData.cigarSize, origin: ratingData.cigarOrigin };
+            
+            // **MODIFIED**: Reconstruct grade using i18n
             const foundGrade = GRADING_SCALE.find(g => ratingData.normalizedScore >= g.min_score) || GRADING_SCALE[GRADING_SCALE.length - 1];
-            const finalGrade = foundGrade ? { grade: foundGrade.grade, name_cn: foundGrade.name_cn, name_en: foundGrade.name_en, color: foundGrade.color } : null;
+            const finalGrade = foundGrade ? {
+                grade: foundGrade.grade,
+                nameKey: foundGrade.nameKey, // Pass the key
+                color: foundGrade.color
+            } : null;
 
             if (!ratingData || ratingData.normalizedScore === undefined || !finalGrade || !cigarInfo || !ratingData.title) {
                 console.error("viewRatingDetails: Essential data missing or couldn't be constructed!", {ratingData, finalGrade, cigarInfo});
-                alert("无法加载详情：缺少基本评分信息 (标题, 分数, 评级, 雪茄信息)。");
+                alert(i18next.t('resultsPage.loadErrorMissing'));
                 return;
             }
 
@@ -240,7 +468,7 @@
             let selectedFlavors = [];
             if (ratingData.fullData && Array.isArray(ratingData.fullData.selectedFlavors)) {
                 selectedFlavors = ratingData.fullData.selectedFlavors;
-            } else if (Array.isArray(ratingData.selectedFlavors)) { // Fallback for top-level if fullData missing
+            } else if (Array.isArray(ratingData.selectedFlavors)) {
                 selectedFlavors = ratingData.selectedFlavors;
             }
 
@@ -248,7 +476,7 @@
 
             if (hasCompleteFullData) {
                  detailedData = {
-                     ratingId: ratingData.id, // **NEW**: Add ratingId
+                     ratingId: ratingData.id,
                      config: ratingData.fullData.config,
                      ratings: ratingData.fullData.ratings,
                      calculatedScore: ratingData.fullData.calculatedScore,
@@ -257,47 +485,53 @@
                      cigarReview: ratingData.cigarReview,
                      imageUrls: imageUrls,
                      normalizedScore: ratingData.normalizedScore,
-                     finalGrade: finalGrade,
+                     finalGrade: finalGrade, // Pass grade object with nameKey
                      selectedFlavors: selectedFlavors,
                      timestamp: ratingData.timestamp,
                      userNickname: ratingData.userNickname,
                      userEmail: ratingData.userEmail,
                      isDraft: false
                  };
-                 console.log("Sending COMPLETE data to results.html:", detailedData);
             } else {
-                 console.warn(`fullData for rating ${ratingData?.id} is missing or incomplete. Sending only top-level data.`);
                  detailedData = {
-                     ratingId: ratingData.id, // **NEW**: Add ratingId
+                     ratingId: ratingData.id,
                      title: ratingData.title,
                      cigarInfo: cigarInfo,
                      cigarReview: ratingData.cigarReview,
                      imageUrls: imageUrls,
                      normalizedScore: ratingData.normalizedScore,
-                     finalGrade: finalGrade,
-                     selectedFlavors: selectedFlavors, // Include flavors even if fullData missing
+                     finalGrade: finalGrade, // Pass grade object with nameKey
+                     selectedFlavors: selectedFlavors,
                      timestamp: ratingData.timestamp,
                      userNickname: ratingData.userNickname,
                      userEmail: ratingData.userEmail,
                      isDraft: false
                  };
-                 console.log("Sending INCOMPLETE (top-level) data to results.html:", detailedData);
             }
 
             try {
                  sessionStorage.setItem('cigarRatingResults', JSON.stringify(detailedData));
-                 window.location.href = `results.html`; // Navigate without ratingId in URL
+                 window.location.href = `results.html`;
             }
-            catch (e) { console.error("Error setting sessionStorage:", e); alert("无法保存会话数据以查看详情。"); }
+            catch (e) {
+                console.error("Error setting sessionStorage:", e);
+                alert(i18next.t('common.sessionStoreFailed'));
+            }
         }
 
-
         window.onload = async function() {
-             const urlParams = new URLSearchParams(window.location.search); const code = urlParams.get('code'); let user = null;
+             await initI18n(); // Wait for i18n
+             
+             const urlParams = new URLSearchParams(window.location.search);
+             const code = urlParams.get('code');
+             let user = null;
              if (code) { user = await handleOidcCallback(code); } else { user = await validateSessionAndGetUser(); }
              currentAuthUser = user;
-             renderLoginStatus(currentAuthUser);
-             await fetchRatings();
+             
+             renderLoginStatus(currentAuthUser); // Render login status *after* i18n
+             setupLanguageSwitcher(); // Setup switcher
+             
+             await fetchRatings(); // Fetch data
 
              searchInput.addEventListener('keypress', function (e) { if (e.key === 'Enter') { applyFilters(); } });
              sortSelect.addEventListener('change', applyFilters);
@@ -311,4 +545,3 @@
     </script>
 </body>
 </html>
-

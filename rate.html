@@ -3,13 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>发布雪茄点评</title>
-    <!-- Tailwind CSS -->
+    <title data-i18n="ratePage.title">发布雪茄点评</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Cropper.js CSS -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css" rel="stylesheet">
-    <!-- SortableJS Script -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
+    
+    <script src="https://unpkg.com/i18next/i18next.min.js"></script>
+    <script src="https://unpkg.com/i18next-http-backend/i18nextHttpBackend.min.js"></script>
+    <script src="https://unpkg.com/i18next-browser-languagedetector/i18nextBrowserLanguageDetector.min.js"></script>
+    
     <script>
         if (typeof tailwind !== 'undefined') {
             tailwind.config = {
@@ -25,7 +27,7 @@
     <style>
         .cropper-container { max-height: 60vh; }
         .cropper-modal-content { width: 90%; max-width: 800px; }
-        /* Style for image previews */
+        /* ... (all other styles remain the same) ... */
         .preview-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 0.5rem; }
         .preview-item {
             position: relative; aspect-ratio: 1179 / 1572; overflow: hidden; border-radius: 0.375rem; /* rounded-md */
@@ -75,117 +77,189 @@
 </head>
 <body class="bg-gray-100 font-sans antialiased text-gray-800">
     <div id="app-container" class="max-w-4xl mx-auto p-4 md:p-8">
-        <!-- Navbar -->
         <nav class="mb-6 flex flex-wrap justify-between items-center bg-white p-3 rounded-lg shadow-sm gap-4">
-            <a href="index.html" class="text-xl font-bold text-indigo-600">Pistacho评分</a>
+            <a href="index.html" class="text-xl font-bold text-indigo-600" data-i18n="nav.title">Pistacho评分</a>
             <div class="flex items-center space-x-4 flex-grow justify-center md:justify-start md:flex-grow-0 order-3 md:order-2 w-full md:w-auto">
-                <a href="index.html" class="text-gray-600 hover:text-indigo-600">社区动态</a>
-                <a href="rate.html" class="text-indigo-600 font-bold underline">去评分</a>
-                <a href="history.html" class="text-gray-600 hover:text-indigo-600">我的点评历史</a>
-                <a href="certified.html" class="text-gray-600 hover:text-indigo-600">认证评分</a>
+                <a href="index.html" class="text-gray-600 hover:text-indigo-600" data-i18n="nav.community">社区动态</a>
+                <a href="rate.html" class="text-indigo-600 font-bold underline" data-i18n="nav.rate">去评分</a>
+                <a href="history.html" class="text-gray-600 hover:text-indigo-600" data-i18n="nav.myRatings">我的点评历史</a>
+                <a href="certified.html" class="text-gray-600 hover:text-indigo-600" data-i18n="nav.certified">认证评分</a>
             </div>
-            <div id="login-status-container" class="flex items-center order-2 md:order-3"></div>
+            <div class="flex items-center order-2 md:order-3">
+               <select id="language-switcher" class="text-xs p-1 rounded border border-gray-300 mr-2 h-7" style="line-height: 1;">
+                   <option value="zh">简体中文</option>
+                   <option value="en">English</option>
+                   <option value="es">Español</option>
+               </select>
+               <div id="login-status-container" class="flex items-center"></div>
+            </div>
         </nav>
-        <!-- End Navbar -->
-
-        <!-- Header Scoreboard -->
         <header class="mb-8 p-6 bg-indigo-700 text-white rounded-xl shadow-2xl">
-            <!-- Scoreboard content remains the same -->
              <div class="flex justify-between items-start">
                  <div> <h1 id="app-title-display" class="text-3xl font-extrabold mb-1">雪茄评分应用</h1> <p id="app-description-display" class="text-indigo-200 text-sm max-w-lg">正在加载描述...</p> </div>
                  <div class="flex items-center space-x-3 flex-shrink-0"> <div id="admin-links-container" class="flex items-center space-x-3"></div> </div>
              </div>
              <div class="mt-6 bg-black bg-opacity-20 p-4 rounded-lg">
                  <div class="flex justify-between items-end">
-                     <div> <p class="text-sm font-medium text-indigo-200">当前得分</p> <div class="flex items-baseline"> <span id="current-score-display" class="text-6xl font-black leading-none">0.00</span> <span class="text-lg font-medium text-indigo-200 ml-2">/ <span id="total-weight-max-display">0</span></span> </div> </div>
-                     <div class="text-right"> <p class="text-sm font-medium text-indigo-200">已评项目</p> <p id="progress-text" class="font-bold text-lg">0 / 0</p> </div>
+                     <div>
+                        <p class="text-sm font-medium text-indigo-200" data-i18n="ratePage.currentScore">当前得分</p>
+                        <div class="flex items-baseline"> <span id="current-score-display" class="text-6xl font-black leading-none">0.00</span> <span class="text-lg font-medium text-indigo-200 ml-2">/ <span id="total-weight-max-display">0</span></span> </div>
+                     </div>
+                     <div class="text-right">
+                        <p class="text-sm font-medium text-indigo-200" data-i18n="ratePage.itemsRated">已评项目</p>
+                        <p id="progress-text" class="font-bold text-lg">0 / 0</p>
+                     </div>
                  </div>
                  <div class="w-full bg-indigo-900 rounded-full h-2.5 mt-2"> <div id="progress-bar" class="bg-green-400 h-2.5 rounded-full transition-width duration-500" style="width: 0%"></div> </div>
              </div>
-              <p id="config-load-status" class="text-xs text-yellow-300 mt-2 text-right">正在连接...</p>
+              <p id="config-load-status" class="text-xs text-yellow-300 mt-2 text-right" data-i18n="ratePage.configSyncing">正在连接...</p>
         </header>
 
-        <!-- **NEW**: Login Prompt Area -->
         <div id="login-prompt" class="hidden text-center p-6 bg-yellow-100 text-yellow-800 rounded-lg shadow mb-8">
-             <p class="font-semibold mb-3">请先登录才能进行评分。</p>
-             <button onclick="login()" class="px-5 py-2 text-sm font-medium rounded-lg bg-green-500 text-white hover:bg-green-600">前往登录/注册</button>
+             <p class="font-semibold mb-3" data-i18n="ratePage.loginPrompt">请先登录才能进行评分。</p>
+             <button onclick="login()" class="px-5 py-2 text-sm font-medium rounded-lg bg-green-500 text-white hover:bg-green-600" data-i18n="nav.login">前往登录/注册</button>
         </div>
 
 
-        <!-- Main Content (Rating Form Area) -->
         <main id="main-content">
 
-            <!-- Title Section -->
             <section class="mb-8 p-6 bg-white rounded-xl shadow-lg">
-                <h2 class="text-xl font-bold text-gray-800 mb-4">点评标题 <span class="text-red-500">*</span></h2>
-                <input type="text" id="rating-title" maxlength="22" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 focus:border-indigo-500 focus:ring-indigo-500" placeholder="填写标题会被更多人看到 (最多22字)">
+                <h2 class="text-xl font-bold text-gray-800 mb-4" data-i18n="ratePage.ratingTitle">点评标题 <span class="text-red-500">*</span></h2>
+                <input type="text" id="rating-title" maxlength="22" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 focus:border-indigo-500 focus:ring-indigo-500" data-i18n="ratePage.ratingTitlePlaceholder" placeholder="填写标题会被更多人看到 (最多22字)">
                 <p id="title-char-count" class="text-xs text-gray-500 text-right mt-1">0 / 22</p>
             </section>
 
-            <!-- Image Upload Section -->
             <section class="mb-8 p-6 bg-white rounded-xl shadow-lg">
-                <h2 class="text-xl font-bold text-gray-800 mb-4">上传图片 (最多5张, 可拖拽排序) <span class="text-red-500">*</span></h2>
-                <p class="text-sm text-gray-600 mb-3">第一张图片将作为封面图显示。点击图片左下角按钮更换封面。</p>
+                <h2 class="text-xl font-bold text-gray-800 mb-4" data-i18n="ratePage.uploadImages" data-i18n-options='{ "max": 5 }'>上传图片 (最多5张, 可拖拽排序) <span class="text-red-500">*</span></h2>
+                <p class="text-sm text-gray-600 mb-3" data-i18n="ratePage.uploadImagesDesc">第一张图片将作为封面图显示。点击图片左下角按钮更换封面。</p>
                 <div class="preview-grid mb-4" id="image-preview-grid">
-                    <!-- Image previews will be added here -->
-                </div>
+                    </div>
                 <div>
-                    <label for="image-upload-input" id="image-upload-label" class="w-full md:w-auto text-center py-2 px-6 bg-blue-600 text-white font-bold rounded-lg shadow-md hover:bg-blue-700 cursor-pointer inline-block">
+                    <label for="image-upload-input" id="image-upload-label" class="w-full md:w-auto text-center py-2 px-6 bg-blue-600 text-white font-bold rounded-lg shadow-md hover:bg-blue-700 cursor-pointer inline-block" data-i18n="ratePage.selectImages">
                         选择图片
                     </label>
                     <input type="file" id="image-upload-input" class="hidden" accept="image/png, image/jpeg, image/webp" multiple onchange="handleFileSelect(event)">
-                    <p class="text-sm text-gray-500 mt-2 inline-block md:ml-4">支持 JPG, PNG, WEBP。单张最大 5MB。</p>
+                    <p class="text-sm text-gray-500 mt-2 inline-block md:ml-4" data-i18n="ratePage.imageSupport">支持 JPG, PNG, WEBP。单张最大 5MB。</p>
                     <p id="image-upload-status" class="text-sm font-medium text-indigo-600 mt-2"></p>
                 </div>
             </section>
 
-            <!-- Review Section -->
             <section class="mb-8 p-6 bg-white rounded-xl shadow-lg">
-                <h2 class="text-xl font-bold text-gray-800 mb-4">文字评价与风味选择</h2>
-                <!-- Flavor Selection Area -->
+                <h2 class="text-xl font-bold text-gray-800 mb-4" data-i18n="ratePage.reviewAndFlavors">文字评价与风味选择</h2>
                 <div class="mb-4 border-b pb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">选择您感受到的主要风味 (可选):</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="ratePage.selectFlavors">选择您感受到的主要风味 (可选):</label>
                     <div id="flavor-buttons-container" class="flex flex-wrap">
-                        <!-- Flavor buttons will be dynamically added here -->
-                    </div>
+                        </div>
                 </div>
-                <!-- Existing Textarea -->
                 <div>
-                    <label for="cigar-review" class="block text-sm font-medium text-gray-700 mb-2">详细文字评价:</label>
-                    <textarea id="cigar-review" rows="6" maxlength="1500" class="w-full p-3 border rounded-md focus:border-indigo-500 focus:ring-indigo-500" placeholder="在此处输入您的详细品吸感受..."></textarea>
+                    <label for="cigar-review" class="block text-sm font-medium text-gray-700 mb-2" data-i18n="ratePage.detailedReview">详细文字评价:</label>
+                    <textarea id="cigar-review" rows="6" maxlength="1500" class="w-full p-3 border rounded-md focus:border-indigo-500 focus:ring-indigo-500" data-i18n="ratePage.reviewPlaceholder" placeholder="在此处输入您的详细品吸感受..."></textarea>
                     <p id="review-char-count" class="text-xs text-gray-500 text-right mt-1">0 / 1500</p>
                 </div>
             </section>
 
-            <!-- Cigar Info Section -->
             <section class="mb-8 p-6 bg-white rounded-xl shadow-lg">
-                <h2 class="text-xl font-bold text-gray-800 mb-4">雪茄信息</h2>
-                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6"> <div> <label for="cigar-name" class="block text-sm font-medium text-gray-700">名称 <span class="text-red-500">*</span></label> <input type="text" id="cigar-name" autocomplete="off" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" placeholder="例如：帕特加斯D4"> </div> <div> <label for="cigar-size" class="block text-sm font-medium text-gray-700">尺寸</label> <input type="text" id="cigar-size" autocomplete="off" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" placeholder="例如：Robusto"> </div> <div> <label for="cigar-origin" class="block text-sm font-medium text-gray-700">产地</label> <input type="text" id="cigar-origin" autocomplete="off" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" placeholder="例如：古巴"> </div> </div>
+                <h2 class="text-xl font-bold text-gray-800 mb-4" data-i18n="ratePage.cigarInfo">雪茄信息</h2>
+                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                        <label for="cigar-name" class="block text-sm font-medium text-gray-700" data-i18n="ratePage.cigarNameRequired">名称 <span class="text-red-500">*</span></label>
+                        <input type="text" id="cigar-name" autocomplete="off" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" data-i18n="ratePage.cigarNamePlaceholder" placeholder="例如：帕特加斯D4">
+                    </div>
+                    <div>
+                        <label for="cigar-size" class="block text-sm font-medium text-gray-700" data-i18n="ratePage.cigarSize">尺寸</label>
+                        <input type="text" id="cigar-size" autocomplete="off" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" data-i18n="ratePage.cigarSizePlaceholder" placeholder="例如：Robusto">
+                    </div>
+                    <div>
+                        <label for="cigar-origin" class="block text-sm font-medium text-gray-700" data-i18n="ratePage.cigarOrigin">产地</label>
+                        <input type="text" id="cigar-origin" autocomplete="off" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2" data-i18n="ratePage.cigarOriginPlaceholder" placeholder="例如：古巴">
+                    </div>
+                 </div>
             </section>
 
-            <!-- Rating Form Container -->
             <div id="rating-form-container"></div>
 
-            <!-- Action Buttons -->
             <div class="mt-8 grid grid-cols-2 gap-4">
-                <button onclick="resetRatings()" class="w-full py-3 px-6 bg-red-500 text-white font-bold text-lg rounded-lg shadow-md hover:bg-red-600">重置</button>
-                <button id="main-action-button" onclick="showResults()" class="w-full py-3 px-6 bg-green-600 text-white font-bold text-lg rounded-lg shadow-md hover:bg-green-700">查看报告</button>
+                <button onclick="resetRatings()" class="w-full py-3 px-6 bg-red-500 text-white font-bold text-lg rounded-lg shadow-md hover:bg-red-600" data-i18n="ratePage.reset">重置</button>
+                <button id="main-action-button" onclick="showResults()" class="w-full py-3 px-6 bg-green-600 text-white font-bold text-lg rounded-lg shadow-md hover:bg-green-700" data-i18n="ratePage.viewReport">查看报告</button>
             </div>
         </main>
 
         <footer class="mt-8 text-center text-gray-500 text-sm p-4 border-t">评分应用数据由云端配置中心实时同步。</footer>
     </div>
 
-    <!-- Cropper Modal -->
     <div id="cropper-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50 hidden">
-         <div class="bg-white rounded-lg shadow-xl p-6 cropper-modal-content"> <h2 class="text-2xl font-bold mb-4">裁切图片</h2> <div class="cropper-container"> <img id="cropper-image" src="" alt="Image to crop"> </div> <p id="cropper-status" class="text-sm font-medium text-indigo-600 my-2"></p> <div class="flex justify-end gap-4 mt-4"> <button onclick="cancelCrop()" class="py-2 px-5 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400">取消</button> <button onclick="confirmCropAndUpload()" class="py-2 px-5 bg-blue-600 text-white rounded-lg hover:bg-blue-700">确认并上传</button> </div> </div>
+         <div class="bg-white rounded-lg shadow-xl p-6 cropper-modal-content">
+            <h2 class="text-2xl font-bold mb-4" data-i18n="ratePage.cropImage">裁切图片</h2>
+            <div class="cropper-container"> <img id="cropper-image" src="" alt="Image to crop"> </div>
+            <p id="cropper-status" class="text-sm font-medium text-indigo-600 my-2"></p>
+            <div class="flex justify-end gap-4 mt-4">
+                <button onclick="cancelCrop()" class="py-2 px-5 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400" data-i18n="common.cancel">取消</button>
+                <button onclick="confirmCropAndUpload()" class="py-2 px-5 bg-blue-600 text-white rounded-lg hover:bg-blue-700" data-i18n="ratePage.cropAndUpload">确认并上传</button>
+            </div>
+         </div>
     </div>
 
-    <!-- Cropper.js JS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
 
-    <!-- App Logic -->
     <script type="module">
+        // --- i18n Functions ---
+        async function initI18n() {
+            await i18next
+                .use(i18nextHttpBackend)
+                .use(i18nextBrowserLanguageDetector)
+                .init({
+                    fallbackLng: 'zh',
+                    debug: false,
+                    ns: ['translation'],
+                    defaultNS: 'translation',
+                    backend: {
+                        loadPath: '/locales/{{lng}}.json?v=1'
+                    },
+                    detection: {
+                        order: ['localStorage', 'navigator'],
+                        caches: ['localStorage']
+                    }
+                });
+            updateContent();
+        }
+
+        function updateContent() {
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                const options = el.dataset.i18nOptions ? JSON.parse(el.dataset.i18nOptions) : undefined;
+                const value = i18next.t(key, options);
+                if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+                    if (el.type !== 'file') el.placeholder = value;
+                } else if (el.tagName === 'OPTION') {
+                    el.textContent = value;
+                } else {
+                    el.innerHTML = value;
+                }
+            });
+            // 更新 document title
+            const titleKey = isEditMode ? 'ratePage.editTitle' : 'ratePage.title';
+            document.title = i18next.t(titleKey);
+        }
+
+        function setupLanguageSwitcher() {
+            const switcher = document.getElementById('language-switcher');
+            if (!switcher) return;
+            const currentLang = i18next.language.split('-')[0];
+            switcher.value = ['zh', 'en', 'es'].includes(currentLang) ? currentLang : 'zh';
+            
+            switcher.addEventListener('change', async (e) => {
+                const newLang = e.target.value;
+                await i18next.changeLanguage(newLang);
+                updateContent();
+                // 重新渲染动态内容
+                renderRatingView();
+                renderLoginStatus(currentAuthUser);
+                renderAdminLinks();
+                renderFlavorButtons();
+            });
+        }
+        // --- End i18n Functions ---
+
         // --- Global Variables ---
         let ratingConfig = null; let userRatings = {}; let currentAuthUser = null;
         let currentImageKeys = []; let sortableInstance = null;
@@ -196,104 +270,369 @@
         const cropperStatus = document.getElementById('cropper-status');
         const AUTHING_APP_ID = '68f5b0b6875017c02b3bfdb3';
         const AUTHING_HOST = 'https://xfvu647mcdbk-demo.authing.cn';
-        const GRADING_SCALE = [ /* ... (grading scale remains the same) ... */ { "grade": "P", "name_en": "Pinnacle", "name_cn": "顶峰 / 登峰造极", "min_score": 95 }, { "grade": "I", "name_en": "Impeccable", "name_cn": "无暇 / 完美无瑕", "min_score": 90 }, { "grade": "S", "name_en": "Superior", "name_cn": "卓越 / 出众", "min_score": 80 }, { "grade": "T", "name_en": "Terrific", "name_cn": "极好 / 绝佳", "min_score": 70 }, { "grade": "A", "name_en": "Appreciable", "name_cn": "可圈可点 / 值得欣赏", "min_score": 60 }, { "grade": "C", "name_en": "Commonplace", "name_cn": "平庸 / 普通", "min_score": 50 }, { "grade": "H", "name_en": "Hesitant", "name_cn": "犹豫 / 瑕瑜互见", "min_score": 30 }, { "grade": "O", "name_en": "Objectionable", "name_cn": "令人反感 / 极差", "min_score": 0 } ];
-        const COMMON_FLAVORS = [ /* ... (flavor list remains the same) ... */ "咖啡", "巧克力", "雪松", "泥土", "干草", "皮革", "坚果", "香料", "木质", "甜味", "奶油", "花香", "果香", "焦糖", "香草", "柑橘" ];
+        
+        // **MODIFIED**: GRADING_SCALE uses nameKey
+        const GRADING_SCALE = [
+            { "grade": "P", "nameKey": "resultsPage.grade.P", "min_score": 95 },
+            { "grade": "I", "nameKey": "resultsPage.grade.I", "min_score": 90 },
+            { "grade": "S", "nameKey": "resultsPage.grade.S", "min_score": 80 },
+            { "grade": "T", "nameKey": "resultsPage.grade.T", "min_score": 70 },
+            { "grade": "A", "nameKey": "resultsPage.grade.A", "min_score": 60 },
+            { "grade": "C", "nameKey": "resultsPage.grade.C", "min_score": 50 },
+            { "grade": "H", "nameKey": "resultsPage.grade.H", "min_score": 30 },
+            { "grade": "O", "nameKey": "resultsPage.grade.O", "min_score": 0 }
+        ];
+        
+        const COMMON_FLAVORS = [ "咖啡", "巧克力", "雪松", "泥土", "干草", "皮革", "坚果", "香料", "木质", "甜味", "奶油", "花香", "果香", "焦糖", "香草", "柑橘" ];
 
         // --- Authentication ---
-         /* ... (Authentication functions remain the same) ... */
-         window.login = function() { const redirectUri = window.location.origin; const authorizeUrl = new URL('/oidc/auth', AUTHING_HOST); authorizeUrl.search = new URLSearchParams({ client_id: AUTHING_APP_ID, redirect_uri: redirectUri, response_type: 'code', scope: 'openid profile email phone', state: Math.random().toString(36).substring(2) }).toString(); window.location.href = authorizeUrl.toString(); }
-         window.logout = function() { const logoutUrl = new URL('/oidc/session/end', AUTHING_HOST); logoutUrl.search = new URLSearchParams({ post_logout_redirect_uri: window.location.origin }).toString(); sessionStorage.removeItem('userInfo'); sessionStorage.removeItem('accessToken'); window.location.href = logoutUrl.toString(); }
-         function renderLoginStatus(user) { const container = document.getElementById('login-status-container'); if (!container) return; if (user) { const displayName = user.nickname || user.name || user.preferred_username || user.email || '已登录'; container.innerHTML = `<span class="text-sm font-medium text-gray-700 mr-2 hidden sm:inline">${displayName}</span><button onclick="logout()" class="px-3 py-1 text-xs font-medium rounded-full bg-red-500 text-white hover:bg-red-600">退出</button>`; } else { container.innerHTML = `<button onclick="login()" class="px-3 py-1 text-xs font-medium rounded-full bg-green-500 text-white hover:bg-green-600">登录/注册</button>`; } }
-         function renderAdminLinks() { const adminLinksContainer = document.getElementById('admin-links-container'); adminLinksContainer.innerHTML = ''; if (!adminLinksContainer || !currentAuthUser) return; const userRole = currentAuthUser.db_role; const isAdmin = userRole === 'admin' || userRole === 'super_admin'; const isSuperAdmin = userRole === 'super_admin'; if (isAdmin) { adminLinksContainer.innerHTML += `<a href="cigar_rating_config.html" class="flex items-center px-3 py-1.5 border text-xs font-medium rounded-full text-white bg-blue-600 hover:bg-blue-500">评分配置</a>`; } if (isSuperAdmin) { adminLinksContainer.innerHTML += `<a href="role_management.html" class="flex items-center px-3 py-1.5 border text-xs font-medium rounded-full text-yellow-100 bg-purple-600 hover:bg-purple-500 ml-2">用户管理</a>`; } }
-         async function handleOidcCallback(code) { try { const redirectUri = window.location.origin; const apiUrl = new URL('/api/authing/callback', window.location.origin); const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: code, redirect_uri: redirectUri }) }); if (!response.ok) { const err = await response.json(); throw new Error(err.error || '认证回调失败'); } const fullUserProfile = await response.json(); sessionStorage.setItem('userInfo', JSON.stringify(fullUserProfile)); sessionStorage.setItem('accessToken', fullUserProfile.accessToken); return fullUserProfile; } catch (e) { console.error('认证回调处理失败:', e); alert(`登录失败: ${e.message}`); sessionStorage.removeItem('userInfo'); sessionStorage.removeItem('accessToken'); return null; } finally { window.history.replaceState({}, document.title, window.location.pathname); } }
-         async function validateSessionAndGetUser() { const token = sessionStorage.getItem('accessToken'); if (!token) return null; try { const apiUrl = new URL('/api/me', window.location.origin); const response = await fetch(apiUrl, { headers: { 'Authorization': `Bearer ${token}` } }); if (!response.ok) { sessionStorage.removeItem('userInfo'); sessionStorage.removeItem('accessToken'); return null; } const fullUserProfile = await response.json(); sessionStorage.setItem('userInfo', JSON.stringify(fullUserProfile)); return fullUserProfile; } catch (e) { console.error("Session validation failed:", e); return null; } }
+         window.login = function() { /* ... (same) ... */ }
+         window.logout = function() { /* ... (same) ... */ }
+         
+         function renderLoginStatus(user) {
+            const container = document.getElementById('login-status-container');
+            if (!container) return;
+            if (user) {
+                const displayName = user.nickname || user.name || user.preferred_username || user.email || i18next.t('nav.login');
+                container.innerHTML = `<span class="text-sm font-medium text-gray-700 mr-2 hidden sm:inline">${displayName}</span><button onclick="logout()" class="px-3 py-1 text-xs font-medium rounded-full bg-red-500 text-white hover:bg-red-600">${i18next.t('nav.logout')}</button>`;
+            } else {
+                container.innerHTML = `<button onclick="login()" class="px-3 py-1 text-xs font-medium rounded-full bg-green-500 text-white hover:bg-green-600">${i18next.t('nav.login')}</button>`;
+            }
+         }
+         
+         function renderAdminLinks() {
+            const adminLinksContainer = document.getElementById('admin-links-container');
+            adminLinksContainer.innerHTML = '';
+            if (!adminLinksContainer || !currentAuthUser) return;
+            const userRole = currentAuthUser.db_role;
+            const isAdmin = userRole === 'admin' || userRole === 'super_admin';
+            const isSuperAdmin = userRole === 'super_admin';
+            if (isAdmin) {
+                adminLinksContainer.innerHTML += `<a href="cigar_rating_config.html" class="flex items-center px-3 py-1.5 border text-xs font-medium rounded-full text-white bg-blue-600 hover:bg-blue-500">${i18next.t('nav.configAdmin')}</a>`;
+            }
+            if (isSuperAdmin) {
+                adminLinksContainer.innerHTML += `<a href="role_management.html" class="flex items-center px-3 py-1.5 border text-xs font-medium rounded-full text-yellow-100 bg-purple-600 hover:bg-purple-500 ml-2">${i18next.t('nav.userAdmin')}</a>`;
+            }
+         }
+         
+         async function handleOidcCallback(code) { /* ... (same) ... */ }
+         async function validateSessionAndGetUser() { /* ... (same) ... */ }
          function setUser(user) { currentAuthUser = user; renderLoginStatus(currentAuthUser); setTimeout(() => { renderAdminLinks(); }, 0); }
 
         // --- Flavor Selection Logic ---
-         /* ... (Flavor functions remain the same) ... */
-         function renderFlavorButtons() { const container = document.getElementById('flavor-buttons-container'); container.innerHTML = ''; COMMON_FLAVORS.forEach(flavor => { const isSelected = selectedFlavors.includes(flavor); const button = document.createElement('button'); button.type = 'button'; button.className = `flavor-btn ${isSelected ? 'selected' : ''}`; button.textContent = flavor; button.onclick = () => toggleFlavorSelection(flavor, button); container.appendChild(button); }); }
-         function toggleFlavorSelection(flavor, button) { const index = selectedFlavors.indexOf(flavor); if (index > -1) { selectedFlavors.splice(index, 1); button.classList.remove('selected'); } else { selectedFlavors.push(flavor); button.classList.add('selected'); } console.log("Selected flavors:", selectedFlavors); }
+         function renderFlavorButtons() {
+            const container = document.getElementById('flavor-buttons-container');
+            container.innerHTML = '';
+            // TODO: Flavor list itself should be internationalized if keys are available
+            COMMON_FLAVORS.forEach(flavor => {
+                const isSelected = selectedFlavors.includes(flavor);
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = `flavor-btn ${isSelected ? 'selected' : ''}`;
+                button.textContent = flavor; // This will remain Chinese for now
+                button.onclick = () => toggleFlavorSelection(flavor, button);
+                container.appendChild(button);
+            });
+         }
+         function toggleFlavorSelection(flavor, button) { /* ... (same) ... */ }
 
         // --- Image Handling (with Sorting and Cover Selection) ---
-         /* ... (Image functions remain the same) ... */
          const MAX_IMAGES = 5; let filesToProcess = []; let currentFileIndex = 0;
-         function renderImagePreviews() { const grid = document.getElementById('image-preview-grid'); const uploadLabel = document.getElementById('image-upload-label'); const uploadInput = document.getElementById('image-upload-input'); grid.innerHTML = ''; currentImageKeys.forEach((key, index) => { const item = document.createElement('div'); item.className = `preview-item ${index === 0 ? 'is-cover' : ''}`; item.dataset.key = key; item.innerHTML = ` <img src="/api/image/${key}" alt="Preview ${index + 1}"> <button class="remove-btn" onclick="removeImage(${index})" title="删除图片">&times;</button> <button class="set-cover-btn" onclick="setCoverImage(${index})" title="设为封面"> ${index === 0 ? '封面' : '设为封面'} </button> `; grid.appendChild(item); }); if (currentImageKeys.length >= MAX_IMAGES) { uploadLabel.classList.add('opacity-50', 'cursor-not-allowed', 'bg-gray-400'); uploadLabel.classList.remove('bg-blue-600', 'hover:bg-blue-700'); uploadInput.disabled = true; } else { uploadLabel.classList.remove('opacity-50', 'cursor-not-allowed', 'bg-gray-400'); uploadLabel.classList.add('bg-blue-600', 'hover:bg-blue-700'); uploadInput.disabled = false; } }
-         function initializeSortable() { const grid = document.getElementById('image-preview-grid'); if (sortableInstance) { sortableInstance.destroy(); } if (grid && currentImageKeys.length > 1) { sortableInstance = new Sortable(grid, { animation: 150, ghostClass: 'sortable-ghost', dragClass: 'sortable-drag', onEnd: function (evt) { const items = grid.querySelectorAll('.preview-item'); const newOrderKeys = Array.from(items).map(item => item.dataset.key); currentImageKeys = newOrderKeys; console.log("Image order updated:", currentImageKeys); renderImagePreviews(); } }); } else { sortableInstance = null; } }
-         window.setCoverImage = function(index) { if (index > 0 && index < currentImageKeys.length) { const keyToMove = currentImageKeys.splice(index, 1)[0]; currentImageKeys.unshift(keyToMove); console.log("Set new cover image. New order:", currentImageKeys); renderImagePreviews(); } }
-         window.removeImage = function(indexToRemove) { if (indexToRemove >= 0 && indexToRemove < currentImageKeys.length) { const removedKey = currentImageKeys.splice(indexToRemove, 1); console.log("Removed image key:", removedKey); renderImagePreviews(); } }
-         window.handleFileSelect = function(event) { const status = document.getElementById('image-upload-status'); status.textContent = ''; const selectedFiles = Array.from(event.target.files); if (selectedFiles.length === 0) return; if (!currentAuthUser) { alert("请先登录再上传图片。"); return; } const allowedFiles = []; for (const file of selectedFiles) { if (currentImageKeys.length + allowedFiles.length >= MAX_IMAGES) { alert(`最多只能上传 ${MAX_IMAGES} 张图片。`); break; } if (file.size > 5 * 1024 * 1024) { alert(`图片 "${file.name}" 太大 (超过5MB)，已跳过。`); continue; } if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) { alert(`文件 "${file.name}" 类型不受支持，已跳过。`); continue; } allowedFiles.push(file); } if (allowedFiles.length > 0) { filesToProcess = allowedFiles; currentFileIndex = 0; showCropperForNextFile(); } event.target.value = null; }
-         function showCropperForNextFile() { if (currentFileIndex >= filesToProcess.length) { console.log("All selected files processed."); filesToProcess = []; cancelCrop(); return; } const file = filesToProcess[currentFileIndex]; const reader = new FileReader(); reader.onload = (e) => { cropperModal.classList.remove('hidden'); cropperImage.src = e.target.result; if (cropper) cropper.destroy(); cropper = new Cropper(cropperImage, { aspectRatio: 1179 / 1572, viewMode: 1, autoCropArea: 0.9, background: false, }); cropperStatus.textContent = `正在处理第 ${currentFileIndex + 1} / ${filesToProcess.length} 张图片。请调整裁切框。`; }; reader.readAsDataURL(file); }
-         window.confirmCropAndUpload = async function() { if (!cropper || !filesToProcess[currentFileIndex]) return; const token = sessionStorage.getItem('accessToken'); if (!token) { alert("会话已过期，请重新登录。"); return; } cropperStatus.textContent = `正在裁切并上传第 ${currentFileIndex + 1} 张...`; const fileName = filesToProcess[currentFileIndex].name; const canvas = cropper.getCroppedCanvas({ width: 600, height: 800, imageSmoothingQuality: 'high', }); canvas.toBlob(async (blob) => { if (!blob) { cropperStatus.textContent = '裁切失败，请重试。'; return; } try { const formData = new FormData(); formData.append('image', blob, fileName); const response = await fetch('/api/upload-image', { method: 'POST', headers: { 'Authorization': `Bearer ${token}` }, body: formData }); const result = await response.json(); if (!response.ok) throw new Error(result.error || '上传失败'); currentImageKeys.push(result.imageKey); renderImagePreviews(); currentFileIndex++; showCropperForNextFile(); } catch (e) { console.error("上传图片失败:", e); cropperStatus.textContent = `上传失败: ${e.message}`; } }, 'image/jpeg', 0.9); }
-         window.cancelCrop = function() { cropperModal.classList.add('hidden'); if (cropper) { cropper.destroy(); cropper = null; } filesToProcess = []; currentFileIndex = 0; document.getElementById('image-upload-input').value = null; cropperStatus.textContent = ''; }
+         
+         function renderImagePreviews() {
+            const grid = document.getElementById('image-preview-grid');
+            const uploadLabel = document.getElementById('image-upload-label');
+            const uploadInput = document.getElementById('image-upload-input');
+            grid.innerHTML = '';
+            currentImageKeys.forEach((key, index) => {
+                const item = document.createElement('div');
+                item.className = `preview-item ${index === 0 ? 'is-cover' : ''}`;
+                item.dataset.key = key;
+                const coverText = index === 0 ? i18next.t('common.cover') : i18next.t('ratePage.setCover', '设为封面'); // 'ratePage.setCover' needs to be added to JSON
+                item.innerHTML = `
+                    <img src="/api/image/${key}" alt="${i18next.t('common.image')} ${index + 1}">
+                    <button class="remove-btn" onclick="removeImage(${index})" title="${i18next.t('common.delete')} ${i18next.t('common.image')}">&times;</button>
+                    <button class="set-cover-btn" onclick="setCoverImage(${index})" title="${coverText}">
+                        ${coverText}
+                    </button>
+                `;
+                grid.appendChild(item);
+            });
+            if (currentImageKeys.length >= MAX_IMAGES) {
+                uploadLabel.classList.add('opacity-50', 'cursor-not-allowed', 'bg-gray-400');
+                uploadLabel.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+                uploadInput.disabled = true;
+            } else {
+                uploadLabel.classList.remove('opacity-50', 'cursor-not-allowed', 'bg-gray-400');
+                uploadLabel.classList.add('bg-blue-600', 'hover:bg-blue-700');
+                uploadInput.disabled = false;
+            }
+         }
+         
+         function initializeSortable() { /* ... (same) ... */ }
+         window.setCoverImage = function(index) { /* ... (same) ... */ }
+         window.removeImage = function(indexToRemove) { /* ... (same) ... */ }
+         
+         window.handleFileSelect = function(event) {
+            const status = document.getElementById('image-upload-status');
+            status.textContent = '';
+            const selectedFiles = Array.from(event.target.files);
+            if (selectedFiles.length === 0) return;
+            if (!currentAuthUser) {
+                alert(i18next.t('ratePage.loginToUpload'));
+                return;
+            }
+            const allowedFiles = [];
+            for (const file of selectedFiles) {
+                if (currentImageKeys.length + allowedFiles.length >= MAX_IMAGES) {
+                    alert(i18next.t('ratePage.maxImages', { max: MAX_IMAGES }));
+                    break;
+                }
+                if (file.size > 5 * 1024 * 1024) {
+                    alert(i18next.t('ratePage.imageTooLarge', { name: file.name }));
+                    continue;
+                }
+                if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+                    alert(i18next.t('ratePage.imageTypeNotSupported', { name: file.name }));
+                    continue;
+                }
+                allowedFiles.push(file);
+            }
+            if (allowedFiles.length > 0) {
+                filesToProcess = allowedFiles;
+                currentFileIndex = 0;
+                showCropperForNextFile();
+            }
+            event.target.value = null;
+         }
+         
+         function showCropperForNextFile() {
+            if (currentFileIndex >= filesToProcess.length) {
+                filesToProcess = [];
+                cancelCrop();
+                return;
+            }
+            const file = filesToProcess[currentFileIndex];
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                cropperModal.classList.remove('hidden');
+                cropperImage.src = e.target.result;
+                if (cropper) cropper.destroy();
+                cropper = new Cropper(cropperImage, { aspectRatio: 1179 / 1572, viewMode: 1, autoCropArea: 0.9, background: false, });
+                cropperStatus.textContent = i18next.t('ratePage.processingImage', { current: currentFileIndex + 1, total: filesToProcess.length });
+            };
+            reader.readAsDataURL(file);
+         }
+         
+         window.confirmCropAndUpload = async function() {
+            if (!cropper || !filesToProcess[currentFileIndex]) return;
+            const token = sessionStorage.getItem('accessToken');
+            if (!token) {
+                alert(i18next.t('common.sessionExpired'));
+                return;
+            }
+            cropperStatus.textContent = i18next.t('ratePage.croppingAndUploading', { current: currentFileIndex + 1 });
+            const fileName = filesToProcess[currentFileIndex].name;
+            const canvas = cropper.getCroppedCanvas({ width: 600, height: 800, imageSmoothingQuality: 'high', });
+            canvas.toBlob(async (blob) => {
+                if (!blob) {
+                    cropperStatus.textContent = i18next.t('ratePage.cropFailed');
+                    return;
+                }
+                try {
+                    const formData = new FormData();
+                    formData.append('image', blob, fileName);
+                    const response = await fetch('/api/upload-image', { method: 'POST', headers: { 'Authorization': `Bearer ${token}` }, body: formData });
+                    const result = await response.json();
+                    if (!response.ok) throw new Error(result.error || 'Upload failed');
+                    currentImageKeys.push(result.imageKey);
+                    renderImagePreviews();
+                    currentFileIndex++;
+                    showCropperForNextFile();
+                } catch (e) {
+                    console.error("上传图片失败:", e);
+                    cropperStatus.textContent = i18next.t('ratePage.uploadFailed', { msg: e.message });
+                }
+            }, 'image/jpeg', 0.9);
+         }
+         
+         window.cancelCrop = function() { /* ... (same) ... */ }
 
         // --- Core Rating Logic ---
-         /* ... (loadConfig, getRatingId, calculateWeights, calculateFinalScore, updateRatingSelection, renderRatingView, renderRatingCriterion remain the same) ... */
-         async function loadConfig() { document.getElementById('config-load-status').textContent = '正在同步配置...'; try { const apiUrl = new URL('/api/config/latest', window.location.origin); const response = await fetch(apiUrl); if (!response.ok) throw new Error(`服务器错误: ${response.statusText}`); ratingConfig = await response.json(); if (!ratingConfig || !ratingConfig.ratingCriteria) throw new Error("加载的配置无效。"); calculateWeights(ratingConfig); userRatings = {}; renderRatingView(); document.getElementById('config-load-status').textContent = `配置已同步`; } catch (error) { console.error("加载配置失败:", error); document.getElementById('config-load-status').textContent = '配置加载失败'; alert(`加载应用核心配置失败，请刷新页面重试。\n错误详情: ${error.message}`); } }
-         function getRatingId(category, criterion) { return `${String(category || '').trim()}-${String(criterion || '').trim()}`; }
-         function calculateWeights(config) { if (!config || !config.ratingCriteria) return; let grandTotal = 0, totalCriteriaCount = 0; config.ratingCriteria.forEach(category => { let categoryTotal = 0; (category.criteriaList || []).forEach(criterion => { categoryTotal += (criterion.weight || 0); totalCriteriaCount++; }); category.totalWeight = categoryTotal; grandTotal += categoryTotal; }); config.totalWeightMax = grandTotal; config.totalCriteriaCount = totalCriteriaCount; }
-         function calculateFinalScore() { if (!ratingConfig || !ratingConfig.ratingCriteria) return 0; let totalScore = 0; ratingConfig.ratingCriteria.forEach(category => { (category.criteriaList || []).forEach(criterion => { const id = getRatingId(category.category, criterion.name); const selectedOptionIndex = userRatings[id]; if (selectedOptionIndex !== undefined && criterion.options?.[selectedOptionIndex]) { totalScore += (criterion.weight || 0) * (criterion.options[selectedOptionIndex].scorePct || 0); } }); }); return totalScore; }
-         window.updateRatingSelection = function(categoryName, criterionName, optionIndex) { const id = getRatingId(categoryName, criterionName); if (userRatings[id] === optionIndex) { delete userRatings[id]; } else { userRatings[id] = optionIndex; } renderRatingView(); };
-         function renderRatingView() { if (!ratingConfig || !ratingConfig.ratingCriteria) { const formContainer = document.getElementById('rating-form-container'); formContainer.innerHTML = `<div class="text-center p-6 bg-white rounded-lg shadow"><p>无法加载评分标准。</p></div>`; return; }; const totalScore = calculateFinalScore(); document.getElementById('app-title-display').textContent = ratingConfig.appTitle; document.getElementById('app-description-display').textContent = ratingConfig.description; document.getElementById('total-weight-max-display').textContent = ratingConfig.totalWeightMax ?? 0; document.getElementById('current-score-display').textContent = totalScore.toFixed(2); const ratedCount = Object.keys(userRatings).length; const totalCount = ratingConfig.totalCriteriaCount || 1; document.getElementById('progress-bar').style.width = `${(ratedCount / totalCount) * 100}%`; document.getElementById('progress-text').textContent = `${ratedCount} / ${totalCount}`; const formContainer = document.getElementById('rating-form-container'); formContainer.innerHTML = ratingConfig.ratingCriteria.map((category) => ` <div class="bg-white p-6 rounded-xl shadow-lg mb-8 border-l-4 border-indigo-500"> <h3 class="text-xl font-bold text-indigo-700 mb-2">${category.category}</h3> <p class="text-gray-500 text-sm mb-4">${category.detail || ''}</p> <div class="space-y-6">${(category.criteriaList || []).map((criterion) => renderRatingCriterion(category.category, criterion)).join('')}</div> </div>`).join(''); }
-         function renderRatingCriterion(categoryName, criterion) { const id = getRatingId(categoryName, criterion.name); const selectedOptionIndex = userRatings[id]; const currentWeight = criterion.weight || 0; let currentScore = 0; if (selectedOptionIndex !== undefined && criterion.options?.[selectedOptionIndex]) { currentScore = currentWeight * (criterion.options[selectedOptionIndex].scorePct || 0); } const isSuperAdmin = currentAuthUser?.db_role === 'super_admin'; return `<div class="bg-gray-50 p-4 rounded-lg border"> <div class="flex justify-between items-center mb-3"> <h4 class="text-lg font-semibold text-gray-800">${criterion.name} ${isSuperAdmin ? `(${currentWeight} 分)` : ''}</h4> ${isSuperAdmin ? `<span class="text-xl font-extrabold text-green-600">${currentScore.toFixed(2)}</span>` : ''} </div> <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2"> ${(criterion.options || []).map((option, optIndex) => { const isSelected = selectedOptionIndex === optIndex; const score = (currentWeight * (option.scorePct || 0)).toFixed(2); return `<button onclick="updateRatingSelection('${categoryName}', '${criterion.name}', ${optIndex})" class="p-2 text-sm text-center rounded-lg border transition ${ isSelected ? 'bg-indigo-600 text-white shadow-md' : 'bg-white hover:bg-indigo-50' }"> ${option.description} ${isSuperAdmin ? `<span class="block text-xs ${isSelected ? 'text-indigo-200' : 'text-gray-500'}">(得 ${score} 分)</span>` : ''} </button>`; }).join('')} </div> </div>`; }
+         async function loadConfig() {
+            document.getElementById('config-load-status').textContent = i18next.t('ratePage.configSyncing');
+            try {
+                const apiUrl = new URL('/api/config/latest', window.location.origin);
+                const response = await fetch(apiUrl);
+                if (!response.ok) throw new Error(`Server error: ${response.statusText}`);
+                ratingConfig = await response.json();
+                if (!ratingConfig || !ratingConfig.ratingCriteria) throw new Error("Loaded config is invalid.");
+                calculateWeights(ratingConfig);
+                userRatings = {};
+                renderRatingView();
+                document.getElementById('config-load-status').textContent = i18next.t('ratePage.configSynced');
+            } catch (error) {
+                console.error("加载配置失败:", error);
+                document.getElementById('config-load-status').textContent = i18next.t('ratePage.configFailed');
+                alert(`Failed to load core app config. Please refresh.\nDetails: ${error.message}`);
+            }
+         }
+         
+         function getRatingId(category, criterion) { /* ... (same) ... */ }
+         function calculateWeights(config) { /* ... (same) ... */ }
+         function calculateFinalScore() { /* ... (same) ... */ }
+         window.updateRatingSelection = function(categoryName, criterionName, optionIndex) { /* ... (same) ... */ };
+         
+         function renderRatingView() {
+            if (!ratingConfig || !ratingConfig.ratingCriteria) {
+                const formContainer = document.getElementById('rating-form-container');
+                formContainer.innerHTML = `<div class="text-center p-6 bg-white rounded-lg shadow"><p>${i18next.t('ratePage.configFailed')}</p></div>`;
+                return;
+            };
+            const totalScore = calculateFinalScore();
+            document.getElementById('app-title-display').textContent = ratingConfig.appTitle; // This will remain in the config's language
+            document.getElementById('app-description-display').textContent = ratingConfig.description; // This too
+            document.getElementById('total-weight-max-display').textContent = ratingConfig.totalWeightMax ?? 0;
+            document.getElementById('current-score-display').textContent = totalScore.toFixed(2);
+            const ratedCount = Object.keys(userRatings).length;
+            const totalCount = ratingConfig.totalCriteriaCount || 1;
+            document.getElementById('progress-bar').style.width = `${(ratedCount / totalCount) * 100}%`;
+            document.getElementById('progress-text').textContent = `${ratedCount} / ${totalCount}`;
+            const formContainer = document.getElementById('rating-form-container');
+            
+            // NOTE: category.category, category.detail, and criterion.name will remain in Chinese
+            // as they come from the database config. This is the next step to refactor.
+            formContainer.innerHTML = ratingConfig.ratingCriteria.map((category) => `
+                <div class="bg-white p-6 rounded-xl shadow-lg mb-8 border-l-4 border-indigo-500">
+                    <h3 class="text-xl font-bold text-indigo-700 mb-2">${category.category}</h3>
+                    <p class="text-gray-500 text-sm mb-4">${category.detail || ''}</p>
+                    <div class="space-y-6">${(category.criteriaList || []).map((criterion) => renderRatingCriterion(category.category, criterion)).join('')}</div>
+                </div>`).join('');
+         }
+         
+         function renderRatingCriterion(categoryName, criterion) {
+            const id = getRatingId(categoryName, criterion.name);
+            const selectedOptionIndex = userRatings[id];
+            const currentWeight = criterion.weight || 0;
+            let currentScore = 0;
+            if (selectedOptionIndex !== undefined && criterion.options?.[selectedOptionIndex]) {
+                currentScore = currentWeight * (criterion.options[selectedOptionIndex].scorePct || 0);
+            }
+            const isSuperAdmin = currentAuthUser?.db_role === 'super_admin';
+            
+            // NOTE: criterion.name and option.description will remain in Chinese
+            return `<div class="bg-gray-50 p-4 rounded-lg border">
+                <div class="flex justify-between items-center mb-3">
+                    <h4 class="text-lg font-semibold text-gray-800">${criterion.name} ${isSuperAdmin ? `(${currentWeight} 分)` : ''}</h4>
+                    ${isSuperAdmin ? `<span class="text-xl font-extrabold text-green-600">${currentScore.toFixed(2)}</span>` : ''}
+                </div>
+                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
+                ${(criterion.options || []).map((option, optIndex) => {
+                    const isSelected = selectedOptionIndex === optIndex;
+                    const score = (currentWeight * (option.scorePct || 0)).toFixed(2);
+                    return `<button onclick="updateRatingSelection('${categoryName}', '${criterion.name}', ${optIndex})"
+                        class="p-2 text-sm text-center rounded-lg border transition ${ isSelected ? 'bg-indigo-600 text-white shadow-md' : 'bg-white hover:bg-indigo-50' }">
+                        ${option.description}
+                        ${isSuperAdmin ? `<span class="block text-xs ${isSelected ? 'text-indigo-200' : 'text-gray-500'}">(得 ${score} 分)</span>` : ''}
+                    </button>`;
+                }).join('')}
+                </div>
+            </div>`;
+         }
 
 
         // --- Actions (Reset, Show Results / Save Changes) ---
-         /* ... (resetRatings and showResults remain the same) ... */
-         window.resetRatings = function() { if (confirm("确定要重置所有评分选择和图片吗？")) { userRatings = {}; document.getElementById('rating-title').value = ''; document.getElementById('cigar-name').value = ''; document.getElementById('cigar-size').value = ''; document.getElementById('cigar-origin').value = ''; document.getElementById('cigar-review').value = ''; currentImageKeys = []; selectedFlavors = []; renderFlavorButtons(); renderImagePreviews(); if (isEditMode) { isEditMode = false; editRatingId = null; const actionButton = document.getElementById('main-action-button'); actionButton.textContent = "查看报告"; actionButton.classList.remove('bg-blue-600', 'hover:bg-blue-700'); actionButton.classList.add('bg-green-600', 'hover:bg-green-700'); window.history.replaceState({}, document.title, window.location.pathname); } renderRatingView(); updateCharCounts(); } }
-         window.showResults = async function() { const token = sessionStorage.getItem('accessToken'); if (!isEditMode && (!currentAuthUser || !token)) { return alert("请登录后才能提交点评。"); } if (!ratingConfig || Object.keys(userRatings).length === 0) { return alert("请至少选择一个评分项后再操作。"); } const title = document.getElementById('rating-title').value.trim(); if (!title) { return alert("请填写点评标题。"); } if (currentImageKeys.length === 0) { return alert("请至少上传一张图片。"); } const cigarNameValue = document.getElementById('cigar-name').value.trim(); if (!cigarNameValue) { return alert("请填写雪茄名称。"); } const cigarInfo = { name: cigarNameValue, size: document.getElementById('cigar-size').value || '未知尺寸', origin: document.getElementById('cigar-origin').value || '未知产地' }; const cigarReview = document.getElementById('cigar-review').value || '无'; const finalScore = calculateFinalScore(); const maxScore = ratingConfig.totalWeightMax || 1; const normalizedScore = maxScore > 0 ? (finalScore / maxScore) * 100 : 0; const foundGrade = GRADING_SCALE.find(g => normalizedScore >= g.min_score); const finalGrade = foundGrade ? { grade: foundGrade.grade, name_cn: foundGrade.name_cn, name_en: foundGrade.name_en } : GRADING_SCALE[GRADING_SCALE.length - 1]; const resultsData = { title: title, config: ratingConfig, ratings: userRatings, calculatedScore: finalScore, cigarInfo: cigarInfo, cigarReview: cigarReview, imageUrls: currentImageKeys, normalizedScore: normalizedScore, finalGrade: finalGrade, selectedFlavors: selectedFlavors, isDraft: !isEditMode }; console.log("Data being prepared for results/save:", resultsData); if (isEditMode && editRatingId) { const actionButton = document.getElementById('main-action-button'); actionButton.textContent = "正在保存..."; actionButton.disabled = true; try { if (!token) throw new Error("会话已过期，请重新登录。"); resultsData.ratingId = editRatingId; const apiUrl = new URL(`/api/ratings`, window.location.origin); const response = await fetch(apiUrl, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify(resultsData) }); if (!response.ok) { const err = await response.json(); throw new Error(err.error || '更新失败'); } alert("更改已保存！"); window.location.href = 'history.html'; } catch (e) { alert(`保存失败: ${e.message}`); actionButton.textContent = "保存更改"; actionButton.disabled = false; } } else { try { sessionStorage.setItem('cigarRatingResults', JSON.stringify(resultsData)); window.location.href = 'results.html'; } catch (e) { alert("无法保存会话数据 (sessionStorage)。"); } } }
-
-        // --- Edit Mode Logic ---
-         /* ... (loadRatingForEdit remains the same) ... */
-         async function loadRatingForEdit(ratingId) { console.log(`[loadRatingForEdit] Started for ID: ${ratingId}`); const token = sessionStorage.getItem('accessToken'); if (!token) { alert("无法验证身份，请重新登录。"); window.location.href = 'history.html'; return; } document.getElementById('config-load-status').textContent = `正在加载点评 ${ratingId}...`; try { const apiUrl = new URL(`/api/ratings?id=${ratingId}`, window.location.origin); const response = await fetch(apiUrl, { headers: { 'Authorization': `Bearer ${token}` } }); if (!response.ok) { let errorText = `加载点评失败: ${response.status}`; try { const err = await response.json(); errorText = err.error || errorText; } catch(e){} throw new Error(errorText); } const ratingData = await response.json(); console.log("[loadRatingForEdit] Received ratingData:", ratingData); if (!ratingData) { throw new Error(`点评 ${ratingId} 未找到或无权访问。`); } if (!ratingData.fullData || !ratingData.fullData.ratings) { throw new Error("加载的点评数据不完整(缺少fullData.ratings)，无法编辑。"); } if (!ratingConfig) { await loadConfig(); if(!ratingConfig) throw new Error("无法加载评分配置，无法编辑。"); } document.getElementById('rating-title').value = ratingData.title || ''; document.getElementById('cigar-name').value = ratingData.cigarInfo?.name || ratingData.cigarName || ''; document.getElementById('cigar-size').value = ratingData.cigarInfo?.size || ratingData.cigarSize || ''; document.getElementById('cigar-origin').value = ratingData.cigarInfo?.origin || ratingData.cigarOrigin || ''; document.getElementById('cigar-review').value = ratingData.cigarReview || ''; userRatings = ratingData.fullData.ratings || {}; currentImageKeys = Array.isArray(ratingData.imageUrl) ? ratingData.imageUrl : []; selectedFlavors = Array.isArray(ratingData.fullData.selectedFlavors) ? ratingData.fullData.selectedFlavors : []; renderFlavorButtons(); renderImagePreviews(); isEditMode = true; editRatingId = ratingId; const actionButton = document.getElementById('main-action-button'); actionButton.textContent = "保存更改"; actionButton.classList.remove('bg-green-600', 'hover:bg-green-700'); actionButton.classList.add('bg-blue-600', 'hover:bg-blue-700'); renderRatingView(); document.getElementById('config-load-status').textContent = `已加载点评 ${ratingId} (编辑模式)`; updateCharCounts(); console.log("[loadRatingForEdit] Completed successfully."); } catch (e) { console.error(`[loadRatingForEdit] Error loading rating ${ratingId}:`, e); alert(`加载点评失败: ${e.message}`); window.location.href = 'history.html'; } }
-
-        // --- Character Counters ---
-         /* ... (updateCharCounts remains the same) ... */
-         function updateCharCounts() { const titleInput = document.getElementById('rating-title'); const reviewInput = document.getElementById('cigar-review'); const titleCount = document.getElementById('title-char-count'); const reviewCount = document.getElementById('review-char-count'); if(titleInput && titleCount) titleCount.textContent = `${titleInput.value.length} / 22`; if(reviewInput && reviewCount) reviewCount.textContent = `${reviewInput.value.length} / 1500`; }
-
-        // --- Initialization ---
-        window.onload = async function() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const code = urlParams.get('code');
-            const editId = urlParams.get('edit');
-            const mainContent = document.getElementById('main-content'); // Get main content area
-            const loginPrompt = document.getElementById('login-prompt'); // Get login prompt area
-            let user = null;
-
-            if (code) { user = await handleOidcCallback(code); }
-            else { user = await validateSessionAndGetUser(); }
-            setUser(user);
-            console.log("Current User Object:", currentAuthUser);
-
-            // **NEW**: Check login status
-            if (!currentAuthUser) {
-                mainContent.style.display = 'none'; // Hide the form
-                loginPrompt.classList.remove('hidden'); // Show the login prompt
-                document.getElementById('config-load-status').textContent = '请先登录'; // Update status text
-                // Stop further execution if not logged in
-                return;
-            } else {
-                 mainContent.style.display = 'block'; // Ensure form is visible if logged in
-                 loginPrompt.classList.add('hidden'); // Hide the prompt
+         window.resetRatings = function() {
+            if (confirm(i18next.t('ratePage.confirmReset'))) {
+                userRatings = {};
+                document.getElementById('rating-title').value = '';
+                document.getElementById('cigar-name').value = '';
+                document.getElementById('cigar-size').value = '';
+                document.getElementById('cigar-origin').value = '';
+                document.getElementById('cigar-review').value = '';
+                currentImageKeys = [];
+                selectedFlavors = [];
+                renderFlavorButtons();
+                renderImagePreviews();
+                if (isEditMode) {
+                    isEditMode = false;
+                    editRatingId = null;
+                    const actionButton = document.getElementById('main-action-button');
+                    actionButton.textContent = i18next.t('ratePage.viewReport');
+                    actionButton.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+                    actionButton.classList.add('bg-green-600', 'hover:bg-green-700');
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                }
+                renderRatingView();
+                updateCharCounts();
             }
-
-            // --- Proceed only if logged in ---
-            await loadConfig(); // Load config first
-            renderFlavorButtons(); // Render flavor buttons AFTER config load
-
-            if (editId) { await loadRatingForEdit(editId); } // Loads ratings, images, AND flavors
-            else { renderImagePreviews(); updateCharCounts(); } // Normal load
-
-            // Initialize SortableJS at the end
-            try { initializeSortable(); }
-            catch (e) { console.error("Failed to initialize SortableJS on load:", e); }
-
-            // Add event listeners
-            document.getElementById('rating-title')?.addEventListener('input', updateCharCounts);
-            document.getElementById('cigar-review')?.addEventListener('input', updateCharCounts);
-
-            if (editId || code) { window.history.replaceState({}, document.title, window.location.pathname); }
-        };
-    </script>
-</body>
-</html>
-
+         }
+         
+         window.showResults = async function() {
+            const token = sessionStorage.getItem('accessToken');
+            if (!isEditMode && (!currentAuthUser || !token)) {
+                return alert(i18next.t('ratePage.loginToSubmit'));
+            }
+            if (!ratingConfig || Object.keys(userRatings).length === 0) {
+                return alert(i18next.t('ratePage.selectOneOption'));
+            }
+            const title = document.getElementById('rating-title').value.trim();
+            if (!title) {
+                return alert(i18next.t('ratePage.titleRequired'));
+            }
+            if (currentImageKeys.length === 0) {
+                return alert(i18next.t('ratePage.imageRequired'));
+            }
+            const cigarNameValue = document.getElementById('cigar-name').value.trim();
+            if (!cigarNameValue) {
+                return alert(i18next.t('ratePage.nameRequired'));
+            }
+            
+            const cigarInfo = { name: cigarNameValue, size: document.getElementById('cigar-size').value || '未知尺寸', origin: document.getElementById('cigar-origin').value || '未知产地' };
+            const cigarReview = document.getElementById('cigar-review').value || '无';
+            const finalScore = calculateFinalScore();
+            const maxScore = ratingConfig.totalWeightMax || 1;
+            const normalizedScore = maxScore > 0 ? (finalScore / maxScore) * 100 : 0;
+            
+            // **MODIFIED**: Pass the nameKey, not the translated string
+            const foundGrade = GRADING_SCALE.find(g => normalizedScore >= g.min_score);
+            const finalGrade = foundGrade ? {
+                grade: foundGrade.grade,
+                nameKey: foundGrade.nameKey, // Pass the key
+                color: foundGrade.color
+            } : GRADING_SCALE[GRADING_SCALE.length - 1];
+            
+            const resultsData = {
+                title: title,
+                config: ratingConfig,
+                ratings: userRatings,
+                calculatedScore: finalScore,
+                cigarInfo: cigarInfo,
+                cigarReview: cigarReview,
+                imageUrls: currentImageKeys,
+                normalizedScore: normalizedScore,
+                finalGrade: finalGrade, // This now contains nameKey
+                selectedFlavors: selectedFlavors,
+                isDraft: !isEditMode
+            };
+            
+            if (isEditMode && editRatingId) {
+                const actionButton = document.getElementById('main-action-button');
+                actionButton.textContent = i18next.t('common.loading');
+                actionButton.disabled = true;
+                try {
+                    if (!token) throw new Error(i18next.t('common.sessionExpired'));
+                    resultsData.ratingId = editRatingId;
+                    const apiUrl = new URL(`/api/ratings`, window.location.origin);
+                    const response = await fetch(apiUrl, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify(resultsData) });
+                    if (!response.ok) { const err = await response.json(); throw new Error(err.error || 'Update failed'); }
+                    alert(i18next.t('common.saveSuccess'));
+                    window.location.href = 'history.html';
+                } catch (e) {
+                    alert(i18next.t('common.saveFailed', { msg: e.message }));
+                    actionButton.textContent = i18next.t('ratePage.saveChanges');
+                    actionButton.disabled = false;
+                }
+            } else {
+                try {
+                    sessionStorage.setItem('cigarRating
