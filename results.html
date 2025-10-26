@@ -5,67 +5,39 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>雪茄品鉴 - 点评报告</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- html2canvas library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <!-- QRCode.js library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-    <!-- Swiper.js CSS (using cdnjs) -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/Swiper/11.0.5/swiper-bundle.min.css"/>
-    <!-- Swiper.js JS (using cdnjs, deferred) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Swiper/11.0.5/swiper-bundle.min.js" defer></script>
     <script>
-        if (typeof tailwind !== 'undefined') {
-            tailwind.config = {
-                theme: {
-                    extend: {
-                        fontFamily: { sans: ['Inter', 'Noto Sans SC', 'system-ui', 'sans-serif'], },
-                        keyframes: {
-                            fadeInUp: { '0%': { opacity: '0', transform: 'translateY(20px)' }, '100%': { opacity: '1', transform: 'translateY(0)' }, },
-                            highlight: { '0%, 100%': { transform: 'scale(1)', boxShadow: '0 0 0 rgba(66, 153, 225, 0)' }, '50%': { transform: 'scale(1.02)', boxShadow: '0 0 15px rgba(66, 153, 225, 0.4)' }, }
-                        },
-                        animation: { fadeInUp: 'fadeInUp 0.8s ease-out forwards', highlight: 'highlight 2.5s ease-in-out infinite', }
-                    }
-                }
-            }
-        } else { console.warn('Tailwind object not found. Skipping config.'); }
+        if (typeof tailwind !== 'undefined') { /* Tailwind config */ } else { console.warn('Tailwind object not found.'); }
     </script>
     <style>
-        .tooltip { position: relative; display: inline-block; } .tooltip .tooltiptext { visibility: hidden; width: 80px; background-color: #555; color: #fff; text-align: center; border-radius: 6px; padding: 5px 0; position: absolute; z-index: 1; bottom: 125%; left: 50%; margin-left: -40px; opacity: 0; transition: opacity 0.3s; } .tooltip .tooltiptext::after { content: ""; position: absolute; top: 100%; left: 50%; margin-left: -5px; border-width: 5px; border-style: solid; border-color: #555 transparent transparent transparent; } .tooltip:hover .tooltiptext { visibility: visible; opacity: 1; }
-        .swiper-container.main-swiper { width: 100%; position: relative; /* Needed for absolute pagination */ }
+        .tooltip { /* ... */ } .tooltip .tooltiptext { /* ... */ } .tooltip .tooltiptext::after { /* ... */ } .tooltip:hover .tooltiptext { /* ... */ }
+        .swiper-container.main-swiper { width: 100%; position: relative; }
         .swiper-slide { height: auto; display: flex; flex-direction: column; }
         .swiper-slide img { display: block; width: 100%; height: auto; object-fit: contain; max-height: 80vh; }
         .swiper-slide.share-image-slide img { max-height: none; object-fit: contain; }
         .swiper-button-next, .swiper-button-prev { color: #fff; background-color: rgba(0,0,0,0.3); padding: 10px; border-radius: 50%; width: 40px; height: 40px; } .swiper-button-next::after, .swiper-button-prev::after { font-size: 1.2rem; }
-
-        /* **MODIFIED**: Pagination Styles based on user code */
-        .swiper-pagination {
-            position: absolute;
-            bottom: 20px !important; /* Positioned near the bottom black bar */
-            left: 50%;
-            transform: translateX(-50%);
-            width: auto;
-            z-index: 10;
-        }
-        .swiper-pagination-bullet { background-color: rgba(128, 128, 128, 0.7); /* Grey bullets */ opacity: 1; width: 8px; height: 8px; }
-        .swiper-pagination-bullet-active { background: #FFFFFF; } /* White active bullet */
-
+        .swiper-pagination { position: absolute; bottom: 20px !important; left: 50%; transform: translateX(-50%); width: auto; z-index: 10; }
+        .swiper-pagination-bullet { background-color: rgba(128, 128, 128, 0.7); opacity: 1; width: 8px; height: 8px; }
+        .swiper-pagination-bullet-active { background: #FFFFFF; }
         .thumbnail-swiper .swiper-slide { width: 60px !important; height: 80px; opacity: 0.6; cursor: pointer; border: 2px solid transparent; transition: opacity 0.3s, border-color 0.3s; }
         .thumbnail-swiper .swiper-slide img { object-fit: cover; }
         .thumbnail-swiper .swiper-slide-thumb-active { opacity: 1; border-color: #4f46e5; } .thumbnail-swiper { margin-top: 0.5rem; padding: 5px 0; }
         #narrative-summary-container, #cigar-review-container, #selected-flavors-container { max-width: 100%; }
         .flavor-tag { display: inline-block; background-color: #e5e7eb; color: #374151; font-size: 0.75rem; font-weight: 600; margin-right: 0.5rem; margin-bottom: 0.5rem; padding: 0.125rem 0.625rem; border-radius: 9999px; }
-
-        /* **MODIFIED**: Share Card Styles based on user code */
         #share-card-container { position: absolute; left: -9999px; top: 0; width: 350px; background-color: white; border-radius: 0.5rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); overflow: hidden; border: 1px solid #e5e7eb; visibility: hidden; z-index: -1; }
-        #share-card-image-wrapper { background-color: #e5e7eb; display: flex; align-items: center; justify-content: center; aspect-ratio: 1179 / 1572; /* Use aspect-ratio */ }
+        #share-card-image-wrapper { background-color: #e5e7eb; display: flex; align-items: center; justify-content: center; aspect-ratio: 1179 / 1572; }
         #share-card-image { width: 100%; height: 100%; object-fit: cover; }
-        #share-card-content { padding: 0.75rem; position: relative; }
-        #share-card-score-grade { display: flex; flex-direction: column; align-items: flex-start; margin-bottom: 0.5rem; }
-        #share-card-score { font-size: 3rem; font-weight: 900; line-height: 1; margin-bottom: 0.3rem; }
-        #share-card-grade-badge { display: inline-block; padding: 0.2rem 0.5rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; }
-        .share-card-footer { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 0.5rem; }
-        #share-card-watermark { font-size: 0.65rem; color: #9ca3af; width: 70%; line-height: 1.2; }
-        #share-card-qrcode { width: 28%; height: auto; background-color: white; padding: 2px; border: 1px solid #eee; box-shadow: 0 0 3px rgba(0, 0, 0, 0.1); }
+        /* **MODIFIED**: Reduced padding in content area */
+        #share-card-content { padding: 0.5rem; position: relative; }
+        #share-card-score-grade { display: flex; flex-direction: column; align-items: flex-start; margin-bottom: 0.25rem; /* Reduced margin */ }
+        #share-card-score { font-size: 2.75rem; /* Slightly smaller score */ font-weight: 900; line-height: 1; margin-bottom: 0.1rem; /* Reduced margin */ }
+        #share-card-grade-badge { display: inline-block; padding: 0.1rem 0.4rem; /* Reduced padding */ border-radius: 9999px; font-size: 0.65rem; /* Smaller grade text */ font-weight: 600; }
+        .share-card-footer { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 0.25rem; /* Reduced margin */ }
+        #share-card-watermark { font-size: 0.6rem; /* Smaller watermark */ color: #9ca3af; width: 70%; line-height: 1.1; /* Tighter line height */ }
+        #share-card-qrcode { width: 28%; height: auto; background-color: white; padding: 1px; /* Minimal padding */ border: 1px solid #eee; box-shadow: 0 0 2px rgba(0,0,0,0.1); }
         #share-card-qrcode img { display: block; width: 100%; height: 100%; }
     </style>
 </head>
@@ -87,7 +59,6 @@
                               <div class="swiper-wrapper" id="main-swiper-wrapper">
                                   <div class="swiper-slide flex items-center justify-center text-gray-400 aspect-[1179/1572]">加载中...</div>
                               </div>
-                              <!-- Pagination moved inside -->
                               <div class="swiper-pagination"></div>
                               <div class="swiper-button-next"></div>
                               <div class="swiper-button-prev"></div>
@@ -113,7 +84,7 @@
              <div id="save-button-container" class="hidden mb-6"> <button id="save-rating-button" onclick="saveRating()" class="w-full py-3 px-6 bg-green-600 text-white font-bold text-lg rounded-lg shadow-md hover:bg-green-700 transition"> 保存为我的评分记录 </button> </div>
 
             <div class="space-y-4">
-                 <details id="narrative-summary-details" class="group bg-white rounded-xl shadow-lg p-6 transition-all duration-300" open> <summary class="flex justify-between items-center cursor-pointer font-bold text-lg text-gray-800"> <span> 综合评价 <svg class="inline w-5 h-5 transform group-open:rotate-180 transition-transform ml-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg> </span> <div class="tooltip"> <button id="copy-summary-button" onclick="copySummary(event)" class="ml-4 p-1.5 bg-gray-100 text-gray-600 rounded-full hover:bg-gray-200 transition text-xs"> <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"> <path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /> </svg> </button> <span id="copy-tooltip" class="tooltiptext">复制</span> </div> </summary> <div id="narrative-summary-container" class="mt-4 prose max-w-none"></div> </details>
+                 <details id="narrative-summary-details" class="group bg-white rounded-xl shadow-lg p-6 transition-all duration-300" open> <summary class="flex justify-between items-center cursor-pointer font-bold text-lg text-gray-800"> <span> 综合评价 <svg class="inline w-5 h-5 transform group-open:rotate-180 transition-transform ml-1" xmlns="http://www.w.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg> </span> <div class="tooltip"> <button id="copy-summary-button" onclick="copySummary(event)" class="ml-4 p-1.5 bg-gray-100 text-gray-600 rounded-full hover:bg-gray-200 transition text-xs"> <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"> <path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /> </svg> </button> <span id="copy-tooltip" class="tooltiptext">复制</span> </div> </summary> <div id="narrative-summary-container" class="mt-4 prose max-w-none"></div> </details>
                  <details id="summary-details" class="group bg-white rounded-xl shadow-lg p-6"> <summary class="flex justify-between items-center cursor-pointer font-bold text-lg text-gray-800"> 评分详情汇总 <svg class="w-5 h-5 transform group-open:rotate-180 transition-transform" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg> </summary> <div id="summary-container" class="mt-4"></div> </details>
             </div>
 
@@ -122,7 +93,6 @@
             </footer>
         </div>
 
-        <!-- **MODIFIED**: Updated Share Card Structure -->
         <div id="share-card-container">
             <div id="share-card-image-wrapper">
                 <img id="share-card-image" src="" alt="Cigar Cover Image" crossorigin="anonymous">
@@ -369,7 +339,6 @@
                 // Set image source and trigger generation
                 if (images.length > 0 && shareCardImage) {
                      shareCardImage.src = `/api/image/${images[0]}`;
-                     // **MODIFIED**: Trigger autoGenerateShareImage only after image load success
                      shareCardImage.onload = () => { autoGenerateShareImage(); };
                      shareCardImage.onerror = () => { console.error("Share card cover image failed to load."); };
                 } else {
@@ -403,3 +372,4 @@
     </script>
 </body>
 </html>
+
