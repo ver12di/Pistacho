@@ -112,13 +112,20 @@ export async function onRequestPost(context) {
         console.log(`[Auth Callback] Using redirect_uri: ${finalRedirectUri}. (Frontend sent: ${redirect_uri})`);
 
 
+        // (调试日志) 检查环境变量是否存在
+        if (!env.AUTHING_APP_ID || !env.AUTHING_APP_SECRET) {
+            console.error('[Auth Callback] 严重错误: 环境变量 AUTHING_APP_ID 或 AUTHING_APP_SECRET 未设置!');
+            return new Response(JSON.stringify({ error: 'Server configuration error: Missing authentication credentials.' }), { status: 500 });
+        }
+        console.log(`[Auth Callback] Found App ID: ${env.AUTHING_APP_ID.substring(0, 4)}...`);
+
+
         const tokenResponse = await fetch(tokenUrl.toString(), {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'Authorization': `Basic ${btoa(`${env.AUTHING_APP_ID}:${env.AUTHING_APP_SECRET}`)}`
-            },
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: new URLSearchParams({
+                client_id: env.AUTHING_APP_ID,
+                client_secret: env.AUTHING_APP_SECRET,
                 grant_type: 'authorization_code',
                 code: code,
                 redirect_uri: finalRedirectUri
