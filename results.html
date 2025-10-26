@@ -27,17 +27,18 @@
         .thumbnail-swiper .swiper-slide-thumb-active { opacity: 1; border-color: #4f46e5; } .thumbnail-swiper { margin-top: 0.5rem; padding: 5px 0; }
         #narrative-summary-container, #cigar-review-container, #selected-flavors-container { max-width: 100%; }
         .flavor-tag { display: inline-block; background-color: #e5e7eb; color: #374151; font-size: 0.75rem; font-weight: 600; margin-right: 0.5rem; margin-bottom: 0.5rem; padding: 0.125rem 0.625rem; border-radius: 9999px; }
+
+        /* **MODIFIED**: Share Card Styles based on user provided CSS */
         #share-card-container { position: absolute; left: -9999px; top: 0; width: 350px; background-color: white; border-radius: 0.5rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); overflow: hidden; border: 1px solid #e5e7eb; visibility: hidden; z-index: -1; }
         #share-card-image-wrapper { background-color: #e5e7eb; display: flex; align-items: center; justify-content: center; aspect-ratio: 1179 / 1572; }
         #share-card-image { width: 100%; height: 100%; object-fit: cover; }
-        /* **MODIFIED**: Reduced padding in content area */
-        #share-card-content { padding: 0.5rem; position: relative; }
-        #share-card-score-grade { display: flex; flex-direction: column; align-items: flex-start; margin-bottom: 0.25rem; /* Reduced margin */ }
-        #share-card-score { font-size: 2.75rem; /* Slightly smaller score */ font-weight: 900; line-height: 1; margin-bottom: 0.1rem; /* Reduced margin */ }
-        #share-card-grade-badge { display: inline-block; padding: 0.1rem 0.4rem; /* Reduced padding */ border-radius: 9999px; font-size: 0.65rem; /* Smaller grade text */ font-weight: 600; }
-        .share-card-footer { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 0.25rem; /* Reduced margin */ }
-        #share-card-watermark { font-size: 0.6rem; /* Smaller watermark */ color: #9ca3af; width: 70%; line-height: 1.1; /* Tighter line height */ }
-        #share-card-qrcode { width: 28%; height: auto; background-color: white; padding: 1px; /* Minimal padding */ border: 1px solid #eee; box-shadow: 0 0 2px rgba(0,0,0,0.1); }
+        #share-card-content { padding: 0.25rem; position: relative; } /* Further reduced padding */
+        #share-card-score-grade { display: flex; flex-direction: column; align-items: flex-start; margin-bottom: 0.1rem; /* Further reduced margin */ }
+        #share-card-score { font-size: 2.75rem; font-weight: 900; line-height: 1; margin-bottom: 0; /* Removed margin */ }
+        #share-card-grade-badge { display: inline-block; padding: 0.05rem 0.3rem; /* Further reduced padding */ border-radius: 9999px; font-size: 0.6rem; /* Slightly smaller */ font-weight: 600; }
+        .share-card-footer { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 0.1rem; /* Further reduced margin */ }
+        #share-card-watermark { font-size: 0.55rem; /* Smaller */ color: #9ca3af; width: 70%; line-height: 1; /* Removed line height */ margin: 0; /* Removed margin */ }
+        #share-card-qrcode { width: 28%; height: auto; background-color: white; padding: 0; /* Removed padding */ border: 1px solid #eee; box-shadow: 0 0 2px rgba(0,0,0,0.1); }
         #share-card-qrcode img { display: block; width: 100%; height: 100%; }
     </style>
 </head>
@@ -84,7 +85,7 @@
              <div id="save-button-container" class="hidden mb-6"> <button id="save-rating-button" onclick="saveRating()" class="w-full py-3 px-6 bg-green-600 text-white font-bold text-lg rounded-lg shadow-md hover:bg-green-700 transition"> 保存为我的评分记录 </button> </div>
 
             <div class="space-y-4">
-                 <details id="narrative-summary-details" class="group bg-white rounded-xl shadow-lg p-6 transition-all duration-300" open> <summary class="flex justify-between items-center cursor-pointer font-bold text-lg text-gray-800"> <span> 综合评价 <svg class="inline w-5 h-5 transform group-open:rotate-180 transition-transform ml-1" xmlns="http://www.w.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg> </span> <div class="tooltip"> <button id="copy-summary-button" onclick="copySummary(event)" class="ml-4 p-1.5 bg-gray-100 text-gray-600 rounded-full hover:bg-gray-200 transition text-xs"> <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"> <path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /> </svg> </button> <span id="copy-tooltip" class="tooltiptext">复制</span> </div> </summary> <div id="narrative-summary-container" class="mt-4 prose max-w-none"></div> </details>
+                 <details id="narrative-summary-details" class="group bg-white rounded-xl shadow-lg p-6 transition-all duration-300" open> <summary class="flex justify-between items-center cursor-pointer font-bold text-lg text-gray-800"> <span> 综合评价 <svg class="inline w-5 h-5 transform group-open:rotate-180 transition-transform ml-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg> </span> <div class="tooltip"> <button id="copy-summary-button" onclick="copySummary(event)" class="ml-4 p-1.5 bg-gray-100 text-gray-600 rounded-full hover:bg-gray-200 transition text-xs"> <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"> <path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /> </svg> </button> <span id="copy-tooltip" class="tooltiptext">复制</span> </div> </summary> <div id="narrative-summary-container" class="mt-4 prose max-w-none"></div> </details>
                  <details id="summary-details" class="group bg-white rounded-xl shadow-lg p-6"> <summary class="flex justify-between items-center cursor-pointer font-bold text-lg text-gray-800"> 评分详情汇总 <svg class="w-5 h-5 transform group-open:rotate-180 transition-transform" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg> </summary> <div id="summary-container" class="mt-4"></div> </details>
             </div>
 
@@ -93,6 +94,7 @@
             </footer>
         </div>
 
+        <!-- **MODIFIED**: Added .share-card-footer div -->
         <div id="share-card-container">
             <div id="share-card-image-wrapper">
                 <img id="share-card-image" src="" alt="Cigar Cover Image" crossorigin="anonymous">
@@ -190,11 +192,13 @@
 
             console.log("开始自动生成分享图...");
             shareCardElement.style.visibility = 'visible';
-            shareCardElement.style.left = '-9999px';
-            shareCardElement.style.zIndex = '-1';
+            shareCardElement.style.left = '-9999px'; // Keep it off-screen
+            //shareCardElement.style.top = '0'; // No need to bring to top anymore
+            shareCardElement.style.zIndex = '-1'; // Keep behind
 
             try {
-                await new Promise(resolve => setTimeout(resolve, 200));
+                // Wait slightly longer to ensure layout calculation with new styles
+                await new Promise(resolve => setTimeout(resolve, 300));
 
                 const canvas = await html2canvas(shareCardElement, {
                     useCORS: true, allowTaint: true, scale: 2
@@ -232,9 +236,10 @@
             } catch (error) {
                 console.error("自动生成或添加分享图片失败:", error);
             } finally {
+                 // Ensure it stays hidden
                  shareCardElement.style.left = '-9999px';
                  shareCardElement.style.visibility = 'hidden';
-                 shareCardElement.style.zIndex = 'auto';
+                 shareCardElement.style.zIndex = '-1';
             }
         }
 
@@ -325,8 +330,8 @@
                 const gradeStyles = getGradeStyles(finalGrade.color);
 
                 if (shareCardScore) shareCardScore.textContent = normalizedScore.toFixed(2);
-                if (shareCardScore) shareCardScore.className = `text-5xl font-black ${gradeStyles.textColor}`;
-                if (shareCardGradeBadge) { shareCardGradeBadge.textContent = `${finalGrade.name_en} - ${finalGrade.name_cn}`; shareCardGradeBadge.className = `inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${gradeStyles.bgColor} ${gradeStyles.textColor} bg-opacity-20`; }
+                if (shareCardScore) shareCardScore.className = `text-5xl font-black ${gradeStyles.textColor}`; // Reverted score size
+                if (shareCardGradeBadge) { shareCardGradeBadge.textContent = `${finalGrade.name_en} - ${finalGrade.name_cn}`; shareCardGradeBadge.className = `inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${gradeStyles.bgColor} ${gradeStyles.textColor} bg-opacity-20`; } // Reverted badge styles
                 if (shareCardUsername) { shareCardUsername.textContent = userNickname; }
 
                 if (shareCardQrCode && typeof QRCode !== 'undefined') {
