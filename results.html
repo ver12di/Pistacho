@@ -31,45 +31,37 @@
     </script>
     <style>
         .tooltip { position: relative; display: inline-block; } .tooltip .tooltiptext { visibility: hidden; width: 80px; background-color: #555; color: #fff; text-align: center; border-radius: 6px; padding: 5px 0; position: absolute; z-index: 1; bottom: 125%; left: 50%; margin-left: -40px; opacity: 0; transition: opacity 0.3s; } .tooltip .tooltiptext::after { content: ""; position: absolute; top: 100%; left: 50%; margin-left: -5px; border-width: 5px; border-style: solid; border-color: #555 transparent transparent transparent; } .tooltip:hover .tooltiptext { visibility: visible; opacity: 1; }
-        .swiper-container { width: 100%; } .swiper-slide img { display: block; width: 100%; height: 100%; object-fit: cover; } .swiper-button-next, .swiper-button-prev { color: #fff; background-color: rgba(0,0,0,0.3); padding: 10px; border-radius: 50%; width: 40px; height: 40px; } .swiper-button-next::after, .swiper-button-prev::after { font-size: 1.2rem; } .swiper-pagination-bullet-active { background: #4f46e5; /* Indigo */ } .thumbnail-swiper .swiper-slide { width: 60px !important; /* Fixed width for thumbnails */ height: 80px; opacity: 0.6; cursor: pointer; border: 2px solid transparent; transition: opacity 0.3s, border-color 0.3s; } .thumbnail-swiper .swiper-slide-thumb-active { opacity: 1; border-color: #4f46e5; /* Indigo */ } .thumbnail-swiper { margin-top: 0.5rem; padding: 5px 0; }
+        /* Adjusted Swiper container for autoHeight */
+        .swiper-container.main-swiper { width: 100%; /* height: auto; Let autoHeight handle it */ }
+        .swiper-slide { height: auto; display: flex; flex-direction: column; }
+        .swiper-slide img { display: block; width: 100%; height: auto; object-fit: contain; max-height: 80vh; }
+        /* Special style for share card slide */
+        .swiper-slide.share-image-slide img { max-height: none; object-fit: contain; }
+
+        .swiper-button-next, .swiper-button-prev { color: #fff; background-color: rgba(0,0,0,0.3); padding: 10px; border-radius: 50%; width: 40px; height: 40px; } .swiper-button-next::after, .swiper-button-prev::after { font-size: 1.2rem; } .swiper-pagination-bullet-active { background: #4f46e5; }
+        .thumbnail-swiper .swiper-slide { width: 60px !important; height: 80px; opacity: 0.6; cursor: pointer; border: 2px solid transparent; transition: opacity 0.3s, border-color 0.3s; }
+        .thumbnail-swiper .swiper-slide img { object-fit: cover; }
+        .thumbnail-swiper .swiper-slide-thumb-active { opacity: 1; border-color: #4f46e5; } .thumbnail-swiper { margin-top: 0.5rem; padding: 5px 0; }
         #narrative-summary-container, #cigar-review-container, #selected-flavors-container { max-width: 100%; }
-        /* Style for flavor tags */
-        .flavor-tag {
-            display: inline-block; background-color: #e5e7eb; color: #374151; font-size: 0.75rem; font-weight: 600; margin-right: 0.5rem; margin-bottom: 0.5rem; padding-left: 0.625rem; padding-right: 0.625rem; padding-top: 0.125rem; padding-bottom: 0.125rem; border-radius: 9999px;
-        }
+        .flavor-tag { display: inline-block; background-color: #e5e7eb; color: #374151; font-size: 0.75rem; font-weight: 600; margin-right: 0.5rem; margin-bottom: 0.5rem; padding: 0.125rem 0.625rem; border-radius: 9999px; }
         /* Styles for the hidden share card */
-        #share-card-container {
-            position: absolute; left: -9999px; top: 0; width: 350px;
-            background-color: white; border-radius: 0.5rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); overflow: hidden; border: 1px solid #e5e7eb;
-        }
-        #share-card-image-wrapper { height: 467px; background-color: #e5e7eb; display: flex; align-items: center; justify-content: center; }
+        #share-card-container { position: absolute; left: -9999px; top: 0; width: 350px; background-color: white; border-radius: 0.5rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); overflow: hidden; border: 1px solid #e5e7eb; }
+        #share-card-image-wrapper { height: calc(350px * 1572 / 1179); background-color: #e5e7eb; display: flex; align-items: center; justify-content: center; }
         #share-card-image { width: 100%; height: 100%; object-fit: cover; }
-        #share-card-content { padding: 1rem; position: relative; } /* Added relative positioning for QR code */
-        #share-card-score-grade { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; /* Removed border-t */ }
-        #share-card-score { font-size: 3rem; font-weight: 900; }
+        #share-card-content { padding: 0.75rem; position: relative; }
+        #share-card-score-grade { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
+        #share-card-score { font-size: 2.5rem; font-weight: 900; line-height: 1; }
         #share-card-grade { text-align: right; }
-        #share-card-grade-badge { display: inline-block; padding-left: 0.5rem; padding-right: 0.5rem; padding-top: 0.125rem; padding-bottom: 0.125rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; }
-        #share-card-watermark { font-size: 0.75rem; color: #9ca3af; padding-top: 0.5rem; margin-top: 0.5rem; }
-        /* QR Code Styling */
-        #share-card-qrcode {
-            position: absolute;
-            bottom: 0.5rem; /* Adjust as needed */
-            right: 0.5rem; /* Adjust as needed */
-            width: 30%; /* Approximately 1/3 */
-            height: auto;
-            border: 2px solid white; /* Optional: adds a border */
-            box-shadow: 0 0 5px rgba(0,0,0,0.2);
-        }
-         #share-card-qrcode img { /* Ensure QR code image fits */
-             display: block;
-             width: 100%;
-             height: 100%;
-         }
+        #share-card-grade-badge { display: inline-block; padding: 0.125rem 0.5rem; border-radius: 9999px; font-size: 0.7rem; font-weight: 600; line-height: 1.1; }
+        #share-card-watermark { font-size: 0.65rem; color: #9ca3af; padding-top: 0.4rem; margin-top: 0.4rem; line-height: 1.2; width: calc(100% - 30% - 1rem); }
+        #share-card-qrcode { position: absolute; bottom: 0.4rem; right: 0.4rem; width: 28%; height: auto; background-color: white; padding: 2px; border: 1px solid #eee; box-shadow: 0 0 3px rgba(0,0,0,0.1); }
+        #share-card-qrcode img { display: block; width: 100%; height: 100%; }
     </style>
 </head>
 <body class="bg-gray-100 font-sans antialiased text-gray-800">
     <div class="max-w-6xl mx-auto p-4 md:p-8">
         <div id="error-container" class="hidden bg-red-100 p-6 rounded-lg shadow-lg text-red-700 font-medium"></div>
+        <div id="loading-indicator" class="hidden text-center py-10 text-gray-500">正在加载评分详情...</div>
         <div id="main-content" class="opacity-0">
             <nav class="mb-6 flex flex-wrap justify-between items-center bg-white p-3 rounded-lg shadow-sm gap-4">
                  <a href="index.html" class="text-xl font-bold text-indigo-600">Pistacho评分</a>
@@ -80,7 +72,14 @@
             <div class="flex flex-col md:flex-row gap-6 md:gap-8 mb-8">
                 <div class="w-full md:w-2/5 flex-shrink-0">
                      <div id="image-gallery-container" class="bg-white rounded-lg shadow-md overflow-hidden">
-                         <div class="swiper-container main-swiper aspect-[1179/1572] bg-gray-200"> <div class="swiper-wrapper" id="main-swiper-wrapper"> <div class="swiper-slide flex items-center justify-center text-gray-400">无图</div> </div> <div class="swiper-pagination"></div> <div class="swiper-button-next"></div> <div class="swiper-button-prev"></div> </div>
+                         <div class="swiper-container main-swiper bg-gray-200">
+                              <div class="swiper-wrapper" id="main-swiper-wrapper">
+                                  <div class="swiper-slide flex items-center justify-center text-gray-400 aspect-[1179/1572]">加载中...</div>
+                              </div>
+                              <div class="swiper-pagination"></div>
+                              <div class="swiper-button-next"></div>
+                              <div class="swiper-button-prev"></div>
+                         </div>
                          <div class="swiper-container thumbnail-swiper hidden"> <div class="swiper-wrapper" id="thumbnail-swiper-wrapper"> </div> </div>
                      </div>
                 </div>
@@ -90,18 +89,13 @@
                      <h2 id="cigar-name" class="text-xl font-semibold mb-1">加载中...</h2>
                      <div class="mb-4 text-sm text-gray-600 flex space-x-4"> <span>尺寸: <strong id="cigar-size">...</strong></span> <span>产地: <strong id="cigar-origin">...</strong></span> </div>
                      <div id="cigar-review-container" class="prose prose-sm max-w-none text-gray-700 border-t pt-4"> <p>加载中...</p> </div>
-                     <div id="selected-flavors-container" class="hidden pt-2">
-                         <h4 class="text-sm font-semibold text-gray-600 mb-2">主要风味:</h4>
-                         <div id="flavors-display" class="flex flex-wrap"></div>
-                     </div>
+                     <div id="selected-flavors-container" class="hidden pt-2"> <h4 class="text-sm font-semibold text-gray-600 mb-2">主要风味:</h4> <div id="flavors-display" class="flex flex-wrap"></div> </div>
                  </div>
             </div>
 
             <section id="score-section" class="bg-white rounded-xl shadow-lg p-6 mb-8 flex flex-col md:flex-row gap-6 items-center">
-                 <div id="score-display" class="w-full md:w-1/3 flex-shrink-0">
-                 </div>
-                 <div id="grading-scale-explanation" class="w-full md:w-2/3 flex-grow border-t md:border-t-0 md:border-l border-gray-200 pt-4 md:pt-0 md:pl-6">
-                 </div>
+                 <div id="score-display" class="w-full md:w-1/3 flex-shrink-0"></div>
+                 <div id="grading-scale-explanation" class="w-full md:w-2/3 flex-grow border-t md:border-t-0 md:border-l border-gray-200 pt-4 md:pt-0 md:pl-6"></div>
             </section>
 
              <div id="save-button-container" class="hidden mb-6"> <button id="save-rating-button" onclick="saveRating()" class="w-full py-3 px-6 bg-green-600 text-white font-bold text-lg rounded-lg shadow-md hover:bg-green-700 transition"> 保存为我的评分记录 </button> </div>
@@ -113,10 +107,7 @@
 
             <footer class="mt-8 flex flex-col sm:flex-row justify-center items-center gap-4">
                  <a href="rate.html" class="py-3 px-6 bg-indigo-600 text-white font-bold rounded-lg shadow-md hover:bg-indigo-700 transition"> &larr; 返回重新评分 </a>
-                 <!-- Modified Button -->
-                 <button id="generate-share-card-btn" onclick="generateShareImage()" class="py-3 px-6 bg-teal-600 text-white font-bold rounded-lg shadow-md hover:bg-teal-700 transition disabled:opacity-50 disabled:cursor-not-allowed" disabled>
-                     生成分享图
-                 </button>
+                 <!-- Removed Generate Button -->
             </footer>
         </div>
     </div>
@@ -126,16 +117,13 @@
         <div id="share-card-image-wrapper">
             <img id="share-card-image" src="" alt="Cigar Cover Image" crossorigin="anonymous">
         </div>
-        <!-- Modified Content Structure -->
         <div id="share-card-content">
             <div id="share-card-score-grade">
                 <span id="share-card-score">0.00</span>
                 <div id="share-card-grade">
-                    <!-- Display full grade name -->
                     <span id="share-card-grade-badge">? - ???</span>
                 </div>
             </div>
-            <!-- Modified Watermark and QR Code Container -->
             <div class="flex justify-between items-end mt-2">
                  <p id="share-card-watermark">
                      <span id="share-card-username">用户</span> 评分于 Pistacho评分系统 www.pista-cho.com
@@ -149,16 +137,16 @@
     <script type="module">
         // --- Constants and Global Vars ---
         const GRADING_SCALE = [ { "grade": "P", "name_en": "Pinnacle", "name_cn": "顶峰 / 登峰造极", "min_score": 95, "color": "gold" }, { "grade": "I", "name_en": "Impeccable", "name_cn": "无暇 / 完美无瑕", "min_score": 90, "color": "indigo" }, { "grade": "S", "name_en": "Superior", "name_cn": "卓越 / 出众", "min_score": 80, "color": "purple" }, { "grade": "T", "name_en": "Terrific", "name_cn": "极好 / 绝佳", "min_score": 70, "color": "blue" }, { "grade": "A", "name_en": "Appreciable", "name_cn": "可圈可点 / 值得欣赏", "min_score": 60, "color": "green" }, { "grade": "C", "name_en": "Commonplace", "name_cn": "平庸 / 普通", "min_score": 50, "color": "gray" }, { "grade": "H", "name_en": "Hesitant", "name_cn": "犹豫 / 瑕瑜互见", "min_score": 30, "color": "orange" }, { "grade": "O", "name_en": "Objectionable", "name_cn": "令人反感 / 极差", "min_score": 0, "color": "red" } ];
-        let currentAuthUser = null; let resultsData = null; let normalizedScore = 0; let finalGrade = null;
+        let currentAuthUser = null; let resultsData = null; let normalizedScore = 0; let finalGrade = null; let ratingId = null; // Store rating ID
         const AUTHING_APP_ID = '68f5b0b6875017c02b3bfdb3'; const AUTHING_HOST = 'https://xfvu647mcdbk-demo.authing.cn';
         let mainSwiper = null; let thumbnailSwiper = null;
 
         // --- Authentication ---
-         window.login = function() { const redirectUri = window.location.origin; const authorizeUrl = new URL('/oidc/auth', AUTHING_HOST); authorizeUrl.search = new URLSearchParams({ client_id: AUTHING_APP_ID, redirect_uri: redirectUri, response_type: 'code', scope: 'openid profile email phone', state: Math.random().toString(36).substring(2) }).toString(); window.location.href = authorizeUrl.toString(); }
-         window.logout = function() { const logoutUrl = new URL('/oidc/session/end', AUTHING_HOST); logoutUrl.search = new URLSearchParams({ post_logout_redirect_uri: window.location.origin }).toString(); sessionStorage.removeItem('userInfo'); sessionStorage.removeItem('accessToken'); window.location.href = logoutUrl.toString(); }
-         function renderLoginStatus(user) { const container = document.getElementById('login-status-container'); if (!container) return; if (user) { const displayName = user.nickname || user.name || user.preferred_username || user.email || '已登录'; container.innerHTML = `<span class="text-sm font-medium text-gray-700 mr-2 hidden sm:inline">${displayName}</span><button onclick="logout()" class="px-3 py-1 text-xs font-medium rounded-full bg-red-500 text-white hover:bg-red-600">退出</button>`; } else { container.innerHTML = `<button onclick="login()" class="px-3 py-1 text-xs font-medium rounded-full bg-green-500 text-white hover:bg-green-600">登录/注册</button>`; } }
-         async function handleOidcCallback(code) { try { const redirectUri = window.location.origin; const apiUrl = new URL('/api/authing/callback', window.location.origin); const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: code, redirect_uri: redirectUri }) }); if (!response.ok) { let errorText = `认证回调失败: ${response.status}`; try { const err = await response.json(); errorText = err.error || errorText; } catch(e){} throw new Error(errorText); } const fullUserProfile = await response.json(); sessionStorage.setItem('userInfo', JSON.stringify(fullUserProfile)); sessionStorage.setItem('accessToken', fullUserProfile.accessToken); return fullUserProfile; } catch (e) { console.error('认证回调处理失败:', e); alert(`登录失败: ${e.message}`); sessionStorage.removeItem('userInfo'); sessionStorage.removeItem('accessToken'); return null; } finally { window.history.replaceState({}, document.title, window.location.pathname); } }
-         async function validateSessionAndGetUser() { const token = sessionStorage.getItem('accessToken'); if (!token) return null; try { const apiUrl = new URL('/api/me', window.location.origin); const response = await fetch(apiUrl, { headers: { 'Authorization': `Bearer ${token}` } }); if (!response.ok) { sessionStorage.removeItem('userInfo'); sessionStorage.removeItem('accessToken'); return null; } const fullUserProfile = await response.json(); sessionStorage.setItem('userInfo', JSON.stringify(fullUserProfile)); return fullUserProfile; } catch (e) { console.error("Session validation failed:", e); return null; } }
+        window.login = function() { /* ... */ const redirectUri = window.location.origin; const authorizeUrl = new URL('/oidc/auth', AUTHING_HOST); authorizeUrl.search = new URLSearchParams({ client_id: AUTHING_APP_ID, redirect_uri: redirectUri, response_type: 'code', scope: 'openid profile email phone', state: Math.random().toString(36).substring(2) }).toString(); window.location.href = authorizeUrl.toString(); }
+        window.logout = function() { /* ... */ const logoutUrl = new URL('/oidc/session/end', AUTHING_HOST); logoutUrl.search = new URLSearchParams({ post_logout_redirect_uri: window.location.origin }).toString(); sessionStorage.removeItem('userInfo'); sessionStorage.removeItem('accessToken'); window.location.href = logoutUrl.toString(); }
+        function renderLoginStatus(user) { /* ... */ const container = document.getElementById('login-status-container'); if (!container) return; if (user) { const displayName = user.nickname || user.name || user.preferred_username || user.email || '已登录'; container.innerHTML = `<span class="text-sm font-medium text-gray-700 mr-2 hidden sm:inline">${displayName}</span><button onclick="logout()" class="px-3 py-1 text-xs font-medium rounded-full bg-red-500 text-white hover:bg-red-600">退出</button>`; } else { container.innerHTML = `<button onclick="login()" class="px-3 py-1 text-xs font-medium rounded-full bg-green-500 text-white hover:bg-green-600">登录/注册</button>`; } }
+        async function handleOidcCallback(code) { try { const redirectUri = window.location.origin; const apiUrl = new URL('/api/authing/callback', window.location.origin); const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: code, redirect_uri: redirectUri }) }); if (!response.ok) { let errorText = `认证回调失败: ${response.status}`; try { const err = await response.json(); errorText = err.error || errorText; } catch(e){} throw new Error(errorText); } const fullUserProfile = await response.json(); sessionStorage.setItem('userInfo', JSON.stringify(fullUserProfile)); sessionStorage.setItem('accessToken', fullUserProfile.accessToken); return fullUserProfile; } catch (e) { console.error('认证回调处理失败:', e); alert(`登录失败: ${e.message}`); sessionStorage.removeItem('userInfo'); sessionStorage.removeItem('accessToken'); return null; } finally { window.history.replaceState({}, document.title, window.location.pathname + window.location.search.replace(/&?code=[^&]*/, '').replace(/&?state=[^&]*/, '')); } }
+        async function validateSessionAndGetUser() { const token = sessionStorage.getItem('accessToken'); if (!token) return null; try { const apiUrl = new URL('/api/me', window.location.origin); const response = await fetch(apiUrl, { headers: { 'Authorization': `Bearer ${token}` } }); if (!response.ok) { sessionStorage.removeItem('userInfo'); sessionStorage.removeItem('accessToken'); return null; } const fullUserProfile = await response.json(); sessionStorage.setItem('userInfo', JSON.stringify(fullUserProfile)); return fullUserProfile; } catch (e) { console.error("Session validation failed:", e); return null; } }
 
 
         // --- Save Rating (Drafts only) ---
@@ -168,91 +156,113 @@
         window.copySummary = function(event) { /* Placeholder */ };
 
         // --- Initialize Swiper ---
-        function initSwipers(imageUrls = []) { const mainWrapper = document.getElementById('main-swiper-wrapper'); const thumbWrapper = document.getElementById('thumbnail-swiper-wrapper'); const thumbContainer = document.querySelector('.thumbnail-swiper'); mainWrapper.innerHTML = ''; thumbWrapper.innerHTML = ''; if (!imageUrls || imageUrls.length === 0) { mainWrapper.innerHTML = '<div class="swiper-slide flex items-center justify-center text-gray-400">无图</div>'; thumbContainer.classList.add('hidden'); if(mainSwiper) mainSwiper.destroy(true, true); if(thumbnailSwiper) thumbnailSwiper.destroy(true, true); mainSwiper = null; thumbnailSwiper = null; return; } imageUrls.forEach(key => { const imageUrl = `/api/image/${key}`; const imgElement = `<img src="${imageUrl}" alt="雪茄图片" crossorigin="anonymous" onerror="this.src='https://placehold.co/600x800/gray/white?text=Loading+Failed'; this.onerror=null;">`; mainWrapper.innerHTML += `<div class="swiper-slide">${imgElement}</div>`; thumbWrapper.innerHTML += `<div class="swiper-slide thumbnail-slide">${imgElement}</div>`; }); if(mainSwiper) mainSwiper.destroy(true, true); if(thumbnailSwiper) thumbnailSwiper.destroy(true, true); if (imageUrls.length > 1) { thumbContainer.classList.remove('hidden'); thumbnailSwiper = new Swiper('.thumbnail-swiper', { spaceBetween: 10, slidesPerView: 'auto', freeMode: true, watchSlidesProgress: true, }); mainSwiper = new Swiper('.main-swiper', { spaceBetween: 10, navigation: { nextEl: '.swiper-button-next', prevEl: '.swiper-button-prev', }, pagination: { el: '.swiper-pagination', clickable: true, }, thumbs: { swiper: thumbnailSwiper, }, simulateTouch: true, touchRatio: 1, touchAngle: 45, grabCursor: true, }); } else { thumbContainer.classList.add('hidden'); mainSwiper = new Swiper('.main-swiper', { allowTouchMove: false, }); } }
+        function initSwipers(imageUrls = []) {
+             const mainWrapper = document.getElementById('main-swiper-wrapper'); const thumbWrapper = document.getElementById('thumbnail-swiper-wrapper'); const thumbContainer = document.querySelector('.thumbnail-swiper');
+             mainWrapper.innerHTML = ''; thumbWrapper.innerHTML = ''; // Clear existing slides first
+             if (!imageUrls || imageUrls.length === 0) { mainWrapper.innerHTML = '<div class="swiper-slide flex items-center justify-center text-gray-400 aspect-[1179/1572]">无图</div>'; thumbContainer.classList.add('hidden'); if(mainSwiper) mainSwiper.destroy(true, true); if(thumbnailSwiper) thumbnailSwiper.destroy(true, true); mainSwiper = null; thumbnailSwiper = null; return; }
+
+             // Add initial image slides from data
+             imageUrls.forEach(key => {
+                 const imageUrl = `/api/image/${key}`;
+                 const imgElement = `<img src="${imageUrl}" alt="雪茄图片" crossorigin="anonymous" onerror="this.src='https://placehold.co/600x800/gray/white?text=Loading+Failed'; this.onerror=null;">`;
+                 mainWrapper.innerHTML += `<div class="swiper-slide">${imgElement}</div>`;
+                 thumbWrapper.innerHTML += `<div class="swiper-slide thumbnail-slide">${imgElement}</div>`;
+             });
+
+             if(mainSwiper) mainSwiper.destroy(true, true); if(thumbnailSwiper) thumbnailSwiper.destroy(true, true);
+
+             // Initialize Swipers
+             const hasMultipleItems = imageUrls.length > 1 || mainWrapper.querySelectorAll('.swiper-slide').length > 1; // Check if multiple items exist *after* potential share image addition
+
+             if (hasMultipleItems) {
+                 thumbContainer.classList.remove('hidden');
+                 thumbnailSwiper = new Swiper('.thumbnail-swiper', { spaceBetween: 10, slidesPerView: 'auto', freeMode: true, watchSlidesProgress: true, });
+                 mainSwiper = new Swiper('.main-swiper', {
+                     spaceBetween: 10,
+                     autoHeight: true, // **NEW**: Enable auto height
+                     navigation: { nextEl: '.swiper-button-next', prevEl: '.swiper-button-prev', },
+                     pagination: { el: '.swiper-pagination', clickable: true, },
+                     thumbs: { swiper: thumbnailSwiper, },
+                     simulateTouch: true, touchRatio: 1, touchAngle: 45, grabCursor: true,
+                 });
+             } else {
+                 thumbContainer.classList.add('hidden');
+                 mainSwiper = new Swiper('.main-swiper', {
+                      autoHeight: true, // **NEW**: Enable auto height even for single slide
+                      allowTouchMove: false,
+                 });
+             }
+        }
 
 
-        // --- Modified Function to Generate Share Image ---
-        window.generateShareImage = async function() {
+        // --- Function to Auto-Generate Share Image ---
+        async function autoGenerateShareImage() {
             const shareCardElement = document.getElementById('share-card-container');
-            const generateBtn = document.getElementById('generate-share-card-btn');
             const coverImageElement = document.getElementById('share-card-image');
             const mainSwiperWrapper = document.getElementById('main-swiper-wrapper');
             const thumbSwiperWrapper = document.getElementById('thumbnail-swiper-wrapper');
 
-
-            if (!shareCardElement || !coverImageElement || !html2canvas || !resultsData || !mainSwiperWrapper) {
-                alert("无法生成图片：缺少必要组件。");
-                return;
+            if (!shareCardElement || !coverImageElement || !html2canvas || !resultsData || !mainSwiperWrapper || !ratingId) {
+                console.warn("无法自动生成分享图：缺少必要组件或 ratingId。");
+                return; // Silently fail if prerequisites not met
             }
 
-            generateBtn.textContent = '正在生成...';
-            generateBtn.disabled = true;
-
             const coverImageUrl = coverImageElement.src;
+            // Check if cover image is loaded and valid
             if (!coverImageUrl || coverImageUrl.includes('placehold.co') || !coverImageElement.complete || coverImageElement.naturalWidth === 0) {
-                 alert("封面图片未加载或加载失败，无法生成分享图。");
-                 generateBtn.textContent = '生成分享图';
-                 generateBtn.disabled = !(coverImageUrl && !coverImageUrl.includes('placehold.co'));
+                 console.warn("封面图片未加载或无效，无法自动生成分享图。");
                  return;
             }
 
+            console.log("开始自动生成分享图...");
             shareCardElement.style.visibility = 'visible';
             shareCardElement.style.left = '0';
             shareCardElement.style.top = '0';
             shareCardElement.style.zIndex = '-1';
 
             try {
-                await new Promise(resolve => setTimeout(resolve, 100));
+                await new Promise(resolve => setTimeout(resolve, 150)); // Slightly longer wait
 
                 const canvas = await html2canvas(shareCardElement, {
-                    useCORS: true,
-                    allowTaint: true,
-                    scale: 2
+                    useCORS: true, allowTaint: true, scale: 2
                 });
-
                 const dataUrl = canvas.toDataURL('image/png');
 
                 // Create new slide elements
                 const newSlide = document.createElement('div');
-                newSlide.className = 'swiper-slide';
+                // **NEW**: Add class for specific styling
+                newSlide.className = 'swiper-slide share-image-slide';
                 const newImg = document.createElement('img');
                 newImg.src = dataUrl;
                 newImg.alt = '分享图片';
-                newImg.style.cursor = 'pointer'; // Make it look clickable
-                newImg.onclick = () => { // Add download on click
-                     const link = document.createElement('a');
-                     link.download = `pistacho-rating-${resultsData.cigarInfo?.name?.replace(/\s+/g, '-') || 'share'}.png`;
-                     link.href = dataUrl;
-                     link.click();
-                };
+                // **REMOVED**: onclick download behavior
                 newSlide.appendChild(newImg);
 
                 // Append to main swiper
                 mainSwiperWrapper.appendChild(newSlide);
-                if (mainSwiper) {
-                    mainSwiper.update(); // Update the swiper instance
-                    mainSwiper.slideTo(mainSwiper.slides.length - 1); // Go to the new slide
-                }
 
-                // (Optional) Add to thumbnail swiper
+                // Append to thumbnail swiper
                 if (thumbnailSwiper && thumbSwiperWrapper) {
                      const newThumbSlide = document.createElement('div');
                      newThumbSlide.className = 'swiper-slide thumbnail-slide';
                      const newThumbImg = document.createElement('img');
-                     newThumbImg.src = dataUrl;
+                     newThumbImg.src = dataUrl; // Use the same dataUrl for thumb
                      newThumbImg.alt = '分享缩略图';
                      newThumbSlide.appendChild(newThumbImg);
                      thumbSwiperWrapper.appendChild(newThumbSlide);
-                     thumbnailSwiper.update();
                 }
 
-                generateBtn.textContent = '分享图已添加'; // Keep disabled
+                 console.log("分享图已添加到 DOM。");
+
+                 // Update Swipers AFTER adding slides
+                 if (mainSwiper) mainSwiper.update();
+                 if (thumbnailSwiper) thumbnailSwiper.update();
+
+                 console.log("Swipers updated.");
 
             } catch (error) {
-                console.error("生成或添加分享图片失败:", error);
-                alert(`生成或添加分享图片失败: ${error.message}`);
-                generateBtn.textContent = '生成分享图'; // Re-enable on error
-                generateBtn.disabled = false;
+                console.error("自动生成或添加分享图片失败:", error);
+                // Optionally show error to user? For now, just log it.
             } finally {
                  shareCardElement.style.left = '-9999px';
                  shareCardElement.style.visibility = 'hidden';
@@ -262,142 +272,156 @@
 
         // --- Page Load Logic ---
         window.onload = async function() {
-            const storedData = sessionStorage.getItem('cigarRatingResults');
             const errorContainer = document.getElementById('error-container');
             const mainContent = document.getElementById('main-content');
-            const generateBtn = document.getElementById('generate-share-card-btn'); // Changed ID
+            const loadingIndicator = document.getElementById('loading-indicator');
 
-            const urlParams = new URLSearchParams(window.location.search); const code = urlParams.get('code'); let user = null;
-            if (code) { user = await handleOidcCallback(code); } else { user = await validateSessionAndGetUser(); }
-            currentAuthUser = user; renderLoginStatus(currentAuthUser);
+            const urlParams = new URLSearchParams(window.location.search);
+            const code = urlParams.get('code');
+            const ratingIdFromUrl = urlParams.get('ratingId'); // Get ratingId from URL
+            let user = null;
 
-            if (!storedData) { errorContainer.innerHTML = `<p class="font-bold text-center">没有找到评分数据！<a href="index.html" class="text-indigo-600 underline">返回社区</a> 或 <a href="rate.html" class="text-indigo-600 underline">去评分</a></p>`; errorContainer.classList.remove('hidden'); if (mainContent) mainContent.style.display = 'none'; return; }
+            // Authentication
+            if (code) { user = await handleOidcCallback(code); }
+            else { user = await validateSessionAndGetUser(); }
+            currentAuthUser = user;
+            renderLoginStatus(currentAuthUser);
+
+            // Show loading indicator, hide main content
+            loadingIndicator.classList.remove('hidden');
+            mainContent.classList.add('opacity-0');
+            mainContent.style.display = 'none';
+            errorContainer.classList.add('hidden');
 
             try {
-                resultsData = JSON.parse(storedData);
-                console.log("Results data loaded:", resultsData);
+                // **MODIFIED**: Loading Logic based on URL param
+                if (ratingIdFromUrl) {
+                    console.log(`Loading data via ratingId from URL: ${ratingIdFromUrl}`);
+                    ratingId = ratingIdFromUrl; // Store the ID globally
+                    const token = sessionStorage.getItem('accessToken');
+                    // Removed login requirement for direct URL access for now, assuming public read
+                    // if (!token) throw new Error("需要登录才能查看此评分详情。");
 
+                    const apiUrl = new URL(`/api/ratings?id=${ratingId}`, window.location.origin);
+                    const fetchOptions = token ? { headers: { 'Authorization': `Bearer ${token}` } } : {}; // Add token if available
+                    const response = await fetch(apiUrl, fetchOptions);
+                    if (!response.ok) { let errorText = `加载评分失败: ${response.status}`; try { const err = await response.json(); errorText = err.error || errorText; } catch(e){} throw new Error(errorText); }
+                    resultsData = await response.json();
+                    if (!resultsData) throw new Error("未找到指定的评分记录。");
+                    // Clear sessionStorage data if loaded via URL to avoid conflicts
+                    sessionStorage.removeItem('cigarRatingResults');
+
+                } else {
+                    console.log("Loading data from sessionStorage.");
+                    const storedData = sessionStorage.getItem('cigarRatingResults');
+                    if (!storedData) throw new Error("没有找到评分数据！请返回重试。");
+                    resultsData = JSON.parse(storedData);
+                    ratingId = resultsData.ratingId; // Get ratingId from sessionStorage data
+                    if (!ratingId) {
+                         console.warn("Rating ID not found in sessionStorage data. QR code link might be incorrect.");
+                         // Fallback: Use current URL (less ideal but prevents QR error)
+                         ratingId = null; // Explicitly set to null if not found
+                    }
+                }
+
+                console.log("Final resultsData loaded:", resultsData);
+                console.log("Using ratingId:", ratingId);
+
+                // --- Validation and Data Extraction ---
                 if (!resultsData || resultsData.normalizedScore === undefined || !resultsData.finalGrade || !resultsData.cigarInfo) {
                      console.error("Loaded data is missing essential fields:", resultsData);
                      throw new Error("存储的点评数据缺少基本信息 (分数, 评级, 雪茄信息)。请尝试重新评分。");
                 }
                 const title = resultsData.title || '无标题点评';
-
                 const { cigarInfo, cigarReview, normalizedScore: score, isDraft } = resultsData;
                 const imageUrlsData = resultsData.imageUrls || resultsData.imageUrl || [];
                 const selectedFlavors = Array.isArray(resultsData.selectedFlavors) ? resultsData.selectedFlavors : [];
-                console.log("Selected Flavors:", selectedFlavors);
-
                 normalizedScore = score;
                 finalGrade = resultsData.finalGrade;
                 if (!finalGrade || !finalGrade.grade || !finalGrade.color) {
-                     console.warn("finalGrade object incomplete or missing, reconstructing from score...");
                      const foundGrade = GRADING_SCALE.find(g => normalizedScore >= g.min_score) || GRADING_SCALE[GRADING_SCALE.length - 1];
                      finalGrade = foundGrade ? { grade: foundGrade.grade, name_cn: foundGrade.name_cn, name_en: foundGrade.name_en, color: foundGrade.color } : null;
                 }
-
                 if (!finalGrade) { throw new Error("无法确定评级信息。"); }
+                const userNickname = resultsData.userNickname || resultsData.userEmail || '匿名用户';
 
-                 const userNickname = resultsData.userNickname || resultsData.userEmail || '匿名用户'; // Get nickname for watermark
+                // --- Render Page Content ---
                  document.getElementById('user-nickname').textContent = userNickname;
                  document.getElementById('rating-title').textContent = title;
                  document.getElementById('cigar-name').textContent = cigarInfo.name;
                  document.getElementById('cigar-size').textContent = cigarInfo.size;
                  document.getElementById('cigar-origin').textContent = cigarInfo.origin;
-
-                const reviewContainer = document.getElementById('cigar-review-container');
-                if (cigarReview && cigarReview !== '无') { reviewContainer.innerHTML = `<p>${cigarReview}</p>`; }
-                else { reviewContainer.innerHTML = `<p class="text-gray-400 italic">未填写文字评价。</p>`; }
-
-                const flavorsContainer = document.getElementById('selected-flavors-container');
-                const flavorsDisplay = document.getElementById('flavors-display');
-                if (selectedFlavors.length > 0) {
-                     flavorsDisplay.innerHTML = selectedFlavors.map(f => `<span class="flavor-tag">${f}</span>`).join('');
-                     flavorsContainer.classList.remove('hidden');
-                     console.log("Flavors displayed.");
-                } else {
-                     flavorsContainer.classList.add('hidden');
-                     console.log("No flavors to display.");
-                }
+                 const reviewContainer = document.getElementById('cigar-review-container'); if (cigarReview && cigarReview !== '无') { reviewContainer.innerHTML = `<p>${cigarReview}</p>`; } else { reviewContainer.innerHTML = `<p class="text-gray-400 italic">未填写文字评价。</p>`; }
+                 const flavorsContainer = document.getElementById('selected-flavors-container'); const flavorsDisplay = document.getElementById('flavors-display'); if (selectedFlavors.length > 0) { flavorsDisplay.innerHTML = selectedFlavors.map(f => `<span class="flavor-tag">${f}</span>`).join(''); flavorsContainer.classList.remove('hidden'); } else { flavorsContainer.classList.add('hidden'); }
 
                 let images = [];
                 if(Array.isArray(imageUrlsData)) { images = imageUrlsData; }
                 else if (typeof imageUrlsData === 'string' && imageUrlsData) { try { images = JSON.parse(imageUrlsData); if (!Array.isArray(images)) images = [imageUrlsData]; } catch(e){ images = [imageUrlsData]; } }
-                initSwipers(images);
+
+                initSwipers(images); // Initialize swiper with original images FIRST
 
                 renderScoreSection(document.getElementById('score-section'), normalizedScore, finalGrade);
+                const saveButtonContainer = document.getElementById('save-button-container'); if (currentAuthUser && isDraft) { saveButtonContainer?.classList.remove('hidden'); }
+                const narrativeDetails = document.getElementById('narrative-summary-details'); const summaryDetails = document.getElementById('summary-details'); const hasFullData = resultsData.config && resultsData.ratings && resultsData.calculatedScore !== undefined; if (hasFullData) { const { config, ratings } = resultsData; const narrativeSummary = generateNarrativeSummary(cigarInfo, config, ratings, finalGrade, selectedFlavors); document.getElementById('narrative-summary-container').innerHTML = narrativeSummary; narrativeDetails.classList.remove('hidden'); renderSummary(document.getElementById('summary-container'), config, ratings); summaryDetails.classList.remove('hidden'); } else { narrativeDetails.classList.add('hidden'); summaryDetails.classList.add('hidden'); const limitedDataMessage = document.createElement('p'); limitedDataMessage.className = 'text-center text-sm text-gray-500 my-4 p-4 bg-yellow-100 rounded'; limitedDataMessage.textContent = '提示：此为旧版评分记录，部分详细信息无法显示。'; mainContent.insertBefore(limitedDataMessage, mainContent.querySelector('footer').previousSibling); }
 
-                const saveButtonContainer = document.getElementById('save-button-container');
-                if (currentAuthUser && isDraft) { saveButtonContainer?.classList.remove('hidden'); }
 
-                const narrativeDetails = document.getElementById('narrative-summary-details'); const summaryDetails = document.getElementById('summary-details');
-                const hasFullData = resultsData.config && resultsData.ratings && resultsData.calculatedScore !== undefined;
-
-                if (hasFullData) {
-                    const { config, ratings } = resultsData;
-                    const narrativeSummary = generateNarrativeSummary(cigarInfo, config, ratings, finalGrade, selectedFlavors);
-                    document.getElementById('narrative-summary-container').innerHTML = narrativeSummary; narrativeDetails.classList.remove('hidden');
-                    renderSummary(document.getElementById('summary-container'), config, ratings); summaryDetails.classList.remove('hidden');
-                } else {
-                    narrativeDetails.classList.add('hidden'); summaryDetails.classList.add('hidden');
-                    const limitedDataMessage = document.createElement('p'); limitedDataMessage.className = 'text-center text-sm text-gray-500 my-4 p-4 bg-yellow-100 rounded'; limitedDataMessage.textContent = '提示：此为旧版评分记录，部分详细信息无法显示。'; mainContent.insertBefore(limitedDataMessage, mainContent.querySelector('footer').previousSibling);
-                }
-
-                // --- Populate Hidden Share Card ---
+                // --- Populate Hidden Share Card (using ratingId for QR) ---
                 const shareCardImage = document.getElementById('share-card-image');
                 const shareCardScore = document.getElementById('share-card-score');
                 const shareCardGradeBadge = document.getElementById('share-card-grade-badge');
-                const shareCardUsername = document.getElementById('share-card-username'); // Get username span
-                const shareCardQrCode = document.getElementById('share-card-qrcode'); // Get QR code div
+                const shareCardUsername = document.getElementById('share-card-username');
+                const shareCardQrCode = document.getElementById('share-card-qrcode');
                 const gradeStyles = getGradeStyles(finalGrade.color);
 
-                if (images.length > 0 && shareCardImage) {
-                     shareCardImage.src = `/api/image/${images[0]}`;
-                     shareCardImage.onload = () => { if (generateBtn) generateBtn.disabled = false; };
-                     shareCardImage.onerror = () => { if (generateBtn) generateBtn.disabled = true; };
-                } else {
-                     document.getElementById('share-card-image-wrapper').innerHTML = '<span class="text-gray-400 text-sm">无封面图</span>';
-                     if (generateBtn) generateBtn.disabled = true;
-                }
+                // Populate text fields
                 if (shareCardScore) shareCardScore.textContent = normalizedScore.toFixed(2);
                 if (shareCardScore) shareCardScore.className = `text-5xl font-black ${gradeStyles.textColor}`;
-                if (shareCardGradeBadge) {
-                    // Display full grade names
-                    shareCardGradeBadge.textContent = `${finalGrade.name_en} - ${finalGrade.name_cn}`;
-                    shareCardGradeBadge.className = `inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${gradeStyles.bgColor} ${gradeStyles.textColor} bg-opacity-20`;
-                }
-                if (shareCardUsername) {
-                    shareCardUsername.textContent = userNickname; // Set username in watermark
-                }
+                if (shareCardGradeBadge) { shareCardGradeBadge.textContent = `${finalGrade.name_en} - ${finalGrade.name_cn}`; shareCardGradeBadge.className = `inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${gradeStyles.bgColor} ${gradeStyles.textColor} bg-opacity-20`; }
+                if (shareCardUsername) { shareCardUsername.textContent = userNickname; }
 
-                // Generate QR Code
+                // Generate QR Code with unique URL (if ratingId is available)
                 if (shareCardQrCode && typeof QRCode !== 'undefined') {
-                    shareCardQrCode.innerHTML = ''; // Clear previous QR code if any
+                    shareCardQrCode.innerHTML = '';
+                    const uniqueUrl = ratingId ? `${window.location.origin}/results.html?ratingId=${ratingId}` : window.location.href; // Use specific URL if ID exists
+                    console.log("Generating QR Code for URL:", uniqueUrl);
                     new QRCode(shareCardQrCode, {
-                        text: window.location.href, // Link to the current results page
-                        width: 100, // Adjust size as needed (will fit in the 1/3 width div)
-                        height: 100,
-                        colorDark : "#000000",
-                        colorLight : "#ffffff",
-                        correctLevel : QRCode.CorrectLevel.H // High correction level
+                        text: uniqueUrl, width: 90, height: 90,
+                        colorDark : "#000000", colorLight : "#ffffff", correctLevel : QRCode.CorrectLevel.H
                     });
+                } else { console.error("QR Code container or library not found, or ratingId missing."); }
+
+                // Set cover image source and trigger auto-generation AFTER QR code is generated
+                if (images.length > 0 && shareCardImage) {
+                     shareCardImage.src = `/api/image/${images[0]}`;
+                     shareCardImage.onload = () => { autoGenerateShareImage(); }; // Trigger auto-generation on load
+                     shareCardImage.onerror = () => { console.error("Share card cover image failed to load."); /* Do not attempt generation */ };
                 } else {
-                     console.error("QR Code container or library not found.");
+                     document.getElementById('share-card-image-wrapper').innerHTML = '<span class="text-gray-400 text-sm">无封面图</span>';
+                     console.warn("No cover image, cannot generate share image.");
                 }
 
+                // --- Show Content ---
+                loadingIndicator.classList.add('hidden'); // Hide loading
+                mainContent.style.display = 'block'; // Make content block visible
+                await new Promise(resolve => setTimeout(resolve, 50)); // Tiny delay
+                mainContent.classList.remove('opacity-0'); // Fade in
+                mainContent.classList.add('animate-fadeInUp'); // Animate
 
-                mainContent.style.opacity = '1'; mainContent.classList.add('animate-fadeInUp');
-
-            } catch (e) { errorContainer.innerHTML = `<p class="font-bold text-center">页面加载出错！<a href="index.html" class="text-indigo-600 underline">返回社区</a> 或 <a href="rate.html" class="text-indigo-600 underline">去评分</a></p><p class="text-sm text-gray-600">${e.message}</p>`; errorContainer.classList.remove('hidden'); if (mainContent) mainContent.style.display = 'none'; console.error("Results page error:", e); if(generateBtn) generateBtn.disabled = true; }
+            } catch (e) {
+                loadingIndicator.classList.add('hidden');
+                errorContainer.innerHTML = `<p class="font-bold text-center">页面加载出错！<a href="index.html" class="text-indigo-600 underline">返回社区</a> 或 <a href="rate.html" class="text-indigo-600 underline">去评分</a></p><p class="text-sm text-gray-600">${e.message}</p>`;
+                errorContainer.classList.remove('hidden');
+                console.error("Results page error:", e);
+            }
         };
 
         // --- Rendering Utilities ---
-        function generateNarrativeSummary(cigarInfo, config, ratings, finalGrade, selectedFlavors) { if (!config || !ratings) { return '<p class="text-gray-500 italic">无法生成综合评价 (缺少原始评分数据)。</p>'; } let summary = `<p class="text-base text-gray-700 leading-relaxed">`; summary += `本次品鉴的雪茄是来自<strong class="font-semibold">${cigarInfo?.origin || '未知'}</strong>的<strong class="font-semibold">${cigarInfo?.name || '未知'}</strong>，尺寸为<strong class="font-semibold">${cigarInfo?.size || '未知'}</strong>。`; let observations = []; (config?.ratingCriteria || []).forEach(category => { (category.criteriaList || []).forEach(criterion => { const id = getRatingId(category.category, criterion.name); const selectedOptionIndex = ratings[id]; if (selectedOptionIndex !== undefined && criterion.options?.[selectedOptionIndex]) { const option = criterion.options[selectedOptionIndex]; observations.push(`在<strong class="font-semibold">${criterion.name}</strong>方面，其表现为“${option.description}”`); } }); }); if (observations.length > 0) { summary += ` 品鉴过程中，我们观察到：${observations.join('；')}。`; } else { summary += ` (未记录详细评分选项)。`; } if (selectedFlavors && selectedFlavors.length > 0) { summary += ` 感受到的主要风味包括：<strong class="font-semibold">${selectedFlavors.join(', ')}</strong>。`; } const gradeHierarchy = GRADING_SCALE.map(g => g.name_en).join('-'); summary += ` 综合来看，本次基于Pistacho Cigar Rating System（Pistacho雪茄评分）的最终评级为<strong class="font-semibold text-indigo-600">“${finalGrade.grade} - ${finalGrade.name_cn}”</strong>。Pistacho品分等级从高到低为${gradeHierarchy}`; summary += `</p>`; return summary; }
-        function getRatingId(category, criterion) { const catStr = String(category || '').trim(); const critStr = String(criterion || '').trim(); return `${catStr}-${critStr}`; }
-        function renderSummary(container, config, ratings) { if (!container) return; if (!config || !ratings) { container.innerHTML = '<p class="text-gray-500 italic">无法生成评分详情汇总 (缺少原始评分数据)。</p>'; return; } let summaryHtml = ''; (config?.ratingCriteria || []).forEach((category) => { summaryHtml += `<div class="mb-4"><h4 class="text-md font-semibold text-gray-600 mb-2 border-b pb-1">${category.category}</h4><ul class="list-none space-y-1 text-sm">`; let hasCriteria = false; (category.criteriaList || []).forEach((criterion) => { const id = getRatingId(category.category, criterion.name); const selectedOptionIndex = ratings[id]; if (selectedOptionIndex !== undefined && criterion.options?.[selectedOptionIndex]) { const option = criterion.options[selectedOptionIndex]; summaryHtml += `<li class="flex justify-between items-center p-1"><div><span class="font-medium text-gray-700">${criterion.name}:</span><span class="text-gray-500 ml-2">${option.description}</span></div></li>`; hasCriteria = true; } }); if (!hasCriteria) { summaryHtml += `<li class="text-gray-400 italic text-xs">(无评分项)</li>`; } summaryHtml += `</ul></div>`; }); container.innerHTML = summaryHtml || '<p class="text-gray-500 italic">(无评分详情)</p>'; }
-        function getScoreRange(gradeCode) { const index = GRADING_SCALE.findIndex(g => g.grade === gradeCode); if (index === -1) return ''; const min = GRADING_SCALE[index].min_score; if (index === 0) return `${min}-100`; const gradeAbove = GRADING_SCALE[index - 1]; if (!gradeAbove) return `< ${min}`; const max = gradeAbove.min_score - 0.01; if (gradeCode === 'O') return `0-${max.toFixed(2)}`; return `${min.toFixed(0)}-${max.toFixed(2)}`; }
-        function getGradeStyles(color) { const stylesMap = { 'gold': { bgColor: 'bg-yellow-400', textColor: 'text-yellow-800', bgGradient: 'bg-gradient-to-br from-yellow-400 to-amber-500', shadowColor: 'shadow-yellow-500/50' }, 'indigo': { bgColor: 'bg-indigo-300', textColor: 'text-indigo-800', bgGradient: 'bg-gradient-to-br from-indigo-500 to-purple-600', shadowColor: 'shadow-indigo-500/50' }, 'purple': { bgColor: 'bg-purple-300', textColor: 'text-purple-800', bgGradient: 'bg-gradient-to-br from-purple-500 to-violet-600', shadowColor: 'shadow-purple-500/50' }, 'blue': { bgColor: 'bg-blue-300', textColor: 'text-blue-800', bgGradient: 'bg-gradient-to-br from-blue-500 to-cyan-600', shadowColor: 'shadow-blue-500/50' }, 'green': { bgColor: 'bg-green-300', textColor: 'text-green-800', bgGradient: 'bg-gradient-to-br from-green-500 to-lime-600', shadowColor: 'shadow-green-500/50' }, 'gray': { bgColor: 'bg-gray-300', textColor: 'text-gray-800', bgGradient: 'bg-gradient-to-br from-gray-500 to-slate-600', shadowColor: 'shadow-gray-500/50' }, 'orange': { bgColor: 'bg-orange-300', textColor: 'text-orange-800', bgGradient: 'bg-gradient-to-br from-orange-500 to-amber-600', shadowColor: 'shadow-orange-500/50' }, 'red': { bgColor: 'bg-red-300', textColor: 'text-red-800', bgGradient: 'bg-gradient-to-br from-red-500 to-rose-600', shadowColor: 'shadow-red-500/50' } }; return stylesMap[color] || stylesMap['gray']; }
-         function renderScoreSection(container, score, grade) { if (!container || !grade) return; const styles = getGradeStyles(grade.color); const scoreHtml = ` <div class="text-center md:text-left"> <p class="text-xl font-bold text-yellow-500 mb-1">Pistacho 评分</p> <p class="text-7xl font-black ${styles.textColor}">${score.toFixed(2)}</p> <div class="mt-2 text-3xl lg:text-4xl font-black ${styles.textColor} leading-tight"> ${grade.name_en} - ${grade.name_cn} </div> </div> `; let scaleHtml = '<div class="space-y-1 text-sm">'; GRADING_SCALE.forEach(g => { const gStyles = getGradeStyles(g.color); const isCurrent = g.grade === grade.grade; scaleHtml += ` <div class="flex items-center p-1 rounded ${isCurrent ? 'bg-gray-100' : ''}"> <div class="w-5 h-5 flex-shrink-0 rounded-full flex items-center justify-center font-bold text-xs ${gStyles.bgColor} ${gStyles.textColor} mr-2">${g.grade}</div> <div class="flex-grow ${isCurrent ? 'font-semibold' : ''} ${gStyles.textColor}">${g.name_cn}</div> <div class="font-mono text-xs text-gray-500 ml-2">${getScoreRange(g.grade)}</div> </div> `; }); scaleHtml += '</div>'; container.innerHTML = ` <div id="score-display" class="w-full md:w-1/3 flex-shrink-0"> ${scoreHtml} </div> <div id="grading-scale-explanation" class="w-full md:w-2/3 flex-grow border-t md:border-t-0 md:border-l border-gray-200 pt-4 md:pt-0 md:pl-6"> ${scaleHtml} </div> `; }
+        function generateNarrativeSummary(cigarInfo, config, ratings, finalGrade, selectedFlavors) { /* ... */ if (!config || !ratings) { return '<p class="text-gray-500 italic">无法生成综合评价 (缺少原始评分数据)。</p>'; } let summary = `<p class="text-base text-gray-700 leading-relaxed">`; summary += `本次品鉴的雪茄是来自<strong class="font-semibold">${cigarInfo?.origin || '未知'}</strong>的<strong class="font-semibold">${cigarInfo?.name || '未知'}</strong>，尺寸为<strong class="font-semibold">${cigarInfo?.size || '未知'}</strong>。`; let observations = []; (config?.ratingCriteria || []).forEach(category => { (category.criteriaList || []).forEach(criterion => { const id = getRatingId(category.category, criterion.name); const selectedOptionIndex = ratings[id]; if (selectedOptionIndex !== undefined && criterion.options?.[selectedOptionIndex]) { const option = criterion.options[selectedOptionIndex]; observations.push(`在<strong class="font-semibold">${criterion.name}</strong>方面，其表现为“${option.description}”`); } }); }); if (observations.length > 0) { summary += ` 品鉴过程中，我们观察到：${observations.join('；')}。`; } else { summary += ` (未记录详细评分选项)。`; } if (selectedFlavors && selectedFlavors.length > 0) { summary += ` 感受到的主要风味包括：<strong class="font-semibold">${selectedFlavors.join(', ')}</strong>。`; } const gradeHierarchy = GRADING_SCALE.map(g => g.name_en).join('-'); summary += ` 综合来看，本次基于Pistacho Cigar Rating System（Pistacho雪茄评分）的最终评级为<strong class="font-semibold text-indigo-600">“${finalGrade.grade} - ${finalGrade.name_cn}”</strong>。Pistacho品分等级从高到低为${gradeHierarchy}`; summary += `</p>`; return summary; }
+        function getRatingId(category, criterion) { /* ... */ const catStr = String(category || '').trim(); const critStr = String(criterion || '').trim(); return `${catStr}-${critStr}`; }
+        function renderSummary(container, config, ratings) { /* ... */ if (!container) return; if (!config || !ratings) { container.innerHTML = '<p class="text-gray-500 italic">无法生成评分详情汇总 (缺少原始评分数据)。</p>'; return; } let summaryHtml = ''; (config?.ratingCriteria || []).forEach((category) => { summaryHtml += `<div class="mb-4"><h4 class="text-md font-semibold text-gray-600 mb-2 border-b pb-1">${category.category}</h4><ul class="list-none space-y-1 text-sm">`; let hasCriteria = false; (category.criteriaList || []).forEach((criterion) => { const id = getRatingId(category.category, criterion.name); const selectedOptionIndex = ratings[id]; if (selectedOptionIndex !== undefined && criterion.options?.[selectedOptionIndex]) { const option = criterion.options[selectedOptionIndex]; summaryHtml += `<li class="flex justify-between items-center p-1"><div><span class="font-medium text-gray-700">${criterion.name}:</span><span class="text-gray-500 ml-2">${option.description}</span></div></li>`; hasCriteria = true; } }); if (!hasCriteria) { summaryHtml += `<li class="text-gray-400 italic text-xs">(无评分项)</li>`; } summaryHtml += `</ul></div>`; }); container.innerHTML = summaryHtml || '<p class="text-gray-500 italic">(无评分详情)</p>'; }
+        function getScoreRange(gradeCode) { /* ... */ const index = GRADING_SCALE.findIndex(g => g.grade === gradeCode); if (index === -1) return ''; const min = GRADING_SCALE[index].min_score; if (index === 0) return `${min}-100`; const gradeAbove = GRADING_SCALE[index - 1]; if (!gradeAbove) return `< ${min}`; const max = gradeAbove.min_score - 0.01; if (gradeCode === 'O') return `0-${max.toFixed(2)}`; return `${min.toFixed(0)}-${max.toFixed(2)}`; }
+        function getGradeStyles(color) { /* ... */ const stylesMap = { 'gold': { bgColor: 'bg-yellow-400', textColor: 'text-yellow-800', bgGradient: 'bg-gradient-to-br from-yellow-400 to-amber-500', shadowColor: 'shadow-yellow-500/50' }, 'indigo': { bgColor: 'bg-indigo-300', textColor: 'text-indigo-800', bgGradient: 'bg-gradient-to-br from-indigo-500 to-purple-600', shadowColor: 'shadow-indigo-500/50' }, 'purple': { bgColor: 'bg-purple-300', textColor: 'text-purple-800', bgGradient: 'bg-gradient-to-br from-purple-500 to-violet-600', shadowColor: 'shadow-purple-500/50' }, 'blue': { bgColor: 'bg-blue-300', textColor: 'text-blue-800', bgGradient: 'bg-gradient-to-br from-blue-500 to-cyan-600', shadowColor: 'shadow-blue-500/50' }, 'green': { bgColor: 'bg-green-300', textColor: 'text-green-800', bgGradient: 'bg-gradient-to-br from-green-500 to-lime-600', shadowColor: 'shadow-green-500/50' }, 'gray': { bgColor: 'bg-gray-300', textColor: 'text-gray-800', bgGradient: 'bg-gradient-to-br from-gray-500 to-slate-600', shadowColor: 'shadow-gray-500/50' }, 'orange': { bgColor: 'bg-orange-300', textColor: 'text-orange-800', bgGradient: 'bg-gradient-to-br from-orange-500 to-amber-600', shadowColor: 'shadow-orange-500/50' }, 'red': { bgColor: 'bg-red-300', textColor: 'text-red-800', bgGradient: 'bg-gradient-to-br from-red-500 to-rose-600', shadowColor: 'shadow-red-500/50' } }; return stylesMap[color] || stylesMap['gray']; }
+         function renderScoreSection(container, score, grade) { /* ... */ if (!container || !grade) return; const styles = getGradeStyles(grade.color); const scoreHtml = ` <div class="text-center md:text-left"> <p class="text-xl font-bold text-yellow-500 mb-1">Pistacho 评分</p> <p class="text-7xl font-black ${styles.textColor}">${score.toFixed(2)}</p> <div class="mt-2 text-3xl lg:text-4xl font-black ${styles.textColor} leading-tight"> ${grade.name_en} - ${grade.name_cn} </div> </div> `; let scaleHtml = '<div class="space-y-1 text-sm">'; GRADING_SCALE.forEach(g => { const gStyles = getGradeStyles(g.color); const isCurrent = g.grade === grade.grade; scaleHtml += ` <div class="flex items-center p-1 rounded ${isCurrent ? 'bg-gray-100' : ''}"> <div class="w-5 h-5 flex-shrink-0 rounded-full flex items-center justify-center font-bold text-xs ${gStyles.bgColor} ${gStyles.textColor} mr-2">${g.grade}</div> <div class="flex-grow ${isCurrent ? 'font-semibold' : ''} ${gStyles.textColor}">${g.name_cn}</div> <div class="font-mono text-xs text-gray-500 ml-2">${getScoreRange(g.grade)}</div> </div> `; }); scaleHtml += '</div>'; container.innerHTML = ` <div id="score-display" class="w-full md:w-1/3 flex-shrink-0"> ${scoreHtml} </div> <div id="grading-scale-explanation" class="w-full md:w-2/3 flex-grow border-t md:border-t-0 md:border-l border-gray-200 pt-4 md:pt-0 md:pl-6"> ${scaleHtml} </div> `; }
 
     </script>
 </body>
