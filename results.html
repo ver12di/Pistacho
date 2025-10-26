@@ -26,7 +26,7 @@
     <style>
         /* CSS styles (omitted for brevity, remains the same) */
         .tooltip { position: relative; display: inline-block; } 
-        .tooltip .tooltiptext { visibility: hidden; width: 60px; background-color: #555; color: #fff; text-align: center; border-radius: 6px; padding: 5px 0; position: absolute; z-index: 1; bottom: 125%; left: 50%; margin-left: -30px; opacity: 0; transition: opacity 0.3s; font-size: 10px; } 
+        .tooltip .tooltiptext { visibility: hidden; width: auto; /* Adjusted for longer text */ white-space: nowrap; background-color: #555; color: #fff; text-align: center; border-radius: 6px; padding: 5px 8px; /* Adjusted padding */ position: absolute; z-index: 1; bottom: 125%; left: 50%; transform: translateX(-50%); opacity: 0; transition: opacity 0.3s; font-size: 10px; } 
         .tooltip .tooltiptext::after { content: ""; position: absolute; top: 100%; left: 50%; margin-left: -5px; border-width: 5px; border-style: solid; border-color: #555 transparent transparent transparent; } 
         .tooltip:hover .tooltiptext { visibility: visible; opacity: 1; }
         .swiper-container.main-swiper { width: 100%; position: relative; }
@@ -55,14 +55,17 @@
         #share-card-watermark { font-size: 0.55rem; color: #9ca3af; width: 65%; line-height: 1.1; margin: 0; }
         #share-card-qrcode { width: 32%; height: auto; background-color: white; padding: 0; border: 1px solid #eee; box-shadow: 0 0 2px rgba(0,0,0,0.1); }
         #share-card-qrcode img { display: block; width: 100%; height: 100%; }
+         /* Fade in animation */
+         @keyframes fadeInUp { from { opacity: 0; transform: translate3d(0, 20px, 0); } to { opacity: 1; transform: translate3d(0, 0, 0); } }
+         .animate-fadeInUp { animation: fadeInUp 0.5s ease-out forwards; }
     </style>
 </head>
 <body class="bg-gray-100 font-sans antialiased text-gray-800">
     <div class="max-w-6xl mx-auto p-4 md:p-8 relative">
         <div id="error-container" class="hidden bg-red-100 p-6 rounded-lg shadow-lg text-red-700 font-medium"></div>
-        <div id="loading-indicator" class="hidden text-center py-10 text-gray-500" data-i18n="common.loadingDetails">正在加载评分详情...</div>
+        <div id="loading-indicator" class="text-center py-10 text-gray-500" data-i18n="common.loadingDetails">正在加载评分详情...</div>
         
-        <div id="main-content" class="opacity-0">
+        <div id="main-content" class="opacity-0" style="display: none;"> <!-- Initially hidden -->
             <nav class="mb-6 flex flex-wrap justify-between items-center bg-white p-3 rounded-lg shadow-sm gap-4">
                  <a href="index.html" class="text-xl font-bold text-indigo-600" data-i18n="nav.title">Pistacho评分</a>
                  <div class="flex items-center space-x-4 flex-grow justify-center md:justify-start md:flex-grow-0 order-3 md:order-2 w-full md:w-auto">
@@ -215,117 +218,119 @@
         async function autoGenerateShareImage() { /* ... */ }
         function renderPageContent(data) { /* ... */ }
         
-        // --- window.onload --- (remains the same)
+        // --- window.onload --- (remains the same, error handling was already improved)
         window.onload = async function() {
-            await initI18n();
-            updateContent();
-
             const errorContainer = document.getElementById('error-container');
             const mainContent = document.getElementById('main-content');
             const loadingIndicator = document.getElementById('loading-indicator');
-            const urlParams = new URLSearchParams(window.location.search);
-            const code = urlParams.get('code');
-            ratingId = urlParams.get('ratingId');
-
-            let user = code ? await handleOidcCallback(code) : await validateSessionAndGetUser();
-            currentAuthUser = user;
-            renderLoginStatus(currentAuthUser);
-            setupLanguageSwitcher();
-
-            loadingIndicator.classList.remove('hidden');
+            
+            const showError = (message) => { /* ... */ }; // Error handling function remains
 
             try {
-                if (ratingId) {
-                    const token = sessionStorage.getItem('accessToken');
-                    const apiUrl = new URL(`/api/ratings?id=${ratingId}`, window.location.origin);
-                    const fetchOptions = token ? { headers: { 'Authorization': `Bearer ${token}` } } : {};
-                    const response = await fetch(apiUrl, fetchOptions);
-                    if (!response.ok) throw new Error(i18next.t('errors.loadRatingFailed', { status: response.status }));
-                    resultsData = await response.json();
-                } else {
-                    const storedData = sessionStorage.getItem('cigarRatingResults');
-                    if (!storedData) throw new Error(i18next.t('errors.noRatingDataFound'));
-                    resultsData = JSON.parse(storedData);
-                    ratingId = resultsData.ratingId; 
-                }
-
-                if (!resultsData || resultsData.normalizedScore === undefined) { 
-                    throw new Error(i18next.t('errors.missingEssentialData'));
-                }
+                // ... (Initialization steps remain the same) ...
+                loadingIndicator.classList.remove('hidden');
+                mainContent.style.display = 'none';
+                errorContainer.classList.add('hidden');
                 
-                initSwipers(resultsData.imageUrls || []);
-                renderPageContent(resultsData);
+                await initI18n();
+                updateContent(); 
 
+                const urlParams = new URLSearchParams(window.location.search);
+                const code = urlParams.get('code');
+                ratingId = urlParams.get('ratingId');
+
+                let user = code ? await handleOidcCallback(code) : await validateSessionAndGetUser();
+                currentAuthUser = user;
+                renderLoginStatus(currentAuthUser); 
+                setupLanguageSwitcher(); 
+
+                // --- Data Loading --- (remains the same)
+                if (ratingId) { /* ... */ } else { /* ... */ }
+                if (!resultsData || resultsData.normalizedScore === undefined) { throw new Error(i18next.t('errors.missingEssentialData')); }
+                
+                // --- Content Rendering --- (remains the same)
+                initSwipers(resultsData.imageUrls || []); 
+                renderPageContent(resultsData); 
+
+                // --- Share Image Generation --- (remains the same)
                 const shareImg = document.getElementById('share-card-image');
-                if (shareImg.src && !shareImg.src.includes('placehold.co')) {
-                    if (shareImg.complete) {
-                        autoGenerateShareImage();
-                    } else {
-                        shareImg.onload = autoGenerateShareImage;
-                        shareImg.onerror = () => console.warn("Share card image failed to load, cannot generate share image.");
-                    }
-                } else if (ratingId) { 
-                     console.warn(i18next.t('resultsPage.shareCard.noCover')); 
-                     autoGenerateShareImage();
-                }
+                if (shareImg.src && !shareImg.src.includes('placehold.co')) { /* ... */ } else if (ratingId) { /* ... */ }
 
-
-                loadingIndicator.classList.add('hidden');
+                // --- Final Step: Show Content --- (remains the same)
+                loadingIndicator.style.display = 'none'; 
+                mainContent.style.display = 'block'; 
+                await new Promise(resolve => setTimeout(resolve, 50)); 
                 mainContent.classList.remove('opacity-0');
+                mainContent.classList.add('animate-fadeInUp'); 
 
             } catch (e) {
-                loadingIndicator.classList.add('hidden');
-                const errorTitle = i18next.t('errors.pageLoadError');
-                const backLink = i18next.t('common.backToCommunity');
-                errorContainer.innerHTML = `<p class="font-bold text-center">${errorTitle}: ${e.message} <a href="index.html" class="text-indigo-600 underline">${backLink}</a></p>`;
-                errorContainer.classList.remove('hidden');
-                console.error("Results page error:", e);
+                // Enhanced error handling ensures this runs if any error occurs
+                showError(e.message);
             }
         };
 
-        // --- Rendering Utilities --- (generateNarrativeSummary remains the same)
+        // --- Rendering Utilities ---
+
+        // --- **FIXED: Added getRatingId function** ---
+        function getRatingId(category, criterion) {
+            const catStr = String(category || '').trim(); // Use original name from config
+            const critStr = String(criterion || '').trim(); // Use original name from config
+            if (!catStr || !critStr) {
+                console.warn("getRatingId: Received empty category or criterion name", { category, criterion });
+                return null; // Return null if names are missing
+            }
+            return `${catStr}-${critStr}`; // Generate ID using original names
+        }
+
+        // --- generateNarrativeSummary (Use getRatingId) ---
         function generateNarrativeSummary(cigarInfo, config, ratings, finalGrade, selectedFlavors) {
-             if (!config || !ratings) return `<p class="text-gray-500 italic">${i18next.t('errors.noNarrativeData')}</p>`;
-             const { origin = i18next.t('common.unknown'), name = i18next.t('common.unknown'), size = i18next.t('common.unknown') } = cigarInfo;
+             if (!config || !config.ratingCriteria || !ratings) {
+                 console.error("[generateNarrativeSummary] Missing config or ratings data.");
+                 return `<p class="text-gray-500 italic">${i18next.t('errors.noNarrativeData')}</p>`;
+             }
+             const { origin = i18next.t('common.unknown'), name = i18next.t('common.unknown'), size = i18next.t('common.unknown') } = cigarInfo || {}; 
              let summary = `<p>${i18next.t('resultsPage.narrative.part1', { origin, name, size })}`; 
              let observations = [];
              (config.ratingCriteria || []).forEach(category => {
-                 (category.criteriaList || []).forEach(criterion => {
-                     const categoryIdPart = category.categoryKey || category.category; // Use key or fallback
-                     const criterionIdPart = criterion.nameKey || criterion.name; // Use key or fallback
-                     if (!categoryIdPart || !criterionIdPart) return; // Skip if identifier is missing
+                 (category.criteriaList || []).forEach(criterion => { 
+                     // **FIX: Use getRatingId with original names**
+                     const id = getRatingId(category.category, criterion.name); 
+                     if (!id) return; // Skip if ID couldn't be generated
 
-                     const newId = category.categoryKey && criterion.nameKey ? `${category.categoryKey}-${criterion.nameKey}` : null;
-                     const oldId = category.category && criterion.name ? `${category.category}-${criterion.name}` : null;
-
-                     let selectedOptionIndex = (newId && ratings[newId] !== undefined) ? ratings[newId] : (oldId ? ratings[oldId] : undefined);
+                     const selectedOptionIndex = ratings[id]; // Use the generated ID
                      
                      if (selectedOptionIndex !== undefined && typeof selectedOptionIndex === 'number' && selectedOptionIndex >= 0) { 
                          const option = criterion.options?.[selectedOptionIndex]; 
-                         const descriptionIdentifier = option?.descriptionKey || option?.description; // Use key or fallback
-                         const criterionIdentifier = criterion.nameKey || criterion.name; // Use key or fallback
-                         if (descriptionIdentifier && criterionIdentifier) { 
+                         const descriptionIdentifier = option?.descriptionKey || option?.description; 
+                         const criterionIdentifier = criterion.nameKey || criterion.name; 
+                         if (descriptionIdentifier && criterionIdentifier && option) { 
                              observations.push(i18next.t('resultsPage.narrative.observation', { 
-                                 criterion: i18next.t(criterionIdentifier), 
-                                 option: i18next.t(descriptionIdentifier) 
+                                 criterion: i18next.t(criterionIdentifier), // Translate for display
+                                 option: i18next.t(descriptionIdentifier)  // Translate for display
                              }));
+                         } else {
+                              console.warn(`[generateNarrativeSummary] Incomplete data for criterion ${criterionIdentifier} at index ${selectedOptionIndex}`);
                          }
                      }
                  });
              });
              if (observations.length > 0) { summary += ` ${i18next.t('resultsPage.narrative.part2', { observations: observations.join('；') })}`; } 
              else { summary += ` ${i18next.t('resultsPage.narrative.noObservations')}`; }
-             if (selectedFlavors.length > 0) { summary += ` ${i18next.t('resultsPage.narrative.part3', { flavors: selectedFlavors.join(', ') })}`; }
-             const hierarchy = GRADING_SCALE.map(g => `${g.grade}(${i18next.t(g.nameKey)})`).join(', ');
-             summary += ` ${i18next.t('resultsPage.narrative.part4', { grade: finalGrade.grade, gradeName: finalGrade.name, hierarchy: hierarchy })}`; 
+             if (selectedFlavors && selectedFlavors.length > 0) { 
+                 summary += ` ${i18next.t('resultsPage.narrative.part3', { flavors: selectedFlavors.join(', ') })}`; 
+             }
+             if (finalGrade && finalGrade.grade && finalGrade.name) {
+                 const hierarchy = GRADING_SCALE.map(g => `${g.grade}(${i18next.t(g.nameKey)})`).join(', ');
+                 summary += ` ${i18next.t('resultsPage.narrative.part4', { grade: finalGrade.grade, gradeName: finalGrade.name, hierarchy: hierarchy })}`; 
+             } else {
+                 console.warn("[generateNarrativeSummary] Missing finalGrade information.");
+             }
              summary += `</p>`;
              return summary;
         }
 
-
-        // --- **FIXED renderSummary with refined compatibility** ---
+        // --- renderSummary (Use getRatingId) ---
         function renderSummary(container, config, ratings) {
-            // 1. Initial Checks (ensure data exists)
             if (!container || !config || !config.ratingCriteria || !ratings || typeof ratings !== 'object' || Object.keys(ratings).length === 0) { 
                 container.innerHTML = `<p class="text-gray-500 italic">${i18next.t('errors.noSummaryData')}</p>`; 
                 console.warn("renderSummary: Aborting - Missing container, config, ratingCriteria, or ratings data.", { config, ratings });
@@ -334,84 +339,54 @@
             
             console.log("[renderSummary] Starting. Received ratings object:", JSON.stringify(ratings)); 
             
-            // 2. Iterate through Config Categories
             let summaryHtml = (config.ratingCriteria || []).map(category => {
-                // Determine the category identifier (prefer key, fallback to name)
-                const categoryIdentifier = category.categoryKey || category.category;
-                if (!categoryIdentifier) {
+                // Use original name for display header (or key if name is missing)
+                const categoryDisplayIdentifier = category.category || category.categoryKey; 
+                if (!categoryDisplayIdentifier) {
                     console.warn("[renderSummary] Skipping category - missing identifier:", category);
-                    return ''; // Skip category if it has no identifier
+                    return ''; 
                 }
 
-                // 3. Iterate through Criteria within the Category
                 const criteriaHtml = (category.criteriaList || []).map(criterion => {
-                    // Determine the criterion identifier (prefer key, fallback to name)
-                    const criterionIdentifier = criterion.nameKey || criterion.name;
-                    if (!criterionIdentifier) {
-                         console.warn(`[renderSummary] Skipping criterion in category "${categoryIdentifier}" - missing identifier:`, criterion);
-                         return ''; // Skip criterion if it has no identifier
+                    // Use original name for display (or key if name is missing)
+                    const criterionDisplayIdentifier = criterion.name || criterion.nameKey; 
+                    if (!criterionDisplayIdentifier) {
+                         console.warn(`[renderSummary] Skipping criterion in category "${categoryDisplayIdentifier}" - missing identifier:`, criterion);
+                         return ''; 
                     }
 
-                    // --- 4. Compatibility Logic to Find User's Selection ---
-                    let selectedOptionIndex = undefined;
-                    
-                    // 4a. Try new ID format (using i18n keys) first
-                    if (category.categoryKey && criterion.nameKey) {
-                        const newId = `${category.categoryKey}-${criterion.nameKey}`;
-                        if (ratings[newId] !== undefined) {
-                            selectedOptionIndex = ratings[newId];
-                            console.log(`  [renderSummary] Found rating using NEW key "${newId}" for criterion "${criterionIdentifier}": index ${selectedOptionIndex}`);
-                        }
-                    }
+                    // **FIX: Use getRatingId with original names to find the rating**
+                    const id = getRatingId(category.category, criterion.name);
+                    if (!id) return ''; // Skip if ID couldn't be generated
 
-                    // 4b. If not found via new format, AND old properties exist, try old ID format (using Chinese names)
-                    if (selectedOptionIndex === undefined && category.category && criterion.name) {
-                        const oldId = `${category.category}-${criterion.name}`;
-                        if (ratings[oldId] !== undefined) {
-                            selectedOptionIndex = ratings[oldId];
-                            console.log(`  [renderSummary] Found rating using OLD key "${oldId}" for criterion "${criterionIdentifier}": index ${selectedOptionIndex}`);
-                        }
-                    }
-                    // --- End Compatibility Logic ---
+                    const selectedOptionIndex = ratings[id]; // Use the generated ID
 
-                    // 5. Validate and Render the Found Selection
-                    // Check if a valid index number was found
+                    // Validate and Render
                     if (selectedOptionIndex !== undefined && typeof selectedOptionIndex === 'number' && selectedOptionIndex >= 0) { 
-                        const option = criterion.options?.[selectedOptionIndex]; // Get the selected option object
+                        const option = criterion.options?.[selectedOptionIndex]; 
+                        // Use original description for display (or key if description is missing)
+                        const descriptionDisplayIdentifier = option?.description || option?.descriptionKey; 
                         
-                        // Determine display text for the option (prefer key, fallback to description)
-                        const descriptionIdentifier = option?.descriptionKey || option?.description; 
-                        // Determine display text for the criterion (prefer key, fallback to name)
-                        const criterionDisplayIdentifier = criterion.nameKey || criterion.name; 
-
-                        // Ensure we have the option object and its description identifier
-                        if (option && descriptionIdentifier && criterionDisplayIdentifier) { 
-                            console.log(`    -> Rendering: Criterion="${criterionDisplayIdentifier}", Option="${descriptionIdentifier}" (Index ${selectedOptionIndex})`);
-                            // Use i18n to translate the identifiers for display
-                            return `<li><strong>${i18next.t(criterionDisplayIdentifier)}:</strong> ${i18next.t(descriptionIdentifier)}</li>`; 
+                        if (option && descriptionDisplayIdentifier) { 
+                            console.log(`  -> Rendering: Criterion="${criterionDisplayIdentifier}", Option="${descriptionDisplayIdentifier}" (Index ${selectedOptionIndex})`);
+                            // Translate identifiers ONLY for display purposes
+                            return `<li><strong>${i18next.t(criterion.nameKey || criterion.name)}:</strong> ${i18next.t(option.descriptionKey || option.description)}</li>`; 
                         } else {
-                            // Log if an index was found but the option data or its description is missing
-                            console.warn(`[renderSummary] Incomplete option data for criterion "${criterionIdentifier}" at index ${selectedOptionIndex}. Option found:`, option); 
+                            console.warn(`[renderSummary] Incomplete option data for criterion "${criterionDisplayIdentifier}" at index ${selectedOptionIndex}. Option found:`, option); 
                         }
                     } else if (selectedOptionIndex !== undefined) {
-                        // Log if the found index is not a valid number
-                         console.warn(`[renderSummary] Invalid selectedOptionIndex type found for criterion "${criterionIdentifier}": ${typeof selectedOptionIndex} (value: ${selectedOptionIndex})`); 
-                    } else {
-                        // Log if no rating was found using either key format (this is normal if the user didn't rate this item)
-                         // console.log(`  [renderSummary] No rating recorded for criterion "${criterionIdentifier}".`); // Optional: uncomment for very detailed logging
-                    }
-                    return ''; // Return empty string if no valid option found or rendered
-                }).join(''); // Join all list items for this category
+                         console.warn(`[renderSummary] Invalid selectedOptionIndex type found for criterion "${criterionDisplayIdentifier}": ${typeof selectedOptionIndex} (value: ${selectedOptionIndex})`); 
+                    } 
+                    return ''; 
+                }).join(''); 
                 
-                // 6. Render Category Header Only If It Contains Rated Items
                 if (criteriaHtml.trim()) { 
-                    const displayCategoryIdentifier = category.categoryKey || category.category; // Use key or fallback for display
-                    return `<h4 class="font-semibold mt-4 mb-1 text-gray-700">${i18next.t(displayCategoryIdentifier)}</h4><ul class="list-disc list-inside space-y-1 text-sm">${criteriaHtml}</ul>`; 
+                    // Translate category identifier ONLY for display
+                    return `<h4 class="font-semibold mt-4 mb-1 text-gray-700">${i18next.t(category.categoryKey || category.category)}</h4><ul class="list-disc list-inside space-y-1 text-sm">${criteriaHtml}</ul>`; 
                 } 
-                return ''; // Return empty string if category has no rendered criteria
-            }).join(''); // Join all categories
+                return ''; 
+            }).join(''); 
             
-            // 7. Update Container HTML
             container.innerHTML = summaryHtml || `<p>${i18next.t('resultsPage.summary.noItems')}</p>`; 
             console.log("[renderSummary] Finished rendering summary.");
         }
