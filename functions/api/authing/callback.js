@@ -122,10 +122,11 @@ export async function onRequestPost(context) {
 
         const tokenResponse = await fetch(tokenUrl.toString(), {
             method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'Authorization': `Basic ${btoa(`${env.AUTHING_APP_ID}:${env.AUTHING_APP_SECRET}`)}`
+            },
             body: new URLSearchParams({
-                client_id: env.AUTHING_APP_ID,
-                client_secret: env.AUTHING_APP_SECRET,
                 grant_type: 'authorization_code',
                 code: code,
                 redirect_uri: finalRedirectUri
