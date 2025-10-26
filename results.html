@@ -41,7 +41,8 @@
         .thumbnail-swiper .swiper-slide-thumb-active { opacity: 1; border-color: #4f46e5; } .thumbnail-swiper { margin-top: 0.5rem; padding: 5px 0; }
         #narrative-summary-container, #cigar-review-container, #selected-flavors-container { max-width: 100%; }
         .flavor-tag { display: inline-block; background-color: #e5e7eb; color: #374151; font-size: 0.75rem; font-weight: 600; margin-right: 0.5rem; margin-bottom: 0.5rem; padding: 0.125rem 0.625rem; border-radius: 9999px; }
-        #share-card-container { position: absolute; left: -9999px; top: 0; width: 350px; background-color: white; border-radius: 0.5rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); overflow: hidden; border: 1px solid #e5e7eb; }
+        /* **MODIFIED**: Ensure share card stays off-screen */
+        #share-card-container { position: absolute; left: -9999px; top: 0; width: 350px; background-color: white; border-radius: 0.5rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); overflow: hidden; border: 1px solid #e5e7eb; visibility: hidden; /* Start hidden */ z-index: -1; /* Keep behind */ }
         #share-card-image-wrapper { height: calc(350px * 1572 / 1179); background-color: #e5e7eb; display: flex; align-items: center; justify-content: center; }
         #share-card-image { width: 100%; height: 100%; object-fit: cover; }
         #share-card-content { padding: 0.75rem; position: relative; }
@@ -55,7 +56,6 @@
     </style>
 </head>
 <body class="bg-gray-100 font-sans antialiased text-gray-800">
-    <!-- **MODIFIED**: Added relative positioning -->
     <div class="max-w-6xl mx-auto p-4 md:p-8 relative">
         <div id="error-container" class="hidden bg-red-100 p-6 rounded-lg shadow-lg text-red-700 font-medium"></div>
         <div id="loading-indicator" class="hidden text-center py-10 text-gray-500">正在加载评分详情...</div>
@@ -107,7 +107,6 @@
             </footer>
         </div>
 
-        <!-- **MODIFIED**: Moved share card container INSIDE the relatively positioned main container -->
         <div id="share-card-container">
             <div id="share-card-image-wrapper">
                 <img id="share-card-image" src="" alt="Cigar Cover Image" crossorigin="anonymous">
@@ -202,13 +201,13 @@
             }
 
             console.log("开始自动生成分享图...");
-            // **MODIFIED**: Keep off-screen, just ensure visibility
             shareCardElement.style.visibility = 'visible';
-            shareCardElement.style.left = '-9999px'; // Keep it off-screen
-            shareCardElement.style.zIndex = '-1'; // Keep it behind
+            shareCardElement.style.left = '-9999px'; // Keep it off-screen but renderable
+            shareCardElement.style.zIndex = '-1';
 
             try {
-                await new Promise(resolve => setTimeout(resolve, 150));
+                // Wait slightly longer to ensure rendering, especially QR code
+                await new Promise(resolve => setTimeout(resolve, 200));
 
                 const canvas = await html2canvas(shareCardElement, {
                     useCORS: true, allowTaint: true, scale: 2
@@ -230,6 +229,8 @@
                      const newThumbImg = document.createElement('img');
                      newThumbImg.src = dataUrl;
                      newThumbImg.alt = '分享缩略图';
+                     // Make thumbnail clickable to go to the share image slide
+                     newThumbSlide.onclick = () => { if(mainSwiper) mainSwiper.slideTo(mainSwiper.slides.length - 1); };
                      newThumbSlide.appendChild(newThumbImg);
                      thumbSwiperWrapper.appendChild(newThumbSlide);
                 }
@@ -245,7 +246,6 @@
             } catch (error) {
                 console.error("自动生成或添加分享图片失败:", error);
             } finally {
-                 // **MODIFIED**: Ensure it's hidden correctly
                  shareCardElement.style.left = '-9999px';
                  shareCardElement.style.visibility = 'hidden';
                  shareCardElement.style.zIndex = 'auto';
@@ -277,14 +277,16 @@
                 if (ratingIdFromUrl) {
                     console.log(`Loading data via ratingId from URL: ${ratingIdFromUrl}`);
                     ratingId = ratingIdFromUrl;
-                    const token = sessionStorage.getItem('accessToken');
+                    const token = sessionStorage.getItem('accessToken'); // Get token if available
                     const apiUrl = new URL(`/api/ratings?id=${ratingId}`, window.location.origin);
+                    // **MODIFIED**: Send token if available, but don't require it
                     const fetchOptions = token ? { headers: { 'Authorization': `Bearer ${token}` } } : {};
                     const response = await fetch(apiUrl, fetchOptions);
                     if (!response.ok) { let errorText = `加载评分失败: ${response.status}`; try { const err = await response.json(); errorText = err.error || errorText; } catch(e){} throw new Error(errorText); }
                     resultsData = await response.json();
                     if (!resultsData) throw new Error("未找到指定的评分记录。");
-                    sessionStorage.removeItem('cigarRatingResults');
+                    sessionStorage.removeItem('cigarRatingResults'); // Clear session data if loaded via URL
+
                 } else {
                     console.log("Loading data from sessionStorage.");
                     const storedData = sessionStorage.getItem('cigarRatingResults');
@@ -328,7 +330,8 @@
                 const saveButtonContainer = document.getElementById('save-button-container'); if (currentAuthUser && isDraft) { saveButtonContainer?.classList.remove('hidden'); }
                 const narrativeDetails = document.getElementById('narrative-summary-details'); const summaryDetails = document.getElementById('summary-details'); const hasFullData = resultsData.config && resultsData.ratings && resultsData.calculatedScore !== undefined; if (hasFullData) { const { config, ratings } = resultsData; const narrativeSummary = generateNarrativeSummary(cigarInfo, config, ratings, finalGrade, selectedFlavors); document.getElementById('narrative-summary-container').innerHTML = narrativeSummary; narrativeDetails.classList.remove('hidden'); renderSummary(document.getElementById('summary-container'), config, ratings); summaryDetails.classList.remove('hidden'); } else { narrativeDetails.classList.add('hidden'); summaryDetails.classList.add('hidden'); const limitedDataMessage = document.createElement('p'); limitedDataMessage.className = 'text-center text-sm text-gray-500 my-4 p-4 bg-yellow-100 rounded'; limitedDataMessage.textContent = '提示：此为旧版评分记录，部分详细信息无法显示。'; mainContent.insertBefore(limitedDataMessage, mainContent.querySelector('footer').previousSibling); }
 
-                // --- Populate Hidden Share Card ---
+
+                // --- Populate Hidden Share Card (using ratingId for QR) ---
                 const shareCardImage = document.getElementById('share-card-image');
                 const shareCardScore = document.getElementById('share-card-score');
                 const shareCardGradeBadge = document.getElementById('share-card-grade-badge');
@@ -343,6 +346,7 @@
 
                 if (shareCardQrCode && typeof QRCode !== 'undefined') {
                     shareCardQrCode.innerHTML = '';
+                    // **MODIFIED**: Ensure uniqueUrl uses ratingId if available
                     const uniqueUrl = ratingId ? `${window.location.origin}/results.html?ratingId=${ratingId}` : window.location.href;
                     console.log("Generating QR Code for URL:", uniqueUrl);
                     new QRCode(shareCardQrCode, { text: uniqueUrl, width: 90, height: 90, colorDark : "#000000", colorLight : "#ffffff", correctLevel : QRCode.CorrectLevel.H });
@@ -351,7 +355,7 @@
                 // Set image source and trigger generation
                 if (images.length > 0 && shareCardImage) {
                      shareCardImage.src = `/api/image/${images[0]}`;
-                     shareCardImage.onload = () => { autoGenerateShareImage(); };
+                     shareCardImage.onload = () => { autoGenerateShareImage(); }; // Trigger auto-generation on load
                      shareCardImage.onerror = () => { console.error("Share card cover image failed to load."); };
                 } else {
                      document.getElementById('share-card-image-wrapper').innerHTML = '<span class="text-gray-400 text-sm">无封面图</span>';
