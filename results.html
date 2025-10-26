@@ -31,20 +31,16 @@
     </script>
     <style>
         .tooltip { position: relative; display: inline-block; } .tooltip .tooltiptext { visibility: hidden; width: 80px; background-color: #555; color: #fff; text-align: center; border-radius: 6px; padding: 5px 0; position: absolute; z-index: 1; bottom: 125%; left: 50%; margin-left: -40px; opacity: 0; transition: opacity 0.3s; } .tooltip .tooltiptext::after { content: ""; position: absolute; top: 100%; left: 50%; margin-left: -5px; border-width: 5px; border-style: solid; border-color: #555 transparent transparent transparent; } .tooltip:hover .tooltiptext { visibility: visible; opacity: 1; }
-        /* Adjusted Swiper container for autoHeight */
-        .swiper-container.main-swiper { width: 100%; /* height: auto; Let autoHeight handle it */ }
+        .swiper-container.main-swiper { width: 100%; }
         .swiper-slide { height: auto; display: flex; flex-direction: column; }
         .swiper-slide img { display: block; width: 100%; height: auto; object-fit: contain; max-height: 80vh; }
-        /* Special style for share card slide */
         .swiper-slide.share-image-slide img { max-height: none; object-fit: contain; }
-
         .swiper-button-next, .swiper-button-prev { color: #fff; background-color: rgba(0,0,0,0.3); padding: 10px; border-radius: 50%; width: 40px; height: 40px; } .swiper-button-next::after, .swiper-button-prev::after { font-size: 1.2rem; } .swiper-pagination-bullet-active { background: #4f46e5; }
         .thumbnail-swiper .swiper-slide { width: 60px !important; height: 80px; opacity: 0.6; cursor: pointer; border: 2px solid transparent; transition: opacity 0.3s, border-color 0.3s; }
         .thumbnail-swiper .swiper-slide img { object-fit: cover; }
         .thumbnail-swiper .swiper-slide-thumb-active { opacity: 1; border-color: #4f46e5; } .thumbnail-swiper { margin-top: 0.5rem; padding: 5px 0; }
         #narrative-summary-container, #cigar-review-container, #selected-flavors-container { max-width: 100%; }
         .flavor-tag { display: inline-block; background-color: #e5e7eb; color: #374151; font-size: 0.75rem; font-weight: 600; margin-right: 0.5rem; margin-bottom: 0.5rem; padding: 0.125rem 0.625rem; border-radius: 9999px; }
-        /* Styles for the hidden share card */
         #share-card-container { position: absolute; left: -9999px; top: 0; width: 350px; background-color: white; border-radius: 0.5rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); overflow: hidden; border: 1px solid #e5e7eb; }
         #share-card-image-wrapper { height: calc(350px * 1572 / 1179); background-color: #e5e7eb; display: flex; align-items: center; justify-content: center; }
         #share-card-image { width: 100%; height: 100%; object-fit: cover; }
@@ -59,7 +55,8 @@
     </style>
 </head>
 <body class="bg-gray-100 font-sans antialiased text-gray-800">
-    <div class="max-w-6xl mx-auto p-4 md:p-8">
+    <!-- **MODIFIED**: Added relative positioning -->
+    <div class="max-w-6xl mx-auto p-4 md:p-8 relative">
         <div id="error-container" class="hidden bg-red-100 p-6 rounded-lg shadow-lg text-red-700 font-medium"></div>
         <div id="loading-indicator" class="hidden text-center py-10 text-gray-500">正在加载评分详情...</div>
         <div id="main-content" class="opacity-0">
@@ -107,28 +104,27 @@
 
             <footer class="mt-8 flex flex-col sm:flex-row justify-center items-center gap-4">
                  <a href="rate.html" class="py-3 px-6 bg-indigo-600 text-white font-bold rounded-lg shadow-md hover:bg-indigo-700 transition"> &larr; 返回重新评分 </a>
-                 <!-- Removed Generate Button -->
             </footer>
         </div>
-    </div>
 
-    <!-- Hidden structure for the share card -->
-    <div id="share-card-container">
-        <div id="share-card-image-wrapper">
-            <img id="share-card-image" src="" alt="Cigar Cover Image" crossorigin="anonymous">
-        </div>
-        <div id="share-card-content">
-            <div id="share-card-score-grade">
-                <span id="share-card-score">0.00</span>
-                <div id="share-card-grade">
-                    <span id="share-card-grade-badge">? - ???</span>
-                </div>
+        <!-- **MODIFIED**: Moved share card container INSIDE the relatively positioned main container -->
+        <div id="share-card-container">
+            <div id="share-card-image-wrapper">
+                <img id="share-card-image" src="" alt="Cigar Cover Image" crossorigin="anonymous">
             </div>
-            <div class="flex justify-between items-end mt-2">
-                 <p id="share-card-watermark">
-                     <span id="share-card-username">用户</span> 评分于 Pistacho评分系统 www.pista-cho.com
-                 </p>
-                 <div id="share-card-qrcode"></div>
+            <div id="share-card-content">
+                <div id="share-card-score-grade">
+                    <span id="share-card-score">0.00</span>
+                    <div id="share-card-grade">
+                        <span id="share-card-grade-badge">? - ???</span>
+                    </div>
+                </div>
+                <div class="flex justify-between items-end mt-2">
+                     <p id="share-card-watermark">
+                         <span id="share-card-username">用户</span> 评分于 Pistacho评分系统 www.pista-cho.com
+                     </p>
+                     <div id="share-card-qrcode"></div>
+                </div>
             </div>
         </div>
     </div>
@@ -137,7 +133,7 @@
     <script type="module">
         // --- Constants and Global Vars ---
         const GRADING_SCALE = [ { "grade": "P", "name_en": "Pinnacle", "name_cn": "顶峰 / 登峰造极", "min_score": 95, "color": "gold" }, { "grade": "I", "name_en": "Impeccable", "name_cn": "无暇 / 完美无瑕", "min_score": 90, "color": "indigo" }, { "grade": "S", "name_en": "Superior", "name_cn": "卓越 / 出众", "min_score": 80, "color": "purple" }, { "grade": "T", "name_en": "Terrific", "name_cn": "极好 / 绝佳", "min_score": 70, "color": "blue" }, { "grade": "A", "name_en": "Appreciable", "name_cn": "可圈可点 / 值得欣赏", "min_score": 60, "color": "green" }, { "grade": "C", "name_en": "Commonplace", "name_cn": "平庸 / 普通", "min_score": 50, "color": "gray" }, { "grade": "H", "name_en": "Hesitant", "name_cn": "犹豫 / 瑕瑜互见", "min_score": 30, "color": "orange" }, { "grade": "O", "name_en": "Objectionable", "name_cn": "令人反感 / 极差", "min_score": 0, "color": "red" } ];
-        let currentAuthUser = null; let resultsData = null; let normalizedScore = 0; let finalGrade = null; let ratingId = null; // Store rating ID
+        let currentAuthUser = null; let resultsData = null; let normalizedScore = 0; let finalGrade = null; let ratingId = null;
         const AUTHING_APP_ID = '68f5b0b6875017c02b3bfdb3'; const AUTHING_HOST = 'https://xfvu647mcdbk-demo.authing.cn';
         let mainSwiper = null; let thumbnailSwiper = null;
 
@@ -158,10 +154,9 @@
         // --- Initialize Swiper ---
         function initSwipers(imageUrls = []) {
              const mainWrapper = document.getElementById('main-swiper-wrapper'); const thumbWrapper = document.getElementById('thumbnail-swiper-wrapper'); const thumbContainer = document.querySelector('.thumbnail-swiper');
-             mainWrapper.innerHTML = ''; thumbWrapper.innerHTML = ''; // Clear existing slides first
+             mainWrapper.innerHTML = ''; thumbWrapper.innerHTML = '';
              if (!imageUrls || imageUrls.length === 0) { mainWrapper.innerHTML = '<div class="swiper-slide flex items-center justify-center text-gray-400 aspect-[1179/1572]">无图</div>'; thumbContainer.classList.add('hidden'); if(mainSwiper) mainSwiper.destroy(true, true); if(thumbnailSwiper) thumbnailSwiper.destroy(true, true); mainSwiper = null; thumbnailSwiper = null; return; }
 
-             // Add initial image slides from data
              imageUrls.forEach(key => {
                  const imageUrl = `/api/image/${key}`;
                  const imgElement = `<img src="${imageUrl}" alt="雪茄图片" crossorigin="anonymous" onerror="this.src='https://placehold.co/600x800/gray/white?text=Loading+Failed'; this.onerror=null;">`;
@@ -171,15 +166,14 @@
 
              if(mainSwiper) mainSwiper.destroy(true, true); if(thumbnailSwiper) thumbnailSwiper.destroy(true, true);
 
-             // Initialize Swipers
-             const hasMultipleItems = imageUrls.length > 1 || mainWrapper.querySelectorAll('.swiper-slide').length > 1; // Check if multiple items exist *after* potential share image addition
+             const slidesInMain = mainWrapper.querySelectorAll('.swiper-slide');
+             const hasMultipleItems = slidesInMain.length > 1;
 
              if (hasMultipleItems) {
                  thumbContainer.classList.remove('hidden');
                  thumbnailSwiper = new Swiper('.thumbnail-swiper', { spaceBetween: 10, slidesPerView: 'auto', freeMode: true, watchSlidesProgress: true, });
                  mainSwiper = new Swiper('.main-swiper', {
-                     spaceBetween: 10,
-                     autoHeight: true, // **NEW**: Enable auto height
+                     spaceBetween: 10, autoHeight: true,
                      navigation: { nextEl: '.swiper-button-next', prevEl: '.swiper-button-prev', },
                      pagination: { el: '.swiper-pagination', clickable: true, },
                      thumbs: { swiper: thumbnailSwiper, },
@@ -187,10 +181,7 @@
                  });
              } else {
                  thumbContainer.classList.add('hidden');
-                 mainSwiper = new Swiper('.main-swiper', {
-                      autoHeight: true, // **NEW**: Enable auto height even for single slide
-                      allowTouchMove: false,
-                 });
+                 mainSwiper = new Swiper('.main-swiper', { autoHeight: true, allowTouchMove: false });
              }
         }
 
@@ -203,50 +194,41 @@
             const thumbSwiperWrapper = document.getElementById('thumbnail-swiper-wrapper');
 
             if (!shareCardElement || !coverImageElement || !html2canvas || !resultsData || !mainSwiperWrapper || !ratingId) {
-                console.warn("无法自动生成分享图：缺少必要组件或 ratingId。");
-                return; // Silently fail if prerequisites not met
+                console.warn("无法自动生成分享图：缺少必要组件或 ratingId。"); return;
             }
-
             const coverImageUrl = coverImageElement.src;
-            // Check if cover image is loaded and valid
             if (!coverImageUrl || coverImageUrl.includes('placehold.co') || !coverImageElement.complete || coverImageElement.naturalWidth === 0) {
-                 console.warn("封面图片未加载或无效，无法自动生成分享图。");
-                 return;
+                 console.warn("封面图片未加载或无效，无法自动生成分享图。"); return;
             }
 
             console.log("开始自动生成分享图...");
+            // **MODIFIED**: Keep off-screen, just ensure visibility
             shareCardElement.style.visibility = 'visible';
-            shareCardElement.style.left = '0';
-            shareCardElement.style.top = '0';
-            shareCardElement.style.zIndex = '-1';
+            shareCardElement.style.left = '-9999px'; // Keep it off-screen
+            shareCardElement.style.zIndex = '-1'; // Keep it behind
 
             try {
-                await new Promise(resolve => setTimeout(resolve, 150)); // Slightly longer wait
+                await new Promise(resolve => setTimeout(resolve, 150));
 
                 const canvas = await html2canvas(shareCardElement, {
                     useCORS: true, allowTaint: true, scale: 2
                 });
                 const dataUrl = canvas.toDataURL('image/png');
 
-                // Create new slide elements
                 const newSlide = document.createElement('div');
-                // **NEW**: Add class for specific styling
                 newSlide.className = 'swiper-slide share-image-slide';
                 const newImg = document.createElement('img');
                 newImg.src = dataUrl;
                 newImg.alt = '分享图片';
-                // **REMOVED**: onclick download behavior
                 newSlide.appendChild(newImg);
 
-                // Append to main swiper
                 mainSwiperWrapper.appendChild(newSlide);
 
-                // Append to thumbnail swiper
                 if (thumbnailSwiper && thumbSwiperWrapper) {
                      const newThumbSlide = document.createElement('div');
                      newThumbSlide.className = 'swiper-slide thumbnail-slide';
                      const newThumbImg = document.createElement('img');
-                     newThumbImg.src = dataUrl; // Use the same dataUrl for thumb
+                     newThumbImg.src = dataUrl;
                      newThumbImg.alt = '分享缩略图';
                      newThumbSlide.appendChild(newThumbImg);
                      thumbSwiperWrapper.appendChild(newThumbSlide);
@@ -262,8 +244,8 @@
 
             } catch (error) {
                 console.error("自动生成或添加分享图片失败:", error);
-                // Optionally show error to user? For now, just log it.
             } finally {
+                 // **MODIFIED**: Ensure it's hidden correctly
                  shareCardElement.style.left = '-9999px';
                  shareCardElement.style.visibility = 'hidden';
                  shareCardElement.style.zIndex = 'auto';
@@ -278,70 +260,52 @@
 
             const urlParams = new URLSearchParams(window.location.search);
             const code = urlParams.get('code');
-            const ratingIdFromUrl = urlParams.get('ratingId'); // Get ratingId from URL
+            const ratingIdFromUrl = urlParams.get('ratingId');
             let user = null;
 
-            // Authentication
             if (code) { user = await handleOidcCallback(code); }
             else { user = await validateSessionAndGetUser(); }
             currentAuthUser = user;
             renderLoginStatus(currentAuthUser);
 
-            // Show loading indicator, hide main content
             loadingIndicator.classList.remove('hidden');
             mainContent.classList.add('opacity-0');
             mainContent.style.display = 'none';
             errorContainer.classList.add('hidden');
 
             try {
-                // **MODIFIED**: Loading Logic based on URL param
                 if (ratingIdFromUrl) {
                     console.log(`Loading data via ratingId from URL: ${ratingIdFromUrl}`);
-                    ratingId = ratingIdFromUrl; // Store the ID globally
+                    ratingId = ratingIdFromUrl;
                     const token = sessionStorage.getItem('accessToken');
-                    // Removed login requirement for direct URL access for now, assuming public read
-                    // if (!token) throw new Error("需要登录才能查看此评分详情。");
-
                     const apiUrl = new URL(`/api/ratings?id=${ratingId}`, window.location.origin);
-                    const fetchOptions = token ? { headers: { 'Authorization': `Bearer ${token}` } } : {}; // Add token if available
+                    const fetchOptions = token ? { headers: { 'Authorization': `Bearer ${token}` } } : {};
                     const response = await fetch(apiUrl, fetchOptions);
                     if (!response.ok) { let errorText = `加载评分失败: ${response.status}`; try { const err = await response.json(); errorText = err.error || errorText; } catch(e){} throw new Error(errorText); }
                     resultsData = await response.json();
                     if (!resultsData) throw new Error("未找到指定的评分记录。");
-                    // Clear sessionStorage data if loaded via URL to avoid conflicts
                     sessionStorage.removeItem('cigarRatingResults');
-
                 } else {
                     console.log("Loading data from sessionStorage.");
                     const storedData = sessionStorage.getItem('cigarRatingResults');
                     if (!storedData) throw new Error("没有找到评分数据！请返回重试。");
                     resultsData = JSON.parse(storedData);
-                    ratingId = resultsData.ratingId; // Get ratingId from sessionStorage data
-                    if (!ratingId) {
-                         console.warn("Rating ID not found in sessionStorage data. QR code link might be incorrect.");
-                         // Fallback: Use current URL (less ideal but prevents QR error)
-                         ratingId = null; // Explicitly set to null if not found
-                    }
+                    ratingId = resultsData.ratingId;
+                    if (!ratingId) { console.warn("Rating ID not found in sessionStorage data."); ratingId = null; }
                 }
 
                 console.log("Final resultsData loaded:", resultsData);
                 console.log("Using ratingId:", ratingId);
 
                 // --- Validation and Data Extraction ---
-                if (!resultsData || resultsData.normalizedScore === undefined || !resultsData.finalGrade || !resultsData.cigarInfo) {
-                     console.error("Loaded data is missing essential fields:", resultsData);
-                     throw new Error("存储的点评数据缺少基本信息 (分数, 评级, 雪茄信息)。请尝试重新评分。");
-                }
+                if (!resultsData || resultsData.normalizedScore === undefined || !resultsData.finalGrade || !resultsData.cigarInfo) { console.error("Loaded data is missing essential fields:", resultsData); throw new Error("存储的点评数据缺少基本信息 (分数, 评级, 雪茄信息)。请尝试重新评分。"); }
                 const title = resultsData.title || '无标题点评';
                 const { cigarInfo, cigarReview, normalizedScore: score, isDraft } = resultsData;
                 const imageUrlsData = resultsData.imageUrls || resultsData.imageUrl || [];
                 const selectedFlavors = Array.isArray(resultsData.selectedFlavors) ? resultsData.selectedFlavors : [];
                 normalizedScore = score;
                 finalGrade = resultsData.finalGrade;
-                if (!finalGrade || !finalGrade.grade || !finalGrade.color) {
-                     const foundGrade = GRADING_SCALE.find(g => normalizedScore >= g.min_score) || GRADING_SCALE[GRADING_SCALE.length - 1];
-                     finalGrade = foundGrade ? { grade: foundGrade.grade, name_cn: foundGrade.name_cn, name_en: foundGrade.name_en, color: foundGrade.color } : null;
-                }
+                if (!finalGrade || !finalGrade.grade || !finalGrade.color) { const foundGrade = GRADING_SCALE.find(g => normalizedScore >= g.min_score) || GRADING_SCALE[GRADING_SCALE.length - 1]; finalGrade = foundGrade ? { grade: foundGrade.grade, name_cn: foundGrade.name_cn, name_en: foundGrade.name_en, color: foundGrade.color } : null; }
                 if (!finalGrade) { throw new Error("无法确定评级信息。"); }
                 const userNickname = resultsData.userNickname || resultsData.userEmail || '匿名用户';
 
@@ -358,14 +322,13 @@
                 if(Array.isArray(imageUrlsData)) { images = imageUrlsData; }
                 else if (typeof imageUrlsData === 'string' && imageUrlsData) { try { images = JSON.parse(imageUrlsData); if (!Array.isArray(images)) images = [imageUrlsData]; } catch(e){ images = [imageUrlsData]; } }
 
-                initSwipers(images); // Initialize swiper with original images FIRST
+                initSwipers(images);
 
                 renderScoreSection(document.getElementById('score-section'), normalizedScore, finalGrade);
                 const saveButtonContainer = document.getElementById('save-button-container'); if (currentAuthUser && isDraft) { saveButtonContainer?.classList.remove('hidden'); }
                 const narrativeDetails = document.getElementById('narrative-summary-details'); const summaryDetails = document.getElementById('summary-details'); const hasFullData = resultsData.config && resultsData.ratings && resultsData.calculatedScore !== undefined; if (hasFullData) { const { config, ratings } = resultsData; const narrativeSummary = generateNarrativeSummary(cigarInfo, config, ratings, finalGrade, selectedFlavors); document.getElementById('narrative-summary-container').innerHTML = narrativeSummary; narrativeDetails.classList.remove('hidden'); renderSummary(document.getElementById('summary-container'), config, ratings); summaryDetails.classList.remove('hidden'); } else { narrativeDetails.classList.add('hidden'); summaryDetails.classList.add('hidden'); const limitedDataMessage = document.createElement('p'); limitedDataMessage.className = 'text-center text-sm text-gray-500 my-4 p-4 bg-yellow-100 rounded'; limitedDataMessage.textContent = '提示：此为旧版评分记录，部分详细信息无法显示。'; mainContent.insertBefore(limitedDataMessage, mainContent.querySelector('footer').previousSibling); }
 
-
-                // --- Populate Hidden Share Card (using ratingId for QR) ---
+                // --- Populate Hidden Share Card ---
                 const shareCardImage = document.getElementById('share-card-image');
                 const shareCardScore = document.getElementById('share-card-score');
                 const shareCardGradeBadge = document.getElementById('share-card-grade-badge');
@@ -373,39 +336,34 @@
                 const shareCardQrCode = document.getElementById('share-card-qrcode');
                 const gradeStyles = getGradeStyles(finalGrade.color);
 
-                // Populate text fields
                 if (shareCardScore) shareCardScore.textContent = normalizedScore.toFixed(2);
                 if (shareCardScore) shareCardScore.className = `text-5xl font-black ${gradeStyles.textColor}`;
                 if (shareCardGradeBadge) { shareCardGradeBadge.textContent = `${finalGrade.name_en} - ${finalGrade.name_cn}`; shareCardGradeBadge.className = `inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${gradeStyles.bgColor} ${gradeStyles.textColor} bg-opacity-20`; }
                 if (shareCardUsername) { shareCardUsername.textContent = userNickname; }
 
-                // Generate QR Code with unique URL (if ratingId is available)
                 if (shareCardQrCode && typeof QRCode !== 'undefined') {
                     shareCardQrCode.innerHTML = '';
-                    const uniqueUrl = ratingId ? `${window.location.origin}/results.html?ratingId=${ratingId}` : window.location.href; // Use specific URL if ID exists
+                    const uniqueUrl = ratingId ? `${window.location.origin}/results.html?ratingId=${ratingId}` : window.location.href;
                     console.log("Generating QR Code for URL:", uniqueUrl);
-                    new QRCode(shareCardQrCode, {
-                        text: uniqueUrl, width: 90, height: 90,
-                        colorDark : "#000000", colorLight : "#ffffff", correctLevel : QRCode.CorrectLevel.H
-                    });
+                    new QRCode(shareCardQrCode, { text: uniqueUrl, width: 90, height: 90, colorDark : "#000000", colorLight : "#ffffff", correctLevel : QRCode.CorrectLevel.H });
                 } else { console.error("QR Code container or library not found, or ratingId missing."); }
 
-                // Set cover image source and trigger auto-generation AFTER QR code is generated
+                // Set image source and trigger generation
                 if (images.length > 0 && shareCardImage) {
                      shareCardImage.src = `/api/image/${images[0]}`;
-                     shareCardImage.onload = () => { autoGenerateShareImage(); }; // Trigger auto-generation on load
-                     shareCardImage.onerror = () => { console.error("Share card cover image failed to load."); /* Do not attempt generation */ };
+                     shareCardImage.onload = () => { autoGenerateShareImage(); };
+                     shareCardImage.onerror = () => { console.error("Share card cover image failed to load."); };
                 } else {
                      document.getElementById('share-card-image-wrapper').innerHTML = '<span class="text-gray-400 text-sm">无封面图</span>';
                      console.warn("No cover image, cannot generate share image.");
                 }
 
                 // --- Show Content ---
-                loadingIndicator.classList.add('hidden'); // Hide loading
-                mainContent.style.display = 'block'; // Make content block visible
-                await new Promise(resolve => setTimeout(resolve, 50)); // Tiny delay
-                mainContent.classList.remove('opacity-0'); // Fade in
-                mainContent.classList.add('animate-fadeInUp'); // Animate
+                loadingIndicator.classList.add('hidden');
+                mainContent.style.display = 'block';
+                await new Promise(resolve => setTimeout(resolve, 50));
+                mainContent.classList.remove('opacity-0');
+                mainContent.classList.add('animate-fadeInUp');
 
             } catch (e) {
                 loadingIndicator.classList.add('hidden');
