@@ -26,7 +26,7 @@
     <style>
         /* CSS styles (omitted for brevity, remains the same) */
         .tooltip { position: relative; display: inline-block; } 
-        .tooltip .tooltiptext { visibility: hidden; width: auto; /* Adjusted for longer text */ white-space: nowrap; background-color: #555; color: #fff; text-align: center; border-radius: 6px; padding: 5px 8px; /* Adjusted padding */ position: absolute; z-index: 1; bottom: 125%; left: 50%; transform: translateX(-50%); opacity: 0; transition: opacity 0.3s; font-size: 10px; } 
+        .tooltip .tooltiptext { visibility: hidden; width: 60px; background-color: #555; color: #fff; text-align: center; border-radius: 6px; padding: 5px 0; position: absolute; z-index: 1; bottom: 125%; left: 50%; margin-left: -30px; opacity: 0; transition: opacity 0.3s; font-size: 10px; } 
         .tooltip .tooltiptext::after { content: ""; position: absolute; top: 100%; left: 50%; margin-left: -5px; border-width: 5px; border-style: solid; border-color: #555 transparent transparent transparent; } 
         .tooltip:hover .tooltiptext { visibility: visible; opacity: 1; }
         .swiper-container.main-swiper { width: 100%; position: relative; }
@@ -55,17 +55,14 @@
         #share-card-watermark { font-size: 0.55rem; color: #9ca3af; width: 65%; line-height: 1.1; margin: 0; }
         #share-card-qrcode { width: 32%; height: auto; background-color: white; padding: 0; border: 1px solid #eee; box-shadow: 0 0 2px rgba(0,0,0,0.1); }
         #share-card-qrcode img { display: block; width: 100%; height: 100%; }
-         /* Fade in animation - Keep definition even if unused temporarily */
-         @keyframes fadeInUp { from { opacity: 0; transform: translate3d(0, 20px, 0); } to { opacity: 1; transform: translate3d(0, 0, 0); } }
-         .animate-fadeInUp { animation: fadeInUp 0.5s ease-out forwards; }
     </style>
 </head>
 <body class="bg-gray-100 font-sans antialiased text-gray-800">
     <div class="max-w-6xl mx-auto p-4 md:p-8 relative">
         <div id="error-container" class="hidden bg-red-100 p-6 rounded-lg shadow-lg text-red-700 font-medium"></div>
-        <div id="loading-indicator" class="text-center py-10 text-gray-500" data-i18n="common.loadingDetails">正在加载评分详情...</div>
+        <div id="loading-indicator" class="hidden text-center py-10 text-gray-500" data-i18n="common.loadingDetails">正在加载评分详情...</div>
         
-        <div id="main-content" class="opacity-0" style="display: none;"> <!-- Initially hidden -->
+        <div id="main-content" class="opacity-0">
             <nav class="mb-6 flex flex-wrap justify-between items-center bg-white p-3 rounded-lg shadow-sm gap-4">
                  <a href="index.html" class="text-xl font-bold text-indigo-600" data-i18n="nav.title">Pistacho评分</a>
                  <div class="flex items-center space-x-4 flex-grow justify-center md:justify-start md:flex-grow-0 order-3 md:order-2 w-full md:w-auto">
@@ -112,6 +109,7 @@
                      <div id="cigar-review-container" class="prose prose-sm max-w-none text-gray-700 border-t pt-4">
                      </div>
                      <div id="selected-flavors-container" class="hidden pt-2">
+                         <!-- --- 修复 #1 --- -->
                          <h4 class="text-sm font-semibold text-gray-600 mb-2" data-i18n="resultsPage.flavors">主要风味:</h4>
                          <div id="flavors-display" class="flex flex-wrap"></div>
                      </div>
@@ -122,7 +120,7 @@
             </section>
 
              <div id="save-button-container" class="hidden mb-6">
-                 <button id="save-rating-button" onclick="saveRating()" class="w-full py-3 px-6 bg-green-600 text-white font-bold text-lg rounded-lg shadow-md hover:bg-green-700 transition" data-i18n="resultsPage.saveRating">
+                 <button id="save-rating-button" onclick="saveRating()" class="w-full py-3 px-6 bg-green-600 text-white font-bold text-lg rounded-lg shadow-md hover:bg-green-700 transition" data-i18n="resultsPage.saveRating"> <!-- Changed key -->
                      保存为我的评分记录
                  </button>
              </div>
@@ -131,6 +129,7 @@
                  <details id="narrative-summary-details" class="group bg-white rounded-xl shadow-lg p-6 transition-all duration-300" open>
                      <summary class="flex justify-between items-center cursor-pointer font-bold text-lg text-gray-800">
                          <span>
+                             <!-- --- 修复 #2 --- -->
                              <span data-i18n="resultsPage.narrativeTitle">综合评价</span>
                              <svg class="inline w-5 h-5 transform group-open:rotate-180 transition-transform ml-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
                          </span>
@@ -138,6 +137,7 @@
                              <button id="copy-summary-button" onclick="copySummary(event)" class="ml-4 p-1.5 bg-gray-100 text-gray-600 rounded-full hover:bg-gray-200 transition text-xs">
                                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"> <path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /> </svg>
                              </button>
+                             <!-- --- 修复 #3 --- -->
                              <span id="copy-tooltip" class="tooltiptext" data-i18n="resultsPage.copy">复制</span>
                          </div>
                      </summary>
@@ -145,6 +145,7 @@
                  </details>
                  <details id="summary-details" class="group bg-white rounded-xl shadow-lg p-6">
                      <summary class="flex justify-between items-center cursor-pointer font-bold text-lg text-gray-800">
+                         <!-- --- 修复 #4 --- -->
                          <span data-i18n="resultsPage.detailsTitle">评分详情汇总</span>
                          <svg class="w-5 h-5 transform group-open:rotate-180 transition-transform" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
                      </summary>
@@ -179,7 +180,7 @@
     </div>
 
     <script type="module">
-        // --- Constants and Global Vars --- (remains the same)
+        // --- Constants and Global Vars ---
         const GRADING_SCALE = [
             { "grade": "P", "nameKey": "resultsPage.grade.P", "min_score": 95, "color": "gold" },
             { "grade": "I", "nameKey": "resultsPage.grade.I", "min_score": 90, "color": "indigo" },
@@ -199,297 +200,435 @@
         let mainSwiper = null; 
         let thumbnailSwiper = null;
 
-        // --- i18n Initialization Functions --- (remains the same)
-        async function initI18n() { /* ... */ }
-        function updateContent() { /* ... */ }
-        function setupLanguageSwitcher() { /* ... */ }
+        // --- i18n Initialization Functions ---
+        async function initI18n() {
+            await i18next
+                .use(i18nextHttpBackend)
+                .use(i18nextBrowserLanguageDetector)
+                .init({
+                    fallbackLng: 'zh',
+                    debug: false,
+                    ns: ['translation'],
+                    defaultNS: 'translation',
+                    backend: {
+                        loadPath: '/locales/{{lng}}.json'
+                    },
+                    detection: {
+                        order: ['localStorage', 'navigator'],
+                        caches: ['localStorage']
+                    }
+                });
+            document.title = i18next.t('resultsPage.pageTitle');
+        }
+
+        function updateContent() {
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                const value = i18next.t(key);
+                if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+                    el.placeholder = value;
+                } else if (el.tagName === 'OPTION') {
+                    el.textContent = value;
+                } else {
+                    // Check if the element is the tooltip span specifically
+                    if (el.id === 'copy-tooltip') {
+                         el.textContent = value; // Use textContent for the tooltip span
+                    } else {
+                         el.innerHTML = value; // Use innerHTML for others
+                    }
+                }
+            });
+        }
+
+
+        function setupLanguageSwitcher() {
+            const switcher = document.getElementById('language-switcher');
+            if (!switcher) return;
+            const currentLang = i18next.language.split('-')[0];
+            switcher.value = ['zh', 'en', 'es'].includes(currentLang) ? currentLang : 'zh';
+            switcher.addEventListener('change', async (e) => {
+                const newLang = e.target.value;
+                await i18next.changeLanguage(newLang);
+                updateContent();
+                document.title = i18next.t('resultsPage.pageTitle');
+                renderLoginStatus(currentAuthUser);
+                if (resultsData) {
+                    renderPageContent(resultsData);
+                }
+            });
+        }
 
         // --- Authentication --- (remains the same)
-        window.login = function() { /* ... */ }
-        window.logout = function() { /* ... */ }
-        function renderLoginStatus(user) { /* ... */ }
-        async function handleOidcCallback(code) { /* ... */ }
-        async function validateSessionAndGetUser() { /* ... */ }
+        window.login = function() { const redirectUri = window.location.origin; const authorizeUrl = new URL('/oidc/auth', AUTHING_HOST); authorizeUrl.search = new URLSearchParams({ client_id: AUTHING_APP_ID, redirect_uri: redirectUri, response_type: 'code', scope: 'openid profile email phone', state: Math.random().toString(36).substring(2) }).toString(); window.location.href = authorizeUrl.toString(); }
+        window.logout = function() { const logoutUrl = new URL('/oidc/session/end', AUTHING_HOST); logoutUrl.search = new URLSearchParams({ post_logout_redirect_uri: window.location.origin }).toString(); sessionStorage.removeItem('userInfo'); sessionStorage.removeItem('accessToken'); window.location.href = logoutUrl.toString(); }
+        
+        function renderLoginStatus(user) {
+            const container = document.getElementById('login-status-container'); 
+            if (!container) return; 
+            if (user) { 
+                const displayName = user.nickname || user.name || user.preferred_username || user.email || i18next.t('nav.loggedIn');
+                container.innerHTML = `<span class="text-sm font-medium text-gray-700 mr-2 hidden sm:inline">${displayName}</span><button onclick="logout()" class="px-3 py-1 text-xs font-medium rounded-full bg-red-500 text-white hover:bg-red-600">${i18next.t('nav.logout')}</button>`; 
+            } else { 
+                container.innerHTML = `<button onclick="login()" class="px-3 py-1 text-xs font-medium rounded-full bg-green-500 text-white hover:bg-green-600">${i18next.t('nav.login')}</button>`; 
+            } 
+        }
 
-        // --- Main Functions --- (saveRating, copySummary, initSwipers, autoGenerateShareImage remain the same)
-        window.saveRating = async function() { /* ... */ };
-        window.copySummary = function(event) { /* ... */ };
-        function initSwipers(imageUrls = []) { /* ... */ }
-        async function autoGenerateShareImage() { /* ... */ }
+        async function handleOidcCallback(code) { 
+            try { 
+                const redirectUri = window.location.origin; 
+                const apiUrl = new URL('/api/authing/callback', window.location.origin); 
+                const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: code, redirect_uri: redirectUri }) }); 
+                if (!response.ok) { 
+                    let errorText = i18next.t('errors.authCallbackFailed', { status: response.status });
+                    try { const err = await response.json(); errorText = err.error || errorText; } catch(e){} 
+                    throw new Error(errorText); 
+                } 
+                const fullUserProfile = await response.json(); 
+                sessionStorage.setItem('userInfo', JSON.stringify(fullUserProfile)); 
+                sessionStorage.setItem('accessToken', fullUserProfile.accessToken); 
+                return fullUserProfile; 
+            } catch (e) { 
+                console.error('认证回调处理失败:', e); 
+                alert(i18next.t('errors.loginFailed', { message: e.message }));
+                sessionStorage.removeItem('userInfo'); 
+                sessionStorage.removeItem('accessToken'); 
+                return null; 
+            } finally { 
+                window.history.replaceState({}, document.title, window.location.pathname + window.location.search.replace(/&?code=[^&]*/, '').replace(/&?state=[^&]*/, '')); 
+            } 
+        }
+        async function validateSessionAndGetUser() { const token = sessionStorage.getItem('accessToken'); if (!token) return null; try { const apiUrl = new URL('/api/me', window.location.origin); const response = await fetch(apiUrl, { headers: { 'Authorization': `Bearer ${token}` } }); if (!response.ok) { sessionStorage.removeItem('userInfo'); sessionStorage.removeItem('accessToken'); return null; } const fullUserProfile = await response.json(); sessionStorage.setItem('userInfo', JSON.stringify(fullUserProfile)); return fullUserProfile; } catch (e) { console.error("Session validation failed:", e); return null; } }
+
+        // --- Main Functions --- (saveRating remains the same)
+        window.saveRating = async function() { 
+            const token = sessionStorage.getItem('accessToken');
+            if (!currentAuthUser || !token) {
+                return alert(i18next.t('common.loginRequired'));
+            }
+            if (!resultsData || !resultsData.isDraft) {
+                return alert(i18next.t('errors.notADraft'));
+            }
+            
+            const button = document.getElementById('save-rating-button');
+            button.textContent = i18next.t('common.saving');
+            button.disabled = true;
+
+            try {
+                const apiUrl = new URL('/api/ratings', window.location.origin);
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify(resultsData)
+                });
+                if (!response.ok) { const err = await response.json(); throw new Error(err.error || i18next.t('errors.saveFailedNoMsg')); }
+                const saveResult = await response.json();
+                const newRatingId = saveResult.id; 
+                alert(i18next.t('common.saveSuccess'));
+                sessionStorage.removeItem('cigarRatingResults'); 
+                button.textContent = i18next.t('common.saveSuccess');
+                button.classList.remove('bg-green-600', 'hover:bg-green-700');
+                button.classList.add('bg-gray-400', 'cursor-not-allowed');
+                if (newRatingId) {
+                    ratingId = newRatingId;
+                    resultsData.isDraft = false;
+                    const newUrl = new URL(window.location.href);
+                    newUrl.searchParams.set('ratingId', newRatingId);
+                    window.history.replaceState({}, document.title, newUrl.toString());
+                }
+            } catch (e) {
+                console.error("保存评分失败:", e);
+                alert(i18next.t('common.saveFailed', { msg: e.message }));
+                button.textContent = i18next.t('resultsPage.saveRating'); // Use correct key
+                button.disabled = false;
+            }
+        };
         
-        // --- renderPageContent --- (Checks remain)
-        function renderPageContent(data) { /* ... */ }
+        // copySummary remains the same
+        window.copySummary = function(event) { 
+            event.preventDefault();
+            event.stopPropagation();
+            const summaryText = document.getElementById('narrative-summary-container').textContent || '';
+            const tooltip = document.getElementById('copy-tooltip');
+            navigator.clipboard.writeText(summaryText.trim()).then(() => {
+                tooltip.textContent = i18next.t('common.copied'); 
+                setTimeout(() => { tooltip.textContent = i18next.t('resultsPage.copy'); }, 2000); // Reset using correct key
+            }, (err) => {
+                console.error('Could not copy text: ', err);
+                tooltip.textContent = i18next.t('common.copyFailed'); 
+                setTimeout(() => { tooltip.textContent = i18next.t('resultsPage.copy'); }, 2000); // Reset using correct key
+            });
+        };
+
+        // initSwipers remains the same
+        function initSwipers(imageUrls = []) {
+             const mainWrapper = document.getElementById('main-swiper-wrapper'); 
+             const thumbWrapper = document.getElementById('thumbnail-swiper-wrapper'); 
+             const thumbContainer = document.querySelector('.thumbnail-swiper');
+             mainWrapper.innerHTML = ''; 
+             thumbWrapper.innerHTML = '';
+             if (!imageUrls || imageUrls.length === 0) { 
+                 mainWrapper.innerHTML = `<div class="swiper-slide flex items-center justify-center text-gray-400 aspect-[1179/1572]">${i18next.t('common.noImage')}</div>`; 
+                 thumbContainer.classList.add('hidden'); 
+                 if(mainSwiper) mainSwiper.destroy(true, true); 
+                 if(thumbnailSwiper) thumbnailSwiper.destroy(true, true); 
+                 mainSwiper = null; thumbnailSwiper = null; 
+                 return; 
+             }
+             imageUrls.forEach(key => {
+                 const imageUrl = `/api/image/${key}`;
+                 const imgElement = `<img src="${imageUrl}" alt="${i18next.t('common.cigarImageAlt')}" crossorigin="anonymous" onerror="this.src='https://placehold.co/600x800/gray/white?text=Loading+Failed'; this.onerror=null;">`;
+                 mainWrapper.innerHTML += `<div class="swiper-slide">${imgElement}</div>`;
+                 thumbWrapper.innerHTML += `<div class="swiper-slide thumbnail-slide">${imgElement}</div>`;
+             });
+             if(mainSwiper) mainSwiper.destroy(true, true); 
+             if(thumbnailSwiper) thumbnailSwiper.destroy(true, true);
+             
+             const hasMultipleItems = imageUrls.length > 1;
+             if (hasMultipleItems) {
+                 thumbContainer.classList.remove('hidden');
+                 thumbnailSwiper = new Swiper('.thumbnail-swiper', { spaceBetween: 10, slidesPerView: 'auto', freeMode: true, watchSlidesProgress: true, });
+                 mainSwiper = new Swiper('.main-swiper', {
+                     spaceBetween: 10, autoHeight: true,
+                     navigation: { nextEl: '.swiper-button-next', prevEl: '.swiper-button-prev', },
+                     pagination: { el: '.main-swiper .swiper-pagination', clickable: true, },
+                     thumbs: { swiper: thumbnailSwiper, },
+                 });
+             } else {
+                 thumbContainer.classList.add('hidden');
+                 mainSwiper = new Swiper('.main-swiper', { autoHeight: true, pagination: { el: '.main-swiper .swiper-pagination', clickable: true, }, allowTouchMove: false });
+             }
+        }
+
+        // autoGenerateShareImage remains the same
+        async function autoGenerateShareImage() {
+            const shareCardElement = document.getElementById('share-card-container');
+            const coverImageElement = document.getElementById('share-card-image');
+            const mainSwiperWrapper = document.getElementById('main-swiper-wrapper');
+            if (!shareCardElement || !coverImageElement || !html2canvas || !resultsData || !mainSwiperWrapper || !ratingId) {
+                console.warn("无法自动生成分享图：缺少必要组件或 ratingId。"); return;
+            }
+            const coverImageUrl = coverImageElement.src;
+            if (!coverImageUrl || coverImageUrl.includes('placehold.co') || !coverImageElement.complete || coverImageElement.naturalWidth === 0) {
+                 console.warn("封面图片未加载或无效，无法自动生成分享图。"); return;
+            }
+            shareCardElement.style.visibility = 'visible';
+            try {
+                await new Promise(resolve => setTimeout(resolve, 300));
+                const canvas = await html2canvas(shareCardElement, { useCORS: true, allowTaint: true, scale: 2 });
+                const dataUrl = canvas.toDataURL('image/png');
+                const newSlide = document.createElement('div');
+                newSlide.className = 'swiper-slide share-image-slide';
+                newSlide.innerHTML = `<img src="${dataUrl}" alt="${i18next.t('resultsPage.shareImageAlt')}">`;
+                mainSwiperWrapper.appendChild(newSlide);
+                if (mainSwiper) mainSwiper.update();
+            } catch (error) {
+                console.error("自动生成或添加分享图片失败:", error);
+            } finally {
+                 shareCardElement.style.visibility = 'hidden';
+            }
+        }
         
-        // --- window.onload --- (Logging removed for clarity, try/catch around renderPageContent is key)
+        // renderPageContent remains mostly the same, just the error part was fixed previously
+        function renderPageContent(data) {
+            if (!data) return;
+            
+            const { cigarInfo, cigarReview, normalizedScore, isDraft, selectedFlavors = [] } = data;
+            const title = data.title || i18next.t('common.noTitle');
+            const userNickname = data.userNickname || data.userEmail || i18next.t('common.anonymous');
+            
+            const foundGrade = GRADING_SCALE.find(g => normalizedScore >= g.min_score) || GRADING_SCALE[GRADING_SCALE.length - 1];
+            const finalGrade = {
+                grade: foundGrade.grade,
+                name: i18next.t(foundGrade.nameKey), 
+                color: foundGrade.color
+            };
+
+             document.getElementById('user-nickname').textContent = userNickname;
+             document.getElementById('rating-title').textContent = title;
+             document.getElementById('cigar-name').textContent = cigarInfo.name;
+             document.getElementById('cigar-size').textContent = cigarInfo.size;
+             document.getElementById('cigar-origin').textContent = cigarInfo.origin;
+             
+             const reviewContainer = document.getElementById('cigar-review-container');
+             reviewContainer.innerHTML = (cigarReview && cigarReview.trim()) 
+                ? `<p>${cigarReview}</p>` 
+                : `<p class="text-gray-400 italic">${i18next.t('common.noReview')}</p>`;
+             
+             const flavorsContainer = document.getElementById('selected-flavors-container'); 
+             if (selectedFlavors.length > 0) { 
+                 document.getElementById('flavors-display').innerHTML = selectedFlavors.map(f => `<span class="flavor-tag">${f}</span>`).join(''); 
+                 flavorsContainer.classList.remove('hidden'); 
+             } else { 
+                 flavorsContainer.classList.add('hidden'); 
+             }
+
+            renderScoreSection(document.getElementById('score-section'), normalizedScore, finalGrade);
+            
+            const saveButtonContainer = document.getElementById('save-button-container'); 
+            saveButtonContainer.style.display = (currentAuthUser && isDraft) ? 'block' : 'none';
+
+            const hasFullData = data.config && data.ratings;
+            ['narrative-summary-details', 'summary-details'].forEach(id => {
+                document.getElementById(id).style.display = hasFullData ? 'block' : 'none';
+            });
+            
+            if (hasFullData) { 
+                document.getElementById('narrative-summary-container').innerHTML = generateNarrativeSummary(cigarInfo, data.config, data.ratings, finalGrade, selectedFlavors); 
+                renderSummary(document.getElementById('summary-container'), data.config, data.ratings); 
+            }
+
+            // Populate Hidden Share Card
+            const shareCardImage = document.getElementById('share-card-image');
+            const gradeStyles = getGradeStyles(finalGrade.color); 
+            document.getElementById('share-card-score').className = `text-5xl font-black ${gradeStyles.textColor}`; // Fixed here
+            document.getElementById('share-card-grade-badge').className = `inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${gradeStyles.bgColor} ${gradeStyles.textColor} bg-opacity-20`;
+            document.getElementById('share-card-score').textContent = normalizedScore.toFixed(2);
+            document.getElementById('share-card-grade-badge').textContent = finalGrade.name;
+            document.getElementById('share-card-watermark').innerHTML = i18next.t('resultsPage.shareCard.userRatingOn', { // Using correct key structure
+                user: `<span id="share-card-username">${userNickname}</span>`
+            });
+            
+            const shareCardQrCode = document.getElementById('share-card-qrcode');
+            if (shareCardQrCode && typeof QRCode !== 'undefined') {
+                shareCardQrCode.innerHTML = '';
+                const uniqueUrl = ratingId ? `${window.location.origin}/results.html?ratingId=${ratingId}` : window.location.href;
+                new QRCode(shareCardQrCode, { text: uniqueUrl, width: 90, height: 90 });
+            } else if (!ratingId && typeof QRCode !== 'undefined') {
+                console.warn(i18next.t('resultsPage.shareCard.qrError'));
+            }
+            
+            const images = data.imageUrls || [];
+            if (images.length > 0) {
+                 shareCardImage.src = `/api/image/${images[0]}`;
+            } else {
+                 document.getElementById('share-card-image-wrapper').innerHTML = `<span class="text-gray-400 text-sm">${i18next.t('resultsPage.shareCard.noCover')}</span>`; // Using correct key structure
+            }
+        }
+
+        // window.onload remains the same
         window.onload = async function() {
-            // console.log("[window.onload] Page loading started."); // Keep if needed
+            await initI18n();
+            updateContent();
+
             const errorContainer = document.getElementById('error-container');
             const mainContent = document.getElementById('main-content');
             const loadingIndicator = document.getElementById('loading-indicator');
-            
-            const showError = (message, errorObj = null) => {
-                 console.error("[window.onload] showError called:", message, errorObj); 
-                 loadingIndicator.style.display = 'none'; 
-                 mainContent.style.display = 'none'; 
-                 const errorTitle = i18next?.t('errors.pageLoadError') || "Page Load Error"; 
-                 const backLink = i18next?.t('common.backToCommunity') || "Back to Community";
-                 errorContainer.innerHTML = `<p class="font-bold text-center">${errorTitle}: ${message} <a href="index.html" class="text-indigo-600 underline">${backLink}</a></p>`;
-                 if (errorObj) { 
-                    errorContainer.innerHTML += `<pre class="text-xs text-red-600 mt-2 whitespace-pre-wrap">${errorObj.stack || JSON.stringify(errorObj)}</pre>`;
-                 }
-                 errorContainer.classList.remove('hidden');
-            };
+            const urlParams = new URLSearchParams(window.location.search);
+            const code = urlParams.get('code');
+            ratingId = urlParams.get('ratingId');
+
+            let user = code ? await handleOidcCallback(code) : await validateSessionAndGetUser();
+            currentAuthUser = user;
+            renderLoginStatus(currentAuthUser);
+            setupLanguageSwitcher();
+
+            loadingIndicator.classList.remove('hidden');
 
             try {
-                // --- Initialization ---
-                loadingIndicator.classList.remove('hidden'); 
-                mainContent.style.display = 'none';
-                errorContainer.classList.add('hidden');
-                
-                // console.log("[window.onload] Initializing i18n...");
-                await initI18n();
-                updateContent(); 
-                // console.log("[window.onload] i18n initialized.");
-
-                const urlParams = new URLSearchParams(window.location.search);
-                const code = urlParams.get('code');
-                ratingId = urlParams.get('ratingId');
-                // console.log(`[window.onload] URL Params: code=${code}, ratingId=${ratingId}`);
-
-                // --- Auth ---
-                // console.log("[window.onload] Validating session/handling callback...");
-                let user = code ? await handleOidcCallback(code) : await validateSessionAndGetUser();
-                currentAuthUser = user;
-                // console.log("[window.onload] User:", currentAuthUser);
-                renderLoginStatus(currentAuthUser); 
-                setupLanguageSwitcher(); 
-                // console.log("[window.onload] Auth handled, UI updated.");
-
-                // --- Data Loading ---
-                // console.log("[window.onload] Starting data loading...");
-                if (ratingId) { 
-                    // console.log(`[window.onload] Fetching rating by ID: ${ratingId}`); 
+                if (ratingId) {
                     const token = sessionStorage.getItem('accessToken');
                     const apiUrl = new URL(`/api/ratings?id=${ratingId}`, window.location.origin);
                     const fetchOptions = token ? { headers: { 'Authorization': `Bearer ${token}` } } : {};
                     const response = await fetch(apiUrl, fetchOptions);
-                    // console.log(`[window.onload] Fetch response status: ${response.status}`); 
                     if (!response.ok) throw new Error(i18next.t('errors.loadRatingFailed', { status: response.status }));
                     resultsData = await response.json();
-                     // console.log("[window.onload] Rating data fetched successfully:", resultsData); 
-                } else { 
-                    // console.log("[window.onload] Loading rating from sessionStorage...");
-                     let storedDataRaw = null;
-                     try {
-                         storedDataRaw = sessionStorage.getItem('cigarRatingResults');
-                         // console.log("[window.onload] Raw data from sessionStorage:", storedDataRaw);
-                     } catch (storageError) {
-                         console.error("[window.onload] Error reading from sessionStorage:", storageError);
-                         throw new Error("无法读取会话存储。");
-                     }
-                     if (!storedDataRaw) {
-                        console.error("[window.onload] No data found in sessionStorage for 'cigarRatingResults'.");
-                        throw new Error("No rating data found in session storage."); 
-                     }
-                     try {
-                        resultsData = JSON.parse(storedDataRaw); 
-                     } catch (parseError) {
-                         console.error("[window.onload] Error parsing JSON from sessionStorage:", parseError, "Raw data:", storedDataRaw);
-                         throw new Error("无法解析会话中的评分数据。");
-                     }
-                     ratingId = resultsData?.ratingId; 
-                     // console.log(`[window.onload] Rating data loaded from session. Rating ID: ${ratingId}`);
+                } else {
+                    const storedData = sessionStorage.getItem('cigarRatingResults');
+                    if (!storedData) throw new Error(i18next.t('errors.noRatingDataFound'));
+                    resultsData = JSON.parse(storedData);
+                    ratingId = resultsData.ratingId; // Get ratingId if loaded from session
                 }
-
-                // console.log("[window.onload] Inspecting resultsData AFTER loading:", resultsData);
-                // console.log("[window.onload] Inspecting resultsData.finalGrade before rendering:", resultsData?.finalGrade);
 
                 if (!resultsData || resultsData.normalizedScore === undefined) { 
-                    console.error("[window.onload] Loaded data is invalid or missing score.", resultsData);
-                    throw new Error(i18next.t('errors.missingEssentialData')); 
+                    throw new Error(i18next.t('errors.missingEssentialData'));
                 }
                 
-                // --- Content Rendering (Wrapped in try/catch) --- 
-                // console.log("[window.onload] Starting Content Rendering block...");
-                try {
-                    // console.log("[window.onload] Initializing Swipers..."); 
-                    initSwipers(resultsData.imageUrls || []); 
-                    // console.log("[window.onload] Calling renderPageContent..."); 
-                    renderPageContent(resultsData); 
-                    // console.log("[window.onload] renderPageContent finished."); 
-                } catch (renderError) {
-                     console.error("[window.onload] Error during CONTENT RENDERING:", renderError);
-                     throw new Error(`渲染页面内容时出错: ${renderError.message}`); 
-                }
+                initSwipers(resultsData.imageUrls || []);
+                renderPageContent(resultsData);
 
-                // --- Share Image Generation --- 
-                // console.log("[window.onload] Setting up share card generation...");
+                // Wait for the share card's image to potentially load before generating the canvas
                 const shareImg = document.getElementById('share-card-image');
-                if (shareImg && shareImg.src && !shareImg.src.includes('placehold.co')) { 
-                    // console.log("[window.onload] Share card image source found. Setting up onload handler."); 
-                    shareImg.onload = () => { /* console.log("[shareImg.onload] Triggered.");*/ autoGenerateShareImage(); };
-                    shareImg.onerror = () => console.warn("[shareImg.onerror] Share card image failed to load, cannot generate share image.");
-                    if(shareImg.complete) {
-                         // console.log("[window.onload] Share card image already complete. Calling autoGenerateShareImage directly.");
-                         autoGenerateShareImage();
+                if (shareImg.src && !shareImg.src.includes('placehold.co')) {
+                    if (shareImg.complete) {
+                        autoGenerateShareImage();
+                    } else {
+                        shareImg.onload = autoGenerateShareImage;
+                        shareImg.onerror = () => console.warn("Share card image failed to load, cannot generate share image.");
                     }
-                } else if (ratingId) { 
-                     console.warn("[window.onload] No valid share card image source found. Attempting generation anyway."); 
+                } else if (ratingId) { // Only generate if it's a saved rating (has ID)
+                     console.warn(i18next.t('resultsPage.shareCard.noCover')); // Using correct key structure
+                     // Still attempt to generate, might show placeholder
                      autoGenerateShareImage();
-                } else {
-                     // console.log("[window.onload] No image source and not a saved rating, skipping share image generation.");
                 }
 
-                // --- **Final Step: Show Content** --- 
-                // console.log("[window.onload] Hiding loader and showing main content..."); 
-                loadingIndicator.style.display = 'none'; 
-                mainContent.style.display = 'block'; 
-                mainContent.classList.remove('opacity-0'); // Directly remove opacity-0
-                // console.log("[window.onload] Page load sequence finished successfully.");
+
+                loadingIndicator.classList.add('hidden');
+                mainContent.classList.remove('opacity-0');
 
             } catch (e) {
-                // Catch ANY error during the process and display it
-                console.error("[window.onload] CRITICAL ERROR during page load:", e);
-                showError(e.message || "未知错误", e); 
+                loadingIndicator.classList.add('hidden');
+                const errorTitle = i18next.t('errors.pageLoadError');
+                const backLink = i18next.t('common.backToCommunity');
+                errorContainer.innerHTML = `<p class="font-bold text-center">${errorTitle}: ${e.message} <a href="index.html" class="text-indigo-600 underline">${backLink}</a></p>`;
+                errorContainer.classList.remove('hidden');
+                console.error("Results page error:", e);
             }
         };
 
-        // --- Rendering Utilities ---
-
-        // --- getRatingId function --- 
-        function getRatingId(category, criterion) {
-             const catStr = String(category || '').trim(); 
-             const critStr = String(criterion || '').trim(); 
-             if (!catStr || !critStr) { return null; }
-             return `${catStr}-${critStr}`; 
-        }
-
-        // --- **FIXED: generateNarrativeSummary** ---
+        // --- Rendering Utilities --- (generateNarrativeSummary, renderSummary, getScoreRange, getGradeStyles, renderScoreSection remain the same)
         function generateNarrativeSummary(cigarInfo, config, ratings, finalGrade, selectedFlavors) {
-             console.log("[generateNarrativeSummary] Start..."); 
-             if (!config || !config.ratingCriteria || !ratings) { 
-                 console.error("[generateNarrativeSummary] Missing config or ratings data.");
-                 return `<p class="text-gray-500 italic">${i18next.t('errors.noNarrativeData')}</p>`;
-             }
-             const { origin = i18next.t('common.unknown'), name = i18next.t('common.unknown'), size = i18next.t('common.unknown') } = cigarInfo || {}; 
-             let summary = `<p class="text-base text-gray-700 leading-relaxed">`; // Ensure base paragraph tag exists
-             
-             summary += i18next.t('resultsPage.narrative.part1', { origin, name, size }); 
-             
-             let observations = [];
-             try { 
-                 (config.ratingCriteria || []).forEach(category => {
-                     // **Use category.category (original name) for lookup ID**
-                     const originalCategoryName = category.category; 
-                     (category.criteriaList || []).forEach(criterion => { 
-                         // **Use criterion.name (original name) for lookup ID**
-                         const originalCriterionName = criterion.name;   
-                         const id = getRatingId(originalCategoryName, originalCriterionName); 
-                         if (!id) { 
-                              console.warn(`[generateNarrativeSummary] Could not generate ID for`, { category, criterion });
-                              return; 
-                         }
-                         const selectedOptionIndex = ratings[id]; 
-                         
-                         if (selectedOptionIndex !== undefined && typeof selectedOptionIndex === 'number' && selectedOptionIndex >= 0) { 
-                             const option = criterion.options?.[selectedOptionIndex]; 
-                             // **Use keys OR original names for translation/display**
-                             const descriptionIdentifier = option?.descriptionKey || option?.description; 
-                             const criterionIdentifier = criterion.nameKey || criterion.name; 
-                             if (descriptionIdentifier && criterionIdentifier && option) { 
-                                 observations.push(i18next.t('resultsPage.narrative.observation', { 
-                                     criterion: i18next.t(criterionIdentifier), // Translate identifier
-                                     option: i18next.t(descriptionIdentifier)  // Translate identifier
-                                 }));
-                             } else {
-                                  console.warn(`[generateNarrativeSummary] Incomplete data for criterion ${criterionIdentifier} at index ${selectedOptionIndex}`);
-                             }
-                         }
-                     });
-                 });
-             } catch (iterError) {
-                  console.error("[generateNarrativeSummary] Error during iteration:", iterError);
-             }
-             
-             if (observations.length > 0) { summary += ` ${i18next.t('resultsPage.narrative.part2', { observations: observations.join('；') })}`; } 
-             else { summary += ` ${i18next.t('resultsPage.narrative.noObservations')}`; }
-             if (selectedFlavors && selectedFlavors.length > 0) { summary += ` ${i18next.t('resultsPage.narrative.part3', { flavors: selectedFlavors.join(', ') })}`; }
-             if (finalGrade && finalGrade.grade && finalGrade.name) {
-                 const hierarchy = GRADING_SCALE.map(g => `${g.grade}(${i18next.t(g.nameKey)})`).join(', ');
-                 summary += ` ${i18next.t('resultsPage.narrative.part4', { grade: finalGrade.grade, gradeName: finalGrade.name, hierarchy: hierarchy })}`; 
-             } else { console.warn("[generateNarrativeSummary] Missing finalGrade information."); }
-             summary += `</p>`;
-             console.log("[generateNarrativeSummary] Finished. Summary:", summary); 
-             return summary; 
+            if (!config || !ratings) return `<p class="text-gray-500 italic">${i18next.t('errors.noNarrativeData')}</p>`;
+            const { origin = i18next.t('common.unknown'), name = i18next.t('common.unknown'), size = i18next.t('common.unknown') } = cigarInfo;
+            let summary = `<p>${i18next.t('resultsPage.narrative.part1', { origin, name, size })}`; 
+            let observations = [];
+            (config.ratingCriteria || []).forEach(category => {
+                (category.criteriaList || []).forEach(criterion => {
+                    const id = `${category.categoryKey}-${criterion.nameKey}`; 
+                    const selectedOptionIndex = ratings[id];
+                    if (selectedOptionIndex !== undefined) {
+                        const option = criterion.options[selectedOptionIndex];
+                        observations.push(i18next.t('resultsPage.narrative.observation', { 
+                            criterion: i18next.t(criterion.nameKey), 
+                            option: i18next.t(option.descriptionKey) 
+                        }));
+                    }
+                });
+            });
+            if (observations.length > 0) { summary += ` ${i18next.t('resultsPage.narrative.part2', { observations: observations.join('；') })}`; } 
+            else { summary += ` ${i18next.t('resultsPage.narrative.noObservations')}`; }
+            if (selectedFlavors.length > 0) { summary += ` ${i18next.t('resultsPage.narrative.part3', { flavors: selectedFlavors.join(', ') })}`; }
+            const hierarchy = GRADING_SCALE.map(g => `${g.grade}(${i18next.t(g.nameKey)})`).join(', ');
+            summary += ` ${i18next.t('resultsPage.narrative.part4', { grade: finalGrade.grade, gradeName: finalGrade.name, hierarchy: hierarchy })}`; 
+            summary += `</p>`;
+            return summary;
         }
 
-        // --- **FIXED: renderSummary** ---
         function renderSummary(container, config, ratings) {
-             console.log("[renderSummary] Start..."); 
-             if (!container || !config || !config.ratingCriteria || !ratings || typeof ratings !== 'object' || Object.keys(ratings).length === 0) { 
-                 container.innerHTML = `<p class="text-gray-500 italic">${i18next.t('errors.noSummaryData')}</p>`; 
-                 console.warn("renderSummary: Aborting - Missing container, config, ratingCriteria, or ratings data.", { config, ratings });
-                 return; 
-             } 
-            
-             let summaryHtml = '';
-             try { 
-                 summaryHtml = (config.ratingCriteria || []).map(category => {
-                     // **Use category.category (original name) for lookup ID**
-                     const originalCategoryName = category.category; 
-                     // **Use key OR original name for display**
-                     const categoryDisplayIdentifier = category.categoryKey || category.category; 
-                     if (!categoryDisplayIdentifier) { return ''; }
-
-                     const criteriaHtml = (category.criteriaList || []).map(criterion => {
-                         // **Use criterion.name (original name) for lookup ID**
-                         const originalCriterionName = criterion.name;
-                         // **Use key OR original name for display**
-                         const criterionDisplayIdentifier = criterion.nameKey || criterion.name; 
-                         if (!criterionDisplayIdentifier) { return ''; }
-                         
-                         // **Generate ID using original names**
-                         const id = getRatingId(originalCategoryName, originalCriterionName);
-                         if (!id) return ''; 
-
-                         const selectedOptionIndex = ratings[id]; // Use the generated ID
-                         
-                         if (selectedOptionIndex !== undefined && typeof selectedOptionIndex === 'number' && selectedOptionIndex >= 0) { 
-                             const option = criterion.options?.[selectedOptionIndex]; 
-                             // **Use key OR original description for display**
-                             const descriptionDisplayIdentifier = option?.descriptionKey || option?.description; 
-                             
-                             if (option && descriptionDisplayIdentifier) { 
-                                 // **Translate identifiers for display**
-                                 return `<li class="flex justify-between items-center p-1"><div><span class="font-medium text-gray-700">${i18next.t(criterion.nameKey || criterion.name)}:</span><span class="text-gray-500 ml-2">${i18next.t(option.descriptionKey || option.description)}</span></div></li>`; 
-                             } else {
-                                  console.warn(`[renderSummary] Incomplete option data for criterion "${criterionDisplayIdentifier}" at index ${selectedOptionIndex}. Option found:`, option); 
-                             }
-                         } 
-                         return ''; 
-                     }).join(''); 
-                     
-                     if (criteriaHtml.trim()) { 
-                         // **Translate category identifier for display**
-                         return `<div class="mb-4"><h4 class="text-md font-semibold text-gray-600 mb-2 border-b pb-1">${i18next.t(category.categoryKey || category.category)}</h4><ul class="list-none space-y-1 text-sm">${criteriaHtml}</ul></div>`; 
-                     } 
-                     return ''; 
-                 }).join(''); 
-             } catch (iterError) {
-                  console.error("[renderSummary] Error during iteration:", iterError);
-                  summaryHtml = `<p class="text-red-500">${i18next.t('errors.renderDetailsFailed')}</p>`; 
-             }
-            
-             container.innerHTML = summaryHtml || `<p>${i18next.t('resultsPage.summary.noItems')}</p>`; 
-             console.log("[renderSummary] Finished rendering summary HTML.");
+            if (!container || !config || !ratings) { container.innerHTML = `<p class="text-gray-500 italic">${i18next.t('errors.noSummaryData')}</p>`; return; } 
+            let summaryHtml = (config.ratingCriteria || []).map(category => {
+                const criteriaHtml = (category.criteriaList || []).map(criterion => {
+                    const id = `${category.categoryKey}-${criterion.nameKey}`; 
+                    const selectedOptionIndex = ratings[id];
+                    if (selectedOptionIndex !== undefined) {
+                        const option = criterion.options[selectedOptionIndex];
+                        return `<li><strong>${i18next.t(criterion.nameKey)}:</strong> ${i18next.t(option.descriptionKey)}</li>`; 
+                    } return '';
+                }).join('');
+                if (criteriaHtml.trim()) { return `<h4 class="font-semibold mt-4 mb-1 text-gray-700">${i18next.t(category.categoryKey)}</h4><ul class="list-disc list-inside space-y-1 text-sm">${criteriaHtml}</ul>`; } return '';
+            }).join('');
+            container.innerHTML = summaryHtml || `<p>${i18next.t('resultsPage.summary.noItems')}</p>`; 
         }
         
-        // getScoreRange, getGradeStyles, renderScoreSection remain the same
-        function getScoreRange(gradeCode) { /* ... */ }
-        function getGradeStyles(color) { const stylesMap = { /* ... */ }; return stylesMap[color] || stylesMap['gray']; } 
+        function getScoreRange(gradeCode) { const index = GRADING_SCALE.findIndex(g => g.grade === gradeCode); if (index === -1) return ''; const min = GRADING_SCALE[index].min_score; if (index === 0) return `${min}-100`; const max = GRADING_SCALE[index - 1].min_score - 0.01; return `${min.toFixed(0)}-${max.toFixed(2)}`; }
+        function getGradeStyles(color) { const stylesMap = { 'gold': { textColor: 'text-yellow-800', bgColor: 'bg-yellow-400' }, 'indigo': { textColor: 'text-indigo-800', bgColor: 'bg-indigo-300' }, 'purple': { textColor: 'text-purple-800', bgColor: 'bg-purple-300' }, 'blue': { textColor: 'text-blue-800', bgColor: 'bg-blue-300' }, 'green': { textColor: 'text-green-800', bgColor: 'bg-green-300' }, 'gray': { textColor: 'text-gray-800', bgColor: 'bg-gray-300' }, 'orange': { textColor: 'text-orange-800', bgColor: 'bg-orange-300' }, 'red': { textColor: 'text-red-800', bgColor: 'bg-red-300' } }; return stylesMap[color] || stylesMap['gray']; }
          
-         function renderScoreSection(container, score, grade) { /* ... */ }
+         function renderScoreSection(container, score, grade) {
+             if (!container || !grade) return; 
+             const styles = getGradeStyles(grade.color);
+             const scoreHtml = `<div><p class="text-xl font-bold text-yellow-500 mb-1">${i18next.t('resultsPage.scoreSectionTitle')}</p><p class="text-7xl font-black ${styles.textColor}">${score.toFixed(2)}</p><div class="mt-2 text-3xl font-black ${styles.textColor}">${grade.name}</div></div>`;
+             const scaleHtml = GRADING_SCALE.map(g => { const gStyles = getGradeStyles(g.color); const isCurrent = g.grade === grade.grade; return `<div class="flex items-center p-1 rounded ${isCurrent ? 'bg-gray-100' : ''}"><div class="w-5 h-5 rounded-full flex items-center justify-center font-bold text-xs ${gStyles.bgColor} ${gStyles.textColor} mr-2">${g.grade}</div><div class="flex-grow ${isCurrent ? 'font-semibold' : ''} ${gStyles.textColor}">${i18next.t(g.nameKey)}</div><div class="font-mono text-xs text-gray-500 ml-2">${getScoreRange(g.grade)}</div></div>`; }).join('');
+             container.innerHTML = `<div class="w-full md:w-1/3">${scoreHtml}</div><div class="w-full md:w-2/3 border-t md:border-t-0 md:border-l border-gray-200 pt-4 md:pt-0 md:pl-6"><div class="space-y-1">${scaleHtml}</div></div>`;
+         }
     </script>
 </body>
 </html>
-
