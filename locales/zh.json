@@ -38,7 +38,7 @@
     "login": "登录/注册",
     "logout": "退出",
     "configAdmin": "评分配置",
-    "userAdmin": "用户管理"
+    "userAdmin": "用户管理",  <-- 已添加逗号
     "nav.configAdmin": "评分配置"
   },
   "indexPage": {
@@ -178,5 +178,28 @@
       "shareImage": "分享图片",
       "shareThumb": "分享缩略图"
     }
-  }
+  },
+   "errors": {  // 建议添加 "errors" 键，用于统一存放错误信息翻译
+      "initFailed": "页面加载初始化出错: {{msg}}",
+      "loginFailed": "登录失败: {{message}}",
+      "authCallbackFailed": "认证回调失败 (状态 {{status}})",
+      "loadRatingFailed": "加载评分失败 (状态 {{status}})",
+      "noRatingDataFound": "在 Session Storage 中未找到评分数据。",
+      "missingEssentialData": "评分数据不完整，无法显示报告。",
+      "pageLoadError": "页面加载出错",
+      "loadProfileListFailed": "加载配置列表失败: {{msg}}",
+      "loadProfileFailed": "加载配置 '{{id}}' 失败: {{msg}}",
+      "saveFailedNoMsg": "保存失败",
+      "notADraft": "该评分已保存，无法重复保存。",
+      "emptyConfig": "无法保存空的配置。",
+      "operationFailed": "操作失败: {{msg}}",
+      "cannotNameLatest": "不能将配置命名为 'latest'。",
+      "confirmDeleteProfile": "确定要删除配置方案 '{{id}}' 吗？",
+      "deleting": "删除中...",
+      "deleteSuccess": "配置方案 '{{id}}' 已删除。",
+      "deleteFailed": "删除失败: {{msg}}",
+      "emptyConfigDownload": "无法下载空的配置。",
+      "invalidJSONFormat": "上传的文件不是有效的配置 JSON。",
+      "fileParseFailed": "解析上传的文件失败: {{msg}}"
+   }
 }
