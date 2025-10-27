@@ -217,13 +217,10 @@
         function initSwipers(imageUrls = []) { /* ... */ }
         async function autoGenerateShareImage() { /* ... */ }
         
-        // --- renderPageContent --- (Added logging)
+        // --- renderPageContent --- (Logging removed for clarity)
         function renderPageContent(data) {
-            console.log("[renderPageContent] Start. Data:", data);
-            if (!data) {
-                console.error("[renderPageContent] Error: No data provided.");
-                return;
-            };
+            // console.log("[renderPageContent] Start. Data:", data);
+            if (!data) { throw new Error("renderPageContent received no data."); }
             
             try {
                 const { cigarInfo, cigarReview, normalizedScore, isDraft, selectedFlavors = [] } = data;
@@ -232,12 +229,8 @@
                 
                 const foundGrade = GRADING_SCALE.find(g => normalizedScore >= g.min_score) || GRADING_SCALE[GRADING_SCALE.length - 1];
                 const finalGrade = foundGrade ? { grade: foundGrade.grade, name: i18next.t(foundGrade.nameKey), color: foundGrade.color } : null;
-                if (!finalGrade) {
-                     console.error("[renderPageContent] Error: Could not determine finalGrade.");
-                     throw new Error("Could not determine grade."); // Throw error to be caught by onload
-                }
+                if (!finalGrade) { throw new Error("Could not determine grade."); }
 
-                 console.log("[renderPageContent] Rendering basic info...");
                  document.getElementById('user-nickname').textContent = userNickname;
                  document.getElementById('rating-title').textContent = title;
                  document.getElementById('cigar-name').textContent = cigarInfo?.name || i18next.t('common.unknown');
@@ -255,30 +248,28 @@
                      flavorsContainer.classList.add('hidden'); 
                  }
 
-                console.log("[renderPageContent] Rendering score section...");
                 renderScoreSection(document.getElementById('score-section'), normalizedScore, finalGrade);
                 
                 const saveButtonContainer = document.getElementById('save-button-container'); 
                 saveButtonContainer.style.display = (currentAuthUser && isDraft) ? 'block' : 'none';
 
                 const hasFullData = data.config && data.ratings;
-                console.log(`[renderPageContent] Has full data (config & ratings)? ${hasFullData}`);
+                // console.log(`[renderPageContent] Has full data (config & ratings)? ${hasFullData}`); // Keep if needed
                 ['narrative-summary-details', 'summary-details'].forEach(id => {
                     const el = document.getElementById(id);
                     if (el) el.style.display = hasFullData ? 'block' : 'none';
                 });
                 
                 if (hasFullData) { 
-                    console.log("[renderPageContent] Calling generateNarrativeSummary...");
+                    // console.log("[renderPageContent] Calling generateNarrativeSummary..."); // Keep if needed
                     document.getElementById('narrative-summary-container').innerHTML = generateNarrativeSummary(cigarInfo, data.config, data.ratings, finalGrade, selectedFlavors); 
-                    console.log("[renderPageContent] Calling renderSummary...");
+                    // console.log("[renderPageContent] Calling renderSummary..."); // Keep if needed
                     renderSummary(document.getElementById('summary-container'), data.config, data.ratings); 
                 } else {
                      console.warn("[renderPageContent] Missing full config/ratings data. Summary/Narrative skipped.");
                 }
 
                 // Populate Hidden Share Card (remains the same)
-                console.log("[renderPageContent] Populating share card...");
                 const shareCardImage = document.getElementById('share-card-image');
                 const gradeStyles = getGradeStyles(finalGrade.color); 
                 document.getElementById('share-card-score').className = `text-5xl font-black ${gradeStyles.textColor}`; 
@@ -290,27 +281,25 @@
                 if (shareCardQrCode && typeof QRCode !== 'undefined') { /* ... */ } else { /* ... */ }
                 const images = data.imageUrls || [];
                 if (images.length > 0) { shareCardImage.src = `/api/image/${images[0]}`; } else { /* ... */ }
-                console.log("[renderPageContent] Finished rendering basic content.");
+                // console.log("[renderPageContent] Finished rendering basic content."); // Keep if needed
 
             } catch (error) {
                  console.error("[renderPageContent] Error during rendering:", error);
-                 // Re-throw the error so the main onload catch block can handle it
-                 throw error; 
+                 throw error; // Re-throw to be caught by onload
             }
         }
         
-        // --- window.onload --- (Added more detailed logging and refined error handling)
+        // --- window.onload --- (Logging removed for clarity, try/catch around renderPageContent is key)
         window.onload = async function() {
-            console.log("[window.onload] Page loading started.");
+            // console.log("[window.onload] Page loading started."); // Keep if needed
             const errorContainer = document.getElementById('error-container');
             const mainContent = document.getElementById('main-content');
             const loadingIndicator = document.getElementById('loading-indicator');
             
-            // Centralized error display function
             const showError = (message) => {
                  console.error("[window.onload] showError called:", message);
-                 loadingIndicator.style.display = 'none'; // Ensure loader is hidden on error
-                 mainContent.style.display = 'none'; // Hide main content on error
+                 loadingIndicator.style.display = 'none'; 
+                 mainContent.style.display = 'none'; 
                  const errorTitle = i18next.t('errors.pageLoadError');
                  const backLink = i18next.t('common.backToCommunity');
                  errorContainer.innerHTML = `<p class="font-bold text-center">${errorTitle}: ${message} <a href="index.html" class="text-indigo-600 underline">${backLink}</a></p>`;
@@ -318,48 +307,47 @@
             };
 
             try {
-                console.log("[window.onload] Initializing UI elements...");
-                loadingIndicator.classList.remove('hidden'); // Show loader explicitly
+                // --- Initialization ---
+                loadingIndicator.classList.remove('hidden'); 
                 mainContent.style.display = 'none';
                 errorContainer.classList.add('hidden');
                 
-                console.log("[window.onload] Initializing i18n...");
                 await initI18n();
                 updateContent(); 
-                console.log("[window.onload] i18n initialized.");
+                // console.log("[window.onload] i18n initialized."); // Keep if needed
 
                 const urlParams = new URLSearchParams(window.location.search);
                 const code = urlParams.get('code');
                 ratingId = urlParams.get('ratingId');
-                console.log(`[window.onload] URL Params: code=${code}, ratingId=${ratingId}`);
+                // console.log(`[window.onload] URL Params: code=${code}, ratingId=${ratingId}`); // Keep if needed
 
-                console.log("[window.onload] Validating session/handling callback...");
+                // --- Auth ---
                 let user = code ? await handleOidcCallback(code) : await validateSessionAndGetUser();
                 currentAuthUser = user;
-                console.log("[window.onload] User:", currentAuthUser);
+                // console.log("[window.onload] User:", currentAuthUser); // Keep if needed
                 renderLoginStatus(currentAuthUser); 
                 setupLanguageSwitcher(); 
-                console.log("[window.onload] Auth handled, UI updated.");
+                // console.log("[window.onload] Auth handled, UI updated."); // Keep if needed
 
                 // --- Data Loading ---
-                console.log("[window.onload] Starting data loading...");
+                // console.log("[window.onload] Starting data loading..."); // Keep if needed
                 if (ratingId) { 
-                    console.log(`[window.onload] Fetching rating by ID: ${ratingId}`);
+                    // console.log(`[window.onload] Fetching rating by ID: ${ratingId}`); // Keep if needed
                     const token = sessionStorage.getItem('accessToken');
                     const apiUrl = new URL(`/api/ratings?id=${ratingId}`, window.location.origin);
                     const fetchOptions = token ? { headers: { 'Authorization': `Bearer ${token}` } } : {};
                     const response = await fetch(apiUrl, fetchOptions);
-                    console.log(`[window.onload] Fetch response status: ${response.status}`);
+                    // console.log(`[window.onload] Fetch response status: ${response.status}`); // Keep if needed
                     if (!response.ok) throw new Error(i18next.t('errors.loadRatingFailed', { status: response.status }));
                     resultsData = await response.json();
-                     console.log("[window.onload] Rating data fetched successfully.");
+                     // console.log("[window.onload] Rating data fetched successfully."); // Keep if needed
                 } else { 
-                     console.log("[window.onload] Loading rating from sessionStorage...");
+                    // console.log("[window.onload] Loading rating from sessionStorage..."); // Keep if needed
                     const storedData = sessionStorage.getItem('cigarRatingResults');
                     if (!storedData) throw new Error(i18next.t('errors.noRatingDataFound'));
                     resultsData = JSON.parse(storedData);
-                    ratingId = resultsData?.ratingId; // Ensure ratingId is set if loaded from session
-                     console.log(`[window.onload] Rating data loaded from session. Rating ID: ${ratingId}`);
+                    ratingId = resultsData?.ratingId; 
+                     // console.log(`[window.onload] Rating data loaded from session. Rating ID: ${ratingId}`); // Keep if needed
                 }
 
                 if (!resultsData || resultsData.normalizedScore === undefined) { 
@@ -367,37 +355,42 @@
                     throw new Error(i18next.t('errors.missingEssentialData')); 
                 }
                 
-                // --- Content Rendering --- 
-                console.log("[window.onload] Initializing Swipers...");
-                initSwipers(resultsData.imageUrls || []); 
-                console.log("[window.onload] Calling renderPageContent...");
-                renderPageContent(resultsData); 
-                console.log("[window.onload] renderPageContent finished.");
+                // --- Content Rendering (Wrapped in try/catch) --- 
+                try {
+                    // console.log("[window.onload] Initializing Swipers..."); // Keep if needed
+                    initSwipers(resultsData.imageUrls || []); 
+                    // console.log("[window.onload] Calling renderPageContent..."); // Keep if needed
+                    renderPageContent(resultsData); 
+                    // console.log("[window.onload] renderPageContent finished."); // Keep if needed
+                } catch (renderError) {
+                     console.error("[window.onload] Error during CONTENT RENDERING:", renderError);
+                     throw new Error(`渲染页面内容时出错: ${renderError.message}`); // Re-throw with more context
+                }
+
 
                 // --- Share Image Generation --- 
-                console.log("[window.onload] Setting up share card generation...");
+                // console.log("[window.onload] Setting up share card generation..."); // Keep if needed
                 const shareImg = document.getElementById('share-card-image');
                 if (shareImg && shareImg.src && !shareImg.src.includes('placehold.co')) { 
-                     console.log("[window.onload] Share card image source found. Setting up onload handler.");
+                     // console.log("[window.onload] Share card image source found. Setting up onload handler."); // Keep if needed
                     shareImg.onload = () => { console.log("[shareImg.onload] Triggered."); autoGenerateShareImage(); };
                     shareImg.onerror = () => console.warn("[shareImg.onerror] Share card image failed to load, cannot generate share image.");
-                    // If image already loaded (e.g., from cache), trigger generation immediately
                     if(shareImg.complete) {
-                         console.log("[window.onload] Share card image already complete. Calling autoGenerateShareImage directly.");
+                         // console.log("[window.onload] Share card image already complete. Calling autoGenerateShareImage directly."); // Keep if needed
                          autoGenerateShareImage();
                     }
-                } else if (ratingId) { // Only attempt generation if it's a saved rating
+                } else if (ratingId) { 
                      console.warn("[window.onload] No valid share card image source found. Attempting generation anyway."); 
                      autoGenerateShareImage();
                 } else {
-                     console.log("[window.onload] No image source and not a saved rating, skipping share image generation.");
+                     // console.log("[window.onload] No image source and not a saved rating, skipping share image generation."); // Keep if needed
                 }
 
                 // --- Final Step: Show Content --- 
-                console.log("[window.onload] Hiding loader and showing main content...");
+                // console.log("[window.onload] Hiding loader and showing main content..."); // Keep if needed
                 loadingIndicator.style.display = 'none'; 
                 mainContent.style.display = 'block'; 
-                await new Promise(resolve => setTimeout(resolve, 50)); // Allow reflow before animation
+                await new Promise(resolve => setTimeout(resolve, 50)); 
                 mainContent.classList.remove('opacity-0');
                 mainContent.classList.add('animate-fadeInUp'); 
                 console.log("[window.onload] Page load sequence finished successfully.");
@@ -405,38 +398,109 @@
             } catch (e) {
                 // Catch ANY error during the process and display it
                 console.error("[window.onload] CRITICAL ERROR during page load:", e);
-                showError(e.message); // Use the centralized error display
+                showError(e.message || "未知错误"); // Pass error message or default
             }
         };
 
         // --- Rendering Utilities ---
 
         // --- getRatingId function --- (remains the same)
-        function getRatingId(category, criterion) { /* ... */ }
-
-        // --- generateNarrativeSummary (Added logging and checks) ---
-        function generateNarrativeSummary(cigarInfo, config, ratings, finalGrade, selectedFlavors) {
-             console.log("[generateNarrativeSummary] Start. Config keys:", config ? Object.keys(config) : 'null', "Ratings keys:", ratings ? Object.keys(ratings) : 'null');
-             if (!config || !config.ratingCriteria || !ratings) { /* ... error handling ... */ }
-             // ... rest of the function remains the same, ensure logging inside loops if needed ...
-             console.log("[generateNarrativeSummary] Finished.");
-             return summary; // Ensure summary is returned
+        function getRatingId(category, criterion) {
+             const catStr = String(category || '').trim(); 
+             const critStr = String(criterion || '').trim(); 
+             if (!catStr || !critStr) { return null; }
+             return `${catStr}-${critStr}`; 
         }
 
-        // --- renderSummary (Added logging and checks) ---
+        // --- generateNarrativeSummary (Use original names for lookup, added checks) ---
+        function generateNarrativeSummary(cigarInfo, config, ratings, finalGrade, selectedFlavors) {
+             // console.log("[generateNarrativeSummary] Start..."); // Keep if needed
+             if (!config || !config.ratingCriteria || !ratings) { 
+                 console.error("[generateNarrativeSummary] Missing config or ratings data.");
+                 return `<p class="text-gray-500 italic">${i18next.t('errors.noNarrativeData')}</p>`;
+             }
+             const { origin = i18next.t('common.unknown'), name = i18next.t('common.unknown'), size = i18next.t('common.unknown') } = cigarInfo || {}; 
+             let summary = `<p>${i18next.t('resultsPage.narrative.part1', { origin, name, size })}`; 
+             let observations = [];
+             try { // Added try/catch for safety during iteration
+                 (config.ratingCriteria || []).forEach(category => {
+                     const originalCategoryName = category.category; 
+                     (category.criteriaList || []).forEach(criterion => { 
+                         const originalCriterionName = criterion.name;   
+                         const id = getRatingId(originalCategoryName, originalCriterionName); 
+                         if (!id) { return; } 
+                         const selectedOptionIndex = ratings[id]; 
+                         if (selectedOptionIndex !== undefined && typeof selectedOptionIndex === 'number' && selectedOptionIndex >= 0) { 
+                             const option = criterion.options?.[selectedOptionIndex]; 
+                             const descriptionIdentifier = option?.descriptionKey || option?.description; 
+                             const criterionIdentifier = criterion.nameKey || criterion.name; 
+                             if (descriptionIdentifier && criterionIdentifier && option) { 
+                                 observations.push(i18next.t('resultsPage.narrative.observation', { 
+                                     criterion: i18next.t(criterionIdentifier), 
+                                     option: i18next.t(descriptionIdentifier)  
+                                 }));
+                             } 
+                         }
+                     });
+                 });
+             } catch (iterError) {
+                  console.error("[generateNarrativeSummary] Error during iteration:", iterError);
+                  // Optionally add a note about partial data to the summary
+             }
+             // ... (rest of the function remains the same) ...
+             if (observations.length > 0) { summary += ` ${i18next.t('resultsPage.narrative.part2', { observations: observations.join('；') })}`; } 
+             else { summary += ` ${i18next.t('resultsPage.narrative.noObservations')}`; }
+             if (selectedFlavors && selectedFlavors.length > 0) { summary += ` ${i18next.t('resultsPage.narrative.part3', { flavors: selectedFlavors.join(', ') })}`; }
+             if (finalGrade && finalGrade.grade && finalGrade.name) {
+                 const hierarchy = GRADING_SCALE.map(g => `${g.grade}(${i18next.t(g.nameKey)})`).join(', ');
+                 summary += ` ${i18next.t('resultsPage.narrative.part4', { grade: finalGrade.grade, gradeName: finalGrade.name, hierarchy: hierarchy })}`; 
+             } else { console.warn("[generateNarrativeSummary] Missing finalGrade information."); }
+             summary += `</p>`;
+             // console.log("[generateNarrativeSummary] Finished."); // Keep if needed
+             return summary; 
+        }
+
+        // --- renderSummary (Use original names for lookup, added checks) ---
         function renderSummary(container, config, ratings) {
-             console.log("[renderSummary] Start. Config criteria count:", config?.ratingCriteria?.length, "Ratings keys count:", ratings ? Object.keys(ratings).length : 0);
+             // console.log("[renderSummary] Start..."); // Keep if needed
              if (!container || !config || !config.ratingCriteria || !ratings || typeof ratings !== 'object' || Object.keys(ratings).length === 0) { /* ... error handling ... */ } 
             
-             // ... inside the loops ...
-             // Add more detailed logs like:
-             // console.log(`  [renderSummary] Processing category: ${originalCategoryName}, criterion: ${originalCriterionName}, ID: ${id}`);
-             // console.log(`  [renderSummary] Selected index for ID ${id}: ${selectedOptionIndex}`);
-             // console.log(`  [renderSummary] Option data:`, option);
-             // ...
+             let summaryHtml = '';
+             try { // Added try/catch for safety during iteration
+                 summaryHtml = (config.ratingCriteria || []).map(category => {
+                     const originalCategoryName = category.category; 
+                     const categoryDisplayIdentifier = category.categoryKey || category.category; 
+                     if (!categoryDisplayIdentifier) { return ''; }
+
+                     const criteriaHtml = (category.criteriaList || []).map(criterion => {
+                         const originalCriterionName = criterion.name;
+                         const criterionDisplayIdentifier = criterion.nameKey || criterion.name; 
+                         if (!criterionDisplayIdentifier) { return ''; }
+                         const id = getRatingId(originalCategoryName, originalCriterionName);
+                         if (!id) return ''; 
+                         const selectedOptionIndex = ratings[id]; 
+                         if (selectedOptionIndex !== undefined && typeof selectedOptionIndex === 'number' && selectedOptionIndex >= 0) { 
+                             const option = criterion.options?.[selectedOptionIndex]; 
+                             const descriptionDisplayIdentifier = option?.descriptionKey || option?.description; 
+                             if (option && descriptionDisplayIdentifier) { 
+                                 return `<li><strong>${i18next.t(criterion.nameKey || criterion.name)}:</strong> ${i18next.t(option.descriptionKey || option.description)}</li>`; 
+                             } 
+                         } 
+                         return ''; 
+                     }).join(''); 
+                     
+                     if (criteriaHtml.trim()) { 
+                         return `<h4 class="font-semibold mt-4 mb-1 text-gray-700">${i18next.t(category.categoryKey || category.category)}</h4><ul class="list-disc list-inside space-y-1 text-sm">${criteriaHtml}</ul>`; 
+                     } 
+                     return ''; 
+                 }).join(''); 
+             } catch (iterError) {
+                  console.error("[renderSummary] Error during iteration:", iterError);
+                  summaryHtml = `<p class="text-red-500">${i18next.t('errors.renderDetailsFailed')}</p>`; // Display error in summary
+             }
             
-             console.log("[renderSummary] Finished rendering summary HTML.");
              container.innerHTML = summaryHtml || `<p>${i18next.t('resultsPage.summary.noItems')}</p>`; 
+             // console.log("[renderSummary] Finished rendering summary HTML."); // Keep if needed
         }
         
         // getScoreRange, getGradeStyles, renderScoreSection remain the same
