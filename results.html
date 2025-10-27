@@ -271,7 +271,7 @@
 
         // --- Rendering Utilities ---
 
-        // --- **FIXED: Added getRatingId function** ---
+        // --- **Added getRatingId function (Same as previous fix)** ---
         function getRatingId(category, criterion) {
             const catStr = String(category || '').trim(); // Use original name from config/data
             const critStr = String(criterion || '').trim(); // Use original name from config/data
@@ -282,7 +282,7 @@
             return `${catStr}-${critStr}`; // Generate ID using original names
         }
 
-        // --- generateNarrativeSummary (Use getRatingId with original names from config) ---
+        // --- **FIXED: generateNarrativeSummary (Use original names for lookup)** ---
         function generateNarrativeSummary(cigarInfo, config, ratings, finalGrade, selectedFlavors) {
              if (!config || !config.ratingCriteria || !ratings) {
                  console.error("[generateNarrativeSummary] Missing config or ratings data.");
@@ -292,29 +292,31 @@
              let summary = `<p>${i18next.t('resultsPage.narrative.part1', { origin, name, size })}`; 
              let observations = [];
              (config.ratingCriteria || []).forEach(category => {
+                 // **Get original category name for lookup**
+                 const originalCategoryName = category.category; // Assuming 'category' holds the original Chinese name
+                 
                  (category.criteriaList || []).forEach(criterion => { 
-                     // **Get original names from config for lookup**
-                     const originalCategoryName = category.category; // Assuming 'category' holds the original Chinese name
+                     // **Get original criterion name for lookup**
                      const originalCriterionName = criterion.name;   // Assuming 'name' holds the original Chinese name
                      
                      // **Generate ID using original names**
                      const id = getRatingId(originalCategoryName, originalCriterionName); 
                      if (!id) {
-                          console.warn(`[generateNarrativeSummary] Could not generate ID for`, { category, criterion });
-                          return; // Skip if ID couldn't be generated
+                          // console.warn(`[generateNarrativeSummary] Could not generate ID for`, { category, criterion }); // Optional logging
+                          return; // Skip if ID couldn't be generated or names missing
                      }
 
                      const selectedOptionIndex = ratings[id]; // Use the generated ID to look up in ratings
                      
                      if (selectedOptionIndex !== undefined && typeof selectedOptionIndex === 'number' && selectedOptionIndex >= 0) { 
                          const option = criterion.options?.[selectedOptionIndex]; 
-                         // **Get identifiers for translation**
+                         // **Get identifiers for translation (prefer key, fallback to original name/desc)**
                          const descriptionIdentifier = option?.descriptionKey || option?.description; 
                          const criterionIdentifier = criterion.nameKey || criterion.name; 
                          if (descriptionIdentifier && criterionIdentifier && option) { 
                              observations.push(i18next.t('resultsPage.narrative.observation', { 
-                                 criterion: i18next.t(criterionIdentifier), // Translate for display
-                                 option: i18next.t(descriptionIdentifier)  // Translate for display
+                                 criterion: i18next.t(criterionIdentifier), // Translate display identifier
+                                 option: i18next.t(descriptionIdentifier)  // Translate display identifier
                              }));
                          } else {
                               console.warn(`[generateNarrativeSummary] Incomplete data for criterion ${criterionIdentifier} at index ${selectedOptionIndex}`);
@@ -338,7 +340,7 @@
              return summary;
         }
 
-        // --- renderSummary (Use getRatingId with original names from config) ---
+        // --- **FIXED: renderSummary (Use original names for lookup)** ---
         function renderSummary(container, config, ratings) {
             if (!container || !config || !config.ratingCriteria || !ratings || typeof ratings !== 'object' || Object.keys(ratings).length === 0) { 
                 container.innerHTML = `<p class="text-gray-500 italic">${i18next.t('errors.noSummaryData')}</p>`; 
@@ -353,7 +355,7 @@
                 const originalCategoryName = category.category; 
                 const categoryDisplayIdentifier = category.categoryKey || category.category; 
                 if (!categoryDisplayIdentifier) {
-                    console.warn("[renderSummary] Skipping category - missing identifier:", category);
+                    // console.warn("[renderSummary] Skipping category - missing identifier:", category); // Optional logging
                     return ''; 
                 }
 
@@ -362,7 +364,7 @@
                     const originalCriterionName = criterion.name;
                     const criterionDisplayIdentifier = criterion.nameKey || criterion.name; 
                     if (!criterionDisplayIdentifier) {
-                         console.warn(`[renderSummary] Skipping criterion in category "${categoryDisplayIdentifier}" - missing identifier:`, criterion);
+                         // console.warn(`[renderSummary] Skipping criterion in category "${categoryDisplayIdentifier}" - missing identifier:`, criterion); // Optional logging
                          return ''; 
                     }
 
@@ -375,24 +377,24 @@
                     // Validate and Render
                     if (selectedOptionIndex !== undefined && typeof selectedOptionIndex === 'number' && selectedOptionIndex >= 0) { 
                         const option = criterion.options?.[selectedOptionIndex]; 
-                        // **Get original description for display (fallback), key for translation**
+                        // **Get description key/original description for display translation**
                         const descriptionDisplayIdentifier = option?.descriptionKey || option?.description; 
                         
                         if (option && descriptionDisplayIdentifier) { 
-                            // console.log(`  -> Rendering: Criterion="${criterionDisplayIdentifier}", Option="${descriptionDisplayIdentifier}" (Index ${selectedOptionIndex})`);
-                            // Translate identifiers ONLY for display purposes
+                            // console.log(`  -> Rendering: Criterion="${criterionDisplayIdentifier}", Option="${descriptionDisplayIdentifier}" (Index ${selectedOptionIndex})`); // Optional logging
+                            // Translate display identifiers 
                             return `<li><strong>${i18next.t(criterion.nameKey || criterion.name)}:</strong> ${i18next.t(option.descriptionKey || option.description)}</li>`; 
                         } else {
                             console.warn(`[renderSummary] Incomplete option data for criterion "${criterionDisplayIdentifier}" at index ${selectedOptionIndex}. Option found:`, option); 
                         }
                     } else if (selectedOptionIndex !== undefined) {
-                         console.warn(`[renderSummary] Invalid selectedOptionIndex type found for criterion "${criterionDisplayIdentifier}": ${typeof selectedOptionIndex} (value: ${selectedOptionIndex})`); 
+                         // console.warn(`[renderSummary] Invalid selectedOptionIndex type found for criterion "${criterionDisplayIdentifier}": ${typeof selectedOptionIndex} (value: ${selectedOptionIndex})`); // Optional logging
                     } 
                     return ''; 
                 }).join(''); 
                 
                 if (criteriaHtml.trim()) { 
-                    // Translate category identifier ONLY for display
+                    // Translate category display identifier
                     return `<h4 class="font-semibold mt-4 mb-1 text-gray-700">${i18next.t(category.categoryKey || category.category)}</h4><ul class="list-disc list-inside space-y-1 text-sm">${criteriaHtml}</ul>`; 
                 } 
                 return ''; 
