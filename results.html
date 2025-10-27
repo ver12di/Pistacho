@@ -16,7 +16,7 @@
     <script src="https://unpkg.com/i18next-browser-languagedetector/i18nextBrowserLanguageDetector.min.js"></script>
 
     <script>
-        // Tailwind config (omitted for brevity, remains the same)
+        // Tailwind config
         if (typeof tailwind !== 'undefined') { 
              tailwind.config = {
                  theme: { extend: { fontFamily: { sans: ['Inter', 'Noto Sans SC', 'system-ui', 'sans-serif'], }, } }
@@ -24,7 +24,6 @@
          } else { console.warn('Tailwind object not found.'); }
     </script>
     <style>
-        /* CSS styles (omitted for brevity, remains the same) */
         .tooltip { position: relative; display: inline-block; } 
         .tooltip .tooltiptext { visibility: hidden; width: 60px; background-color: #555; color: #fff; text-align: center; border-radius: 6px; padding: 5px 0; position: absolute; z-index: 1; bottom: 125%; left: 50%; margin-left: -30px; opacity: 0; transition: opacity 0.3s; font-size: 10px; } 
         .tooltip .tooltiptext::after { content: ""; position: absolute; top: 100%; left: 50%; margin-left: -5px; border-width: 5px; border-style: solid; border-color: #555 transparent transparent transparent; } 
@@ -109,7 +108,6 @@
                      <div id="cigar-review-container" class="prose prose-sm max-w-none text-gray-700 border-t pt-4">
                      </div>
                      <div id="selected-flavors-container" class="hidden pt-2">
-                         <!-- --- 修复 #1 --- -->
                          <h4 class="text-sm font-semibold text-gray-600 mb-2" data-i18n="resultsPage.flavors">主要风味:</h4>
                          <div id="flavors-display" class="flex flex-wrap"></div>
                      </div>
@@ -120,7 +118,7 @@
             </section>
 
              <div id="save-button-container" class="hidden mb-6">
-                 <button id="save-rating-button" onclick="saveRating()" class="w-full py-3 px-6 bg-green-600 text-white font-bold text-lg rounded-lg shadow-md hover:bg-green-700 transition" data-i18n="resultsPage.saveRating"> <!-- Changed key -->
+                 <button id="save-rating-button" onclick="saveRating()" class="w-full py-3 px-6 bg-green-600 text-white font-bold text-lg rounded-lg shadow-md hover:bg-green-700 transition" data-i18n="resultsPage.saveRating">
                      保存为我的评分记录
                  </button>
              </div>
@@ -129,7 +127,6 @@
                  <details id="narrative-summary-details" class="group bg-white rounded-xl shadow-lg p-6 transition-all duration-300" open>
                      <summary class="flex justify-between items-center cursor-pointer font-bold text-lg text-gray-800">
                          <span>
-                             <!-- --- 修复 #2 --- -->
                              <span data-i18n="resultsPage.narrativeTitle">综合评价</span>
                              <svg class="inline w-5 h-5 transform group-open:rotate-180 transition-transform ml-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
                          </span>
@@ -137,7 +134,6 @@
                              <button id="copy-summary-button" onclick="copySummary(event)" class="ml-4 p-1.5 bg-gray-100 text-gray-600 rounded-full hover:bg-gray-200 transition text-xs">
                                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"> <path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /> </svg>
                              </button>
-                             <!-- --- 修复 #3 --- -->
                              <span id="copy-tooltip" class="tooltiptext" data-i18n="resultsPage.copy">复制</span>
                          </div>
                      </summary>
@@ -145,7 +141,6 @@
                  </details>
                  <details id="summary-details" class="group bg-white rounded-xl shadow-lg p-6">
                      <summary class="flex justify-between items-center cursor-pointer font-bold text-lg text-gray-800">
-                         <!-- --- 修复 #4 --- -->
                          <span data-i18n="resultsPage.detailsTitle">评分详情汇总</span>
                          <svg class="w-5 h-5 transform group-open:rotate-180 transition-transform" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
                      </summary>
@@ -428,7 +423,7 @@
             }
         }
         
-        // renderPageContent remains mostly the same, just the error part was fixed previously
+        // renderPageContent remains mostly the same
         function renderPageContent(data) {
             if (!data) return;
             
@@ -575,7 +570,8 @@
             }
         };
 
-        // --- Rendering Utilities --- (generateNarrativeSummary, renderSummary, getScoreRange, getGradeStyles, renderScoreSection remain the same)
+        // --- Rendering Utilities ---
+
         function generateNarrativeSummary(cigarInfo, config, ratings, finalGrade, selectedFlavors) {
             if (!config || !ratings) return `<p class="text-gray-500 italic">${i18next.t('errors.noNarrativeData')}</p>`;
             const { origin = i18next.t('common.unknown'), name = i18next.t('common.unknown'), size = i18next.t('common.unknown') } = cigarInfo;
@@ -583,13 +579,20 @@
             let observations = [];
             (config.ratingCriteria || []).forEach(category => {
                 (category.criteriaList || []).forEach(criterion => {
-                    const id = `${category.categoryKey}-${criterion.nameKey}`; 
+                    
+                    // ================================================================
+                    // *** 修正点 #1 (已修正) ***
+                    // 使用 'category.category' 和 'criterion.name' (中文字符串) 来构造 ID
+                    const id = `${category.category}-${criterion.name}`; 
+                    // ================================================================
+
                     const selectedOptionIndex = ratings[id];
                     if (selectedOptionIndex !== undefined) {
                         const option = criterion.options[selectedOptionIndex];
+                        // (修正) 确保我们使用 i18n Key 来 *显示* 文本
                         observations.push(i18next.t('resultsPage.narrative.observation', { 
-                            criterion: i18next.t(criterion.nameKey), 
-                            option: i18next.t(option.descriptionKey) 
+                            criterion: i18next.t(criterion.nameKey), // 使用 Key 翻译
+                            option: i18next.t(option.descriptionKey) // 使用 Key 翻译
                         }));
                     }
                 });
@@ -607,14 +610,24 @@
             if (!container || !config || !ratings) { container.innerHTML = `<p class="text-gray-500 italic">${i18next.t('errors.noSummaryData')}</p>`; return; } 
             let summaryHtml = (config.ratingCriteria || []).map(category => {
                 const criteriaHtml = (category.criteriaList || []).map(criterion => {
-                    const id = `${category.categoryKey}-${criterion.nameKey}`; 
+                    
+                    // ================================================================
+                    // *** 修正点 #2 (已修正) ***
+                    // 同样, 使用 'category.category' 和 'criterion.name' 来构造 ID
+                    const id = `${category.category}-${criterion.name}`; 
+                    // ================================================================
+                    
                     const selectedOptionIndex = ratings[id];
                     if (selectedOptionIndex !== undefined) {
                         const option = criterion.options[selectedOptionIndex];
+                        // (修正) 使用 i18n Key 来 *显示* 文本
                         return `<li><strong>${i18next.t(criterion.nameKey)}:</strong> ${i18next.t(option.descriptionKey)}</li>`; 
                     } return '';
                 }).join('');
-                if (criteriaHtml.trim()) { return `<h4 class="font-semibold mt-4 mb-1 text-gray-700">${i18next.t(category.categoryKey)}</h4><ul class="list-disc list-inside space-y-1 text-sm">${criteriaHtml}</ul>`; } return '';
+                if (criteriaHtml.trim()) { 
+                    // (修正) 使用 categoryKey 来显示翻译后的类别标题
+                    return `<h4 class="font-semibold mt-4 mb-1 text-gray-700">${i18next.t(category.categoryKey)}</h4><ul class="list-disc list-inside space-y-1 text-sm">${criteriaHtml}</ul>`; 
+                } return '';
             }).join('');
             container.innerHTML = summaryHtml || `<p>${i18next.t('resultsPage.summary.noItems')}</p>`; 
         }
