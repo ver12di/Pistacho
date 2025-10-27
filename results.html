@@ -55,7 +55,7 @@
         #share-card-watermark { font-size: 0.55rem; color: #9ca3af; width: 65%; line-height: 1.1; margin: 0; }
         #share-card-qrcode { width: 32%; height: auto; background-color: white; padding: 0; border: 1px solid #eee; box-shadow: 0 0 2px rgba(0,0,0,0.1); }
         #share-card-qrcode img { display: block; width: 100%; height: 100%; }
-         /* Fade in animation */
+         /* Fade in animation - Keep definition even if unused temporarily */
          @keyframes fadeInUp { from { opacity: 0; transform: translate3d(0, 20px, 0); } to { opacity: 1; transform: translate3d(0, 0, 0); } }
          .animate-fadeInUp { animation: fadeInUp 0.5s ease-out forwards; }
     </style>
@@ -220,7 +220,7 @@
         // --- renderPageContent --- (Checks remain)
         function renderPageContent(data) { /* ... */ }
         
-        // --- window.onload --- (**DEBUG: Added logs and simplified error message**)
+        // --- window.onload --- (**FIXED: Removed animation class and delay**)
         window.onload = async function() {
             console.log("[window.onload] Page loading started.");
             const errorContainer = document.getElementById('error-container');
@@ -228,13 +228,13 @@
             const loadingIndicator = document.getElementById('loading-indicator');
             
             const showError = (message, errorObj = null) => {
-                 console.error("[window.onload] showError called:", message, errorObj); // Log the error object too
+                 console.error("[window.onload] showError called:", message, errorObj); 
                  loadingIndicator.style.display = 'none'; 
                  mainContent.style.display = 'none'; 
-                 const errorTitle = i18next?.t('errors.pageLoadError') || "Page Load Error"; // Fallback if i18n fails
+                 const errorTitle = i18next?.t('errors.pageLoadError') || "Page Load Error"; 
                  const backLink = i18next?.t('common.backToCommunity') || "Back to Community";
                  errorContainer.innerHTML = `<p class="font-bold text-center">${errorTitle}: ${message} <a href="index.html" class="text-indigo-600 underline">${backLink}</a></p>`;
-                 if (errorObj) { // Display stack trace if available
+                 if (errorObj) { 
                     errorContainer.innerHTML += `<pre class="text-xs text-red-600 mt-2 whitespace-pre-wrap">${errorObj.stack || JSON.stringify(errorObj)}</pre>`;
                  }
                  errorContainer.classList.remove('hidden');
@@ -279,7 +279,6 @@
                      console.log("[window.onload] Rating data fetched successfully:", resultsData); 
                 } else { 
                      console.log("[window.onload] Loading rating from sessionStorage...");
-                     // --- **DEBUG LOGGING START** ---
                      let storedDataRaw = null;
                      try {
                          storedDataRaw = sessionStorage.getItem('cigarRatingResults');
@@ -288,23 +287,16 @@
                          console.error("[window.onload] Error reading from sessionStorage:", storageError);
                          throw new Error("无法读取会话存储。");
                      }
-                     // --- **DEBUG LOGGING END** ---
-
-                     // **FIX: Check storedDataRaw before throwing/parsing**
                      if (!storedDataRaw) {
                         console.error("[window.onload] No data found in sessionStorage for 'cigarRatingResults'.");
-                        // Use plain string error here
                         throw new Error("No rating data found in session storage."); 
                      }
-                     
-                     // **Wrap JSON.parse in try...catch**
                      try {
                         resultsData = JSON.parse(storedDataRaw); 
                      } catch (parseError) {
                          console.error("[window.onload] Error parsing JSON from sessionStorage:", parseError, "Raw data:", storedDataRaw);
                          throw new Error("无法解析会话中的评分数据。");
                      }
-
                      ratingId = resultsData?.ratingId; 
                      console.log(`[window.onload] Rating data loaded from session. Rating ID: ${ratingId}`);
                 }
@@ -348,19 +340,19 @@
                      console.log("[window.onload] No image source and not a saved rating, skipping share image generation.");
                 }
 
-                // --- Final Step: Show Content --- 
+                // --- **FIXED: Final Step: Show Content (Removed animation)** --- 
                 console.log("[window.onload] Hiding loader and showing main content..."); 
                 loadingIndicator.style.display = 'none'; 
                 mainContent.style.display = 'block'; 
-                await new Promise(resolve => setTimeout(resolve, 50)); 
-                mainContent.classList.remove('opacity-0');
-                mainContent.classList.add('animate-fadeInUp'); 
+                mainContent.classList.remove('opacity-0'); // Directly remove opacity-0
+                // await new Promise(resolve => setTimeout(resolve, 50)); // Delay removed
+                // mainContent.classList.add('animate-fadeInUp'); // Animation class removed
                 console.log("[window.onload] Page load sequence finished successfully.");
 
             } catch (e) {
                 // Catch ANY error during the process and display it
                 console.error("[window.onload] CRITICAL ERROR during page load:", e);
-                showError(e.message || "未知错误", e); // Pass the error object itself for stack trace
+                showError(e.message || "未知错误", e); 
             }
         };
 
