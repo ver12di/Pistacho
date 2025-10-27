@@ -366,16 +366,21 @@
             // --- END FIX ---
             
             // Render basic info (this is for Step 4)
-            // If ratingConfig.appTitle is a key, t() will translate it.
-            // If it's a string, t() will return the string.
-            titleInput.value = i18next.t(ratingConfig?.appTitle) || ''; 
-            descInput.value = i18next.t(ratingConfig?.description) || ''; 
+            // ** REVERTED CHANGE **: The input value *must* be the key for editing.
+            titleInput.value = ratingConfig?.appTitle || ''; 
+            descInput.value = ratingConfig?.description || ''; 
             
             container.innerHTML = (ratingConfig?.ratingCriteria || []).map((category, catIndex) => {
                 // **MODIFIED for Step 4**: Use categoryKey
                 const categoryName = i18next.t(category.categoryKey || category.category); // Fallback to old 'category'
                 const categoryDetail = i18next.t(category.detailKey || category.detail); // Fallback to old 'detail'
                 
+                // --- **REVERTED CHANGE** ---
+                // The input values must be the *keys* themselves for editing.
+                const categoryKeyValue = category.categoryKey || category.category || '';
+                const detailKeyValue = category.detailKey || category.detail || '';
+                // --- **END REVERT** ---
+
                 return `
                 <div class="bg-white p-6 rounded-xl shadow-lg mb-6 border-l-4 border-indigo-500">
                     <div class="flex justify-between items-start mb-4">
@@ -383,9 +388,9 @@
                         <button type="button" onclick="removeCategory(${catIndex})" class="text-red-500 hover:text-red-700 transition admin-feature">${i18next.t('common.deleteCategory')}</button>
                     </div>
                     <label class="block mb-2">${i18next.t('configPage.categoryName')}:</label>
-                    <input type="text" data-type="category" data-index="${catIndex}" data-field="categoryKey" value="${category.categoryKey || category.category || ''}" class="config-input w-full p-2 border rounded-md mb-3 admin-feature" oninput="handleInputChange(this)">
+                    <input type="text" data-type="category" data-index="${catIndex}" data-field="categoryKey" value="${categoryKeyValue}" class="config-input w-full p-2 border rounded-md mb-3 admin-feature" oninput="handleInputChange(this)">
                     <label class="block mb-4">${i18next.t('common.description')}:</label>
-                    <textarea data-type="category" data-index="${catIndex}" data-field="detailKey" class="config-input w-full p-2 border rounded-md mb-3 admin-feature" oninput="handleInputChange(this)">${category.detailKey || category.detail || ''}</textarea>
+                    <textarea data-type="category" data-index="${catIndex}" data-field="detailKey" class="config-input w-full p-2 border rounded-md mb-3 admin-feature" oninput="handleInputChange(this)">${detailKeyValue}</textarea>
                     <h4 class="text-lg font-semibold mt-6 mb-3 border-t pt-4">${i18next.t('configPage.criteria')}:</h4>
                     <div class="space-y-4">
                         ${(category.criteriaList || []).map((criterion, critIndex) => renderCriterion(catIndex, critIndex, criterion)).join('')}
@@ -400,6 +405,11 @@
         function renderCriterion(catIndex, critIndex, criterion) {
              // **MODIFIED for Step 4**: Use nameKey
              const criterionName = i18next.t(criterion.nameKey || criterion.name);
+             
+             // --- **REVERTED CHANGE** ---
+             const criterionNameValue = criterion.nameKey || criterion.name || '';
+             // --- **END REVERT** ---
+
              return `
                  <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
                      <div class="flex justify-between items-center mb-3">
@@ -407,7 +417,7 @@
                          <button type="button" onclick="removeCriterion(${catIndex}, ${critIndex})" class="text-red-400 hover:text-red-600 transition text-sm admin-feature">${i18next.t('common.delete')}</button>
                      </div>
                      <label class="block text-sm">${i18next.t('common.name')}:</label>
-                     <input type="text" data-type="criterion" data-cat-index="${catIndex}" data-index="${critIndex}" data-field="nameKey" value="${criterion.nameKey || criterion.name || ''}" class="config-input w-full p-1 border rounded-md mb-2 text-sm admin-feature" oninput="handleInputChange(this)">
+                     <input type="text" data-type="criterion" data-cat-index="${catIndex}" data-index="${critIndex}" data-field="nameKey" value="${criterionNameValue}" class="config-input w-full p-1 border rounded-md mb-2 text-sm admin-feature" oninput="handleInputChange(this)">
                      <label class="block text-sm">${i18next.t('configPage.weight')}:</label>
                      <input type="number" data-type="criterion" data-cat-index="${catIndex}" data-index="${critIndex}" data-field="weight" value="${criterion.weight || 0}" class="config-input w-full p-1 border rounded-md mb-3 text-sm admin-feature" oninput="handleInputChange(this)">
                      <h6 class="text-sm font-semibold mb-2 mt-3">${i18next.t('configPage.options')}:</h6>
@@ -422,11 +432,16 @@
         function renderOption(catIndex, critIndex, optIndex, option) {
              // **MODIFIED for Step 4**: Use descriptionKey
              const optionDesc = i18next.t(option.descriptionKey || option.description);
+
+             // --- **REVERTED CHANGE** ---
+             const optionDescValue = option.descriptionKey || option.description || '';
+             // --- **END REVERT** ---
+
              return `
                  <div class="flex space-x-2 items-center bg-white p-2 rounded-md border text-sm">
                      <div class="flex-1">
                          <label class="block text-xs">${i18next.t('common.description')}:</label>
-                         <input type="text" data-type="option" data-cat-index="${catIndex}" data-crit-index="${critIndex}" data-index="${optIndex}" data-field="descriptionKey" value="${option.descriptionKey || option.description || ''}" class="config-input w-full p-1 border rounded-md text-xs admin-feature" oninput="handleInputChange(this)">
+                         <input type="text" data-type="option" data-cat-index="${catIndex}" data-crit-index="${critIndex}" data-index="${optIndex}" data-field="descriptionKey" value="${optionDescValue}" class="config-input w-full p-1 border rounded-md text-xs admin-feature" oninput="handleInputChange(this)">
                      </div>
                      <div class="w-1/4">
                          <label class="block text-xs">${i18next.t('configPage.scorePct')}:</label>
@@ -649,3 +664,4 @@
     </script>
 </body>
 </html>
+
