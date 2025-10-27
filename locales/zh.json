@@ -201,4 +201,10 @@
       "invalidJSONFormat": "上传的文件不是有效的配置 JSON。",
       "fileParseFailed": "解析上传的文件失败: {{msg}}"
    }
+   "errors": {
+      // ... 其他错误 ...
+      "scoreCalculationFailed": "分数计算失败，无法显示。",
+      "narrativeGenFailed": "无法生成综合评价 (分数计算失败)。",
+      "invalidSessionData": "存储的评分数据格式无效。"
+   }
 }

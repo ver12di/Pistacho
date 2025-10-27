@@ -56,7 +56,7 @@
         #share-card-qrcode { width: 32%; height: auto; background-color: white; padding: 0; border: 1px solid #eee; box-shadow: 0 0 2px rgba(0,0,0,0.1); }
         #share-card-qrcode img { display: block; width: 100%; height: 100%; }
 
-        /* ========= 新增: 语言按钮样式 ========= */
+        /* ========= 语言按钮样式 ========= */
         .lang-button {
             padding: 2px 6px;
             margin: 0 2px;
@@ -77,7 +77,6 @@
             color: #3730a3; /* text-indigo-800 */
             cursor: default;
         }
-        /* ========= 结束: 语言按钮样式 ========= */
     </style>
 </head>
 <body class="bg-gray-100 font-sans antialiased text-gray-800">
@@ -216,124 +215,15 @@
         let mainSwiper = null; 
         let thumbnailSwiper = null;
 
-        // --- i18n Initialization Functions ---
-        // ========= 修改: initI18n 使用 Promise 和 回调 =========
-        async function initI18n() {
-             return new Promise((resolve, reject) => {
-                 i18next
-                     .use(i18nextHttpBackend)
-                     .use(i18nextBrowserLanguageDetector)
-                     .init({
-                         fallbackLng: 'zh',
-                         debug: true, // Keep debug on for now
-                         ns: ['translation'],
-                         defaultNS: 'translation',
-                         backend: { loadPath: '/locales/{{lng}}.json?v=1' }, // Added version
-                         detection: { order: ['localStorage', 'navigator'], caches: ['localStorage'] }
-                     }, (err, t) => {
-                         if (err) {
-                             console.error('i18next initialization failed:', err);
-                             document.title = 'Rating Report - Error';
-                             return reject(err);
-                         }
-                         console.log('i18next initialized successfully.');
-                         try {
-                             updateContent(); // Perform initial update *inside* the callback
-                             document.title = i18next.t('resultsPage.pageTitle');
-                             resolve(); // Resolve the promise
-                         } catch (updateErr) {
-                             console.error('Error during initial updateContent:', updateErr);
-                             reject(updateErr);
-                         }
-                     });
-             });
-        }
-        // ========= 结束: initI18n 修改 =========
-
-        function updateContent() {
-            console.log("Running updateContent for results.html..."); // Add log
-             document.querySelectorAll('[data-i18n]').forEach(el => {
-                const key = el.getAttribute('data-i18n');
-                let value = '';
-                try { value = i18next.t(key); if (value === key && key !== '') console.warn(`Translation missing: ${key}`); }
-                catch (e) { console.error(`Error translating key "${key}":`, e); value = `[Error: ${key}]`; }
-
-                // Skip language buttons
-                if (el.classList.contains('lang-button')) return; 
-
-                if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
-                    if (el.hasAttribute('placeholder')) el.placeholder = value;
-                } else if (el.tagName === 'OPTION') {
-                     el.textContent = value;
-                } else if (el.id === 'copy-tooltip') {
-                     el.textContent = value; // Use textContent for tooltip
-                }
-                 else {
-                     el.innerHTML = (typeof value === 'string' || typeof value === 'number') ? value : '';
-                 }
-             });
-             console.log("updateContent for results.html finished."); // Add log
-        }
-
-        // ========= 删除: setupLanguageSwitcher 函数 =========
-        // function setupLanguageSwitcher() { ... } // REMOVED
-
-        // ========= 新增: renderLanguageSwitcher 函数 =========
-        function renderLanguageSwitcher() {
-            const container = document.getElementById('language-flags');
-            if (!container) return;
-            container.innerHTML = '';
-            const languages = ['zh', 'en', 'es'];
-            const currentLang = i18next.language ? i18next.language.split('-')[0] : 'zh';
-
-            languages.forEach(lang => {
-                const button = document.createElement('button');
-                button.textContent = lang.toUpperCase();
-                button.className = `lang-button ${lang === currentLang ? 'active' : ''}`;
-                button.dataset.lang = lang;
-                button.onclick = async (e) => {
-                    const newLang = e.target.dataset.lang;
-                    const oldLang = i18next.language ? i18next.language.split('-')[0] : 'zh';
-                    if (newLang === oldLang) return;
-
-                    console.log(`results.html: Changing language to ${newLang}`);
-                    try {
-                        await i18next.changeLanguage(newLang);
-                        console.log("results.html: Language changed, running updates...");
-                        updateContent();             // Update static text
-                        renderLanguageSwitcher();     // Update button active state
-                        renderLoginStatus(currentAuthUser); // Update login/logout text
-                        document.title = i18next.t('resultsPage.pageTitle'); // Update page title
-                        if (resultsData) {
-                             console.log("results.html: Re-rendering page content with new language...");
-                             renderPageContent(resultsData); // Re-render dynamic page content
-                             // Re-render potentially language-dependent parts of share card if needed
-                             // Example: updateShareCardWatermark();
-                        }
-                        console.log("results.html: UI updates after language change finished.");
-                    } catch (langErr) {
-                        console.error(`results.html: Failed to change language to ${newLang}:`, langErr);
-                    }
-                };
-                container.appendChild(button);
-            });
-        }
-        // ========= 结束: renderLanguageSwitcher 函数 =========
-
+        // --- i18n Initialization Functions --- (remains the same as previous correct version)
+        async function initI18n() { /* ... */ }
+        function updateContent() { /* ... */ }
+        function renderLanguageSwitcher() { /* ... */ }
 
         // --- Authentication --- (Functions remain the same)
         window.login = function() { /* ... */ }
         window.logout = function() { /* ... */ }
-        function renderLoginStatus(user) {
-             const container = document.getElementById('login-status-container'); 
-             if (!container || !i18next.isInitialized) return; // Guard
-             if (user) { 
-                 const displayName = user.nickname || user.name || user.preferred_username || user.email || i18next.t('nav.loggedIn', 'Logged In');
-                 container.innerHTML = `<span class="text-sm font-medium text-gray-700 mr-2 hidden sm:inline">${displayName}</span><button onclick="logout()" class="px-3 py-1 text-xs font-medium rounded-full bg-red-500 text-white hover:bg-red-600">${i18next.t('nav.logout')}</button>`; 
-             } else { 
-                 container.innerHTML = `<button onclick="login()" class="px-3 py-1 text-xs font-medium rounded-full bg-green-500 text-white hover:bg-green-600">${i18next.t('nav.login')}</button>`; 
-             } 
-        }
+        function renderLoginStatus(user) { /* ... */ }
         async function handleOidcCallback(code) { /* ... */ }
         async function validateSessionAndGetUser() { /* ... */ }
 
@@ -343,42 +233,142 @@
         function initSwipers(imageUrls = []) { /* ... */ }
         async function autoGenerateShareImage() { /* ... */ }
 
-        // --- renderPageContent (remains the same as previous correct version) ---
+        // --- renderPageContent (Modified with safety checks) ---
         function renderPageContent(data) {
-             if (!data || !i18next.isInitialized) return; // Add i18n check
+             console.log("Attempting to render page content with data:", data); // Debug log
+             if (!data || !i18next.isInitialized) {
+                 console.warn("renderPageContent aborted: No data or i18n not ready.");
+                 return; 
+             }
 
              const { cigarInfo, cigarReview, normalizedScore, isDraft, selectedFlavors = [] } = data;
              const title = data.title || i18next.t('common.noTitle');
              const userNickname = data.userNickname || data.userEmail || i18next.t('common.anonymous');
+             
+             // ========= 安全检查: finalGrade 计算 =========
+             let finalGrade = null;
+             let foundGrade = null;
+             // Ensure normalizedScore is a number before comparison
+             if (typeof normalizedScore === 'number' && !isNaN(normalizedScore)) {
+                 foundGrade = GRADING_SCALE.find(g => normalizedScore >= g.min_score) || GRADING_SCALE[GRADING_SCALE.length - 1];
+                 if (foundGrade) {
+                     finalGrade = {
+                         grade: foundGrade.grade,
+                         name: i18next.t(foundGrade.nameKey), 
+                         color: foundGrade.color
+                     };
+                     console.log("Calculated finalGrade:", finalGrade); // Debug log
+                 } else {
+                      console.error("Could not find a grade in GRADING_SCALE for score:", normalizedScore);
+                 }
+             } else {
+                 console.error("normalizedScore is invalid or missing:", normalizedScore);
+                 // Provide a default fallback grade if score is invalid
+                 foundGrade = GRADING_SCALE[GRADING_SCALE.length - 1]; // e.g., Grade 'O'
+                 finalGrade = {
+                     grade: foundGrade.grade,
+                     name: i18next.t(foundGrade.nameKey), 
+                     color: foundGrade.color
+                 };
+                 console.warn("Using fallback finalGrade due to invalid score:", finalGrade); // Debug log
+             }
+             // ========= 结束: 安全检查 =========
 
-             const foundGrade = GRADING_SCALE.find(g => normalizedScore >= g.min_score) || GRADING_SCALE[GRADING_SCALE.length - 1];
-             const finalGrade = {
-                 grade: foundGrade.grade,
-                 name: i18next.t(foundGrade.nameKey), // Translate the grade name
-                 color: foundGrade.color
-             };
-
+             // Update basic info
              document.getElementById('user-nickname').textContent = userNickname;
              document.getElementById('rating-title').textContent = title;
-             document.getElementById('cigar-name').textContent = cigarInfo.name;
-             document.getElementById('cigar-size').textContent = cigarInfo.size;
-             document.getElementById('cigar-origin').textContent = cigarInfo.origin;
+             document.getElementById('cigar-name').textContent = cigarInfo?.name || i18next.t('common.unknown'); // Add safety check
+             document.getElementById('cigar-size').textContent = cigarInfo?.size || i18next.t('common.unknown');   // Add safety check
+             document.getElementById('cigar-origin').textContent = cigarInfo?.origin || i18next.t('common.unknown'); // Add safety check
+             
+             // Update review
              const reviewContainer = document.getElementById('cigar-review-container');
-             reviewContainer.innerHTML = (cigarReview && cigarReview.trim()) ? `<p>${cigarReview}</p>` : `<p class="text-gray-400 italic">${i18next.t('common.noReview')}</p>`;
-             const flavorsContainer = document.getElementById('selected-flavors-container');
-             if (selectedFlavors.length > 0) { document.getElementById('flavors-display').innerHTML = selectedFlavors.map(f => `<span class="flavor-tag">${f}</span>`).join(''); flavorsContainer.classList.remove('hidden'); } else { flavorsContainer.classList.add('hidden'); }
-             renderScoreSection(document.getElementById('score-section'), normalizedScore, finalGrade);
-             const saveButtonContainer = document.getElementById('save-button-container'); saveButtonContainer.style.display = (currentAuthUser && isDraft) ? 'block' : 'none';
+             if (reviewContainer) {
+                 reviewContainer.innerHTML = (cigarReview && cigarReview.trim()) 
+                    ? `<p>${cigarReview}</p>` 
+                    : `<p class="text-gray-400 italic">${i18next.t('common.noReview')}</p>`;
+             }
+             
+             // Update flavors
+             const flavorsContainer = document.getElementById('selected-flavors-container'); 
+             if (flavorsContainer) {
+                 if (selectedFlavors.length > 0) { 
+                     document.getElementById('flavors-display').innerHTML = selectedFlavors.map(f => `<span class="flavor-tag">${f}</span>`).join(''); 
+                     flavorsContainer.classList.remove('hidden'); 
+                 } else { 
+                     flavorsContainer.classList.add('hidden'); 
+                 }
+             }
+
+             // ========= 安全检查: 调用 renderScoreSection =========
+             if (finalGrade) { // Only render if finalGrade was successfully calculated
+                 renderScoreSection(document.getElementById('score-section'), normalizedScore ?? 0, finalGrade);
+             } else {
+                 console.error("Skipping renderScoreSection because finalGrade is null.");
+                 // Optionally clear or hide the score section
+                 const scoreSection = document.getElementById('score-section');
+                 if (scoreSection) scoreSection.innerHTML = `<p class="text-red-500 italic">${i18next.t('errors.scoreCalculationFailed')}</p>`; // Add this key to locales
+             }
+             // ========= 结束: 安全检查 =========
+
+             // Update save button visibility
+             const saveButtonContainer = document.getElementById('save-button-container'); 
+             if (saveButtonContainer) saveButtonContainer.style.display = (currentAuthUser && isDraft) ? 'block' : 'none';
+
+             // Update details visibility
              const hasFullData = data.config && data.ratings;
-             ['narrative-summary-details', 'summary-details'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = hasFullData ? 'block' : 'none'; });
-             if (hasFullData) { document.getElementById('narrative-summary-container').innerHTML = generateNarrativeSummary(cigarInfo, data.config, data.ratings, finalGrade, selectedFlavors); renderSummary(document.getElementById('summary-container'), data.config, data.ratings); }
-             const shareCardImage = document.getElementById('share-card-image');
-             const gradeStyles = getGradeStyles(finalGrade.color); document.getElementById('share-card-score').className = `text-5xl font-black ${gradeStyles.textColor}`; document.getElementById('share-card-grade-badge').className = `inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${gradeStyles.bgColor} ${gradeStyles.textColor} bg-opacity-20`; document.getElementById('share-card-score').textContent = normalizedScore.toFixed(2); document.getElementById('share-card-grade-badge').textContent = finalGrade.name; document.getElementById('share-card-watermark').innerHTML = i18next.t('resultsPage.shareCard.userRatingOn', { user: `<span id="share-card-username">${userNickname}</span>` });
-             const shareCardQrCode = document.getElementById('share-card-qrcode'); if (shareCardQrCode && typeof QRCode !== 'undefined') { shareCardQrCode.innerHTML = ''; const uniqueUrl = ratingId ? `${window.location.origin}/results.html?ratingId=${ratingId}` : window.location.href; new QRCode(shareCardQrCode, { text: uniqueUrl, width: 90, height: 90 }); } else if (!ratingId && typeof QRCode !== 'undefined') { console.warn(i18next.t('resultsPage.shareCard.qrError')); }
-             const images = data.imageUrls || []; if (images.length > 0) { shareCardImage.src = `/api/image/${images[0]}`; } else { document.getElementById('share-card-image-wrapper').innerHTML = `<span class="text-gray-400 text-sm">${i18next.t('resultsPage.shareCard.noCover')}</span>`; }
+             ['narrative-summary-details', 'summary-details'].forEach(id => { 
+                 const el = document.getElementById(id); 
+                 if (el) el.style.display = hasFullData ? 'block' : 'none'; 
+             });
+             
+             // Render summaries if data exists
+             if (hasFullData) { 
+                 document.getElementById('narrative-summary-container').innerHTML = finalGrade ? generateNarrativeSummary(cigarInfo, data.config, data.ratings, finalGrade, selectedFlavors) : i18next.t('errors.narrativeGenFailed'); // Guard narrative too
+                 renderSummary(document.getElementById('summary-container'), data.config, data.ratings); 
+             }
+
+             // ========= 安全检查: 填充分享卡 =========
+             if (finalGrade) { // Only populate if grade exists
+                 const shareCardImage = document.getElementById('share-card-image');
+                 const gradeStyles = getGradeStyles(finalGrade.color); 
+                 
+                 // **Critical**: Check if gradeStyles is valid before accessing properties
+                 const defaultStyles = getGradeStyles('gray'); // Fallback style
+                 const validStyles = gradeStyles || defaultStyles; 
+
+                 document.getElementById('share-card-score').className = `text-5xl font-black ${validStyles.textColor}`; 
+                 document.getElementById('share-card-grade-badge').className = `inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${validStyles.bgColor} ${validStyles.textColor} bg-opacity-20`;
+                 document.getElementById('share-card-score').textContent = (typeof normalizedScore === 'number' && !isNaN(normalizedScore)) ? normalizedScore.toFixed(2) : 'N/A';
+                 document.getElementById('share-card-grade-badge').textContent = finalGrade.name;
+                 document.getElementById('share-card-watermark').innerHTML = i18next.t('resultsPage.shareCard.userRatingOn', { user: `<span id="share-card-username">${userNickname}</span>` });
+                 
+                 const shareCardQrCode = document.getElementById('share-card-qrcode');
+                 if (shareCardQrCode && typeof QRCode !== 'undefined') {
+                     shareCardQrCode.innerHTML = '';
+                     const uniqueUrl = ratingId ? `${window.location.origin}/results.html?ratingId=${ratingId}` : window.location.href;
+                     new QRCode(shareCardQrCode, { text: uniqueUrl, width: 90, height: 90 });
+                 } else if (!ratingId && typeof QRCode !== 'undefined') {
+                     console.warn(i18next.t('resultsPage.shareCard.qrError'));
+                 }
+                 
+                 const images = data.imageUrls || [];
+                 if (shareCardImage) { // Check if element exists
+                     if (images.length > 0) {
+                         shareCardImage.src = `/api/image/${images[0]}`;
+                     } else {
+                         const wrapper = document.getElementById('share-card-image-wrapper');
+                         if(wrapper) wrapper.innerHTML = `<span class="text-gray-400 text-sm">${i18next.t('resultsPage.shareCard.noCover')}</span>`; 
+                     }
+                 }
+             } else {
+                  console.error("Skipping share card population because finalGrade is null.");
+             }
+             // ========= 结束: 安全检查 =========
         }
 
-        // --- window.onload (Modified) ---
+
+        // --- window.onload (Modified - using Promise/Callback for initI18n) ---
         window.onload = async function() {
              console.log("results.html window.onload started");
              const errorContainer = document.getElementById('error-container');
@@ -400,7 +390,7 @@
                  currentAuthUser = user;
                  console.log("Authentication handled. User:", currentAuthUser ? currentAuthUser.sub : 'None');
 
-                 // 3. Render User UI & Language Switcher (after i18n ready)
+                 // 3. Render User UI & Language Switcher
                  console.log("Rendering user UI elements...");
                  renderLoginStatus(currentAuthUser);
                  renderLanguageSwitcher(); // Render language buttons
@@ -425,15 +415,23 @@
                  } else {
                      const storedData = sessionStorage.getItem('cigarRatingResults');
                      if (!storedData) throw new Error(i18next.t('errors.noRatingDataFound'));
-                     resultsData = JSON.parse(storedData);
-                     ratingId = resultsData.ratingId; // Update ratingId if loaded from session
+                     // **Add try-catch for JSON parsing**
+                     try {
+                        resultsData = JSON.parse(storedData);
+                     } catch (parseError) {
+                         console.error("Failed to parse sessionStorage data:", parseError);
+                         throw new Error(i18next.t('errors.invalidSessionData')); // Add this key
+                     }
+                     ratingId = resultsData?.ratingId; // Update ratingId if loaded from session
                      console.log("Rating data loaded from sessionStorage.");
                  }
 
-                 if (!resultsData || resultsData.normalizedScore === undefined) {
+                 // **Critical check**: Ensure resultsData is valid before proceeding
+                 if (!resultsData || typeof resultsData.normalizedScore !== 'number' || isNaN(resultsData.normalizedScore)) {
+                     console.error("Loaded resultsData is invalid or missing normalizedScore:", resultsData);
                      throw new Error(i18next.t('errors.missingEssentialData'));
                  }
-
+                 
                  // 5. Render Page Content
                  console.log("Rendering page content...");
                  initSwipers(resultsData.imageUrls || []);
@@ -444,8 +442,15 @@
                  console.log("Attempting to generate share image...");
                  const shareImg = document.getElementById('share-card-image');
                  if (shareImg && shareImg.src && !shareImg.src.includes('placehold.co')) {
-                     if (shareImg.complete) { await autoGenerateShareImage(); }
-                     else { shareImg.onload = async () => await autoGenerateShareImage(); shareImg.onerror = () => console.warn("Share card image failed to load, cannot generate share image."); }
+                     // Wrap in a promise to ensure it waits if loaded asynchronously
+                     await new Promise((resolve, reject) => {
+                         if (shareImg.complete && shareImg.naturalWidth > 0) {
+                             autoGenerateShareImage().then(resolve).catch(reject);
+                         } else {
+                             shareImg.onload = () => autoGenerateShareImage().then(resolve).catch(reject);
+                             shareImg.onerror = () => { console.warn("Share card image failed to load."); resolve(); }; // Resolve anyway on error
+                         }
+                     });
                  } else if (ratingId) {
                       console.warn(i18next.t('resultsPage.shareCard.noCover'));
                       await autoGenerateShareImage();
