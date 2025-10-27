@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>雪茄品鉴 - 点评报告</title>
-    
+    <title data-i18n="resultsPage.pageTitle">雪茄品鉴 - 点评报告</title>
+
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -17,18 +17,19 @@
 
     <script>
         // Tailwind config
-        if (typeof tailwind !== 'undefined') { 
+        if (typeof tailwind !== 'undefined') {
              tailwind.config = {
                  theme: { extend: { fontFamily: { sans: ['Inter', 'Noto Sans SC', 'system-ui', 'sans-serif'], }, } }
              }
          } else { console.warn('Tailwind object not found.'); }
     </script>
     <style>
-        /* CSS styles (omitted for brevity, remains the same) */
-        .tooltip { position: relative; display: inline-block; } 
-        .tooltip .tooltiptext { visibility: hidden; width: 60px; background-color: #555; color: #fff; text-align: center; border-radius: 6px; padding: 5px 0; position: absolute; z-index: 1; bottom: 125%; left: 50%; margin-left: -30px; opacity: 0; transition: opacity 0.3s; font-size: 10px; } 
-        .tooltip .tooltiptext::after { content: ""; position: absolute; top: 100%; left: 50%; margin-left: -5px; border-width: 5px; border-style: solid; border-color: #555 transparent transparent transparent; } 
+        /* Tooltip style */
+        .tooltip { position: relative; display: inline-block; }
+        .tooltip .tooltiptext { visibility: hidden; width: 60px; background-color: #555; color: #fff; text-align: center; border-radius: 6px; padding: 5px 0; position: absolute; z-index: 1; bottom: 125%; left: 50%; margin-left: -30px; opacity: 0; transition: opacity 0.3s; font-size: 10px; }
+        .tooltip .tooltiptext::after { content: ""; position: absolute; top: 100%; left: 50%; margin-left: -5px; border-width: 5px; border-style: solid; border-color: #555 transparent transparent transparent; }
         .tooltip:hover .tooltiptext { visibility: visible; opacity: 1; }
+        /* Swiper styles */
         .swiper-container.main-swiper { width: 100%; position: relative; }
         .swiper-slide { height: auto; display: flex; flex-direction: column; }
         .swiper-slide img { display: block; width: 100%; height: auto; object-fit: contain; max-height: 80vh; }
@@ -40,10 +41,12 @@
         .thumbnail-swiper .swiper-slide { width: 60px !important; height: 80px; opacity: 0.6; cursor: pointer; border: 2px solid transparent; transition: opacity 0.3s, border-color 0.3s; }
         .thumbnail-swiper .swiper-slide img { object-fit: cover; width: 100%; height: 100%;}
         .thumbnail-swiper .swiper-slide-thumb-active { opacity: 1; border-color: #4f46e5; } .thumbnail-swiper { margin-top: 0.5rem; padding: 5px 0; }
+        /* Content container width */
         #narrative-summary-container, #cigar-review-container, #selected-flavors-container { max-width: 100%; }
+        /* Flavor tag style */
         .flavor-tag { display: inline-block; background-color: #e5e7eb; color: #374151; font-size: 0.75rem; font-weight: 600; margin-right: 0.5rem; margin-bottom: 0.5rem; padding: 0.125rem 0.625rem; border-radius: 9999px; }
 
-        /* Share Card Styles */
+        /* Share Card Styles (Hidden off-screen for generation) */
         #share-card-container { position: absolute; left: -9999px; top: 0; width: 350px; background-color: white; border-radius: 0.5rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); overflow: hidden; border: 1px solid #e5e7eb; visibility: hidden; z-index: -1; }
         #share-card-image-wrapper { background-color: #e5e7eb; display: flex; align-items: center; justify-content: center; aspect-ratio: 1179 / 1572; }
         #share-card-image { width: 100%; height: 100%; object-fit: cover; }
@@ -59,18 +62,24 @@
 </head>
 <body class="bg-gray-100 font-sans antialiased text-gray-800">
     <div class="max-w-6xl mx-auto p-4 md:p-8 relative">
+        <!-- Error Container -->
         <div id="error-container" class="hidden bg-red-100 p-6 rounded-lg shadow-lg text-red-700 font-medium"></div>
+        <!-- Loading Indicator -->
         <div id="loading-indicator" class="hidden text-center py-10 text-gray-500" data-i18n="common.loadingDetails">正在加载评分详情...</div>
-        
+
+        <!-- Main Content (hidden initially) -->
         <div id="main-content" class="opacity-0">
+            <!-- Navigation Bar -->
             <nav class="mb-6 flex flex-wrap justify-between items-center bg-white p-3 rounded-lg shadow-sm gap-4">
                  <a href="index.html" class="text-xl font-bold text-indigo-600" data-i18n="nav.title">Pistacho评分</a>
+                 <!-- Nav Links -->
                  <div class="flex items-center space-x-4 flex-grow justify-center md:justify-start md:flex-grow-0 order-3 md:order-2 w-full md:w-auto">
                      <a href="index.html" class="text-gray-600 hover:text-indigo-600" data-i18n="nav.community">社区动态</a>
                      <a href="rate.html" class="text-gray-600 hover:text-indigo-600" data-i18n="nav.rate">去评分</a>
                      <a href="history.html" class="text-gray-600 hover:text-indigo-600" data-i18n="nav.myRatings">我的评分</a>
                      <a href="certified.html" class="text-gray-600 hover:text-indigo-600" data-i18n="nav.certified">认证评分</a>
                  </div>
+                 <!-- Language Switcher & Login Status -->
                  <div class="flex items-center order-2 md:order-3">
                     <select id="language-switcher" class="text-xs p-1 rounded border border-gray-300 mr-2" style="height: 30px; line-height: 1.5;">
                         <option value="zh">简体中文</option>
@@ -81,9 +90,12 @@
                  </div>
             </nav>
 
+            <!-- Main Layout: Image Gallery + Details -->
             <div class="flex flex-col md:flex-row gap-6 md:gap-8 mb-8">
+                <!-- Image Gallery -->
                 <div class="w-full md:w-2/5 flex-shrink-0">
                      <div id="image-gallery-container" class="bg-white rounded-lg shadow-md overflow-hidden">
+                         <!-- Main Swiper -->
                          <div class="swiper-container main-swiper bg-gray-200 relative">
                               <div class="swiper-wrapper" id="main-swiper-wrapper">
                                   <div class="swiper-slide flex items-center justify-center text-gray-400 aspect-[1179/1572]" data-i18n="common.loading">加载中...</div>
@@ -92,63 +104,88 @@
                               <div class="swiper-button-next"></div>
                               <div class="swiper-button-prev"></div>
                          </div>
+                         <!-- Thumbnail Swiper (hidden if only one image) -->
                          <div class="swiper-container thumbnail-swiper hidden"> <div class="swiper-wrapper" id="thumbnail-swiper-wrapper"> </div> </div>
                      </div>
                 </div>
+                 <!-- Rating Details -->
                  <div class="w-full md:flex-grow bg-white rounded-lg shadow-md p-6">
+                     <!-- Author -->
                      <p class="text-sm text-gray-500 mb-1">
-                         <span data-i18n="resultsPage.by">点评来自:</span> 
+                         <span data-i18n="resultsPage.by">点评来自:</span>
                          <span id="user-nickname" class="font-medium text-gray-700"></span>
                      </p>
+                     <!-- Rating Title -->
                      <h1 id="rating-title" class="text-3xl font-bold mb-3"></h1>
+                     <!-- Cigar Info -->
                      <h2 id="cigar-name" class="text-xl font-semibold mb-1"></h2>
                      <div class="mb-4 text-sm text-gray-600 flex space-x-4">
                          <span><span data-i18n="resultsPage.size">尺寸</span>: <strong id="cigar-size"></strong></span>
                          <span><span data-i18n="resultsPage.origin">产地</span>: <strong id="cigar-origin"></strong></span>
                      </div>
+                     <!-- Written Review -->
                      <div id="cigar-review-container" class="prose prose-sm max-w-none text-gray-700 border-t pt-4">
+                         <!-- Review content inserted by JS -->
                      </div>
+                     <!-- Selected Flavors -->
                      <div id="selected-flavors-container" class="hidden pt-2">
                          <h4 class="text-sm font-semibold text-gray-600 mb-2" data-i18n="resultsPage.flavors">主要风味:</h4>
-                         <div id="flavors-display" class="flex flex-wrap"></div>
+                         <div id="flavors-display" class="flex flex-wrap">
+                             <!-- Flavor tags inserted by JS -->
+                         </div>
                      </div>
                  </div>
             </div>
 
+            <!-- Score Section -->
             <section id="score-section" class="bg-white rounded-xl shadow-lg p-6 mb-8 flex flex-col md:flex-row gap-6 items-center">
+                <!-- Score and grade details inserted by JS -->
             </section>
 
+             <!-- Save Button (visible only for drafts) -->
              <div id="save-button-container" class="hidden mb-6">
                  <button id="save-rating-button" onclick="saveRating()" class="w-full py-3 px-6 bg-green-600 text-white font-bold text-lg rounded-lg shadow-md hover:bg-green-700 transition" data-i18n="resultsPage.saveRating">
                      保存为我的评分记录
                  </button>
              </div>
 
+            <!-- Details Sections (Narrative Summary, Rating Details) -->
             <div class="space-y-4">
+                 <!-- Narrative Summary -->
                  <details id="narrative-summary-details" class="group bg-white rounded-xl shadow-lg p-6 transition-all duration-300" open>
                      <summary class="flex justify-between items-center cursor-pointer font-bold text-lg text-gray-800">
                          <span>
                              <span data-i18n="resultsPage.narrativeTitle">综合评价</span>
+                             <!-- Arrow icon -->
                              <svg class="inline w-5 h-5 transform group-open:rotate-180 transition-transform ml-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
                          </span>
+                         <!-- Copy Button with Tooltip -->
                          <div class="tooltip">
                              <button id="copy-summary-button" onclick="copySummary(event)" class="ml-4 p-1.5 bg-gray-100 text-gray-600 rounded-full hover:bg-gray-200 transition text-xs">
+                                 <!-- Copy icon -->
                                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"> <path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /> </svg>
                              </button>
                              <span id="copy-tooltip" class="tooltiptext" data-i18n="resultsPage.copy">复制</span>
                          </div>
                      </summary>
-                     <div id="narrative-summary-container" class="mt-4 prose max-w-none"></div>
+                     <div id="narrative-summary-container" class="mt-4 prose max-w-none">
+                         <!-- Narrative summary inserted by JS -->
+                     </div>
                  </details>
+                 <!-- Rating Details Summary -->
                  <details id="summary-details" class="group bg-white rounded-xl shadow-lg p-6">
                      <summary class="flex justify-between items-center cursor-pointer font-bold text-lg text-gray-800">
                          <span data-i18n="resultsPage.detailsTitle">评分详情汇总</span>
+                         <!-- Arrow icon -->
                          <svg class="w-5 h-5 transform group-open:rotate-180 transition-transform" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
                      </summary>
-                     <div id="summary-container" class="mt-4"></div>
+                     <div id="summary-container" class="mt-4">
+                         <!-- Rating details summary inserted by JS -->
+                     </div>
                  </details>
             </div>
 
+            <!-- Footer Navigation -->
             <footer class="mt-8 flex flex-col sm:flex-row justify-center items-center gap-4">
                  <a href="rate.html" class="py-3 px-6 bg-indigo-600 text-white font-bold rounded-lg shadow-md hover:bg-indigo-700 transition" data-i18n="resultsPage.backToRate">
                      &larr; 返回重新评分
@@ -156,6 +193,7 @@
             </footer>
         </div>
 
+        <!-- Hidden Share Card Container (for image generation) -->
         <div id="share-card-container">
             <div id="share-card-image-wrapper">
                 <img id="share-card-image" src="" alt="Cigar Cover Image" crossorigin="anonymous">
@@ -167,7 +205,8 @@
                 </div>
                 <div class="share-card-footer">
                      <p id="share-card-watermark">
-                         <span id="share-card-username">用户</span> 
+                         <span id="share-card-username">用户</span>
+                         <!-- Placeholder for 'rating on...' text -->
                          </p>
                      <div id="share-card-qrcode"></div>
                 </div>
@@ -177,7 +216,7 @@
 
     <script type="module">
         // --- Constants and Global Vars ---
-        const GRADING_SCALE = [
+        const GRADING_SCALE = [ // Defines grades, score ranges, and i18n keys
             { "grade": "P", "nameKey": "resultsPage.grade.P", "min_score": 95, "color": "gold" },
             { "grade": "I", "nameKey": "resultsPage.grade.I", "min_score": 90, "color": "indigo" },
             { "grade": "S", "nameKey": "resultsPage.grade.S", "min_score": 80, "color": "purple" },
@@ -187,340 +226,464 @@
             { "grade": "H", "nameKey": "resultsPage.grade.H", "min_score": 30, "color": "orange" },
             { "grade": "O", "nameKey": "resultsPage.grade.O", "min_score": 0, "color": "red" }
         ];
-        
-        let currentAuthUser = null; 
-        let resultsData = null; 
-        let ratingId = null;
-        const AUTHING_APP_ID = '68f5b0b6875017c02b3bfdb3'; 
-        const AUTHING_HOST = 'https://xfvu647mcdbk-demo.authing.cn';
-        let mainSwiper = null; 
-        let thumbnailSwiper = null;
+
+        let currentAuthUser = null; // Stores logged-in user info
+        let resultsData = null;     // Stores the rating data being displayed
+        let ratingId = null;        // ID of the rating (if saved)
+        const AUTHING_APP_ID = '68f5b0b6875017c02b3bfdb3'; // Authing App ID
+        const AUTHING_HOST = 'https://xfvu647mcdbk-demo.authing.cn'; // Authing Host
+        let mainSwiper = null;      // Swiper instance for main images
+        let thumbnailSwiper = null; // Swiper instance for thumbnails
 
         // --- i18n Initialization Functions ---
         async function initI18n() {
+            // Initialize i18next
             await i18next
                 .use(i18nextHttpBackend)
                 .use(i18nextBrowserLanguageDetector)
                 .init({
                     fallbackLng: 'zh',
-                    debug: false,
+                    debug: false, // Turn off for production
                     ns: ['translation'],
                     defaultNS: 'translation',
                     backend: {
-                        loadPath: '/locales/{{lng}}.json'
+                        loadPath: '/locales/{{lng}}.json?v=1' // Cache busting
                     },
                     detection: {
                         order: ['localStorage', 'navigator'],
                         caches: ['localStorage']
                     }
                 });
-            document.title = i18next.t('resultsPage.pageTitle');
+            updateContent(); // Update static text after init
         }
 
         function updateContent() {
+            // Update elements with data-i18n attribute
             document.querySelectorAll('[data-i18n]').forEach(el => {
                 const key = el.getAttribute('data-i18n');
-                const value = i18next.t(key);
+                let value = '';
+                try {
+                    value = i18next.t(key);
+                    if (value === key && key !== '') console.warn(`Translation missing for key: ${key}`);
+                } catch (e) { console.error(`Error translating key "${key}":`, e); value = `[Error: ${key}]`; }
+
                 if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
-                    el.placeholder = value;
+                    if (el.hasAttribute('placeholder')) el.placeholder = value;
                 } else if (el.tagName === 'OPTION') {
                     el.textContent = value;
                 } else {
-                    // Check if the element is the tooltip span specifically
+                    // Handle specific elements like tooltip
                     if (el.id === 'copy-tooltip') {
-                         el.textContent = value; // Use textContent for the tooltip span
+                         el.textContent = value;
                     } else {
                          el.innerHTML = value; // Use innerHTML for others
                     }
                 }
             });
+            // Update page title
+            document.title = i18next.t('resultsPage.pageTitle');
         }
 
 
         function setupLanguageSwitcher() {
+            // Setup language dropdown
             const switcher = document.getElementById('language-switcher');
             if (!switcher) return;
-            const currentLang = i18next.language.split('-')[0];
+            const currentLang = i18next.language ? i18next.language.split('-')[0] : 'zh';
             switcher.value = ['zh', 'en', 'es'].includes(currentLang) ? currentLang : 'zh';
             switcher.addEventListener('change', async (e) => {
                 const newLang = e.target.value;
                 await i18next.changeLanguage(newLang);
-                updateContent();
-                document.title = i18next.t('resultsPage.pageTitle');
+                updateContent(); // Update static text
+                // Re-render dynamic content that depends on language
                 renderLoginStatus(currentAuthUser);
                 if (resultsData) {
-                    renderPageContent(resultsData);
+                    renderPageContent(resultsData); // Re-render main content with new language
                 }
             });
         }
 
-        // --- Authentication --- (remains the same)
-        window.login = function() { const redirectUri = window.location.origin; const authorizeUrl = new URL('/oidc/auth', AUTHING_HOST); authorizeUrl.search = new URLSearchParams({ client_id: AUTHING_APP_ID, redirect_uri: redirectUri, response_type: 'code', scope: 'openid profile email phone', state: Math.random().toString(36).substring(2) }).toString(); window.location.href = authorizeUrl.toString(); }
-        window.logout = function() { const logoutUrl = new URL('/oidc/session/end', AUTHING_HOST); logoutUrl.search = new URLSearchParams({ post_logout_redirect_uri: window.location.origin }).toString(); sessionStorage.removeItem('userInfo'); sessionStorage.removeItem('accessToken'); window.location.href = logoutUrl.toString(); }
-        
+        // --- Authentication ---
+        // Redirects to Authing for login
+        window.login = function() {
+            const redirectUri = window.location.origin; // Use base origin
+            const authorizeUrl = new URL('/oidc/auth', AUTHING_HOST);
+            authorizeUrl.search = new URLSearchParams({
+                client_id: AUTHING_APP_ID,
+                redirect_uri: redirectUri,
+                response_type: 'code',
+                scope: 'openid profile email phone',
+                state: Math.random().toString(36).substring(2)
+            }).toString();
+            window.location.href = authorizeUrl.toString();
+        }
+
+        // Redirects to Authing for logout
+        window.logout = function() {
+            const logoutUrl = new URL('/oidc/session/end', AUTHING_HOST);
+            logoutUrl.search = new URLSearchParams({ post_logout_redirect_uri: window.location.origin }).toString();
+            sessionStorage.removeItem('userInfo');
+            sessionStorage.removeItem('accessToken');
+            window.location.href = logoutUrl.toString();
+        }
+
+        // Updates UI based on login status
         function renderLoginStatus(user) {
-            const container = document.getElementById('login-status-container'); 
-            if (!container) return; 
-            if (user) { 
+            const container = document.getElementById('login-status-container');
+            if (!container || !i18next.isInitialized) return;
+            if (user) {
                 const displayName = user.nickname || user.name || user.preferred_username || user.email || i18next.t('nav.loggedIn');
-                container.innerHTML = `<span class="text-sm font-medium text-gray-700 mr-2 hidden sm:inline">${displayName}</span><button onclick="logout()" class="px-3 py-1 text-xs font-medium rounded-full bg-red-500 text-white hover:bg-red-600">${i18next.t('nav.logout')}</button>`; 
-            } else { 
-                container.innerHTML = `<button onclick="login()" class="px-3 py-1 text-xs font-medium rounded-full bg-green-500 text-white hover:bg-green-600">${i18next.t('nav.login')}</button>`; 
-            } 
+                container.innerHTML = `<span class="text-sm font-medium text-gray-700 mr-2 hidden sm:inline">${displayName}</span><button onclick="logout()" class="px-3 py-1 text-xs font-medium rounded-full bg-red-500 text-white hover:bg-red-600">${i18next.t('nav.logout')}</button>`;
+            } else {
+                container.innerHTML = `<button onclick="login()" class="px-3 py-1 text-xs font-medium rounded-full bg-green-500 text-white hover:bg-green-600">${i18next.t('nav.login')}</button>`;
+            }
         }
 
-        async function handleOidcCallback(code) { 
-            try { 
-                const redirectUri = window.location.origin; 
-                const apiUrl = new URL('/api/authing/callback', window.location.origin); 
-                const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: code, redirect_uri: redirectUri }) }); 
-                if (!response.ok) { 
+        // Handles the OIDC callback after login
+        async function handleOidcCallback(code) {
+            try {
+                const redirectUri = window.location.origin; // Use base origin
+                const apiUrl = new URL('/api/authing/callback', window.location.origin);
+                const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: code, redirect_uri: redirectUri }) });
+                if (!response.ok) {
                     let errorText = i18next.t('errors.authCallbackFailed', { status: response.status });
-                    try { const err = await response.json(); errorText = err.error || errorText; } catch(e){} 
-                    throw new Error(errorText); 
-                } 
-                const fullUserProfile = await response.json(); 
-                sessionStorage.setItem('userInfo', JSON.stringify(fullUserProfile)); 
-                sessionStorage.setItem('accessToken', fullUserProfile.accessToken); 
-                return fullUserProfile; 
-            } catch (e) { 
-                console.error('认证回调处理失败:', e); 
+                    try { const err = await response.json(); errorText = err.error || errorText; } catch(e){}
+                    throw new Error(errorText);
+                }
+                const fullUserProfile = await response.json();
+                sessionStorage.setItem('userInfo', JSON.stringify(fullUserProfile));
+                sessionStorage.setItem('accessToken', fullUserProfile.accessToken);
+                return fullUserProfile;
+            } catch (e) {
+                console.error('Authentication callback handling failed:', e);
                 alert(i18next.t('errors.loginFailed', { message: e.message }));
-                sessionStorage.removeItem('userInfo'); 
-                sessionStorage.removeItem('accessToken'); 
-                return null; 
-            } finally { 
-                window.history.replaceState({}, document.title, window.location.pathname + window.location.search.replace(/&?code=[^&]*/, '').replace(/&?state=[^&]*/, '')); 
-            } 
+                sessionStorage.removeItem('userInfo');
+                sessionStorage.removeItem('accessToken');
+                return null;
+            } finally {
+                // Clean URL
+                window.history.replaceState({}, document.title, window.location.pathname + window.location.search.replace(/&?code=[^&]*/, '').replace(/&?state=[^&]*/, ''));
+            }
         }
-        async function validateSessionAndGetUser() { const token = sessionStorage.getItem('accessToken'); if (!token) return null; try { const apiUrl = new URL('/api/me', window.location.origin); const response = await fetch(apiUrl, { headers: { 'Authorization': `Bearer ${token}` } }); if (!response.ok) { sessionStorage.removeItem('userInfo'); sessionStorage.removeItem('accessToken'); return null; } const fullUserProfile = await response.json(); sessionStorage.setItem('userInfo', JSON.stringify(fullUserProfile)); return fullUserProfile; } catch (e) { console.error("Session validation failed:", e); return null; } }
-
-        // --- Main Functions --- (saveRating remains the same)
-        window.saveRating = async function() { 
+        // Validates session token with backend
+        async function validateSessionAndGetUser() {
             const token = sessionStorage.getItem('accessToken');
-            if (!currentAuthUser || !token) {
+            if (!token) return null;
+            try {
+                const apiUrl = new URL('/api/me', window.location.origin);
+                const response = await fetch(apiUrl, { headers: { 'Authorization': `Bearer ${token}` } });
+                if (!response.ok) {
+                    sessionStorage.removeItem('userInfo'); sessionStorage.removeItem('accessToken'); return null;
+                }
+                const fullUserProfile = await response.json();
+                sessionStorage.setItem('userInfo', JSON.stringify(fullUserProfile));
+                return fullUserProfile;
+            } catch (e) { console.error("Session validation failed:", e); return null; }
+        }
+
+        // --- Main Functions ---
+        // Handles saving the rating (only if it's a draft)
+        window.saveRating = async function() {
+            const token = sessionStorage.getItem('accessToken');
+            if (!currentAuthUser || !token) { // Check login
                 return alert(i18next.t('common.loginRequired'));
             }
-            if (!resultsData || !resultsData.isDraft) {
+            if (!resultsData || !resultsData.isDraft) { // Check if it's a draft
                 return alert(i18next.t('errors.notADraft'));
             }
-            
+
             const button = document.getElementById('save-rating-button');
-            button.textContent = i18next.t('common.saving');
+            button.textContent = i18next.t('common.saving'); // Update button text
             button.disabled = true;
 
             try {
                 const apiUrl = new URL('/api/ratings', window.location.origin);
+                // Send the complete resultsData to the POST endpoint
                 const response = await fetch(apiUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                     body: JSON.stringify(resultsData)
                 });
-                if (!response.ok) { const err = await response.json(); throw new Error(err.error || i18next.t('errors.saveFailedNoMsg')); }
+                if (!response.ok) { const err = await response.json(); throw new Error(err.error || i18next.t('errors.saveFailedNoMsg')); } // Handle API error
                 const saveResult = await response.json();
-                const newRatingId = saveResult.id; 
-                alert(i18next.t('common.saveSuccess'));
-                sessionStorage.removeItem('cigarRatingResults'); 
+                const newRatingId = saveResult.id; // Get the new ID from the response
+
+                alert(i18next.t('common.saveSuccess')); // Show success message
+                sessionStorage.removeItem('cigarRatingResults'); // Clear draft data
+                // Update button state to indicate success
                 button.textContent = i18next.t('common.saveSuccess');
                 button.classList.remove('bg-green-600', 'hover:bg-green-700');
                 button.classList.add('bg-gray-400', 'cursor-not-allowed');
+
+                // Update URL and internal state if a new ID was received
                 if (newRatingId) {
-                    ratingId = newRatingId;
-                    resultsData.isDraft = false;
+                    ratingId = newRatingId; // Update global ratingId
+                    resultsData.isDraft = false; // Mark as no longer a draft
+                    resultsData.ratingId = newRatingId; // Add ID to resultsData
+                    // Update the browser URL to include the new ratingId without reloading
                     const newUrl = new URL(window.location.href);
                     newUrl.searchParams.set('ratingId', newRatingId);
                     window.history.replaceState({}, document.title, newUrl.toString());
+                    // Regenerate QR code and potentially the share image with the new URL
+                    populateShareCard(); // Re-populate share card with new URL
+                    await autoGenerateShareImage(); // Regenerate share image
                 }
             } catch (e) {
-                console.error("保存评分失败:", e);
-                alert(i18next.t('common.saveFailed', { msg: e.message }));
-                button.textContent = i18next.t('resultsPage.saveRating'); // Use correct key
+                console.error("Save rating failed:", e);
+                alert(i18next.t('common.saveFailed', { msg: e.message })); // Show error
+                // Reset button on failure
+                button.textContent = i18next.t('resultsPage.saveRating');
                 button.disabled = false;
             }
         };
-        
-        // copySummary remains the same
-        window.copySummary = function(event) { 
-            event.preventDefault();
-            event.stopPropagation();
+
+        // Copies the narrative summary text to the clipboard
+        window.copySummary = function(event) {
+            event.preventDefault(); // Prevent default link behavior
+            event.stopPropagation(); // Stop event bubbling
             const summaryText = document.getElementById('narrative-summary-container').textContent || '';
             const tooltip = document.getElementById('copy-tooltip');
             navigator.clipboard.writeText(summaryText.trim()).then(() => {
-                tooltip.textContent = i18next.t('common.copied'); 
-                setTimeout(() => { tooltip.textContent = i18next.t('resultsPage.copy'); }, 2000); // Reset using correct key
+                tooltip.textContent = i18next.t('common.copied'); // Show "Copied!"
+                setTimeout(() => { tooltip.textContent = i18next.t('resultsPage.copy'); }, 2000); // Reset after 2s
             }, (err) => {
                 console.error('Could not copy text: ', err);
-                tooltip.textContent = i18next.t('common.copyFailed'); 
-                setTimeout(() => { tooltip.textContent = i18next.t('resultsPage.copy'); }, 2000); // Reset using correct key
+                tooltip.textContent = i18next.t('common.copyFailed'); // Show error
+                setTimeout(() => { tooltip.textContent = i18next.t('resultsPage.copy'); }, 2000); // Reset after 2s
             });
         };
 
-        // initSwipers remains the same
+        // Initializes the main and thumbnail Swiper instances
         function initSwipers(imageUrls = []) {
-             const mainWrapper = document.getElementById('main-swiper-wrapper'); 
-             const thumbWrapper = document.getElementById('thumbnail-swiper-wrapper'); 
+             const mainWrapper = document.getElementById('main-swiper-wrapper');
+             const thumbWrapper = document.getElementById('thumbnail-swiper-wrapper');
              const thumbContainer = document.querySelector('.thumbnail-swiper');
-             mainWrapper.innerHTML = ''; 
+             mainWrapper.innerHTML = ''; // Clear existing slides
              thumbWrapper.innerHTML = '';
-             if (!imageUrls || imageUrls.length === 0) { 
-                 mainWrapper.innerHTML = `<div class="swiper-slide flex items-center justify-center text-gray-400 aspect-[1179/1572]">${i18next.t('common.noImage')}</div>`; 
-                 thumbContainer.classList.add('hidden'); 
-                 if(mainSwiper) mainSwiper.destroy(true, true); 
-                 if(thumbnailSwiper) thumbnailSwiper.destroy(true, true); 
-                 mainSwiper = null; thumbnailSwiper = null; 
-                 return; 
+
+             // Handle case with no images
+             if (!imageUrls || imageUrls.length === 0) {
+                 mainWrapper.innerHTML = `<div class="swiper-slide flex items-center justify-center text-gray-400 aspect-[1179/1572]">${i18next.t('common.noImage')}</div>`;
+                 thumbContainer.classList.add('hidden');
+                 // Destroy existing swipers if they exist
+                 if(mainSwiper) mainSwiper.destroy(true, true);
+                 if(thumbnailSwiper) thumbnailSwiper.destroy(true, true);
+                 mainSwiper = null; thumbnailSwiper = null;
+                 return;
              }
+
+             // Create slides for each image URL
              imageUrls.forEach(key => {
-                 const imageUrl = `/api/image/${key}`;
+                 const imageUrl = `/api/image/${key}`; // Use API endpoint to fetch image
                  const imgElement = `<img src="${imageUrl}" alt="${i18next.t('common.cigarImageAlt')}" crossorigin="anonymous" onerror="this.src='https://placehold.co/600x800/gray/white?text=Loading+Failed'; this.onerror=null;">`;
                  mainWrapper.innerHTML += `<div class="swiper-slide">${imgElement}</div>`;
                  thumbWrapper.innerHTML += `<div class="swiper-slide thumbnail-slide">${imgElement}</div>`;
              });
-             if(mainSwiper) mainSwiper.destroy(true, true); 
+
+             // Destroy previous instances before reinitializing
+             if(mainSwiper) mainSwiper.destroy(true, true);
              if(thumbnailSwiper) thumbnailSwiper.destroy(true, true);
-             
+
              const hasMultipleItems = imageUrls.length > 1;
-             if (hasMultipleItems) {
+             if (hasMultipleItems) { // Initialize both main and thumbnail swipers
                  thumbContainer.classList.remove('hidden');
                  thumbnailSwiper = new Swiper('.thumbnail-swiper', { spaceBetween: 10, slidesPerView: 'auto', freeMode: true, watchSlidesProgress: true, });
                  mainSwiper = new Swiper('.main-swiper', {
                      spaceBetween: 10, autoHeight: true,
                      navigation: { nextEl: '.swiper-button-next', prevEl: '.swiper-button-prev', },
                      pagination: { el: '.main-swiper .swiper-pagination', clickable: true, },
-                     thumbs: { swiper: thumbnailSwiper, },
+                     thumbs: { swiper: thumbnailSwiper, }, // Link thumbnail swiper
                  });
-             } else {
+             } else { // Initialize only main swiper if one image
                  thumbContainer.classList.add('hidden');
                  mainSwiper = new Swiper('.main-swiper', { autoHeight: true, pagination: { el: '.main-swiper .swiper-pagination', clickable: true, }, allowTouchMove: false });
              }
         }
 
-        // autoGenerateShareImage remains the same
+        // Generates a shareable image using html2canvas and adds it as a Swiper slide
         async function autoGenerateShareImage() {
             const shareCardElement = document.getElementById('share-card-container');
             const coverImageElement = document.getElementById('share-card-image');
             const mainSwiperWrapper = document.getElementById('main-swiper-wrapper');
-            if (!shareCardElement || !coverImageElement || !html2canvas || !resultsData || !mainSwiperWrapper || !ratingId) {
-                console.warn("无法自动生成分享图：缺少必要组件或 ratingId。"); return;
+
+            // Ensure necessary elements, library, data, and ID exist
+            if (!shareCardElement || !coverImageElement || typeof html2canvas === 'undefined' || !resultsData || !ratingId) {
+                console.warn(i18next.t('resultsPage.shareCard.generateFailed') + " Missing components or ratingId."); return;
             }
+
+            // Ensure the cover image is loaded before capturing
             const coverImageUrl = coverImageElement.src;
             if (!coverImageUrl || coverImageUrl.includes('placehold.co') || !coverImageElement.complete || coverImageElement.naturalWidth === 0) {
-                 console.warn("封面图片未加载或无效，无法自动生成分享图。"); return;
+                 console.warn(i18next.t('resultsPage.shareCard.generateFailed') + " Cover image not loaded or invalid."); return;
             }
+
+            // Temporarily make the hidden card visible for capture
             shareCardElement.style.visibility = 'visible';
             try {
+                // Short delay to ensure rendering updates
                 await new Promise(resolve => setTimeout(resolve, 300));
-                const canvas = await html2canvas(shareCardElement, { useCORS: true, allowTaint: true, scale: 2 });
-                const dataUrl = canvas.toDataURL('image/png');
+
+                // Capture the share card element as a canvas
+                const canvas = await html2canvas(shareCardElement, { useCORS: true, allowTaint: true, scale: 2 }); // Increase scale for better resolution
+                const dataUrl = canvas.toDataURL('image/png'); // Get image as data URL
+
+                // Remove any previously generated share image slide
+                const existingShareSlide = mainSwiperWrapper.querySelector('.share-image-slide');
+                if (existingShareSlide) existingShareSlide.remove();
+
+                // Create a new Swiper slide with the generated image
                 const newSlide = document.createElement('div');
                 newSlide.className = 'swiper-slide share-image-slide';
-                newSlide.innerHTML = `<img src="${dataUrl}" alt="${i18next.t('resultsPage.shareImageAlt')}">`;
+                newSlide.innerHTML = `<img src="${dataUrl}" alt="${i18next.t('resultsPage.shareCard.shareImageAlt')}">`;
                 mainSwiperWrapper.appendChild(newSlide);
+
+                // Update the Swiper instance to recognize the new slide
                 if (mainSwiper) mainSwiper.update();
+
             } catch (error) {
-                console.error("自动生成或添加分享图片失败:", error);
+                console.error(i18next.t('resultsPage.shareCard.generateFailed'), error);
             } finally {
+                 // Hide the card element again
                  shareCardElement.style.visibility = 'hidden';
             }
         }
-        
-        // renderPageContent remains mostly the same
+
+        // Populates the main page content based on the resultsData
         function renderPageContent(data) {
-            if (!data) return;
-            
-            const { cigarInfo, cigarReview, normalizedScore, isDraft, selectedFlavors = [] } = data;
-            const title = data.title || i18next.t('common.noTitle');
+            if (!data || !i18next.isInitialized) return;
+
+            const { cigarInfo, cigarReview, normalizedScore, isDraft, selectedFlavors = [], title } = data;
             const userNickname = data.userNickname || data.userEmail || i18next.t('common.anonymous');
-            
+
+            // Find the grade based on score using GRADING_SCALE
+            // Use the i18n key from GRADING_SCALE
             const foundGrade = GRADING_SCALE.find(g => normalizedScore >= g.min_score) || GRADING_SCALE[GRADING_SCALE.length - 1];
             const finalGrade = {
                 grade: foundGrade.grade,
-                name: i18next.t(foundGrade.nameKey), 
+                name: i18next.t(foundGrade.nameKey), // Translate the grade name
+                nameKey: foundGrade.nameKey,       // Store the key
                 color: foundGrade.color
             };
 
+            // Populate basic info
              document.getElementById('user-nickname').textContent = userNickname;
-             document.getElementById('rating-title').textContent = title;
-             document.getElementById('cigar-name').textContent = cigarInfo.name;
-             document.getElementById('cigar-size').textContent = cigarInfo.size;
-             document.getElementById('cigar-origin').textContent = cigarInfo.origin;
-             
+             document.getElementById('rating-title').textContent = title || i18next.t('common.noTitle');
+             document.getElementById('cigar-name').textContent = cigarInfo.name || i18next.t('common.unknown');
+             document.getElementById('cigar-size').textContent = cigarInfo.size || i18next.t('common.unknown');
+             document.getElementById('cigar-origin').textContent = cigarInfo.origin || i18next.t('common.unknown');
+
+             // Populate written review
              const reviewContainer = document.getElementById('cigar-review-container');
-             reviewContainer.innerHTML = (cigarReview && cigarReview.trim()) 
-                ? `<p>${cigarReview}</p>` 
+             reviewContainer.innerHTML = (cigarReview && cigarReview.trim() && cigarReview !== i18next.t('common.noReview'))
+                ? `<p>${cigarReview}</p>`
                 : `<p class="text-gray-400 italic">${i18next.t('common.noReview')}</p>`;
-             
-             const flavorsContainer = document.getElementById('selected-flavors-container'); 
-             if (selectedFlavors.length > 0) { 
-                 document.getElementById('flavors-display').innerHTML = selectedFlavors.map(f => `<span class="flavor-tag">${f}</span>`).join(''); 
-                 flavorsContainer.classList.remove('hidden'); 
-             } else { 
-                 flavorsContainer.classList.add('hidden'); 
+
+             // Populate selected flavors
+             const flavorsContainer = document.getElementById('selected-flavors-container');
+             const flavorsDisplay = document.getElementById('flavors-display');
+             if (selectedFlavors.length > 0) {
+                 flavorsDisplay.innerHTML = selectedFlavors.map(fKey => `<span class="flavor-tag">${i18next.t(fKey)}</span>`).join(''); // Translate flavor keys
+                 flavorsContainer.classList.remove('hidden');
+             } else {
+                 flavorsContainer.classList.add('hidden');
+                 flavorsDisplay.innerHTML = '';
              }
 
+            // Render the score section (score, grade, scale)
             renderScoreSection(document.getElementById('score-section'), normalizedScore, finalGrade);
-            
-            const saveButtonContainer = document.getElementById('save-button-container'); 
+
+            // Show/hide the save button based on draft status and user login
+            const saveButtonContainer = document.getElementById('save-button-container');
             saveButtonContainer.style.display = (currentAuthUser && isDraft) ? 'block' : 'none';
 
+            // Show/hide narrative and summary sections based on data availability
             const hasFullData = data.config && data.ratings;
             ['narrative-summary-details', 'summary-details'].forEach(id => {
-                document.getElementById(id).style.display = hasFullData ? 'block' : 'none';
+                 const element = document.getElementById(id);
+                 if (element) element.style.display = hasFullData ? 'block' : 'none';
             });
-            
-            if (hasFullData) { 
-                document.getElementById('narrative-summary-container').innerHTML = generateNarrativeSummary(cigarInfo, data.config, data.ratings, finalGrade, selectedFlavors); 
-                renderSummary(document.getElementById('summary-container'), data.config, data.ratings); 
+
+            // Generate and render narrative summary and rating details if full data exists
+            if (hasFullData) {
+                document.getElementById('narrative-summary-container').innerHTML = generateNarrativeSummary(cigarInfo, data.config, data.ratings, finalGrade, selectedFlavors);
+                renderSummary(document.getElementById('summary-container'), data.config, data.ratings);
             }
 
-            // Populate Hidden Share Card
-            const shareCardImage = document.getElementById('share-card-image');
-            const gradeStyles = getGradeStyles(finalGrade.color); 
-            document.getElementById('share-card-score').className = `text-5xl font-black ${gradeStyles.textColor}`; // Fixed here
-            document.getElementById('share-card-grade-badge').className = `inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${gradeStyles.bgColor} ${gradeStyles.textColor} bg-opacity-20`;
-            document.getElementById('share-card-score').textContent = normalizedScore.toFixed(2);
-            document.getElementById('share-card-grade-badge').textContent = finalGrade.name;
-            document.getElementById('share-card-watermark').innerHTML = i18next.t('resultsPage.shareCard.userRatingOn', { // Using correct key structure
-                user: `<span id="share-card-username">${userNickname}</span>`
-            });
-            
-            const shareCardQrCode = document.getElementById('share-card-qrcode');
-            if (shareCardQrCode && typeof QRCode !== 'undefined') {
-                shareCardQrCode.innerHTML = '';
-                const uniqueUrl = ratingId ? `${window.location.origin}/results.html?ratingId=${ratingId}` : window.location.href;
-                new QRCode(shareCardQrCode, { text: uniqueUrl, width: 90, height: 90 });
-            } else if (!ratingId && typeof QRCode !== 'undefined') {
-                console.warn(i18next.t('resultsPage.shareCard.qrError'));
-            }
-            
-            const images = data.imageUrls || [];
-            if (images.length > 0) {
-                 shareCardImage.src = `/api/image/${images[0]}`;
-            } else {
-                 document.getElementById('share-card-image-wrapper').innerHTML = `<span class="text-gray-400 text-sm">${i18next.t('resultsPage.shareCard.noCover')}</span>`; // Using correct key structure
-            }
+            // Populate the hidden share card for image generation
+            populateShareCard();
         }
 
-        // window.onload remains the same
-        window.onload = async function() {
-            await initI18n();
-            updateContent();
+        // Populates the hidden share card elements
+        function populateShareCard() {
+             if (!resultsData || !i18next.isInitialized) return;
+             const { normalizedScore, finalGrade, userNickname, imageUrls = [], ratingId: currentRatingId } = resultsData; // Use currentRatingId
+             const userDisplay = userNickname || i18next.t('common.anonymous');
 
+             const gradeStyles = getGradeStyles(finalGrade.color);
+             document.getElementById('share-card-score').className = `text-5xl font-black ${gradeStyles.textColor}`;
+             document.getElementById('share-card-grade-badge').className = `inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${gradeStyles.bgColor} ${gradeStyles.textColor} bg-opacity-20`;
+             document.getElementById('share-card-score').textContent = normalizedScore.toFixed(2);
+             document.getElementById('share-card-grade-badge').textContent = finalGrade.name; // Use translated name
+
+             // Construct watermark text using i18n
+             document.getElementById('share-card-watermark').innerHTML = i18next.t('resultsPage.shareCard.userRatingOn', {
+                 user: `<span id="share-card-username">${userDisplay}</span>`
+             });
+
+             // Generate QR code pointing to the rating's URL (if ID exists)
+             const shareCardQrCode = document.getElementById('share-card-qrcode');
+             if (shareCardQrCode && typeof QRCode !== 'undefined' && currentRatingId) { // Check if ratingId exists
+                 shareCardQrCode.innerHTML = ''; // Clear previous QR code
+                 const uniqueUrl = `${window.location.origin}/results.html?ratingId=${currentRatingId}`;
+                 new QRCode(shareCardQrCode, { text: uniqueUrl, width: 90, height: 90 });
+             } else {
+                 console.warn(i18next.t('resultsPage.shareCard.qrError'));
+                 if (shareCardQrCode) shareCardQrCode.innerHTML = ''; // Clear if no ID
+             }
+
+             // Set share card cover image
+             const shareCardImage = document.getElementById('share-card-image');
+             const shareCardImageWrapper = document.getElementById('share-card-image-wrapper');
+             if (imageUrls.length > 0) {
+                  shareCardImage.src = `/api/image/${imageUrls[0]}`;
+                  shareCardImage.style.display = 'block';
+                  // Clear wrapper text if image exists
+                  const placeholderSpan = shareCardImageWrapper.querySelector('span');
+                  if(placeholderSpan) placeholderSpan.remove();
+             } else {
+                  shareCardImage.src = ''; // Clear src
+                  shareCardImage.style.display = 'none';
+                  // Show placeholder text if no image
+                  if(!shareCardImageWrapper.querySelector('span')) {
+                      shareCardImageWrapper.innerHTML = `<span class="text-gray-400 text-sm">${i18next.t('resultsPage.shareCard.noCover')}</span>`;
+                  }
+             }
+        }
+
+
+        // --- Page Load Logic ---
+        window.onload = async function() {
+            // Get elements before try-catch
             const errorContainer = document.getElementById('error-container');
             const mainContent = document.getElementById('main-content');
             const loadingIndicator = document.getElementById('loading-indicator');
-            const urlParams = new URLSearchParams(window.location.search);
-            const code = urlParams.get('code');
-            ratingId = urlParams.get('ratingId');
-
-            let user = code ? await handleOidcCallback(code) : await validateSessionAndGetUser();
-            currentAuthUser = user;
-            renderLoginStatus(currentAuthUser);
-            setupLanguageSwitcher();
-
-            loadingIndicator.classList.remove('hidden');
 
             try {
+                // 1. Initialize i18next
+                await initI18n();
+
+                // 2. Handle Authentication
+                const urlParams = new URLSearchParams(window.location.search);
+                const code = urlParams.get('code');
+                ratingId = urlParams.get('ratingId');
+
+                let user = code ? await handleOidcCallback(code) : await validateSessionAndGetUser();
+                currentAuthUser = user;
+                renderLoginStatus(currentAuthUser);
+                setupLanguageSwitcher();
+
+                // 3. Load Rating Data
+                loadingIndicator.classList.remove('hidden');
                 if (ratingId) {
                     const token = sessionStorage.getItem('accessToken');
                     const apiUrl = new URL(`/api/ratings?id=${ratingId}`, window.location.origin);
@@ -528,132 +691,229 @@
                     const response = await fetch(apiUrl, fetchOptions);
                     if (!response.ok) throw new Error(i18next.t('errors.loadRatingFailed', { status: response.status }));
                     resultsData = await response.json();
+                    resultsData.isDraft = false;
                 } else {
                     const storedData = sessionStorage.getItem('cigarRatingResults');
                     if (!storedData) throw new Error(i18next.t('errors.noRatingDataFound'));
-                    resultsData = JSON.parse(storedData);
-                    ratingId = resultsData.ratingId; // Get ratingId if loaded from session
+                    try {
+                         resultsData = JSON.parse(storedData);
+                         if(typeof resultsData !== 'object' || resultsData === null) throw new Error("Invalid stored data format.");
+                         resultsData.isDraft = true;
+                         ratingId = resultsData.ratingId || null;
+                    } catch (parseError) {
+                         console.error("Failed to parse session storage data:", parseError);
+                         throw new Error(i18next.t('errors.invalidSessionData'));
+                    }
                 }
 
-                if (!resultsData || resultsData.normalizedScore === undefined) { 
+                // **MODIFIED**: Check for finalGrade.nameKey BEFORE rendering
+                 if (!resultsData || resultsData.normalizedScore === undefined || !resultsData.cigarInfo || resultsData.finalGrade?.nameKey === undefined) {
+                    console.error("Loaded data is missing essential info:", resultsData);
                     throw new Error(i18next.t('errors.missingEssentialData'));
                 }
-                
+
+                // 4. Render Page Content
                 initSwipers(resultsData.imageUrls || []);
                 renderPageContent(resultsData);
 
-                // Wait for the share card's image to potentially load before generating the canvas
+                // 5. Auto-Generate Share Image
                 const shareImg = document.getElementById('share-card-image');
-                if (shareImg.src && !shareImg.src.includes('placehold.co')) {
+                if (shareImg.src && !shareImg.src.includes('placehold.co') && ratingId) {
                     if (shareImg.complete) {
-                        autoGenerateShareImage();
+                        await autoGenerateShareImage();
                     } else {
-                        shareImg.onload = autoGenerateShareImage;
+                        shareImg.onload = async () => await autoGenerateShareImage();
                         shareImg.onerror = () => console.warn("Share card image failed to load, cannot generate share image.");
                     }
-                } else if (ratingId) { // Only generate if it's a saved rating (has ID)
-                     console.warn(i18next.t('resultsPage.shareCard.noCover')); // Using correct key structure
-                     // Still attempt to generate, might show placeholder
-                     autoGenerateShareImage();
+                } else if (ratingId) {
+                     console.warn(i18next.t('resultsPage.shareCard.noCover') + " Attempting share image generation anyway.");
+                     await autoGenerateShareImage();
                 }
 
-
+                // Hide loading indicator and show content
                 loadingIndicator.classList.add('hidden');
                 mainContent.classList.remove('opacity-0');
 
-            } catch (e) {
-                loadingIndicator.classList.add('hidden');
-                const errorTitle = i18next.t('errors.pageLoadError');
-                const backLink = i18next.t('common.backToCommunity');
-                errorContainer.innerHTML = `<p class="font-bold text-center">${errorTitle}: ${e.message} <a href="index.html" class="text-indigo-600 underline">${backLink}</a></p>`;
-                errorContainer.classList.remove('hidden');
-                console.error("Results page error:", e);
+            } catch (e) { // Handle errors during page load
+                console.error("Results page initialization error:", e);
+                if (loadingIndicator) loadingIndicator.classList.add('hidden');
+                const errorTitle = i18next.isInitialized ? i18next.t('errors.pageLoadError') : 'Error Loading Page!';
+                const backLinkText = i18next.isInitialized ? i18next.t('common.backToCommunity') : 'Back to Community';
+                if (errorContainer) {
+                    errorContainer.innerHTML = `<p class="font-bold text-center">${errorTitle}: ${e.message} <a href="index.html" class="text-indigo-600 underline">${backLinkText}</a></p>`;
+                    errorContainer.classList.remove('hidden');
+                }
             }
         };
+
 
         // --- Rendering Utilities ---
 
         // =================================================================================
-        // *** 修正后的函数 ***
+        // *** MODIFIED Functions: Use i18next.t() with fallback logic ***
         // =================================================================================
 
+        /**
+         * Safely translates a potential key or string, falling back to the original if no translation exists.
+         * @param {string | undefined} keyOrString - The i18n key or the original string.
+         * @returns {string} The translated string or the original string if translation fails.
+         */
+        function safeTranslate(keyOrString) {
+            if (!keyOrString || typeof keyOrString !== 'string') return ''; // Return empty for invalid input
+            if (!i18next.isInitialized) return keyOrString; // Return original if i18n not ready
+
+            const translated = i18next.t(keyOrString);
+            // If translation returns the key itself, it means no translation was found
+            return (translated === keyOrString) ? keyOrString : translated;
+        }
+
+        // Generates the narrative summary text, attempting translation for keys and old values
         function generateNarrativeSummary(cigarInfo, config, ratings, finalGrade, selectedFlavors) {
-            if (!config || !ratings) return `<p class="text-gray-500 italic">${i18next.t('errors.noNarrativeData')}</p>`;
+            if (!config || !ratings || !i18next.isInitialized) {
+                 return `<p class="text-gray-500 italic">${i18next.t('errors.noNarrativeData')}</p>`;
+            }
             const { origin = i18next.t('common.unknown'), name = i18next.t('common.unknown'), size = i18next.t('common.unknown') } = cigarInfo;
-            let summary = `<p>${i18next.t('resultsPage.narrative.part1', { origin, name, size })}`; 
+
+            let summary = `<p>${i18next.t('resultsPage.narrative.part1', { origin, name, size })}`;
             let observations = [];
+
             (config.ratingCriteria || []).forEach(category => {
                 (category.criteriaList || []).forEach(criterion => {
-                    
-                    // *** 修正 #1 ***
-                    // 使用 config 中的中文字符串 'category.category' 和 'criterion.name' 来构造 ID
-                    // 这与 rate.html 中 getRatingId 的逻辑一致
-                    const id = `${category.category}-${criterion.name}`; 
-
+                    // Try getting keys first, fallback to old names
+                    const categoryKeyOrName = category.categoryKey || category.category;
+                    const criterionKeyOrName = criterion.nameKey || criterion.name;
+                    const id = `${categoryKeyOrName}-${criterionKeyOrName}`; // Use whatever is available for ID construction
                     const selectedOptionIndex = ratings[id];
+
                     if (selectedOptionIndex !== undefined) {
                         const option = criterion.options[selectedOptionIndex];
-                        
-                        // *** 修正 #2 ***
-                        // i18n 键 'resultsPage.narrative.observation' 不存在。
-                        // 我们直接使用 config 中的中文字符串来构建观察结果。
-                        const criterionText = criterion.name; 
-                        const optionText = option.description;
-                        observations.push(`${criterionText}: ${optionText}`);
+                        if (option) {
+                            // **NEW LOGIC**: Attempt translation for both keys and old names/descriptions
+                            const criterionText = safeTranslate(criterion.nameKey || criterion.name);
+                            const optionText = safeTranslate(option.descriptionKey || option.description);
+                            observations.push(`${criterionText}: ${optionText}`);
+                        } else {
+                            console.warn(`Missing option for narrative ${id} at index ${selectedOptionIndex}`);
+                        }
                     }
                 });
             });
-            if (observations.length > 0) { summary += ` ${i18next.t('resultsPage.narrative.part2', { observations: observations.join('；') })}`; } 
-            else { summary += ` ${i18next.t('resultsPage.narrative.noObservations')}`; }
-            if (selectedFlavors.length > 0) { summary += ` ${i18next.t('resultsPage.narrative.part3', { flavors: selectedFlavors.join(', ') })}`; }
+
+            if (observations.length > 0) {
+                 summary += ` ${i18next.t('resultsPage.narrative.part2', { observations: observations.join('; ') })}`;
+            } else {
+                 summary += ` ${i18next.t('resultsPage.narrative.noObservations')}`;
+            }
+            if (selectedFlavors.length > 0) {
+                 const translatedFlavors = selectedFlavors.map(fKey => safeTranslate(fKey)).join(', '); // Translate flavor keys
+                 summary += ` ${i18next.t('resultsPage.narrative.part3', { flavors: translatedFlavors })}`;
+            }
             const hierarchy = GRADING_SCALE.map(g => `${g.grade}(${i18next.t(g.nameKey)})`).join(', ');
-            summary += ` ${i18next.t('resultsPage.narrative.part4', { grade: finalGrade.grade, gradeName: finalGrade.name, hierarchy: hierarchy })}`; 
+            summary += ` ${i18next.t('resultsPage.narrative.part4', { grade: finalGrade.grade, gradeName: finalGrade.name, hierarchy: hierarchy })}`;
             summary += `</p>`;
             return summary;
         }
 
+        // Renders the summary list, attempting translation for keys and old values
         function renderSummary(container, config, ratings) {
-            if (!container || !config || !ratings) { container.innerHTML = `<p class="text-gray-500 italic">${i18next.t('errors.noSummaryData')}</p>`; return; } 
+            if (!container || !config || !ratings || !i18next.isInitialized) {
+                 container.innerHTML = `<p class="text-gray-500 italic">${i18next.t('errors.noSummaryData')}</p>`; return;
+            }
+
             let summaryHtml = (config.ratingCriteria || []).map(category => {
+                 // **NEW LOGIC**: Translate category key or name
+                 const categoryText = safeTranslate(category.categoryKey || category.category);
+
                 const criteriaHtml = (category.criteriaList || []).map(criterion => {
-                    
-                    // *** 修正 #3 ***
-                    // 同样, 使用 'category.category' 和 'criterion.name' 来构造 ID
-                    const id = `${category.category}-${criterion.name}`; 
-                    
+                    // Try getting keys first, fallback to old names
+                    const categoryKeyOrName = category.categoryKey || category.category;
+                    const criterionKeyOrName = criterion.nameKey || criterion.name;
+                    const id = `${categoryKeyOrName}-${criterionKeyOrName}`;
                     const selectedOptionIndex = ratings[id];
+
                     if (selectedOptionIndex !== undefined) {
                         const option = criterion.options[selectedOptionIndex];
-                        
-                        // *** 修正 #4 ***
-                        // 直接使用 config 中的中文字符串 'criterion.name' 和 'option.description'
-                        return `<li><strong>${criterion.name}:</strong> ${option.description}</li>`; 
+                        if (option) {
+                            // **NEW LOGIC**: Translate criterion and option key/name/description
+                            const criterionText = safeTranslate(criterion.nameKey || criterion.name);
+                            const optionText = safeTranslate(option.descriptionKey || option.description);
+                            return `<li><strong>${criterionText}:</strong> ${optionText}</li>`;
+                        } else {
+                             console.warn(`Missing option for summary ${id} at index ${selectedOptionIndex}`);
+                        }
                     } return '';
                 }).join('');
-                if (criteriaHtml.trim()) { 
-                    
-                    // *** 修正 #5 ***
-                    // 同样, 使用 'category.category' 作为类别标题
-                    return `<h4 class="font-semibold mt-4 mb-1 text-gray-700">${category.category}</h4><ul class="list-disc list-inside space-y-1 text-sm">${criteriaHtml}</ul>`; 
+
+                if (criteriaHtml.trim()) {
+                    return `<h4 class="font-semibold mt-4 mb-1 text-gray-700">${categoryText}</h4><ul class="list-disc list-inside space-y-1 text-sm">${criteriaHtml}</ul>`;
                 } return '';
             }).join('');
-            container.innerHTML = summaryHtml || `<p>${i18next.t('resultsPage.summary.noItems')}</p>`; 
+
+            container.innerHTML = summaryHtml || `<p>${i18next.t('resultsPage.summary.noItems')}</p>`;
         }
-        
+
         // =================================================================================
-        // *** 结束修正 ***
+        // *** End MODIFIED Functions ***
         // =================================================================================
 
-        function getScoreRange(gradeCode) { const index = GRADING_SCALE.findIndex(g => g.grade === gradeCode); if (index === -1) return ''; const min = GRADING_SCALE[index].min_score; if (index === 0) return `${min}-100`; const max = GRADING_SCALE[index - 1].min_score - 0.01; return `${min.toFixed(0)}-${max.toFixed(2)}`; }
-        function getGradeStyles(color) { const stylesMap = { 'gold': { textColor: 'text-yellow-800', bgColor: 'bg-yellow-400' }, 'indigo': { textColor: 'text-indigo-800', bgColor: 'bg-indigo-300' }, 'purple': { textColor: 'text-purple-800', bgColor: 'bg-purple-300' }, 'blue': { textColor: 'text-blue-800', bgColor: 'bg-blue-300' }, 'green': { textColor: 'text-green-800', bgColor: 'bg-green-300' }, 'gray': { textColor: 'text-gray-800', bgColor: 'bg-gray-300' }, 'orange': { textColor: 'text-orange-800', bgColor: 'bg-orange-300' }, 'red': { textColor: 'text-red-800', bgColor: 'bg-red-300' } }; return stylesMap[color] || stylesMap['gray']; }
-         
+
+        // Helper to get score range string for a grade
+        function getScoreRange(gradeCode) {
+             const index = GRADING_SCALE.findIndex(g => g.grade === gradeCode);
+             if (index === -1) return '';
+             const min = GRADING_SCALE[index].min_score;
+             if (index === 0) return `${min}-100`; // Highest grade
+             const max = GRADING_SCALE[index - 1].min_score - 0.01; // Max is just below the next grade's min
+             return `${min.toFixed(0)}-${max.toFixed(2)}`;
+        }
+        // Helper to get Tailwind CSS classes based on grade color
+        function getGradeStyles(color) {
+             const stylesMap = {
+                 'gold': { textColor: 'text-yellow-800', bgColor: 'bg-yellow-400' },
+                 'indigo': { textColor: 'text-indigo-800', bgColor: 'bg-indigo-300' },
+                 'purple': { textColor: 'text-purple-800', bgColor: 'bg-purple-300' },
+                 'blue': { textColor: 'text-blue-800', bgColor: 'bg-blue-300' },
+                 'green': { textColor: 'text-green-800', bgColor: 'bg-green-300' },
+                 'gray': { textColor: 'text-gray-800', bgColor: 'bg-gray-300' },
+                 'orange': { textColor: 'text-orange-800', bgColor: 'bg-orange-300' },
+                 'red': { textColor: 'text-red-800', bgColor: 'bg-red-300' }
+             };
+             return stylesMap[color] || stylesMap['gray']; // Default to gray if color unknown
+        }
+
+         // Renders the score section with score, grade, and scale display
          function renderScoreSection(container, score, grade) {
-             if (!container || !grade) return; 
-             const styles = getGradeStyles(grade.color);
-             const scoreHtml = `<div><p class="text-xl font-bold text-yellow-500 mb-1">${i18next.t('resultsPage.scoreSectionTitle')}</p><p class="text-7xl font-black ${styles.textColor}">${score.toFixed(2)}</p><div class="mt-2 text-3xl font-black ${styles.textColor}">${grade.name}</div></div>`;
-             const scaleHtml = GRADING_SCALE.map(g => { const gStyles = getGradeStyles(g.color); const isCurrent = g.grade === grade.grade; return `<div class="flex items-center p-1 rounded ${isCurrent ? 'bg-gray-100' : ''}"><div class="w-5 h-5 rounded-full flex items-center justify-center font-bold text-xs ${gStyles.bgColor} ${gStyles.textColor} mr-2">${g.grade}</div><div class="flex-grow ${isCurrent ? 'font-semibold' : ''} ${gStyles.textColor}">${i18next.t(g.nameKey)}</div><div class="font-mono text-xs text-gray-500 ml-2">${getScoreRange(g.grade)}</div></div>`; }).join('');
-             container.innerHTML = `<div class="w-full md:w-1/3">${scoreHtml}</div><div class="w-full md:w-2/3 border-t md:border-t-0 md:border-l border-gray-200 pt-4 md:pt-0 md:pl-6"><div class="space-y-1">${scaleHtml}</div></div>`;
+             if (!container || !grade || !i18next.isInitialized) return; // Ensure container, grade, and i18n exist
+             const styles = getGradeStyles(grade.color); // Get color styles
+
+             // HTML for the score and grade name
+             const scoreHtml = `
+                <div>
+                    <p class="text-xl font-bold text-indigo-600 mb-1">${i18next.t('resultsPage.scoreSectionTitle')}</p>
+                    <p class="text-7xl font-black ${styles.textColor}">${score.toFixed(2)}</p>
+                    <div class="mt-2 text-3xl font-black ${styles.textColor}">${grade.name}</div>
+                </div>`; // Use translated grade name
+
+             // HTML for the grading scale legend
+             const scaleHtml = GRADING_SCALE.map(g => {
+                 const gStyles = getGradeStyles(g.color);
+                 const isCurrent = g.grade === grade.grade; // Highlight the current grade
+                 return `
+                    <div class="flex items-center p-1 rounded ${isCurrent ? 'bg-gray-100' : ''}">
+                        <div class="w-5 h-5 rounded-full flex items-center justify-center font-bold text-xs ${gStyles.bgColor} ${gStyles.textColor} mr-2">${g.grade}</div>
+                        <div class="flex-grow ${isCurrent ? 'font-semibold' : ''} ${gStyles.textColor}">${i18next.t(g.nameKey)}</div>
+                        <div class="font-mono text-xs text-gray-500 ml-2">${getScoreRange(g.grade)}</div>
+                    </div>`;
+             }).join('');
+
+             // Combine score and scale into the container
+             container.innerHTML = `
+                <div class="w-full md:w-1/3">${scoreHtml}</div>
+                <div class="w-full md:w-2/3 border-t md:border-t-0 md:border-l border-gray-200 pt-4 md:pt-0 md:pl-6">
+                    <div class="space-y-1">${scaleHtml}</div>
+                </div>`;
          }
     </script>
 </body>
 </html>
+
