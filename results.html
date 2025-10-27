@@ -273,16 +273,16 @@
 
         // --- **FIXED: Added getRatingId function** ---
         function getRatingId(category, criterion) {
-            const catStr = String(category || '').trim(); // Use original name from config
-            const critStr = String(criterion || '').trim(); // Use original name from config
+            const catStr = String(category || '').trim(); // Use original name from config/data
+            const critStr = String(criterion || '').trim(); // Use original name from config/data
             if (!catStr || !critStr) {
-                console.warn("getRatingId: Received empty category or criterion name", { category, criterion });
+                // console.warn("getRatingId: Received empty category or criterion name", { category, criterion });
                 return null; // Return null if names are missing
             }
             return `${catStr}-${critStr}`; // Generate ID using original names
         }
 
-        // --- generateNarrativeSummary (Use getRatingId) ---
+        // --- generateNarrativeSummary (Use getRatingId with original names from config) ---
         function generateNarrativeSummary(cigarInfo, config, ratings, finalGrade, selectedFlavors) {
              if (!config || !config.ratingCriteria || !ratings) {
                  console.error("[generateNarrativeSummary] Missing config or ratings data.");
@@ -293,14 +293,22 @@
              let observations = [];
              (config.ratingCriteria || []).forEach(category => {
                  (category.criteriaList || []).forEach(criterion => { 
-                     // **FIX: Use getRatingId with original names**
-                     const id = getRatingId(category.category, criterion.name); 
-                     if (!id) return; // Skip if ID couldn't be generated
+                     // **Get original names from config for lookup**
+                     const originalCategoryName = category.category; // Assuming 'category' holds the original Chinese name
+                     const originalCriterionName = criterion.name;   // Assuming 'name' holds the original Chinese name
+                     
+                     // **Generate ID using original names**
+                     const id = getRatingId(originalCategoryName, originalCriterionName); 
+                     if (!id) {
+                          console.warn(`[generateNarrativeSummary] Could not generate ID for`, { category, criterion });
+                          return; // Skip if ID couldn't be generated
+                     }
 
-                     const selectedOptionIndex = ratings[id]; // Use the generated ID
+                     const selectedOptionIndex = ratings[id]; // Use the generated ID to look up in ratings
                      
                      if (selectedOptionIndex !== undefined && typeof selectedOptionIndex === 'number' && selectedOptionIndex >= 0) { 
                          const option = criterion.options?.[selectedOptionIndex]; 
+                         // **Get identifiers for translation**
                          const descriptionIdentifier = option?.descriptionKey || option?.description; 
                          const criterionIdentifier = criterion.nameKey || criterion.name; 
                          if (descriptionIdentifier && criterionIdentifier && option) { 
@@ -314,6 +322,7 @@
                      }
                  });
              });
+             // ... (rest of the function remains the same) ...
              if (observations.length > 0) { summary += ` ${i18next.t('resultsPage.narrative.part2', { observations: observations.join('；') })}`; } 
              else { summary += ` ${i18next.t('resultsPage.narrative.noObservations')}`; }
              if (selectedFlavors && selectedFlavors.length > 0) { 
@@ -329,7 +338,7 @@
              return summary;
         }
 
-        // --- renderSummary (Use getRatingId) ---
+        // --- renderSummary (Use getRatingId with original names from config) ---
         function renderSummary(container, config, ratings) {
             if (!container || !config || !config.ratingCriteria || !ratings || typeof ratings !== 'object' || Object.keys(ratings).length === 0) { 
                 container.innerHTML = `<p class="text-gray-500 italic">${i18next.t('errors.noSummaryData')}</p>`; 
@@ -340,23 +349,25 @@
             console.log("[renderSummary] Starting. Received ratings object:", JSON.stringify(ratings)); 
             
             let summaryHtml = (config.ratingCriteria || []).map(category => {
-                // Use original name for display header (or key if name is missing)
-                const categoryDisplayIdentifier = category.category || category.categoryKey; 
+                // **Get original name for lookup, key/name for display**
+                const originalCategoryName = category.category; 
+                const categoryDisplayIdentifier = category.categoryKey || category.category; 
                 if (!categoryDisplayIdentifier) {
                     console.warn("[renderSummary] Skipping category - missing identifier:", category);
                     return ''; 
                 }
 
                 const criteriaHtml = (category.criteriaList || []).map(criterion => {
-                    // Use original name for display (or key if name is missing)
-                    const criterionDisplayIdentifier = criterion.name || criterion.nameKey; 
+                    // **Get original name for lookup, key/name for display**
+                    const originalCriterionName = criterion.name;
+                    const criterionDisplayIdentifier = criterion.nameKey || criterion.name; 
                     if (!criterionDisplayIdentifier) {
                          console.warn(`[renderSummary] Skipping criterion in category "${categoryDisplayIdentifier}" - missing identifier:`, criterion);
                          return ''; 
                     }
 
-                    // **FIX: Use getRatingId with original names to find the rating**
-                    const id = getRatingId(category.category, criterion.name);
+                    // **Generate ID using original names**
+                    const id = getRatingId(originalCategoryName, originalCriterionName);
                     if (!id) return ''; // Skip if ID couldn't be generated
 
                     const selectedOptionIndex = ratings[id]; // Use the generated ID
@@ -364,11 +375,11 @@
                     // Validate and Render
                     if (selectedOptionIndex !== undefined && typeof selectedOptionIndex === 'number' && selectedOptionIndex >= 0) { 
                         const option = criterion.options?.[selectedOptionIndex]; 
-                        // Use original description for display (or key if description is missing)
-                        const descriptionDisplayIdentifier = option?.description || option?.descriptionKey; 
+                        // **Get original description for display (fallback), key for translation**
+                        const descriptionDisplayIdentifier = option?.descriptionKey || option?.description; 
                         
                         if (option && descriptionDisplayIdentifier) { 
-                            console.log(`  -> Rendering: Criterion="${criterionDisplayIdentifier}", Option="${descriptionDisplayIdentifier}" (Index ${selectedOptionIndex})`);
+                            // console.log(`  -> Rendering: Criterion="${criterionDisplayIdentifier}", Option="${descriptionDisplayIdentifier}" (Index ${selectedOptionIndex})`);
                             // Translate identifiers ONLY for display purposes
                             return `<li><strong>${i18next.t(criterion.nameKey || criterion.name)}:</strong> ${i18next.t(option.descriptionKey || option.description)}</li>`; 
                         } else {
