@@ -38,8 +38,7 @@
     "login": "登录/注册",
     "logout": "退出",
     "configAdmin": "评分配置",
-    "userAdmin": "用户管理",  <-- 已添加逗号
-    "nav.configAdmin": "评分配置"
+    "userAdmin": "用户管理" 
   },
   "indexPage": {
     "searchPlaceholder": "搜索雪茄名称, 产地, 尺寸, 点评, 用户...",
@@ -179,7 +178,7 @@
       "shareThumb": "分享缩略图"
     }
   },
-   "errors": {  // 建议添加 "errors" 键，用于统一存放错误信息翻译
+   "errors": {
       "initFailed": "页面加载初始化出错: {{msg}}",
       "loginFailed": "登录失败: {{message}}",
       "authCallbackFailed": "认证回调失败 (状态 {{status}})",
