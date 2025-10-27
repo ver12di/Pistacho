@@ -363,6 +363,12 @@
        }
    },
    "options": {
+      "common": {
+        "average": "Average",
+        "perfect": "Perfect",
+        "normal": "Normal",
+        "new": "New"
+      },
       "appearance": {
          "shoddy": "Shoddy",
          "beautiful": "Beautiful"
@@ -485,3 +491,4 @@
       }
    }
 }
+

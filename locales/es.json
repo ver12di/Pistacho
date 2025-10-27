@@ -363,6 +363,12 @@
        }
    },
    "options": {
+      "common": {
+        "average": "Promedio",
+        "perfect": "Perfecto",
+        "normal": "Normal",
+        "new": "Nuevo"
+      },
       "appearance": {
          "shoddy": "Mediocre",
          "beautiful": "Bonita"
@@ -483,5 +489,24 @@
          "strong": "Recomendar encarecidamente",
          "mustHave": "Imprescindible"
       }
+   },
+   "flavors": {
+      "coffee": "Café",
+      "chocolate": "Chocolate",
+      "cedar": "Cedro",
+      "earth": "Tierra",
+      "hay": "Heno",
+      "leather": "Cuero",
+      "nuts": "Nueces",
+      "spice": "Especias",
+      "wood": "Madera",
+      "sweetness": "Dulzura",
+      "cream": "Crema",
+      "floral": "Floral",
+      "fruit": "Fruta",
+      "caramel": "Caramelo",
+      "vanilla": "Vainilla",
+      "citrus": "Cítricos"
    }
 }
+
