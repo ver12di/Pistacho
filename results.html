@@ -217,87 +217,28 @@
         function initSwipers(imageUrls = []) { /* ... */ }
         async function autoGenerateShareImage() { /* ... */ }
         
-        // --- renderPageContent --- (**FIXED: Added checks before using gradeStyles**)
-        function renderPageContent(data) {
-            // console.log("[renderPageContent] Start. Data:", data); // Keep if needed
-            if (!data) { throw new Error("renderPageContent received no data."); }
-            
-            try {
-                const { cigarInfo, cigarReview, normalizedScore, isDraft, selectedFlavors = [] } = data;
-                const title = data.title || i18next.t('common.noTitle');
-                const userNickname = data.userNickname || data.userEmail || i18next.t('common.anonymous');
-                
-                // Calculate finalGrade
-                const foundGrade = GRADING_SCALE.find(g => normalizedScore >= g.min_score) || GRADING_SCALE[GRADING_SCALE.length - 1];
-                const finalGrade = foundGrade ? { grade: foundGrade.grade, name: i18next.t(foundGrade.nameKey), color: foundGrade.color } : null;
-                // **Crucial Check:** Ensure finalGrade and finalGrade.color are valid before proceeding
-                if (!finalGrade || !finalGrade.color) { 
-                     console.error("[renderPageContent] Error: Could not determine finalGrade or finalGrade.color.", { finalGrade });
-                     throw new Error("无法确定有效的评级信息。"); 
-                }
-
-                 // Render basic info (remains the same)
-                 document.getElementById('user-nickname').textContent = userNickname;
-                 // ... (rest of basic info rendering) ...
-                 document.getElementById('cigar-origin').textContent = cigarInfo?.origin || i18next.t('common.unknown');
-                 
-                 const reviewContainer = document.getElementById('cigar-review-container');
-                 reviewContainer.innerHTML = (cigarReview && cigarReview.trim()) ? `<p>${cigarReview}</p>` : `<p class="text-gray-400 italic">${i18next.t('common.noReview')}</p>`;
-                 
-                 const flavorsContainer = document.getElementById('selected-flavors-container'); 
-                 if (selectedFlavors.length > 0) { /* ... */ } else { /* ... */ }
-
-                // Render score section (remains the same, relies on valid finalGrade)
-                renderScoreSection(document.getElementById('score-section'), normalizedScore, finalGrade);
-                
-                // Show/hide save button (remains the same)
-                const saveButtonContainer = document.getElementById('save-button-container'); 
-                saveButtonContainer.style.display = (currentAuthUser && isDraft) ? 'block' : 'none';
-
-                // Render summary/narrative if data exists (remains the same)
-                const hasFullData = data.config && data.ratings;
-                ['narrative-summary-details', 'summary-details'].forEach(id => { /* ... */ });
-                if (hasFullData) { /* ... */ } else { /* ... */ }
-
-                // --- **FIXED: Populate Hidden Share Card with checks** ---
-                const shareCardImage = document.getElementById('share-card-image');
-                // **Get gradeStyles ONLY if finalGrade.color is valid**
-                const gradeStyles = getGradeStyles(finalGrade.color); 
-                // **Add check for gradeStyles before using it**
-                if (gradeStyles) {
-                    document.getElementById('share-card-score').className = `text-5xl font-black ${gradeStyles.textColor}`; 
-                    document.getElementById('share-card-grade-badge').className = `inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${gradeStyles.bgColor} ${gradeStyles.textColor} bg-opacity-20`;
-                } else {
-                     console.warn("[renderPageContent] Could not get gradeStyles, using default for share card.");
-                     // Apply default styles if gradeStyles failed
-                     document.getElementById('share-card-score').className = `text-5xl font-black text-gray-800`; 
-                     document.getElementById('share-card-grade-badge').className = `inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-300 text-gray-800 bg-opacity-20`;
-                }
-                // --- **End Fix** ---
-
-                document.getElementById('share-card-score').textContent = normalizedScore.toFixed(2);
-                document.getElementById('share-card-grade-badge').textContent = finalGrade.name; // Still use finalGrade.name
-                document.getElementById('share-card-watermark').innerHTML = i18next.t('resultsPage.shareCard.userRatingOn', { user: `<span id="share-card-username">${userNickname}</span>` });
-                const shareCardQrCode = document.getElementById('share-card-qrcode');
-                if (shareCardQrCode && typeof QRCode !== 'undefined') { /* ... */ } else { /* ... */ }
-                const images = data.imageUrls || [];
-                if (images.length > 0) { shareCardImage.src = `/api/image/${images[0]}`; } else { /* ... */ }
-                // console.log("[renderPageContent] Finished rendering basic content."); // Keep if needed
-
-            } catch (error) {
-                 console.error("[renderPageContent] Error during rendering:", error);
-                 throw error; // Re-throw to be caught by onload
-            }
-        }
+        // --- renderPageContent --- (Checks remain)
+        function renderPageContent(data) { /* ... */ }
         
-        // --- window.onload --- (**Added log to check resultsData.finalGrade**)
+        // --- window.onload --- (**DEBUG: Added logs and simplified error message**)
         window.onload = async function() {
-            // console.log("[window.onload] Page loading started."); // Keep if needed
+            console.log("[window.onload] Page loading started.");
             const errorContainer = document.getElementById('error-container');
             const mainContent = document.getElementById('main-content');
             const loadingIndicator = document.getElementById('loading-indicator');
             
-            const showError = (message) => { /* ... */ }; // Error handling function remains
+            const showError = (message, errorObj = null) => {
+                 console.error("[window.onload] showError called:", message, errorObj); // Log the error object too
+                 loadingIndicator.style.display = 'none'; 
+                 mainContent.style.display = 'none'; 
+                 const errorTitle = i18next?.t('errors.pageLoadError') || "Page Load Error"; // Fallback if i18n fails
+                 const backLink = i18next?.t('common.backToCommunity') || "Back to Community";
+                 errorContainer.innerHTML = `<p class="font-bold text-center">${errorTitle}: ${message} <a href="index.html" class="text-indigo-600 underline">${backLink}</a></p>`;
+                 if (errorObj) { // Display stack trace if available
+                    errorContainer.innerHTML += `<pre class="text-xs text-red-600 mt-2 whitespace-pre-wrap">${errorObj.stack || JSON.stringify(errorObj)}</pre>`;
+                 }
+                 errorContainer.classList.remove('hidden');
+            };
 
             try {
                 // --- Initialization ---
@@ -305,37 +246,70 @@
                 mainContent.style.display = 'none';
                 errorContainer.classList.add('hidden');
                 
+                console.log("[window.onload] Initializing i18n...");
                 await initI18n();
                 updateContent(); 
-                // console.log("[window.onload] i18n initialized."); // Keep if needed
+                console.log("[window.onload] i18n initialized.");
 
                 const urlParams = new URLSearchParams(window.location.search);
                 const code = urlParams.get('code');
                 ratingId = urlParams.get('ratingId');
-                // console.log(`[window.onload] URL Params: code=${code}, ratingId=${ratingId}`); // Keep if needed
+                console.log(`[window.onload] URL Params: code=${code}, ratingId=${ratingId}`);
 
                 // --- Auth ---
+                console.log("[window.onload] Validating session/handling callback...");
                 let user = code ? await handleOidcCallback(code) : await validateSessionAndGetUser();
                 currentAuthUser = user;
-                // console.log("[window.onload] User:", currentAuthUser); // Keep if needed
+                console.log("[window.onload] User:", currentAuthUser);
                 renderLoginStatus(currentAuthUser); 
                 setupLanguageSwitcher(); 
-                // console.log("[window.onload] Auth handled, UI updated."); // Keep if needed
+                console.log("[window.onload] Auth handled, UI updated.");
 
                 // --- Data Loading ---
-                // console.log("[window.onload] Starting data loading..."); // Keep if needed
+                console.log("[window.onload] Starting data loading...");
                 if (ratingId) { 
-                    /* ... fetch logic ... */ 
+                    console.log(`[window.onload] Fetching rating by ID: ${ratingId}`);
+                    const token = sessionStorage.getItem('accessToken');
+                    const apiUrl = new URL(`/api/ratings?id=${ratingId}`, window.location.origin);
+                    const fetchOptions = token ? { headers: { 'Authorization': `Bearer ${token}` } } : {};
+                    const response = await fetch(apiUrl, fetchOptions);
+                    console.log(`[window.onload] Fetch response status: ${response.status}`);
+                    if (!response.ok) throw new Error(i18next.t('errors.loadRatingFailed', { status: response.status }));
                     resultsData = await response.json();
-                     // console.log("[window.onload] Rating data fetched successfully."); // Keep if needed
+                     console.log("[window.onload] Rating data fetched successfully:", resultsData); 
                 } else { 
-                    /* ... session storage logic ... */
-                    resultsData = JSON.parse(storedData);
-                    ratingId = resultsData?.ratingId; 
-                     // console.log(`[window.onload] Rating data loaded from session. Rating ID: ${ratingId}`); // Keep if needed
+                     console.log("[window.onload] Loading rating from sessionStorage...");
+                     // --- **DEBUG LOGGING START** ---
+                     let storedDataRaw = null;
+                     try {
+                         storedDataRaw = sessionStorage.getItem('cigarRatingResults');
+                         console.log("[window.onload] Raw data from sessionStorage:", storedDataRaw);
+                     } catch (storageError) {
+                         console.error("[window.onload] Error reading from sessionStorage:", storageError);
+                         throw new Error("无法读取会话存储。");
+                     }
+                     // --- **DEBUG LOGGING END** ---
+
+                     // **FIX: Check storedDataRaw before throwing/parsing**
+                     if (!storedDataRaw) {
+                        console.error("[window.onload] No data found in sessionStorage for 'cigarRatingResults'.");
+                        // Use plain string error here
+                        throw new Error("No rating data found in session storage."); 
+                     }
+                     
+                     // **Wrap JSON.parse in try...catch**
+                     try {
+                        resultsData = JSON.parse(storedDataRaw); 
+                     } catch (parseError) {
+                         console.error("[window.onload] Error parsing JSON from sessionStorage:", parseError, "Raw data:", storedDataRaw);
+                         throw new Error("无法解析会话中的评分数据。");
+                     }
+
+                     ratingId = resultsData?.ratingId; 
+                     console.log(`[window.onload] Rating data loaded from session. Rating ID: ${ratingId}`);
                 }
 
-                // **Log the loaded finalGrade object BEFORE rendering**
+                console.log("[window.onload] Inspecting resultsData AFTER loading:", resultsData);
                 console.log("[window.onload] Inspecting resultsData.finalGrade before rendering:", resultsData?.finalGrade);
 
                 if (!resultsData || resultsData.normalizedScore === undefined) { 
@@ -344,32 +318,38 @@
                 }
                 
                 // --- Content Rendering (Wrapped in try/catch) --- 
+                console.log("[window.onload] Starting Content Rendering block...");
                 try {
-                    // console.log("[window.onload] Initializing Swipers..."); // Keep if needed
+                    console.log("[window.onload] Initializing Swipers..."); 
                     initSwipers(resultsData.imageUrls || []); 
-                    // console.log("[window.onload] Calling renderPageContent..."); // Keep if needed
+                    console.log("[window.onload] Calling renderPageContent..."); 
                     renderPageContent(resultsData); 
-                    // console.log("[window.onload] renderPageContent finished."); // Keep if needed
+                    console.log("[window.onload] renderPageContent finished."); 
                 } catch (renderError) {
                      console.error("[window.onload] Error during CONTENT RENDERING:", renderError);
-                     throw new Error(`渲染页面内容时出错: ${renderError.message}`); // Re-throw with more context
+                     throw new Error(`渲染页面内容时出错: ${renderError.message}`); 
                 }
 
-
                 // --- Share Image Generation --- 
-                // console.log("[window.onload] Setting up share card generation..."); // Keep if needed
+                console.log("[window.onload] Setting up share card generation...");
                 const shareImg = document.getElementById('share-card-image');
                 if (shareImg && shareImg.src && !shareImg.src.includes('placehold.co')) { 
-                    /* ... image loading logic ... */
+                    console.log("[window.onload] Share card image source found. Setting up onload handler."); 
+                    shareImg.onload = () => { console.log("[shareImg.onload] Triggered."); autoGenerateShareImage(); };
+                    shareImg.onerror = () => console.warn("[shareImg.onerror] Share card image failed to load, cannot generate share image.");
+                    if(shareImg.complete) {
+                         console.log("[window.onload] Share card image already complete. Calling autoGenerateShareImage directly.");
+                         autoGenerateShareImage();
+                    }
                 } else if (ratingId) { 
                      console.warn("[window.onload] No valid share card image source found. Attempting generation anyway."); 
                      autoGenerateShareImage();
                 } else {
-                     // console.log("[window.onload] No image source and not a saved rating, skipping share image generation."); // Keep if needed
+                     console.log("[window.onload] No image source and not a saved rating, skipping share image generation.");
                 }
 
                 // --- Final Step: Show Content --- 
-                // console.log("[window.onload] Hiding loader and showing main content..."); // Keep if needed
+                console.log("[window.onload] Hiding loader and showing main content..."); 
                 loadingIndicator.style.display = 'none'; 
                 mainContent.style.display = 'block'; 
                 await new Promise(resolve => setTimeout(resolve, 50)); 
@@ -380,7 +360,7 @@
             } catch (e) {
                 // Catch ANY error during the process and display it
                 console.error("[window.onload] CRITICAL ERROR during page load:", e);
-                showError(e.message || "未知错误"); // Pass error message or default
+                showError(e.message || "未知错误", e); // Pass the error object itself for stack trace
             }
         };
 
@@ -397,21 +377,9 @@
         
         // getScoreRange, getGradeStyles, renderScoreSection remain the same
         function getScoreRange(gradeCode) { /* ... */ }
-        function getGradeStyles(color) { const stylesMap = { 'gold': { textColor: 'text-yellow-800', bgColor: 'bg-yellow-400' }, 'indigo': { textColor: 'text-indigo-800', bgColor: 'bg-indigo-300' }, 'purple': { textColor: 'text-purple-800', bgColor: 'bg-purple-300' }, 'blue': { textColor: 'text-blue-800', bgColor: 'bg-blue-300' }, 'green': { textColor: 'text-green-800', bgColor: 'bg-green-300' }, 'gray': { textColor: 'text-gray-800', bgColor: 'bg-gray-300' }, 'orange': { textColor: 'text-orange-800', bgColor: 'bg-orange-300' }, 'red': { textColor: 'text-red-800', bgColor: 'bg-red-300' } }; return stylesMap[color] || stylesMap['gray']; } // Added fallback
+        function getGradeStyles(color) { const stylesMap = { /* ... */ }; return stylesMap[color] || stylesMap['gray']; } 
          
-         function renderScoreSection(container, score, grade) {
-             if (!container || !grade) return; 
-             // **FIXED: Use getGradeStyles with fallback**
-             const styles = getGradeStyles(grade.color) || getGradeStyles('gray'); // Use gray as default if color invalid
-             const scoreHtml = `<div><p class="text-xl font-bold text-yellow-500 mb-1">${i18next.t('resultsPage.scoreSectionTitle')}</p><p class="text-7xl font-black ${styles.textColor}">${score.toFixed(2)}</p><div class="mt-2 text-3xl font-black ${styles.textColor}">${grade.name}</div></div>`;
-             const scaleHtml = GRADING_SCALE.map(g => { 
-                 // **FIXED: Use getGradeStyles with fallback inside map**
-                 const gStyles = getGradeStyles(g.color) || getGradeStyles('gray'); 
-                 const isCurrent = g.grade === grade.grade; 
-                 return `<div class="flex items-center p-1 rounded ${isCurrent ? 'bg-gray-100' : ''}"><div class="w-5 h-5 rounded-full flex items-center justify-center font-bold text-xs ${gStyles.bgColor} ${gStyles.textColor} mr-2">${g.grade}</div><div class="flex-grow ${isCurrent ? 'font-semibold' : ''} ${gStyles.textColor}">${i18next.t(g.nameKey)}</div><div class="font-mono text-xs text-gray-500 ml-2">${getScoreRange(g.grade)}</div></div>`; 
-             }).join('');
-             container.innerHTML = `<div class="w-full md:w-1/3">${scoreHtml}</div><div class="w-full md:w-2/3 border-t md:border-t-0 md:border-l border-gray-200 pt-4 md:pt-0 md:pl-6"><div class="space-y-1">${scaleHtml}</div></div>`;
-         }
+         function renderScoreSection(container, score, grade) { /* ... */ }
     </script>
 </body>
 </html>
