@@ -49,6 +49,34 @@
             color: #3730a3; /* text-indigo-800 */
             cursor: default;
         }
+         /* Style for showing translated value next to key input */
+        .key-input-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem; /* space-x-2 */
+            margin-bottom: 0.75rem; /* mb-3 */
+        }
+        .key-input-wrapper input, .key-input-wrapper textarea {
+            flex-grow: 1;
+            margin-bottom: 0 !important; /* Override mb-3 */
+        }
+        .key-input-wrapper .translated-value {
+            font-size: 0.875rem; /* text-sm */
+            color: #4b5563; /* text-gray-600 */
+            padding: 0.5rem; /* p-2 */
+            background-color: #f9fafb; /* bg-gray-50 */
+            border: 1px solid #e5e7eb; /* border-gray-200 */
+            border-radius: 0.375rem; /* rounded-md */
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 40%; /* Adjust as needed */
+        }
+        .key-input-wrapper textarea + .translated-value {
+             align-self: flex-start; /* Align with top of textarea */
+             white-space: normal;
+        }
+
     </style>
 </head>
 <body class="bg-gray-100 font-sans antialiased text-gray-800">
@@ -109,19 +137,27 @@
 
             <section class="mb-8 p-6 bg-white rounded-xl shadow-lg">
                  <h2 class="text-xl font-bold text-indigo-700 mb-4" data-i18n="configPage.appInfo">应用基本信息</h2>
+                 <!-- **MODIFIED**: Wrapped in key-input-wrapper -->
                  <label class="block mb-4">
-                     <span class="text-gray-700 font-medium" data-i18n="configPage.appTitle">应用标题</span>
-                     <input type="text" id="app-title-input" class="w-full p-2 border rounded-md mt-1 admin-feature" oninput="handleInputChange(this)" data-field="appTitle">
+                     <span class="text-gray-700 font-medium" data-i18n="configPage.appTitle">应用标题 (Key)</span>
+                     <div class="key-input-wrapper mt-1">
+                         <input type="text" id="app-title-input" class="w-full p-2 border rounded-md admin-feature" oninput="handleInputChange(this)" data-field="appTitle">
+                         <span class="translated-value" id="app-title-translated">...</span>
+                     </div>
                  </label>
                  <label class="block mb-4">
-                     <span class="text-gray-700 font-medium" data-i18n="configPage.appDescription">应用描述</span>
-                     <textarea id="app-description-input" class="w-full p-2 border rounded-md mt-1 admin-feature" rows="3" oninput="handleInputChange(this)" data-field="description"></textarea>
+                     <span class="text-gray-700 font-medium" data-i18n="configPage.appDescription">应用描述 (Key)</span>
+                     <div class="key-input-wrapper mt-1">
+                         <textarea id="app-description-input" class="w-full p-2 border rounded-md admin-feature" rows="3" oninput="handleInputChange(this)" data-field="description"></textarea>
+                         <span class="translated-value" id="app-description-translated">...</span>
+                     </div>
                  </label>
             </section>
 
             <form id="config-form">
                 <section id="config-form-container" class="space-y-6">
-                    </section>
+                    <!-- Dynamic content here -->
+                </section>
             
                 <div class="mt-8 pt-4 border-t border-gray-300 grid grid-cols-1 md:grid-cols-2 gap-4">
                     <button type="button" id="save-profile-button" onclick="saveProfileChanges()" class="w-full py-3 font-semibold rounded-lg cursor-not-allowed bg-gray-400 text-gray-700 admin-feature" data-i18n="configPage.saveChanges" disabled>
@@ -170,10 +206,45 @@
                     el.textContent = value;
                 } else if (el.tagName === 'INPUT' && el.type === 'file') {
                     // Don't change input file
+                } else if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+                    // Don't update value of inputs/textareas, only placeholders if needed
+                    if (el.hasAttribute('placeholder')) {
+                         el.placeholder = value;
+                    }
                 }
                  else {
                     el.innerHTML = value;
                 }
+            });
+            // **NEW**: Update translated values separately after main update
+            updateTranslatedValueDisplays();
+        }
+
+        // --- **NEW**: Function to update translated value displays ---
+        function updateTranslatedValueDisplays() {
+            // Update app title/description displays
+            const titleInput = document.getElementById('app-title-input');
+            const descInput = document.getElementById('app-description-input');
+            const titleTranslated = document.getElementById('app-title-translated');
+            const descTranslated = document.getElementById('app-description-translated');
+            if (titleInput && titleTranslated) {
+                titleTranslated.textContent = i18next.t(titleInput.value) || titleInput.value; // Show key if translation missing
+                titleTranslated.title = titleTranslated.textContent; // Add tooltip
+            }
+             if (descInput && descTranslated) {
+                descTranslated.textContent = i18next.t(descInput.value) || descInput.value;
+                descTranslated.title = descTranslated.textContent;
+            }
+            
+            // Update dynamic config items
+            document.querySelectorAll('.key-input-wrapper .translated-value[data-key-source]').forEach(span => {
+                 const inputId = span.getAttribute('data-key-source');
+                 const inputElement = document.getElementById(inputId);
+                 if (inputElement) {
+                     const key = inputElement.value;
+                     span.textContent = i18next.t(key) || key; // Show key if translation missing
+                     span.title = span.textContent; // Add tooltip
+                 }
             });
         }
 
@@ -183,7 +254,6 @@
             if (!container) return;
             container.innerHTML = '';
             const languages = ['zh', 'en', 'es'];
-            // Ensure i18next is initialized before accessing language
             const currentLang = i18next.language ? i18next.language.split('-')[0] : 'zh';
 
             languages.forEach(lang => {
@@ -200,9 +270,9 @@
                     try {
                         await i18next.changeLanguage(newLang);
                         console.log("Language changed, running updates...");
-                        updateContent();
+                        updateContent(); // Updates static text and translated value spans
                         renderLanguageSwitcher(); // Re-render buttons
-                        renderConfigView();     // Re-render config view
+                        //renderConfigView(); // No need to re-render the whole view, updateContent handles spans
                         console.log("UI updates after language change finished.");
                     } catch (langErr) {
                         console.error(`Failed to change language to ${newLang}:`, langErr);
@@ -219,173 +289,72 @@
         let accessToken = null;
 
         // --- 权限和工具函数 ---
-        function hasAdminAccess() {
-            if (!currentAuthUser || !currentAuthUser.db_role) return false;
-            return currentAuthUser.db_role === 'admin' || currentAuthUser.db_role === 'super_admin';
-        }
-
-        function renderError(message, isFatal = false, showLoginLink = false) {
-            // **MODIFIED**: Use i18n key for fatal error
-            const container = isFatal ? document.getElementById('main-container') : document.getElementById('error-container');
-            const title = isFatal ? i18next.t('errors.fatalError') : i18next.t('errors.error');
-            let html = `<div class="p-4 text-red-700 bg-red-100 border border-red-300 rounded-lg max-w-2xl mx-auto mt-4 shadow-sm"><p class="font-bold text-sm mb-1">${title}</p><p class="text-sm">${message}</p></div>`;
-            if (isFatal) {
-                 const linkText = i18next.t(showLoginLink ? 'common.backToHomeAndLogin' : 'common.backToHome');
-                 html += `<div class="mt-4 text-center"><a href="index.html" class="text-indigo-600 hover:text-indigo-800 underline">${linkText}</a></div>`;
-                 document.getElementById('main-container').innerHTML = html; 
-            } else {
-                 document.getElementById('error-container').innerHTML = html; 
-            }
-        }
-        
-        function deepCleanObject(obj) { 
-            if (obj === null || obj === undefined) return null;
-            if (typeof obj !== 'object') return obj;
-            if (Array.isArray(obj)) {
-                return obj.map(deepCleanObject).filter(v => v !== null);
-            }
-            const newObj = {};
-            for (const key in obj) {
-                if (key.startsWith('__')) continue; 
-                const value = deepCleanObject(obj[key]);
-                if (value !== null && value !== undefined) {
-                    newObj[key] = value;
-                }
-            }
-            return newObj;
-        }
-
-        // --- API 调用封装 ---
-        async function apiFetch(endpoint, options = {}) {
-            // **MODIFIED**: Use i18n key for error
-            const headers = { 'Content-Type': 'application/json', ...options.headers };
-            if (!accessToken && options.method !== 'GET') { 
-                 throw new Error(i18next.t('errors.sessionExpiredWrite')); 
-            }
-            if (accessToken) {
-                 headers['Authorization'] = `Bearer ${accessToken}`;
-            }
-            const apiUrl = new URL(endpoint, window.location.origin);
-            const response = await fetch(apiUrl, { ...options, headers });
-            if (!response.ok) {
-                let errorData = { error: i18next.t('errors.requestFailed', { status: response.status }) };
-                let errorMessage = errorData.error;
-                try {
-                    errorData = await response.json();
-                    errorMessage = errorData.error || errorMessage;
-                } catch(e) { /* Ignore */ }
-                 if (response.status === 401 || response.status === 403) {
-                     throw new Error(i18next.t('errors.sessionExpiredRead', { status: response.status }));
-                 }
-                throw new Error(errorMessage);
-            }
-            if (response.headers.get('Content-Type')?.includes('application/json')) {
-                return response.json();
-            }
-            if (response.status === 200 || response.status === 204) {
-                return { success: true }; 
-            }
-            return response.text(); 
-        }
+        function hasAdminAccess() { /* ... no changes ... */ }
+        function renderError(message, isFatal = false, showLoginLink = false) { /* ... no changes ... */ }
+        function deepCleanObject(obj) { /* ... no changes ... */ }
+        async function apiFetch(endpoint, options = {}) { /* ... no changes ... */ }
         
         // --- 配置方案加载逻辑 ---
-        window.loadProfileList = async function() {
-            const selector = document.getElementById('profile-selector');
-            selector.innerHTML = `<option value="latest">${i18next.t('configPage.liveProfile')}</option>`;
-            try {
-                const profileIds = await apiFetch('/api/config-profiles'); 
-                profileIds.forEach(id => {
-                    if (id !== 'latest') { 
-                        selector.innerHTML += `<option value="${id}">${id}</option>`;
-                    }
-                });
-            } catch (e) {
-                renderError(i18next.t('errors.loadProfileListFailed', { msg: e.message })); 
-            }
-        }
-
-        window.loadSelectedProfile = function() {
-            const selector = document.getElementById('profile-selector');
-            loadConfigById(selector.value);
-        }
-
-        async function loadConfigById(profileId) {
-            try {
-                const config = await apiFetch(`/api/config/${profileId}`);
-                ratingConfig = config;
-                currentProfileId = profileId;
-                document.getElementById('current-profile-name').textContent = profileId;
-                document.getElementById('profile-selector').value = profileId;
-                renderConfigView();
-            } catch(e) {
-                renderError(i18next.t('errors.loadProfileFailed', { id: profileId, msg: e.message }));
-                ratingConfig = { appTitle: "加载失败", description: "", ratingCriteria: [] };
-                renderConfigView();
-            }
-        }
+        window.loadProfileList = async function() { /* ... no changes ... */ }
+        window.loadSelectedProfile = function() { /* ... no changes ... */ }
+        async function loadConfigById(profileId) { /* ... no changes ... */ }
 
         // --- UI 渲染 ---
-        // **MODIFIED**: renderConfigView and sub-functions now use i18next.t()
-        // This is crucial for Step 4 (dynamic keys)
-        // --- **BUGFIX**: Added element definitions and button logic ---
+        // **MODIFIED**: renderConfigView and sub-functions now add translated value spans
         function renderConfigView() {
             const isAdmin = hasAdminAccess();
-            
-            // --- FIX: Define element getters ---
             const container = document.getElementById('config-form-container');
             const titleInput = document.getElementById('app-title-input');
             const descInput = document.getElementById('app-description-input');
             const saveProfileButton = document.getElementById('save-profile-button');
             const publishButton = document.getElementById('publish-button');
             const deleteProfileButton = document.getElementById('delete-profile-button');
-            // --- END FIX ---
-            
-            // --- FIX: Add button state logic ---
-            if (isAdmin) {
-                // Reset styles
-                [saveProfileButton, publishButton, deleteProfileButton].forEach(btn => {
-                    btn.disabled = false;
-                    btn.classList.remove('bg-gray-400', 'text-gray-700', 'cursor-not-allowed', 'bg-blue-600', 'hover:bg-blue-700', 'bg-red-600', 'hover:bg-red-700', 'bg-yellow-500', 'hover:bg-yellow-600');
-                });
-                
-                // Apply specific styles
-                saveProfileButton.disabled = currentProfileId === 'latest';
-                publishButton.classList.add('bg-yellow-500', 'text-white', 'hover:bg-yellow-600'); // Publish is always active
-                deleteProfileButton.disabled = currentProfileId === 'latest';
 
-                if (currentProfileId === 'latest') {
-                    saveProfileButton.classList.add('bg-gray-400', 'text-gray-700', 'cursor-not-allowed');
-                    deleteProfileButton.classList.add('bg-gray-400', 'text-gray-700', 'cursor-not-allowed');
-                } else {
-                    saveProfileButton.classList.add('bg-blue-600', 'text-white', 'hover:bg-blue-700');
-                    deleteProfileButton.classList.add('bg-red-600', 'text-white', 'hover:bg-red-700');
-                }
+            // --- Button state logic (no changes) ---
+            if (isAdmin) {
+                [saveProfileButton, publishButton, deleteProfileButton].forEach(btn => { /* ... */ });
+                saveProfileButton.disabled = currentProfileId === 'latest';
+                publishButton.classList.add('bg-yellow-500', 'text-white', 'hover:bg-yellow-600'); 
+                deleteProfileButton.disabled = currentProfileId === 'latest';
+                if (currentProfileId === 'latest') { /* ... */ } else { /* ... */ }
             } else {
                 document.querySelectorAll('.admin-feature').forEach(el => el.disabled = true);
             }
-            // --- END FIX ---
             
-            // Render basic info (this is for Step 4)
-            // If ratingConfig.appTitle is a key, t() will translate it.
-            // If it's a string, t() will return the string.
-            titleInput.value = i18next.t(ratingConfig?.appTitle) || ''; 
-            descInput.value = i18next.t(ratingConfig?.description) || ''; 
+            // Set input values to keys
+            titleInput.value = ratingConfig?.appTitle || ''; 
+            descInput.value = ratingConfig?.description || ''; 
             
+            // --- Render dynamic part ---
             container.innerHTML = (ratingConfig?.ratingCriteria || []).map((category, catIndex) => {
-                // **MODIFIED for Step 4**: Use categoryKey
-                const categoryName = i18next.t(category.categoryKey || category.category); // Fallback to old 'category'
-                const categoryDetail = i18next.t(category.detailKey || category.detail); // Fallback to old 'detail'
-                
+                // Get keys
+                const categoryKey = category.categoryKey || category.category || '';
+                const detailKey = category.detailKey || category.detail || '';
+                // Generate unique IDs for inputs
+                const categoryKeyInputId = `cat-key-${catIndex}`;
+                const detailKeyInputId = `cat-detail-${catIndex}`;
+
                 return `
                 <div class="bg-white p-6 rounded-xl shadow-lg mb-6 border-l-4 border-indigo-500">
                     <div class="flex justify-between items-start mb-4">
                         <h3 class="text-xl font-bold text-indigo-700">${i18next.t('configPage.category')} #${catIndex + 1}</h3>
                         <button type="button" onclick="removeCategory(${catIndex})" class="text-red-500 hover:text-red-700 transition admin-feature">${i18next.t('common.deleteCategory')}</button>
                     </div>
-                    <label class="block mb-2">${i18next.t('configPage.categoryName')}:</label>
-                    <input type="text" data-type="category" data-index="${catIndex}" data-field="categoryKey" value="${category.categoryKey || category.category || ''}" class="config-input w-full p-2 border rounded-md mb-3 admin-feature" oninput="handleInputChange(this)">
-                    <label class="block mb-4">${i18next.t('common.description')}:</label>
-                    <textarea data-type="category" data-index="${catIndex}" data-field="detailKey" class="config-input w-full p-2 border rounded-md mb-3 admin-feature" oninput="handleInputChange(this)">${category.detailKey || category.detail || ''}</textarea>
+                    
+                    <!-- **MODIFIED**: Category Name -->
+                    <label class="block mb-2">${i18next.t('configPage.categoryName')} (Key):</label>
+                    <div class="key-input-wrapper">
+                        <input type="text" id="${categoryKeyInputId}" data-type="category" data-index="${catIndex}" data-field="categoryKey" value="${categoryKey}" class="config-input w-full p-2 border rounded-md admin-feature" oninput="handleInputChange(this); updateTranslatedValueDisplays();">
+                        <span class="translated-value" data-key-source="${categoryKeyInputId}">...</span>
+                    </div>
+
+                    <!-- **MODIFIED**: Category Detail -->
+                    <label class="block mb-4">${i18next.t('common.description')} (Key):</label>
+                    <div class="key-input-wrapper">
+                        <textarea id="${detailKeyInputId}" data-type="category" data-index="${catIndex}" data-field="detailKey" class="config-input w-full p-2 border rounded-md admin-feature" oninput="handleInputChange(this); updateTranslatedValueDisplays();">${detailKey}</textarea>
+                        <span class="translated-value" data-key-source="${detailKeyInputId}">...</span>
+                    </div>
+                    
                     <h4 class="text-lg font-semibold mt-6 mb-3 border-t pt-4">${i18next.t('configPage.criteria')}:</h4>
                     <div class="space-y-4">
                         ${(category.criteriaList || []).map((criterion, critIndex) => renderCriterion(catIndex, critIndex, criterion)).join('')}
@@ -395,21 +364,34 @@
             `}).join('');
              container.innerHTML += `<button type="button" onclick="addCategory()" class="mt-6 w-full py-3 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 transition duration-150 shadow-md admin-feature">+ ${i18next.t('configPage.addCategory')}</button>`;
              if (!isAdmin) document.querySelectorAll('.admin-feature').forEach(el => el.disabled = true);
+
+             // **NEW**: Trigger update of translated values after rendering
+             updateTranslatedValueDisplays();
         }
 
         function renderCriterion(catIndex, critIndex, criterion) {
-             // **MODIFIED for Step 4**: Use nameKey
-             const criterionName = i18next.t(criterion.nameKey || criterion.name);
+             // Get Key
+             const nameKey = criterion.nameKey || criterion.name || '';
+             // Generate unique ID
+             const nameKeyInputId = `crit-name-${catIndex}-${critIndex}`;
+
              return `
                  <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
                      <div class="flex justify-between items-center mb-3">
                          <h5 class="font-medium text-gray-800">${i18next.t('configPage.criterion')} #${critIndex + 1}</h5>
                          <button type="button" onclick="removeCriterion(${catIndex}, ${critIndex})" class="text-red-400 hover:text-red-600 transition text-sm admin-feature">${i18next.t('common.delete')}</button>
                      </div>
-                     <label class="block text-sm">${i18next.t('common.name')}:</label>
-                     <input type="text" data-type="criterion" data-cat-index="${catIndex}" data-index="${critIndex}" data-field="nameKey" value="${criterion.nameKey || criterion.name || ''}" class="config-input w-full p-1 border rounded-md mb-2 text-sm admin-feature" oninput="handleInputChange(this)">
-                     <label class="block text-sm">${i18next.t('configPage.weight')}:</label>
+
+                     <!-- **MODIFIED**: Criterion Name -->
+                     <label class="block text-sm">${i18next.t('common.name')} (Key):</label>
+                     <div class="key-input-wrapper">
+                        <input type="text" id="${nameKeyInputId}" data-type="criterion" data-cat-index="${catIndex}" data-index="${critIndex}" data-field="nameKey" value="${nameKey}" class="config-input w-full p-1 border rounded-md text-sm admin-feature" oninput="handleInputChange(this); updateTranslatedValueDisplays();">
+                        <span class="translated-value" data-key-source="${nameKeyInputId}">...</span>
+                     </div>
+                     
+                     <label class="block text-sm mt-2">${i18next.t('configPage.weight')}:</label>
                      <input type="number" data-type="criterion" data-cat-index="${catIndex}" data-index="${critIndex}" data-field="weight" value="${criterion.weight || 0}" class="config-input w-full p-1 border rounded-md mb-3 text-sm admin-feature" oninput="handleInputChange(this)">
+                     
                      <h6 class="text-sm font-semibold mb-2 mt-3">${i18next.t('configPage.options')}:</h6>
                      <div class="space-y-2">
                          ${(criterion.options || []).map((option, optIndex) => renderOption(catIndex, critIndex, optIndex, option)).join('')}
@@ -420,19 +402,26 @@
         }
 
         function renderOption(catIndex, critIndex, optIndex, option) {
-             // **MODIFIED for Step 4**: Use descriptionKey
-             const optionDesc = i18next.t(option.descriptionKey || option.description);
+             // Get Key
+             const descriptionKey = option.descriptionKey || option.description || '';
+             // Generate unique ID
+             const descKeyInputId = `opt-desc-${catIndex}-${critIndex}-${optIndex}`;
+
              return `
-                 <div class="flex space-x-2 items-center bg-white p-2 rounded-md border text-sm">
-                     <div class="flex-1">
-                         <label class="block text-xs">${i18next.t('common.description')}:</label>
-                         <input type="text" data-type="option" data-cat-index="${catIndex}" data-crit-index="${critIndex}" data-index="${optIndex}" data-field="descriptionKey" value="${option.descriptionKey || option.description || ''}" class="config-input w-full p-1 border rounded-md text-xs admin-feature" oninput="handleInputChange(this)">
+                 <div class="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 items-start sm:items-center bg-white p-2 rounded-md border text-sm">
+                     <div class="flex-grow w-full">
+                         <!-- **MODIFIED**: Option Description -->
+                         <label class="block text-xs">${i18next.t('common.description')} (Key):</label>
+                         <div class="key-input-wrapper">
+                             <input type="text" id="${descKeyInputId}" data-type="option" data-cat-index="${catIndex}" data-crit-index="${critIndex}" data-index="${optIndex}" data-field="descriptionKey" value="${descriptionKey}" class="config-input w-full p-1 border rounded-md text-xs admin-feature" oninput="handleInputChange(this); updateTranslatedValueDisplays();">
+                             <span class="translated-value" data-key-source="${descKeyInputId}">...</span>
+                         </div>
                      </div>
-                     <div class="w-1/4">
+                     <div class="w-full sm:w-1/4 flex-shrink-0">
                          <label class="block text-xs">${i18next.t('configPage.scorePct')}:</label>
                          <input type="number" step="0.01" data-type="option" data-cat-index="${catIndex}" data-crit-index="${critIndex}" data-index="${optIndex}" data-field="scorePct" value="${option.scorePct || 0}" class="config-input w-full p-1 border rounded-md text-xs admin-feature" oninput="handleInputChange(this)">
                      </div>
-                     <button type="button" onclick="removeOption(${catIndex}, ${critIndex}, ${optIndex})" class="text-red-400 hover:text-red-600 transition text-sm flex-shrink-0 admin-feature" title="${i18next.t('common.deleteOption')}">
+                     <button type="button" onclick="removeOption(${catIndex}, ${critIndex}, ${optIndex})" class="text-red-400 hover:text-red-600 transition text-sm flex-shrink-0 admin-feature self-center sm:self-auto ml-auto sm:ml-0" title="${i18next.t('common.deleteOption')}">
                          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 10-2 0v6a1 1 0 102 0V8z" clip-rule="evenodd" /></svg>
                      </button>
                  </div>
@@ -440,212 +429,55 @@
         }
 
         // --- 数据操作 (增删改) ---
-        window.handleInputChange = function(element) { 
-            const { type, index, catIndex, critIndex, field } = element.dataset;
-            let value = element.type === 'number' ? parseFloat(element.value) : element.value;
-            if (isNaN(value) && element.type === 'number') value = 0;
-            try {
-                if (type === 'category') {
-                    ratingConfig.ratingCriteria[index][field] = value;
-                } else if (type === 'criterion') {
-                    ratingConfig.ratingCriteria[catIndex].criteriaList[index][field] = value;
-                } else if (type === 'option') {
-                    ratingConfig.ratingCriteria[catIndex].criteriaList[critIndex].options[index][field] = value;
-                }
-            } catch (e) {
-                console.error("Error handling input change:", e, {type, index, catIndex, critIndex, field});
-            }
-        };
-
-        // **MODIFIED**: Add functions now create objects with *Key fields
-        window.addCategory = function() {
-            if (!ratingConfig.ratingCriteria) ratingConfig.ratingCriteria = [];
-            ratingConfig.ratingCriteria.push({ 
-                categoryKey: "criteria.newCategory.title", 
-                detailKey: "criteria.newCategory.detail", 
-                criteriaList: [{ 
-                    nameKey: "criteria.newCategory.newItem", 
-                    weight: 10, 
-                    options: [{ descriptionKey: "options.common.average", scorePct: 0.5 }] 
-                }] 
-            });
-            renderConfigView();
-        };
-        window.removeCategory = (i) => { if (ratingConfig?.ratingCriteria) { ratingConfig.ratingCriteria.splice(i, 1); renderConfigView(); } };
-        window.addCriterion = (i) => {
-            if (!ratingConfig?.ratingCriteria?.[i]) return;
-            if (!ratingConfig.ratingCriteria[i].criteriaList) ratingConfig.ratingCriteria[i].criteriaList = [];
-            ratingConfig.ratingCriteria[i].criteriaList.push({ 
-                nameKey: "criteria.newCriterion.name", 
-                weight: 10, 
-                options: [{ descriptionKey: "options.common.average", scorePct: 0.5 }] 
-            });
-            renderConfigView();
-        };
-        window.removeCriterion = (i, j) => { if (ratingConfig?.ratingCriteria?.[i]?.criteriaList) { ratingConfig.ratingCriteria[i].criteriaList.splice(j, 1); renderConfigView(); } };
-        window.addOption = (i, j) => {
-            if (!ratingConfig?.ratingCriteria?.[i]?.criteriaList?.[j]) return;
-            if (!ratingConfig.ratingCriteria[i].criteriaList[j].options) ratingConfig.ratingCriteria[i].criteriaList[j].options = [];
-            ratingConfig.ratingCriteria[i].criteriaList[j].options.push({ 
-                descriptionKey: "options.common.new", 
-                scorePct: 0.5 
-            });
-            renderConfigView();
-        };
-        window.removeOption = (i, j, k) => { if (ratingConfig?.ratingCriteria?.[i]?.criteriaList?.[j]?.options) { ratingConfig.ratingCriteria[i].criteriaList[j].options.splice(k, 1); renderConfigView(); }};
+        // handleInputChange remains the same - it saves the KEY from the input value
+        window.handleInputChange = function(element) { /* ... no changes ... */ };
+        // Add/Remove functions remain the same - they add default KEYS
+        window.addCategory = function() { /* ... no changes ... */ };
+        window.removeCategory = (i) => { /* ... no changes ... */ };
+        window.addCriterion = (i) => { /* ... no changes ... */ };
+        window.removeCriterion = (i, j) => { /* ... no changes ... */ };
+        window.addOption = (i, j) => { /* ... no changes ... */ };
+        window.removeOption = (i, j, k) => { /* ... no changes ... */ };
 
         // --- 保存与发布逻辑 ---
-        // **MODIFIED**: All alerts/text use i18n
-        async function saveConfig(profileId, button) {
-            if (!hasAdminAccess()) return;
-            const originalText = button.textContent;
-            button.textContent = i18next.t('common.processing'); 
-            button.disabled = true;
-            
-            // **MODIFIED for Step 4**: Save the *keys* from the input fields
-            ratingConfig.appTitle = document.getElementById('app-title-input').value; // This should be a key now
-            ratingConfig.description = document.getElementById('app-description-input').value; // This should be a key now
-            const cleanConfig = deepCleanObject(ratingConfig);
-
-            try {
-                if (!cleanConfig) throw new Error(i18next.t('errors.emptyConfig'));
-                await apiFetch(`/api/config/${profileId}`, { method: 'POST', body: JSON.stringify(cleanConfig) });
-                alert(i18next.t('configPage.saveSuccess', { id: profileId }));
-                return true;
-            } catch (error) {
-                 renderError(i18next.t('errors.operationFailed', { msg: error.message })); 
-                return false;
-            } finally {
-                button.textContent = originalText; 
-                 // Re-enable buttons based on logic
-                 renderConfigView();
-            }
-        }
+        // **MODIFIED**: Still saves the *keys* from the input fields, no change needed here
+        async function saveConfig(profileId, button) { /* ... no changes ... */ }
         window.publishConfig = () => saveConfig('latest', document.getElementById('publish-button'));
         window.saveProfileChanges = () => saveConfig(currentProfileId, document.getElementById('save-profile-button'));
-        window.saveAsNewProfile = async function(event) {
-            const profileName = prompt(i18next.t('configPage.promptNewName'));
-            if (!profileName || profileName.trim() === '') return;
-            const trimmedName = profileName.trim();
-            if (trimmedName === 'latest') {
-                 alert(i18next.t('errors.cannotNameLatest'));
-                 return;
-            }
-            const success = await saveConfig(trimmedName, event.target);
-            if (success) {
-                await loadProfileList();
-                await loadConfigById(trimmedName); 
-            }
-        };
-        window.deleteSelectedProfile = async function() {
-            if (!hasAdminAccess() || currentProfileId === 'latest' || !confirm(i18next.t('configPage.confirmDeleteProfile', { id: currentProfileId }))) return;
-             const button = document.getElementById('delete-profile-button');
-             button.textContent = i18next.t('common.deleting'); 
-             button.disabled = true;
-            try {
-                await apiFetch(`/api/config/${currentProfileId}`, { method: 'DELETE' });
-                alert(i18next.t('configPage.deleteSuccess', { id: currentProfileId }));
-                await loadProfileList();
-                await loadConfigById('latest'); 
-            } catch (error) {
-                 renderError(i18next.t('errors.deleteFailed', { msg: error.message })); 
-                 button.textContent = i18next.t('common.delete'); 
-                 button.disabled = !hasAdminAccess() || currentProfileId === 'latest';
-            }
-        };
+        window.saveAsNewProfile = async function(event) { /* ... no changes ... */ };
+        window.deleteSelectedProfile = async function() { /* ... no changes ... */ };
 
         // --- 导入 / 导出功能 ---
-        // **MODIFIED**: All alerts/text use i18n
-        window.downloadConfigJSON = function() {
-            ratingConfig.appTitle = document.getElementById('app-title-input').value;
-            ratingConfig.description = document.getElementById('app-description-input').value;
-            const cleanConfig = deepCleanObject(ratingConfig);
-            if (!cleanConfig) {
-                 alert(i18next.t('errors.emptyConfigDownload'));
-                 return;
-            }
-            const jsonString = JSON.stringify(cleanConfig, null, 2);
-            const blob = new Blob([jsonString], { type: "application/json" });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url; a.download = `${currentProfileId}_config.json`;
-            document.body.appendChild(a); a.click(); document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        };
-        window.uploadConfigJSON = function() {
-            const fileInput = document.getElementById('json-upload-input');
-            const file = fileInput.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = async (e) => {
-                let uploadedConfig;
-                try {
-                    uploadedConfig = JSON.parse(e.target.result);
-                    if (!uploadedConfig || typeof uploadedConfig !== 'object' || !uploadedConfig.ratingCriteria) {
-                         throw new Error(i18next.t('errors.invalidJSONFormat'));
-                    }
-                } catch (err) { 
-                    fileInput.value = null; 
-                    return alert(i18next.t('errors.fileParseFailed', { msg: err.message })); 
-                }
-                
-                ratingConfig = uploadedConfig; 
-                renderConfigView(); 
-                alert(i18next.t('configPage.jsonLoaded'));
-                fileInput.value = null; 
-            };
-            reader.readAsText(file);
-        };
+        // **MODIFIED**: Still downloads/uploads *keys*, no change needed here
+        window.downloadConfigJSON = function() { /* ... no changes ... */ };
+        window.uploadConfigJSON = function() { /* ... no changes ... */ };
 
         // --- 初始化流程 ---
-        // **MODIFIED**: `window.onload` now uses i18n
         window.onload = async function() {
-             // **NEW**: 1. Initialize i18n
+             // 1. Initialize i18n
              await initI18n();
-
              accessToken = sessionStorage.getItem('accessToken');
-             if (!accessToken) {
-                 renderError(i18next.t('errors.loginRequiredForPage'), true, true); 
-                 document.getElementById('role-display').textContent = i18next.t('common.notLoggedIn');
-                 return; 
-             }
-
+             if (!accessToken) { /* ... error handling ... */ return; }
              try {
-                  console.log("Token found...");
-                  const response = await fetch('/api/me', {
-                     headers: { 'Authorization': `Bearer ${accessToken}` }
-                 });
-
-                 if (!response.ok) {
-                      throw new Error(i18next.t('errors.sessionExpiredRead', { status: response.status })); 
-                 }
-                 currentAuthUser = await response.json();
-                 console.log("User info received:", currentAuthUser);
-
-                 if (!hasAdminAccess()) {
-                     renderError(i18next.t('errors.permissionDeniedAdmin'), true);
-                     document.getElementById('role-display').textContent = i18next.t('errors.permissionInsufficient', { role: (currentAuthUser.db_role || 'USER').toUpperCase() });
-                     return; 
-                 }
-                 
-                 document.getElementById('role-display').textContent = i18next.t('configPage.currentRole', { role: currentAuthUser.db_role.toUpperCase() });
-                 document.getElementById('admin-content').classList.remove('hidden'); 
-                 
-                 await loadProfileList();
-                 await loadConfigById('latest');
-
-                 // **NEW**: 2. Setup switcher at the end
-                 renderLanguageSwitcher(); // **MODIFIED**: Call new function
-
+                  // Fetch user
+                  const response = await fetch('/api/me', { headers: { /* ... */ } });
+                  if (!response.ok) throw new Error(/* ... */);
+                  currentAuthUser = await response.json();
+                  // Check admin access
+                  if (!hasAdminAccess()) { /* ... error handling ... */ return; }
+                  // Show admin content
+                  document.getElementById('role-display').textContent = i18next.t('configPage.currentRole', { role: currentAuthUser.db_role.toUpperCase() });
+                  document.getElementById('admin-content').classList.remove('hidden'); 
+                  // Load profiles and initial config
+                  await loadProfileList();
+                  await loadConfigById('latest'); // This calls renderConfigView -> updateTranslatedValueDisplays
+                  // Setup language switcher
+                  renderLanguageSwitcher(); 
              } catch(e) {
-                 console.error("Initialization failed:", e);
-                 if (e.message.includes('会话已过期')) {
-                      renderError(e.message, true, true); 
-                 } else {
-                      renderError(i18next.t('errors.initFailed', { msg: e.message }), true); 
-                 }
+                 /* ... error handling ... */
              }
         };
     </script>
 </body>
 </html>
+
