@@ -305,7 +305,7 @@
             { "grade": "O", "nameKey": "resultsPage.grade.O", "min_score": 0 }
         ];
 
-        // **MODIFIED**: Define FLAVOR_KEYS using i18n keys
+        // Define FLAVOR_KEYS using i18n keys
         const FLAVOR_KEYS = [
              "flavors.coffee", "flavors.chocolate", "flavors.cedar", "flavors.earth",
              "flavors.hay", "flavors.leather", "flavors.nuts", "flavors.spice",
@@ -442,7 +442,7 @@
 
 
         // --- Flavor Selection Logic ---
-        // **MODIFIED**: Uses FLAVOR_KEYS and i18n
+        // Uses FLAVOR_KEYS and i18n
         function renderFlavorButtons() {
             const container = document.getElementById('flavor-buttons-container');
             if (!container || !i18next.isInitialized) return; // Ensure container and i18n are ready
@@ -459,7 +459,7 @@
             });
         }
 
-        // **MODIFIED**: Works with flavorKey
+        // Works with flavorKey
         function toggleFlavorSelection(flavorKey, button) {
             const index = selectedFlavors.indexOf(flavorKey);
             if (index > -1) {
@@ -713,7 +713,7 @@
             }
         }
 
-        // **MODIFIED**: Generates a unique ID for each criterion based on its i18n key
+        // Generates a unique ID for each criterion based on its i18n key
         function getRatingId(categoryKey, criterionKey) {
             // Use keys directly for a stable ID
             return `${categoryKey}-${criterionKey}`;
@@ -743,11 +743,26 @@
             if (!ratingConfig || !ratingConfig.ratingCriteria) return 0;
 
             for (const ratingId in userRatings) {
-                 // **MODIFIED**: Parse keys from ratingId
-                const keys = ratingId.split('-');
-                if (keys.length < 2) continue; // Basic check
-                const categoryKey = keys[0];
-                const criterionKey = keys.slice(1).join('-'); // Re-join if criterion key had hyphens
+                // Parse keys from ratingId
+                const keys = ratingId.split('-'); // Simple split, assumes keys don't contain hyphens
+                 // More robust split needed if keys contain hyphens
+                 let categoryKey = '';
+                 let criterionKey = '';
+                 // Try to find a valid category key first
+                 for (let i = 1; i < keys.length; i++) {
+                     let potentialCatKey = keys.slice(0, i).join('-');
+                     if (ratingConfig.ratingCriteria.some(cat => cat.categoryKey === potentialCatKey)) {
+                         categoryKey = potentialCatKey;
+                         criterionKey = keys.slice(i).join('-');
+                         break;
+                     }
+                 }
+
+                 if (!categoryKey || !criterionKey) {
+                     console.warn("Could not parse keys from ratingId:", ratingId);
+                     continue; // Skip if parsing fails
+                 }
+
 
                 const selectedOptionIndex = userRatings[ratingId];
 
@@ -759,12 +774,14 @@
                     const weight = criterion.weight || 0;
                     const scorePct = criterion.options[selectedOptionIndex]?.scorePct || 0;
                     score += weight * scorePct;
+                } else {
+                     console.warn(`Could not find criterion or option for: ${ratingId} with index ${selectedOptionIndex}`);
                 }
             }
             return score;
         }
 
-        // **MODIFIED**: Update user's selection for a criterion using keys
+        // Update user's selection for a criterion using keys
         window.updateRatingSelection = function(categoryKey, criterionKey, optionIndex) {
             const id = getRatingId(categoryKey, criterionKey); // Generate ID using keys
             userRatings[id] = optionIndex; // Store the selected option index
@@ -833,9 +850,9 @@
                 <div class="bg-gray-50 p-4 rounded-lg border">
                     <div class="flex justify-between items-center mb-3">
                         <h4 class="text-lg font-semibold text-gray-800">
-                            ${i18next.t(criterionKey || '')} ${isSuperAdmin ? `(${currentWeight} ${i18next.t('common.points', '分')})` : ''} {/* Add 'points' key */}
+                            ${i18next.t(criterionKey || '')} ${isSuperAdmin ? `(${currentWeight} ${i18next.t('common.points')})` : ''}
                         </h4>
-                        ${isSuperAdmin ? `<span class="text-xl font-extrabold text-green-600">${currentScore.toFixed(2)}</span>` : ''} {/* Show score for super admin */}
+                        ${isSuperAdmin ? `<span class="text-xl font-extrabold text-green-600">${currentScore.toFixed(2)}</span>` : ''}
                     </div>
                     <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
                     ${(criterion.options || []).map((option, optIndex) => {
@@ -847,7 +864,7 @@
                                 onclick="updateRatingSelection('${categoryKey}', '${criterionKey}', ${optIndex})"
                                 class="p-2 text-sm text-center rounded-lg border transition ${isSelected ? 'bg-indigo-600 text-white shadow-md ring-2 ring-indigo-300 ring-offset-1' : 'bg-white text-gray-700 hover:bg-indigo-50 hover:border-indigo-300'}">
                                 ${i18next.t(option.descriptionKey || '')} {/* Display translated option text */}
-                                ${isSuperAdmin ? `<span class="block text-xs ${isSelected ? 'text-indigo-200' : 'text-gray-500'}">(${i18next.t('common.score', '得')} ${score} ${i18next.t('common.points', '分')})</span>` : ''} {/* Add 'score' key */}
+                                ${isSuperAdmin ? `<span class="block text-xs ${isSelected ? 'text-indigo-200' : 'text-gray-500'}">(${i18next.t('common.score')} ${score} ${i18next.t('common.points')})</span>` : ''}
                             </button>
                         `;
                     }).join('')}
@@ -891,7 +908,7 @@
             }
         }
 
-        // **MODIFIED**: Prepares resultsData with keys for flavors
+        // Prepares resultsData with keys for flavors and handles saving or redirecting
         window.showResults = async function() {
             // --- Validation Checks ---
             const token = sessionStorage.getItem('accessToken');
@@ -1027,7 +1044,7 @@
                 initializeSortable(); // Init sortable after images are loaded
 
                 // Load flavor selections (expecting keys)
-                selectedFlavors = Array.isArray(data.selectedFlavors) ? data.selectedFlavors : [];
+                selectedFlavors = Array.isArray(data.fullData?.selectedFlavors) ? data.fullData.selectedFlavors : []; // Use fullData if available
                 renderFlavorButtons(); // Render and mark selected flavors
 
                 // Load rating selections (using the structure with keys)
@@ -1036,9 +1053,9 @@
                 // Ensure the config is loaded before rendering the view with selections
                 if (!ratingConfig) {
                     await loadConfig(); // Wait for config if not already loaded
-                } else {
-                     renderRatingView(); // Re-render with loaded selections if config was already present
                 }
+                 // IMPORTANT: Re-render rating view *after* config is potentially loaded and userRatings are set
+                renderRatingView();
 
 
                 statusElement.textContent = i18next.t('ratePage.editLoaded', { id: ratingId.substring(0, 8) }); // Show success message
@@ -1087,18 +1104,21 @@
             document.getElementById('cigar-review')?.addEventListener('input', updateCharCounts);
 
             // 4. Load Core Config OR Edit Data
-            if (editIdParam) {
+            if (editIdParam && user) { // Only load edit data if logged in
                 // Edit Mode
                 isEditMode = true;
                 editRatingId = editIdParam;
                 // loadConfig will be called inside loadRatingForEdit if needed
                 await loadRatingForEdit(editRatingId);
-            } else {
+            } else if (user) { // Only load config if logged in (for create mode)
                 // Create Mode
                 isEditMode = false;
                 await loadConfig(); // Load the default config for rating
                 renderImagePreviews(); // Render empty image previews
                 initializeSortable(); // Initialize sortable for images
+            } else {
+                 // Not logged in and not an auth callback - main content remains hidden by renderLoginStatus
+                 document.getElementById('config-load-status').textContent = i18next.t('ratePage.loginPrompt');
             }
              updateCharCounts(); // Initial count update
         };

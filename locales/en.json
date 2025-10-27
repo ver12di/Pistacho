@@ -61,7 +61,9 @@
     "new": "New",
     "sessionExpiredWrite": "Session expired or invalid, cannot perform write operation.",
     "sessionExpiredRead": "Session expired or invalid (status {{status}}), cannot read data.",
-    "unrated": "Unrated"
+    "unrated": "Unrated",
+    "points": "pts",
+    "score": "Score"
   },
   "nav": {
     "title": "Pistacho Rating",
@@ -169,7 +171,7 @@
     "size": "Size",
     "origin": "Origin",
     "review": "Review",
-    "noReview": "No written review was provided.",
+    "noReview": "No written review provided.",
     "flavors": "Main Flavors:",
     "scoreSectionTitle": "Pistacho Score",
     "narrativeTitle": "Narrative Summary",
@@ -489,6 +491,24 @@
          "strong": "Strongly recommend",
          "mustHave": "Must have"
       }
-   }
+   },
+   "flavors": {
+        "coffee": "Coffee",
+        "chocolate": "Chocolate",
+        "cedar": "Cedar",
+        "earth": "Earth",
+        "hay": "Hay",
+        "leather": "Leather",
+        "nuts": "Nuts",
+        "spice": "Spice",
+        "wood": "Wood",
+        "sweetness": "Sweetness",
+        "cream": "Cream",
+        "floral": "Floral",
+        "fruit": "Fruit",
+        "caramel": "Caramel",
+        "vanilla": "Vanilla",
+        "citrus": "Citrus"
+    }
 }
 
