@@ -176,7 +176,9 @@
                  </div>
             </section>
 
-            <div id="rating-form-container"></div>
+            <div id="rating-form-container">
+                 <p class="text-center text-gray-500 py-10" data-i18n="common.loading">正在加载评分项...</p>
+            </div>
 
             <div class="mt-8 grid grid-cols-2 gap-4">
                 <button onclick="resetRatings()" class="w-full py-3 px-6 bg-red-500 text-white font-bold text-lg rounded-lg shadow-md hover:bg-red-600" data-i18n="ratePage.reset">重置</button>
@@ -209,7 +211,7 @@
                 .use(i18nextBrowserLanguageDetector)
                 .init({
                     fallbackLng: 'zh',
-                    debug: false,
+                    debug: true, // Keep debug on for development
                     ns: ['translation'],
                     defaultNS: 'translation',
                     backend: {
@@ -229,7 +231,7 @@
                 const options = el.dataset.i18nOptions ? JSON.parse(el.dataset.i18nOptions) : undefined;
                 const value = i18next.t(key, options);
                 if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
-                    if (el.type !== 'file') el.placeholder = value;
+                    if (el.type !== 'file' && el.hasAttribute('placeholder')) el.placeholder = value;
                 } else if (el.tagName === 'OPTION') {
                     el.textContent = value;
                 } else {
@@ -286,8 +288,8 @@
         const COMMON_FLAVORS = [ "咖啡", "巧克力", "雪松", "泥土", "干草", "皮革", "坚果", "香料", "木质", "甜味", "奶油", "花香", "果香", "焦糖", "香草", "柑橘" ];
 
         // --- Authentication ---
-         window.login = function() { /* ... (same) ... */ }
-         window.logout = function() { /* ... (same) ... */ }
+         window.login = function() { const redirectUri = window.location.origin; const authorizeUrl = new URL('/oidc/auth', AUTHING_HOST); authorizeUrl.search = new URLSearchParams({ client_id: AUTHING_APP_ID, redirect_uri: redirectUri, response_type: 'code', scope: 'openid profile email phone', state: Math.random().toString(36).substring(2) }).toString(); window.location.href = authorizeUrl.toString(); }
+         window.logout = function() { const logoutUrl = new URL('/oidc/session/end', AUTHING_HOST); logoutUrl.search = new URLSearchParams({ post_logout_redirect_uri: window.location.origin }).toString(); sessionStorage.removeItem('userInfo'); sessionStorage.removeItem('accessToken'); window.location.href = logoutUrl.toString(); }
          
          function renderLoginStatus(user) {
             const container = document.getElementById('login-status-container');
@@ -315,8 +317,8 @@
             }
          }
          
-         async function handleOidcCallback(code) { /* ... (same) ... */ }
-         async function validateSessionAndGetUser() { /* ... (same) ... */ }
+         async function handleOidcCallback(code) { try { const redirectUri = window.location.origin; const apiUrl = new URL('/api/authing/callback', window.location.origin); const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: code, redirect_uri: redirectUri }) }); if (!response.ok) { const err = await response.json(); throw new Error(err.error || `Token exchange failed (status ${response.status})`); } const fullUserProfile = await response.json(); sessionStorage.setItem('userInfo', JSON.stringify(fullUserProfile)); sessionStorage.setItem('accessToken', fullUserProfile.accessToken); return fullUserProfile; } catch (e) { console.error('认证回调处理失败:', e); alert(`登录失败: ${e.message}`); sessionStorage.removeItem('userInfo'); sessionStorage.removeItem('accessToken'); return null; } finally { window.history.replaceState({}, document.title, window.location.pathname + window.location.search.replace(/&?code=[^&]*/, '').replace(/&?state=[^&]*/, '')); } }
+         async function validateSessionAndGetUser() { const token = sessionStorage.getItem('accessToken'); if (!token) return null; try { const apiUrl = new URL('/api/me', window.location.origin); const response = await fetch(apiUrl, { headers: { 'Authorization': `Bearer ${token}` } }); if (!response.ok) { console.warn("Session validation failed:", response.status); sessionStorage.removeItem('userInfo'); sessionStorage.removeItem('accessToken'); return null; } const fullUserProfile = await response.json(); sessionStorage.setItem('userInfo', JSON.stringify(fullUserProfile)); return fullUserProfile; } catch (e) { console.error("Session validation failed:", e); return null; } }
          function setUser(user) { currentAuthUser = user; renderLoginStatus(currentAuthUser); setTimeout(() => { renderAdminLinks(); }, 0); }
 
         // --- Flavor Selection Logic ---
@@ -334,7 +336,7 @@
                 container.appendChild(button);
             });
          }
-         function toggleFlavorSelection(flavor, button) { /* ... (same) ... */ }
+         function toggleFlavorSelection(flavor, button) { const index = selectedFlavors.indexOf(flavor); if (index > -1) { selectedFlavors.splice(index, 1); button.classList.remove('selected'); } else { selectedFlavors.push(flavor); button.classList.add('selected'); } }
 
         // --- Image Handling (with Sorting and Cover Selection) ---
          const MAX_IMAGES = 5; let filesToProcess = []; let currentFileIndex = 0;
@@ -348,7 +350,7 @@
                 const item = document.createElement('div');
                 item.className = `preview-item ${index === 0 ? 'is-cover' : ''}`;
                 item.dataset.key = key;
-                const coverText = index === 0 ? i18next.t('common.cover') : i18next.t('ratePage.setCover', '设为封面'); // 'ratePage.setCover' needs to be added to JSON
+                const coverText = index === 0 ? i18next.t('common.cover') : i18next.t('ratePage.setCover'); // Ensure 'ratePage.setCover' is in JSON
                 item.innerHTML = `
                     <img src="/api/image/${key}" alt="${i18next.t('common.image')} ${index + 1}">
                     <button class="remove-btn" onclick="removeImage(${index})" title="${i18next.t('common.delete')} ${i18next.t('common.image')}">&times;</button>
@@ -369,9 +371,9 @@
             }
          }
          
-         function initializeSortable() { /* ... (same) ... */ }
-         window.setCoverImage = function(index) { /* ... (same) ... */ }
-         window.removeImage = function(indexToRemove) { /* ... (same) ... */ }
+         function initializeSortable() { const grid = document.getElementById('image-preview-grid'); if (sortableInstance) { sortableInstance.destroy(); } sortableInstance = Sortable.create(grid, { animation: 150, ghostClass: 'sortable-ghost', dragClass: 'sortable-drag', onEnd: (evt) => { if (evt.oldIndex !== evt.newIndex) { const movedItem = currentImageKeys.splice(evt.oldIndex, 1)[0]; currentImageKeys.splice(evt.newIndex, 0, movedItem); renderImagePreviews(); } } }); }
+         window.setCoverImage = function(index) { if (index === 0 || index >= currentImageKeys.length) return; const coverKey = currentImageKeys.splice(index, 1)[0]; currentImageKeys.unshift(coverKey); renderImagePreviews(); }
+         window.removeImage = function(indexToRemove) { if (indexToRemove < 0 || indexToRemove >= currentImageKeys.length) return; currentImageKeys.splice(indexToRemove, 1); renderImagePreviews(); }
          
          window.handleFileSelect = function(event) {
             const status = document.getElementById('image-upload-status');
@@ -456,7 +458,7 @@
             }, 'image/jpeg', 0.9);
          }
          
-         window.cancelCrop = function() { /* ... (same) ... */ }
+         window.cancelCrop = function() { if (cropper) { cropper.destroy(); cropper = null; } cropperImage.src = ''; cropperModal.classList.add('hidden'); cropperStatus.textContent = ''; }
 
         // --- Core Rating Logic ---
          async function loadConfig() {
@@ -466,6 +468,7 @@
                 const response = await fetch(apiUrl);
                 if (!response.ok) throw new Error(`Server error: ${response.statusText}`);
                 ratingConfig = await response.json();
+                console.log("Loaded config:", ratingConfig); // Add log
                 if (!ratingConfig || !ratingConfig.ratingCriteria) throw new Error("Loaded config is invalid.");
                 calculateWeights(ratingConfig);
                 userRatings = {};
@@ -474,70 +477,192 @@
             } catch (error) {
                 console.error("加载配置失败:", error);
                 document.getElementById('config-load-status').textContent = i18next.t('ratePage.configFailed');
+                 // Ensure renderRatingView shows an error if config fails
+                 renderRatingView(); 
                 alert(`Failed to load core app config. Please refresh.\nDetails: ${error.message}`);
             }
          }
          
-         function getRatingId(category, criterion) { /* ... (same) ... */ }
-         function calculateWeights(config) { /* ... (same) ... */ }
-         function calculateFinalScore() { /* ... (same) ... */ }
-         window.updateRatingSelection = function(categoryName, criterionName, optionIndex) { /* ... (same) ... */ };
+         // **MODIFIED**: Use keys for ID generation
+         function getRatingId(categoryKey, criterionKey) {
+            // Basic validation
+             if (!categoryKey || !criterionKey) {
+                 console.error("Cannot get rating ID: Missing categoryKey or criterionKey", {categoryKey, criterionKey});
+                 return `error-invalid-key`;
+             }
+            return `${categoryKey}-${criterionKey}`;
+         }
+
+         function calculateWeights(config) {
+            let totalWeight = 0;
+            let totalCriteria = 0;
+            if (config && config.ratingCriteria) {
+                config.ratingCriteria.forEach(category => {
+                    if (category.criteriaList) {
+                        category.criteriaList.forEach(criterion => {
+                            totalWeight += criterion.weight || 0;
+                            totalCriteria++;
+                        });
+                    }
+                });
+            }
+             // Store calculated totals in the config object itself for easier access
+             config.totalWeightMax = totalWeight;
+             config.totalCriteriaCount = totalCriteria;
+             console.log("Calculated weights:", {totalWeight, totalCriteria}); // Add log
+         }
+
+         // **MODIFIED**: Use key-based ID and find criterion by key
+         function calculateFinalScore() {
+             let totalScore = 0;
+             if (!ratingConfig || !ratingConfig.ratingCriteria) {
+                 return 0; // Config not loaded or invalid
+             }
+
+             // Iterate through userRatings (which now use key-based IDs)
+             for (const ratingId in userRatings) {
+                 const selectedOptionIndex = userRatings[ratingId];
+                 if (selectedOptionIndex === undefined) continue;
+
+                 // Parse the categoryKey and criterionKey from the ratingId
+                 const keys = ratingId.split('-');
+                 if (keys.length < 2) {
+                      console.warn(`Invalid rating ID format found: ${ratingId}`);
+                      continue; // Skip invalid IDs
+                 }
+                 const categoryKey = keys[0];
+                 // Reconstruct criterionKey (might contain hyphens)
+                 const criterionKey = keys.slice(1).join('-');
+
+                 // Find the corresponding criterion in the config using the keys
+                 let foundCriterion = null;
+                 for (const category of ratingConfig.ratingCriteria) {
+                      // Check if categoryKey matches (or fallback to old category name if needed)
+                      if (category.categoryKey === categoryKey || category.category === categoryKey) {
+                         foundCriterion = category.criteriaList?.find(
+                              crit => crit.nameKey === criterionKey || crit.name === criterionKey // Check nameKey or fallback to old name
+                         );
+                         if (foundCriterion) break; // Found it, exit inner loop
+                      }
+                 }
+
+
+                 if (foundCriterion && foundCriterion.options && foundCriterion.options[selectedOptionIndex]) {
+                     const criterionWeight = foundCriterion.weight || 0;
+                     const optionScorePct = foundCriterion.options[selectedOptionIndex].scorePct || 0;
+                     totalScore += criterionWeight * optionScorePct;
+                 } else {
+                      console.warn(`Could not find criterion or option for ratingId: ${ratingId}, categoryKey: ${categoryKey}, criterionKey: ${criterionKey}, optionIndex: ${selectedOptionIndex}`);
+                 }
+             }
+             return totalScore;
+         }
+
+         // **MODIFIED**: Accept keys, use key-based ID
+         window.updateRatingSelection = function(categoryKey, criterionKey, optionIndex) {
+            const id = getRatingId(categoryKey, criterionKey);
+            userRatings[id] = optionIndex;
+            renderRatingView(); // Re-render to update score and buttons
+         };
          
+         // **MODIFIED**: Use i18n keys for rendering
          function renderRatingView() {
+            const formContainer = document.getElementById('rating-form-container');
+            // Check if config is loaded and valid
             if (!ratingConfig || !ratingConfig.ratingCriteria) {
-                const formContainer = document.getElementById('rating-form-container');
-                formContainer.innerHTML = `<div class="text-center p-6 bg-white rounded-lg shadow"><p>${i18next.t('ratePage.configFailed')}</p></div>`;
+                formContainer.innerHTML = `<div class="text-center p-6 bg-white rounded-lg shadow"><p class="text-red-500">${i18next.t('ratePage.configFailed')}</p></div>`;
+                // Clear score displays as well
+                document.getElementById('current-score-display').textContent = 'ERR';
+                document.getElementById('total-weight-max-display').textContent = '0';
+                document.getElementById('progress-bar').style.width = '0%';
+                document.getElementById('progress-text').textContent = `0 / 0`;
                 return;
             };
+
+            // Calculate score *before* rendering to display correctly
             const totalScore = calculateFinalScore();
-            document.getElementById('app-title-display').textContent = ratingConfig.appTitle; // This will remain in the config's language
-            document.getElementById('app-description-display').textContent = ratingConfig.description; // This too
-            document.getElementById('total-weight-max-display').textContent = ratingConfig.totalWeightMax ?? 0;
-            document.getElementById('current-score-display').textContent = totalScore.toFixed(2);
             const ratedCount = Object.keys(userRatings).length;
-            const totalCount = ratingConfig.totalCriteriaCount || 1;
+            const totalCount = ratingConfig.totalCriteriaCount || 1; // Use pre-calculated count
+
+            // Update header elements using i18n keys from config
+            document.getElementById('app-title-display').textContent = i18next.t(ratingConfig.appTitleKey || ratingConfig.appTitle || ''); // Use key, fallback to old title
+            document.getElementById('app-description-display').textContent = i18next.t(ratingConfig.descriptionKey || ratingConfig.description || ''); // Use key, fallback to old desc
+            document.getElementById('total-weight-max-display').textContent = ratingConfig.totalWeightMax ?? 0; // Use pre-calculated weight
+            document.getElementById('current-score-display').textContent = totalScore.toFixed(2);
             document.getElementById('progress-bar').style.width = `${(ratedCount / totalCount) * 100}%`;
             document.getElementById('progress-text').textContent = `${ratedCount} / ${totalCount}`;
-            const formContainer = document.getElementById('rating-form-container');
-            
-            // NOTE: category.category, category.detail, and criterion.name will remain in Chinese
-            // as they come from the database config. This is the next step to refactor.
-            formContainer.innerHTML = ratingConfig.ratingCriteria.map((category) => `
-                <div class="bg-white p-6 rounded-xl shadow-lg mb-8 border-l-4 border-indigo-500">
-                    <h3 class="text-xl font-bold text-indigo-700 mb-2">${category.category}</h3>
-                    <p class="text-gray-500 text-sm mb-4">${category.detail || ''}</p>
-                    <div class="space-y-6">${(category.criteriaList || []).map((criterion) => renderRatingCriterion(category.category, criterion)).join('')}</div>
-                </div>`).join('');
+
+            // Render form sections
+            formContainer.innerHTML = ratingConfig.ratingCriteria.map((category) => {
+                 // Get keys, fallback to old properties if keys don't exist
+                 const categoryKey = category.categoryKey || category.category || 'unknownCategory';
+                 const detailKey = category.detailKey || category.detail || '';
+                 
+                 // Translate using keys
+                 const categoryName = i18next.t(categoryKey);
+                 const categoryDetail = i18next.t(detailKey);
+
+                 return `
+                 <div class="bg-white p-6 rounded-xl shadow-lg mb-8 border-l-4 border-indigo-500">
+                      <h3 class="text-xl font-bold text-indigo-700 mb-2">${categoryName}</h3>
+                      <p class="text-gray-500 text-sm mb-4">${categoryDetail}</p>
+                      <div class="space-y-6">
+                           ${(category.criteriaList || []).map((criterion) => renderRatingCriterion(categoryKey, criterion)).join('')}
+                      </div>
+                 </div>`;
+            }).join('');
          }
          
-         function renderRatingCriterion(categoryName, criterion) {
-            const id = getRatingId(categoryName, criterion.name);
-            const selectedOptionIndex = userRatings[id];
-            const currentWeight = criterion.weight || 0;
-            let currentScore = 0;
-            if (selectedOptionIndex !== undefined && criterion.options?.[selectedOptionIndex]) {
-                currentScore = currentWeight * (criterion.options[selectedOptionIndex].scorePct || 0);
-            }
-            const isSuperAdmin = currentAuthUser?.db_role === 'super_admin';
+         // **MODIFIED**: Accept categoryKey, use i18n keys for rendering and function calls
+         function renderRatingCriterion(categoryKey, criterion) {
+            // Get keys, fallback to old properties
+             const criterionKey = criterion.nameKey || criterion.name || 'unknownCriterion';
+             const id = getRatingId(categoryKey, criterionKey); // Use keys to generate ID
+             const selectedOptionIndex = userRatings[id];
+             const currentWeight = criterion.weight || 0;
+             let currentScore = 0;
+             if (selectedOptionIndex !== undefined && criterion.options?.[selectedOptionIndex]) {
+                 currentScore = currentWeight * (criterion.options[selectedOptionIndex].scorePct || 0);
+             }
+             const isSuperAdmin = currentAuthUser?.db_role === 'super_admin';
             
-            // NOTE: criterion.name and option.description will remain in Chinese
-            return `<div class="bg-gray-50 p-4 rounded-lg border">
-                <div class="flex justify-between items-center mb-3">
-                    <h4 class="text-lg font-semibold text-gray-800">${criterion.name} ${isSuperAdmin ? `(${currentWeight} 分)` : ''}</h4>
-                    ${isSuperAdmin ? `<span class="text-xl font-extrabold text-green-600">${currentScore.toFixed(2)}</span>` : ''}
-                </div>
-                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
-                ${(criterion.options || []).map((option, optIndex) => {
-                    const isSelected = selectedOptionIndex === optIndex;
-                    const score = (currentWeight * (option.scorePct || 0)).toFixed(2);
-                    return `<button onclick="updateRatingSelection('${categoryName}', '${criterion.name}', ${optIndex})"
-                        class="p-2 text-sm text-center rounded-lg border transition ${ isSelected ? 'bg-indigo-600 text-white shadow-md' : 'bg-white hover:bg-indigo-50' }">
-                        ${option.description}
-                        ${isSuperAdmin ? `<span class="block text-xs ${isSelected ? 'text-indigo-200' : 'text-gray-500'}">(得 ${score} 分)</span>` : ''}
-                    </button>`;
-                }).join('')}
-                </div>
-            </div>`;
+             // Translate name using key
+             const criterionName = i18next.t(criterionKey);
+
+             return `<div class="bg-gray-50 p-4 rounded-lg border">
+                 <div class="flex justify-between items-center mb-3">
+                     <h4 class="text-lg font-semibold text-gray-800">${criterionName} ${isSuperAdmin ? `(${currentWeight} 分)` : ''}</h4>
+                     ${isSuperAdmin ? `<span class="text-xl font-extrabold text-green-600">${currentScore.toFixed(2)}</span>` : ''}
+                 </div>
+                 <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
+                 ${(criterion.options || []).map((option, optIndex) => {
+                     const isSelected = selectedOptionIndex === optIndex;
+                     const score = (currentWeight * (option.scorePct || 0)).toFixed(2);
+                     
+                     // Get description key, fallback to old property
+                     const descriptionKey = option.descriptionKey || option.description || 'unknownOption';
+                     // Translate description using key
+                     const optionDescription = i18next.t(descriptionKey);
+
+                     // **MODIFIED**: Pass KEYS to updateRatingSelection
+                     return `<button onclick="updateRatingSelection('${categoryKey}', '${criterionKey}', ${optIndex})"
+                         class="p-2 text-sm text-center rounded-lg border transition ${ isSelected ? 'bg-indigo-600 text-white shadow-md' : 'bg-white hover:bg-indigo-50' }">
+                         ${optionDescription}
+                         ${isSuperAdmin ? `<span class="block text-xs ${isSelected ? 'text-indigo-200' : 'text-gray-500'}">(得 ${score} 分)</span>` : ''}
+                     </button>`;
+                 }).join('')}
+                 </div>
+             </div>`;
+         }
+
+        // --- Character Counters ---
+         function updateCharCounts() {
+             const titleInput = document.getElementById('rating-title');
+             const titleCount = document.getElementById('title-char-count');
+             const reviewInput = document.getElementById('cigar-review');
+             const reviewCount = document.getElementById('review-char-count');
+             if(titleInput && titleCount) titleCount.textContent = `${titleInput.value.length} / ${titleInput.maxLength}`;
+             if(reviewInput && reviewCount) reviewCount.textContent = `${reviewInput.value.length} / ${reviewInput.maxLength}`;
          }
 
 
@@ -573,8 +698,9 @@
             if (!isEditMode && (!currentAuthUser || !token)) {
                 return alert(i18next.t('ratePage.loginToSubmit'));
             }
-            if (!ratingConfig || Object.keys(userRatings).length === 0) {
-                return alert(i18next.t('ratePage.selectOneOption'));
+            // Check if config loaded AND at least one rating was selected
+            if (!ratingConfig || !ratingConfig.ratingCriteria || Object.keys(userRatings).length === 0) {
+                 return alert(i18next.t('ratePage.selectOneOption'));
             }
             const title = document.getElementById('rating-title').value.trim();
             if (!title) {
@@ -588,32 +714,39 @@
                 return alert(i18next.t('ratePage.nameRequired'));
             }
             
-            const cigarInfo = { name: cigarNameValue, size: document.getElementById('cigar-size').value || '未知尺寸', origin: document.getElementById('cigar-origin').value || '未知产地' };
-            const cigarReview = document.getElementById('cigar-review').value || '无';
+            const cigarInfo = { name: cigarNameValue, size: document.getElementById('cigar-size').value || i18next.t('common.unknown'), origin: document.getElementById('cigar-origin').value || i18next.t('common.unknown') };
+            const cigarReview = document.getElementById('cigar-review').value || i18next.t('common.noReview');
             const finalScore = calculateFinalScore();
             const maxScore = ratingConfig.totalWeightMax || 1;
             const normalizedScore = maxScore > 0 ? (finalScore / maxScore) * 100 : 0;
             
             // **MODIFIED**: Pass the nameKey, not the translated string
-            const foundGrade = GRADING_SCALE.find(g => normalizedScore >= g.min_score);
+            const foundGrade = GRADING_SCALE.find(g => normalizedScore >= g.min_score) || GRADING_SCALE[GRADING_SCALE.length - 1]; // Ensure fallback
             const finalGrade = foundGrade ? {
                 grade: foundGrade.grade,
                 nameKey: foundGrade.nameKey, // Pass the key
                 color: foundGrade.color
-            } : GRADING_SCALE[GRADING_SCALE.length - 1];
-            
+            } : null; // Handle potential case where GRADING_SCALE is empty or invalid
+             
+            if (!finalGrade) {
+                 console.error("Could not determine final grade.");
+                 alert("Error: Could not determine final grade."); // User-facing error
+                 return;
+            }
+
             const resultsData = {
                 title: title,
                 config: ratingConfig,
-                ratings: userRatings,
+                ratings: userRatings, // Contains selections with key-based IDs
                 calculatedScore: finalScore,
                 cigarInfo: cigarInfo,
                 cigarReview: cigarReview,
                 imageUrls: currentImageKeys,
                 normalizedScore: normalizedScore,
-                finalGrade: finalGrade, // This now contains nameKey
+                finalGrade: finalGrade, // Contains nameKey
                 selectedFlavors: selectedFlavors,
-                isDraft: !isEditMode
+                isDraft: !isEditMode, // True if creating new, false if editing
+                 ratingId: isEditMode ? editRatingId : undefined // Include ID if editing
             };
             
             if (isEditMode && editRatingId) {
@@ -622,7 +755,7 @@
                 actionButton.disabled = true;
                 try {
                     if (!token) throw new Error(i18next.t('common.sessionExpired'));
-                    resultsData.ratingId = editRatingId;
+                    // resultsData.ratingId = editRatingId; // Already added above
                     const apiUrl = new URL(`/api/ratings`, window.location.origin);
                     const response = await fetch(apiUrl, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify(resultsData) });
                     if (!response.ok) { const err = await response.json(); throw new Error(err.error || 'Update failed'); }
@@ -635,4 +768,112 @@
                 }
             } else {
                 try {
-                    sessionStorage.setItem('cigarRating
+                    sessionStorage.setItem('cigarRatingResults', JSON.stringify(resultsData));
+                     window.location.href = `results.html`;
+                } catch (e) {
+                     alert(i18next.t('common.sessionStoreFailed') + `: ${e.message}`);
+                }
+            }
+         }
+
+        // --- Initialization ---
+         async function initializePage() {
+             try {
+                await initI18n(); // Wait for translations
+                const urlParams = new URLSearchParams(window.location.search);
+                const code = urlParams.get('code');
+                editRatingId = urlParams.get('edit'); // Check if in edit mode
+                isEditMode = !!editRatingId;
+
+                let user = code ? await handleOidcCallback(code) : await validateSessionAndGetUser();
+                setUser(user); // Sets currentAuthUser and renders login status/admin links
+
+                setupLanguageSwitcher(); // Setup language dropdown
+                renderFlavorButtons(); // Render flavor buttons (static for now)
+                initializeSortable(); // Setup image drag-and-drop
+                renderImagePreviews(); // Render initial empty image previews
+                 
+                 // Add listeners for character counts
+                 document.getElementById('rating-title').addEventListener('input', updateCharCounts);
+                 document.getElementById('cigar-review').addEventListener('input', updateCharCounts);
+                 updateCharCounts(); // Initial count update
+
+
+                if (!currentAuthUser && !isEditMode) {
+                     // Show login prompt only if creating new and not logged in
+                     document.getElementById('login-prompt').classList.remove('hidden');
+                     document.getElementById('main-content').classList.add('hidden'); // Hide main form
+                     document.getElementById('config-load-status').textContent = i18next.t('ratePage.loginPrompt'); // Update status
+                 } else {
+                      document.getElementById('login-prompt').classList.add('hidden');
+                      document.getElementById('main-content').classList.remove('hidden');
+                     
+                      // Load config first
+                      await loadConfig();
+
+                      // If in edit mode, load the specific rating data AFTER config is ready
+                      if (isEditMode && editRatingId) {
+                          await loadRatingForEdit(editRatingId);
+                      }
+                 }
+
+             } catch (error) {
+                 console.error("Page initialization failed:", error);
+                 document.getElementById('config-load-status').textContent = i18next.t('errors.initFailed', { msg: error.message });
+                 document.getElementById('rating-form-container').innerHTML = `<p class="text-red-500">${i18next.t('errors.initFailed', { msg: error.message })}</p>`;
+             }
+         }
+
+        // --- Edit Mode Logic ---
+         async function loadRatingForEdit(id) {
+            document.getElementById('config-load-status').textContent = i18next.t('ratePage.loadingEdit', { id: id });
+            const actionButton = document.getElementById('main-action-button');
+            actionButton.textContent = i18next.t('ratePage.saveChanges'); // Change button text
+            actionButton.classList.remove('bg-green-600', 'hover:bg-green-700');
+            actionButton.classList.add('bg-blue-600', 'hover:bg-blue-700');
+            document.title = i18next.t('ratePage.editTitle'); // Change page title
+
+            try {
+                 const token = sessionStorage.getItem('accessToken');
+                 if (!token) throw new Error(i18next.t('common.sessionExpired'));
+                 const apiUrl = new URL(`/api/ratings?id=${id}`, window.location.origin);
+                 const response = await fetch(apiUrl, { headers: { 'Authorization': `Bearer ${token}` } });
+                 if (!response.ok) { const err = await response.json(); throw new Error(err.error || `Load failed status ${response.status}`); }
+                 const data = await response.json();
+                
+                 // --- Populate fields ---
+                 document.getElementById('rating-title').value = data.title || '';
+                 document.getElementById('cigar-name').value = data.cigarInfo?.name || '';
+                 document.getElementById('cigar-size').value = data.cigarInfo?.size || '';
+                 document.getElementById('cigar-origin').value = data.cigarInfo?.origin || '';
+                 document.getElementById('cigar-review').value = data.cigarReview || '';
+                 
+                 // Images
+                 currentImageKeys = Array.isArray(data.imageUrl) ? data.imageUrl : [];
+                 renderImagePreviews();
+                 
+                 // Flavors
+                 selectedFlavors = Array.isArray(data.fullData?.selectedFlavors) ? data.fullData.selectedFlavors : [];
+                 renderFlavorButtons();
+                 
+                 // Ratings - IMPORTANT: Use the key-based IDs from fullData.ratings
+                 userRatings = data.fullData?.ratings || {}; 
+                 
+                 renderRatingView(); // Re-render form with loaded selections
+                 updateCharCounts(); // Update character counts
+                 document.getElementById('config-load-status').textContent = i18next.t('ratePage.editLoaded', { id: id });
+                
+            } catch (error) {
+                console.error("加载待编辑点评失败:", error);
+                document.getElementById('config-load-status').textContent = i18next.t('ratePage.editLoadFailed', { msg: error.message });
+                alert(i18next.t('ratePage.editLoadFailed', { msg: error.message }));
+                 // Optionally disable form or redirect
+            }
+         }
+
+        // --- Start Initialization ---
+         window.addEventListener('load', initializePage);
+        
+    </script>
+</body>
+</html>
