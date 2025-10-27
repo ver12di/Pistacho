@@ -27,7 +27,41 @@
     "pin": "Pin",
     "unpin": "Unpin",
     "image": "Image",
-    "cover": "Cover"
+    "cover": "Cover",
+    "loadingDetails": "Loading rating details...",
+    "noImage": "No Image",
+    "cigarImageAlt": "Cigar Image",
+    "copied": "Copied!",
+    "copyFailed": "Copy failed",
+    "saving": "Saving...",
+    "loadingOptions": "Loading options...",
+    "backToHome": "Back to Home",
+    "backToHomeAndLogin": "Back to Home and Login",
+    "waitingInit": "Waiting for initialization...",
+    "querying": "Querying...",
+    "assigningRole": "Assigning role...",
+    "deleting": "Deleting...",
+    "processing": "Processing...",
+    "backToCommunity": "Back to Community",
+    "unknown": "Unknown",
+    "noTitle": "Untitled",
+    "noReview": "No written review provided.",
+    "invalidDate": "Invalid Date",
+    "unknownDate": "Unknown Date",
+    "by": "by",
+    "noPublicRatings": "No public ratings yet.",
+    "noMatch": "No matches found.",
+    "deleteCategory": "Delete Category",
+    "description": "Description:",
+    "name": "Name:",
+    "deleteOption": "Delete Option",
+    "average": "Average",
+    "perfect": "Perfect",
+    "normal": "Normal",
+    "new": "New",
+    "sessionExpiredWrite": "Session expired or invalid, cannot perform write operation.",
+    "sessionExpiredRead": "Session expired or invalid (status {{status}}), cannot read data.",
+    "unrated": "Unrated"
   },
   "nav": {
     "title": "Pistacho Rating",
@@ -39,7 +73,7 @@
     "logout": "Logout",
     "configAdmin": "Rating Config",
     "userAdmin": "User Admin",
-    "nav.configAdmin": "Rating Config"
+    "loggedIn": "Logged In"
   },
   "indexPage": {
     "searchPlaceholder": "Search cigar name, origin, size, review, user...",
@@ -99,7 +133,8 @@
     "nameRequired": "Please enter the cigar name.",
     "loadingEdit": "Loading review {{id}}...",
     "editLoadFailed": "Failed to load review: {{msg}}",
-    "editLoaded": "Loaded review {{id}} (Edit Mode)"
+    "editLoaded": "Loaded review {{id}} (Edit Mode)",
+    "setCover": "Set as Cover"
   },
   "historyPage": {
     "title": "My Ratings",
@@ -128,7 +163,7 @@
     "sessionStoreFailed": "Could not save session data to view details."
   },
   "resultsPage": {
-    "title": "Cigar Tasting - Report",
+    "pageTitle": "Cigar Tasting - Report",
     "by": "Review by:",
     "loading": "Loading...",
     "size": "Size",
@@ -163,10 +198,11 @@
       "part3": "The main flavors perceived included: <strong class=\"font-semibold\">{{flavors}}</strong>.",
       "part4": "Overall, based on the Pistacho Cigar Rating System, the final grade is <strong class=\"font-semibold text-indigo-600\">\"{{grade}} - {{gradeName}}\"</strong>. The Pistacho rating scale (highest to lowest) is {{hierarchy}}.",
       "noObservations": "(No detailed rating options were recorded)",
-      "noData": "Could not generate narrative summary (missing original rating data)."
+      "observation": "{{criterion}}: {{option}}",
+      "noNarrativeData": "Could not generate narrative summary (missing data)."
     },
     "summary": {
-      "noData": "Could not generate rating details (missing original rating data).",
+      "noSummaryData": "Could not generate rating details (missing data).",
       "noItems": "(No rating items)"
     },
     "shareCard": {
@@ -175,8 +211,277 @@
       "qrError": "QR Code container or library not found, or ratingId missing.",
       "generating": "Auto-generating share image...",
       "generateFailed": "Failed to auto-generate or add share image:",
-      "shareImage": "Share Image",
+      "shareImageAlt": "Share Image",
       "shareThumb": "Share Thumbnail"
-    }
-  }
+    },
+    "scoreCalculationFailed": "Score calculation failed, cannot display.",
+    "narrativeGenFailed": "Cannot generate narrative summary (score calculation failed)."
+  },
+   "errors": {
+      "initFailed": "Page load initialization failed: {{msg}}",
+      "loginFailed": "Login failed: {{message}}",
+      "authCallbackFailed": "Authentication callback failed (status {{status}})",
+      "loadRatingFailed": "Load rating failed (status {{status}})",
+      "noRatingDataFound": "No rating data found in Session Storage.",
+      "missingEssentialData": "Rating data is incomplete, cannot display report.",
+      "pageLoadError": "Page Load Error",
+      "loadProfileListFailed": "Failed to load profile list: {{msg}}",
+      "loadProfileFailed": "Failed to load profile '{{id}}': {{msg}}",
+      "saveFailedNoMsg": "Save failed",
+      "notADraft": "This rating has already been saved and cannot be saved again.",
+      "emptyConfig": "Cannot save empty configuration.",
+      "operationFailed": "Operation failed: {{msg}}",
+      "cannotNameLatest": "Cannot name configuration 'latest'.",
+      "confirmDeleteProfile": "Are you sure you want to delete profile '{{id}}'?",
+      "deleting": "Deleting...",
+      "deleteSuccess": "Profile '{{id}}' deleted.",
+      "deleteFailed": "Delete failed: {{msg}}",
+      "emptyConfigDownload": "Cannot download empty configuration.",
+      "invalidJSONFormat": "Uploaded file is not a valid configuration JSON.",
+      "fileParseFailed": "Failed to parse uploaded file: {{msg}}",
+      "invalidSessionData": "Stored rating data format is invalid.",
+      "permissionDenied": "Permission denied.",
+      "permissionInsufficientSuperAdmin": "Super Admin permission required to access this page. Your current permission is {{role}}.",
+      "emailRequired": "Please enter user email.",
+      "queryFailed": "Query failed",
+      "assignFailed": "Assign role failed.",
+      "notLoggedIn": "Not logged in",
+      "sessionExpiredGeneric": "Session expired or invalid.",
+      "requestFailed": "Request failed (status {{status}})",
+      "loginRequiredForPage": "Login required to access this page.",
+      "permissionDeniedAdmin": "Permission denied, Admin or Super Admin role required.",
+      "permissionInsufficient": "Insufficient permission. Your current permission is {{role}}.",
+      "noNarrativeData": "Cannot generate narrative summary (missing data).",
+      "noSummaryData": "Cannot generate rating details (missing data).",
+      "fatalError": "Fatal Error",
+      "error": "Error"
+   },
+   "configPage": {
+     "title": "Cigar Tasting Configuration Management",
+     "description": "Manage rating standards. Changes will sync to the main app live after publishing.",
+     "checkingAuth": "Checking permissions...",
+     "profileManagement": "Configuration Profile Management",
+     "currentProfile": "Currently Loaded:",
+     "selectProfile": "Select Profile:",
+     "liveProfile": "Live (latest)",
+     "saveAs": "Save As",
+     "importExport": "Import / Export",
+     "uploadJSON": "Upload from File (JSON):",
+     "uploadAndSave": "Upload and Save As",
+     "downloadJSON": "Download Current Config (JSON):",
+     "downloadEditorContent": "Download Editor Content",
+     "appInfo": "Application Basic Info",
+     "appTitle": "Application Title",
+     "appDescription": "Application Description",
+     "category": "Category",
+     "categoryName": "Category Name:",
+     "criteria": "Criteria:",
+     "addCriterion": "Add Criterion",
+     "weight": "Weight:",
+     "options": "Options:",
+     "addOption": "Add Option",
+     "scorePct": "Score %:",
+     "addCategory": "Add Category",
+     "saveChanges": "Save Changes to Profile",
+     "publishToLive": "Publish to Live (latest)",
+     "promptNewName": "Enter the name for the new configuration profile:",
+     "confirmDeleteProfile": "Are you sure you want to delete profile '{{id}}'?",
+     "saveSuccess": "Configuration profile '{{id}}' saved successfully.",
+     "deleteSuccess": "Configuration profile '{{id}}' deleted.",
+     "currentRole": "Current Role: {{role}}",
+     "jsonLoaded": "JSON file loaded into editor. Remember to Save or Publish.",
+     "criterion": "Criterion"
+   },
+   "rolePage": {
+     "pageTitle": "User Role Management - Super Admin",
+     "loadingAuth": "Loading and verifying identity...",
+     "title": "User Role Management (Super Admin)",
+     "currentUser": "Current User: {{email}} ({{role}})",
+     "queryAndSet": "Query and Set User Role",
+     "userEmail": "User Email:",
+     "emailPlaceholder": "Enter email of user to query or modify",
+     "queryRole": "Query Role",
+     "promptQuery": "Enter email and click Query to view or modify user role.",
+     "currentRoleLabel": "Current Role:",
+     "setNewRole": "Set New Role:",
+     "confirmAssign": "Confirm Assignment",
+     "assignSuccess": "Role assigned successfully!",
+     "assignSuccessDetail": "User {{userId}}'s new role is {{role}}."
+   },
+   "roles": {
+     "general": "General User",
+     "admin": "Admin",
+     "super_admin": "Super Admin"
+   },
+   "criteria": {
+      "appearanceAndConstruction": {
+         "title": "1. Appearance & Construction",
+         "detail": "The physical manufacturing quality of the cigar.",
+         "bandAesthetics": "Band Aesthetics",
+         "wrapperAppearance": "Wrapper Appearance",
+         "rollVisual": "Roll Visual Inspection"
+      },
+      "burnAndDraw": {
+         "title": "2. Burn & Draw",
+         "detail": "Core elements determining if the tasting experience is smooth and enjoyable.",
+         "drawResistance": "Draw Resistance",
+         "ashColor": "Ash Color",
+         "ashStructure": "Ash Structure",
+         "burnLine": "Burn Line",
+         "burnConsistency": "Burn Consistency"
+      },
+      "flavorAndFeel": {
+         "title": "Flavor & Sensation",
+         "detail": "Taste sensations like aroma, complexity, nicotine, etc.",
+         "firstImpressions": "First Three Puffs Impression",
+         "secondaryAromaIntensity": "Pleasant Secondary Aroma Intensity (excluding coffee, leather, spice; mainly floral, spice, creamy, sweet, etc.)",
+         "secondaryAromaUniqueness": "Difficulty or Premiumness of Obtaining Secondary Aroma in Other Cigars",
+         "secondaryAromaDuration": "Secondary Aroma Duration",
+         "tertiaryAromaPresence": "Multiple (Tertiary) Aromas Presence",
+         "tertiaryAromaDuration": "Multiple (Tertiary) Aromas Duration",
+         "transitions": "Transitions Across Thirds",
+         "smokeVolume": "Smoke Volume",
+         "nicotineStrength": "Nicotine Strength",
+         "retrohaleSmoothness": "Retrohale Smoothness"
+      },
+      "willingnessAndImpression": {
+         "title": "Willingness & Impression",
+         "detail": "",
+         "finishDesire": "Desire to Finish the Nub",
+         "rebuyIntention": "Re-purchase Intention",
+         "memorability": "Memorability",
+         "smokingTime": "Smoking Time",
+         "recommendation": "Recommendation Index"
+      },
+      "newCategory": {
+        "title": "New Category",
+        "detail": "Details about the new category.",
+        "newItem": "New Criterion"
+      },
+       "newCriterion": {
+         "name": "New Criterion Name"
+       }
+   },
+   "options": {
+      "appearance": {
+         "shoddy": "Shoddy",
+         "beautiful": "Beautiful"
+      },
+      "construction": {
+         "fail": "Fail"
+      },
+      "draw": {
+         "loose": "Loose",
+         "tight": "Tight",
+         "plugged": "Plugged"
+      },
+      "ashColor": {
+         "white": "White",
+         "gray": "Gray",
+         "black": "Black"
+      },
+      "ashStructure": {
+         "perfectHold": "Perfect, can try holding ash",
+         "needsTapping": "Needs active tapping",
+         "fallsOff": "Falls off automatically"
+      },
+      "burnLine": {
+         "even": "Even",
+         "correctsItself": "Slightly uneven but self-corrects",
+         "needsCorrection": "Uneven, needs several corrections",
+         "constantCorrection": "Needs constant correction"
+      },
+      "burnConsistency": {
+         "perfect": "Perfect burn throughout",
+         "occasionalRelight": "Occasional relight needed",
+         "frequentRelight": "Frequent relight needed",
+         "gaveUp": "Gave up relighting"
+      },
+      "impression": {
+         "excellent": "Impressive",
+         "promising": "Promising",
+         "poor": "Likely poor"
+      },
+      "aroma": {
+         "none": "None",
+         "light": "Light",
+         "medium": "Medium",
+         "strong": "Strong",
+         "veryStrong": "Very Strong"
+      },
+      "uniqueness": {
+         "common": "Easily found in other cigars",
+         "uncommon": "Not easy but occasionally found",
+         "rare": "Unique flavor rarely found",
+         "none": "No secondary aroma"
+      },
+      "duration": {
+         "oneThird": "Only in one third",
+         "twoThirds": "In two thirds",
+         "full": "Throughout all thirds",
+         "none": "None in any third"
+      },
+      "presence": {
+         "yes": "Yes",
+         "no": "No"
+      },
+      "tertiaryDuration": {
+          "oneThird": "Only in one third",
+          "twoThirds": "In two thirds",
+          "full": "Throughout all thirds",
+          "none": "None in any third"
+      },
+      "transition": {
+         "obvious": "Obvious transitions",
+         "subtle": "Subtle transitions",
+         "consistent": "Consistent throughout"
+      },
+      "smoke": {
+         "low": "Low",
+         "medium": "Medium",
+         "high": "High ('Chimney')"
+      },
+      "nicotine": {
+         "normal": "Normal",
+         "strong": "Strong ('Nightmare')",
+         "veryStrong": "Very Strong ('Hell')"
+      },
+      "retrohale": {
+         "smooth": "Smooth",
+         "slightIrritation": "Slight irritation",
+         "harsh": "Harsh, cannot retrohale"
+      },
+      "finish": {
+         "early": "Extinguish early",
+         "normal": "Smoke to usual point",
+         "nubbed": "Smoke till fingers burn",
+         "toothpick": "Finish with a toothpick"
+      },
+      "rebuy": {
+         "tooExpensive": "Unaffordable",
+         "no": "Would not rebuy",
+         "yes": "Would rebuy",
+         "notWorthIt": "Not worth it"
+      },
+      "memory": {
+         "forgettable": "Forgettable",
+         "slightImpression": "Slight impression",
+         "memorable": "Memorable",
+         "unforgettable": "Unforgettable"
+      },
+      "time": {
+         "under30": "Under 30min",
+         "30to60": "30-60min",
+         "60to90": "60-90min",
+         "90to120": "90-120min",
+         "over120": "Over 120min"
+      },
+      "recommend": {
+         "notListed": "Not on the list",
+         "mention": "Mention occasionally",
+         "consider": "Can consider",
+         "strong": "Strongly recommend",
+         "mustHave": "Must have"
+      }
+   }
 }
