@@ -220,9 +220,9 @@
         // --- renderPageContent --- (Checks remain)
         function renderPageContent(data) { /* ... */ }
         
-        // --- window.onload --- (**FIXED: Removed animation class and delay**)
+        // --- window.onload --- (Logging removed for clarity, try/catch around renderPageContent is key)
         window.onload = async function() {
-            console.log("[window.onload] Page loading started.");
+            // console.log("[window.onload] Page loading started."); // Keep if needed
             const errorContainer = document.getElementById('error-container');
             const mainContent = document.getElementById('main-content');
             const loadingIndicator = document.getElementById('loading-indicator');
@@ -246,43 +246,43 @@
                 mainContent.style.display = 'none';
                 errorContainer.classList.add('hidden');
                 
-                console.log("[window.onload] Initializing i18n...");
+                // console.log("[window.onload] Initializing i18n...");
                 await initI18n();
                 updateContent(); 
-                console.log("[window.onload] i18n initialized.");
+                // console.log("[window.onload] i18n initialized.");
 
                 const urlParams = new URLSearchParams(window.location.search);
                 const code = urlParams.get('code');
                 ratingId = urlParams.get('ratingId');
-                console.log(`[window.onload] URL Params: code=${code}, ratingId=${ratingId}`);
+                // console.log(`[window.onload] URL Params: code=${code}, ratingId=${ratingId}`);
 
                 // --- Auth ---
-                console.log("[window.onload] Validating session/handling callback...");
+                // console.log("[window.onload] Validating session/handling callback...");
                 let user = code ? await handleOidcCallback(code) : await validateSessionAndGetUser();
                 currentAuthUser = user;
-                console.log("[window.onload] User:", currentAuthUser);
+                // console.log("[window.onload] User:", currentAuthUser);
                 renderLoginStatus(currentAuthUser); 
                 setupLanguageSwitcher(); 
-                console.log("[window.onload] Auth handled, UI updated.");
+                // console.log("[window.onload] Auth handled, UI updated.");
 
                 // --- Data Loading ---
-                console.log("[window.onload] Starting data loading...");
+                // console.log("[window.onload] Starting data loading...");
                 if (ratingId) { 
-                    console.log(`[window.onload] Fetching rating by ID: ${ratingId}`);
+                    // console.log(`[window.onload] Fetching rating by ID: ${ratingId}`); 
                     const token = sessionStorage.getItem('accessToken');
                     const apiUrl = new URL(`/api/ratings?id=${ratingId}`, window.location.origin);
                     const fetchOptions = token ? { headers: { 'Authorization': `Bearer ${token}` } } : {};
                     const response = await fetch(apiUrl, fetchOptions);
-                    console.log(`[window.onload] Fetch response status: ${response.status}`);
+                    // console.log(`[window.onload] Fetch response status: ${response.status}`); 
                     if (!response.ok) throw new Error(i18next.t('errors.loadRatingFailed', { status: response.status }));
                     resultsData = await response.json();
-                     console.log("[window.onload] Rating data fetched successfully:", resultsData); 
+                     // console.log("[window.onload] Rating data fetched successfully:", resultsData); 
                 } else { 
-                     console.log("[window.onload] Loading rating from sessionStorage...");
+                    // console.log("[window.onload] Loading rating from sessionStorage...");
                      let storedDataRaw = null;
                      try {
                          storedDataRaw = sessionStorage.getItem('cigarRatingResults');
-                         console.log("[window.onload] Raw data from sessionStorage:", storedDataRaw);
+                         // console.log("[window.onload] Raw data from sessionStorage:", storedDataRaw);
                      } catch (storageError) {
                          console.error("[window.onload] Error reading from sessionStorage:", storageError);
                          throw new Error("无法读取会话存储。");
@@ -298,11 +298,11 @@
                          throw new Error("无法解析会话中的评分数据。");
                      }
                      ratingId = resultsData?.ratingId; 
-                     console.log(`[window.onload] Rating data loaded from session. Rating ID: ${ratingId}`);
+                     // console.log(`[window.onload] Rating data loaded from session. Rating ID: ${ratingId}`);
                 }
 
-                console.log("[window.onload] Inspecting resultsData AFTER loading:", resultsData);
-                console.log("[window.onload] Inspecting resultsData.finalGrade before rendering:", resultsData?.finalGrade);
+                // console.log("[window.onload] Inspecting resultsData AFTER loading:", resultsData);
+                // console.log("[window.onload] Inspecting resultsData.finalGrade before rendering:", resultsData?.finalGrade);
 
                 if (!resultsData || resultsData.normalizedScore === undefined) { 
                     console.error("[window.onload] Loaded data is invalid or missing score.", resultsData);
@@ -310,44 +310,42 @@
                 }
                 
                 // --- Content Rendering (Wrapped in try/catch) --- 
-                console.log("[window.onload] Starting Content Rendering block...");
+                // console.log("[window.onload] Starting Content Rendering block...");
                 try {
-                    console.log("[window.onload] Initializing Swipers..."); 
+                    // console.log("[window.onload] Initializing Swipers..."); 
                     initSwipers(resultsData.imageUrls || []); 
-                    console.log("[window.onload] Calling renderPageContent..."); 
+                    // console.log("[window.onload] Calling renderPageContent..."); 
                     renderPageContent(resultsData); 
-                    console.log("[window.onload] renderPageContent finished."); 
+                    // console.log("[window.onload] renderPageContent finished."); 
                 } catch (renderError) {
                      console.error("[window.onload] Error during CONTENT RENDERING:", renderError);
                      throw new Error(`渲染页面内容时出错: ${renderError.message}`); 
                 }
 
                 // --- Share Image Generation --- 
-                console.log("[window.onload] Setting up share card generation...");
+                // console.log("[window.onload] Setting up share card generation...");
                 const shareImg = document.getElementById('share-card-image');
                 if (shareImg && shareImg.src && !shareImg.src.includes('placehold.co')) { 
-                    console.log("[window.onload] Share card image source found. Setting up onload handler."); 
-                    shareImg.onload = () => { console.log("[shareImg.onload] Triggered."); autoGenerateShareImage(); };
+                    // console.log("[window.onload] Share card image source found. Setting up onload handler."); 
+                    shareImg.onload = () => { /* console.log("[shareImg.onload] Triggered.");*/ autoGenerateShareImage(); };
                     shareImg.onerror = () => console.warn("[shareImg.onerror] Share card image failed to load, cannot generate share image.");
                     if(shareImg.complete) {
-                         console.log("[window.onload] Share card image already complete. Calling autoGenerateShareImage directly.");
+                         // console.log("[window.onload] Share card image already complete. Calling autoGenerateShareImage directly.");
                          autoGenerateShareImage();
                     }
                 } else if (ratingId) { 
                      console.warn("[window.onload] No valid share card image source found. Attempting generation anyway."); 
                      autoGenerateShareImage();
                 } else {
-                     console.log("[window.onload] No image source and not a saved rating, skipping share image generation.");
+                     // console.log("[window.onload] No image source and not a saved rating, skipping share image generation.");
                 }
 
-                // --- **FIXED: Final Step: Show Content (Removed animation)** --- 
-                console.log("[window.onload] Hiding loader and showing main content..."); 
+                // --- **Final Step: Show Content** --- 
+                // console.log("[window.onload] Hiding loader and showing main content..."); 
                 loadingIndicator.style.display = 'none'; 
                 mainContent.style.display = 'block'; 
                 mainContent.classList.remove('opacity-0'); // Directly remove opacity-0
-                // await new Promise(resolve => setTimeout(resolve, 50)); // Delay removed
-                // mainContent.classList.add('animate-fadeInUp'); // Animation class removed
-                console.log("[window.onload] Page load sequence finished successfully.");
+                // console.log("[window.onload] Page load sequence finished successfully.");
 
             } catch (e) {
                 // Catch ANY error during the process and display it
@@ -358,14 +356,133 @@
 
         // --- Rendering Utilities ---
 
-        // --- getRatingId function --- (remains the same)
-        function getRatingId(category, criterion) { /* ... */ }
+        // --- getRatingId function --- 
+        function getRatingId(category, criterion) {
+             const catStr = String(category || '').trim(); 
+             const critStr = String(criterion || '').trim(); 
+             if (!catStr || !critStr) { return null; }
+             return `${catStr}-${critStr}`; 
+        }
 
-        // --- generateNarrativeSummary (remains the same) ---
-        function generateNarrativeSummary(cigarInfo, config, ratings, finalGrade, selectedFlavors) { /* ... */ }
+        // --- **FIXED: generateNarrativeSummary** ---
+        function generateNarrativeSummary(cigarInfo, config, ratings, finalGrade, selectedFlavors) {
+             console.log("[generateNarrativeSummary] Start..."); 
+             if (!config || !config.ratingCriteria || !ratings) { 
+                 console.error("[generateNarrativeSummary] Missing config or ratings data.");
+                 return `<p class="text-gray-500 italic">${i18next.t('errors.noNarrativeData')}</p>`;
+             }
+             const { origin = i18next.t('common.unknown'), name = i18next.t('common.unknown'), size = i18next.t('common.unknown') } = cigarInfo || {}; 
+             let summary = `<p class="text-base text-gray-700 leading-relaxed">`; // Ensure base paragraph tag exists
+             
+             summary += i18next.t('resultsPage.narrative.part1', { origin, name, size }); 
+             
+             let observations = [];
+             try { 
+                 (config.ratingCriteria || []).forEach(category => {
+                     // **Use category.category (original name) for lookup ID**
+                     const originalCategoryName = category.category; 
+                     (category.criteriaList || []).forEach(criterion => { 
+                         // **Use criterion.name (original name) for lookup ID**
+                         const originalCriterionName = criterion.name;   
+                         const id = getRatingId(originalCategoryName, originalCriterionName); 
+                         if (!id) { 
+                              console.warn(`[generateNarrativeSummary] Could not generate ID for`, { category, criterion });
+                              return; 
+                         }
+                         const selectedOptionIndex = ratings[id]; 
+                         
+                         if (selectedOptionIndex !== undefined && typeof selectedOptionIndex === 'number' && selectedOptionIndex >= 0) { 
+                             const option = criterion.options?.[selectedOptionIndex]; 
+                             // **Use keys OR original names for translation/display**
+                             const descriptionIdentifier = option?.descriptionKey || option?.description; 
+                             const criterionIdentifier = criterion.nameKey || criterion.name; 
+                             if (descriptionIdentifier && criterionIdentifier && option) { 
+                                 observations.push(i18next.t('resultsPage.narrative.observation', { 
+                                     criterion: i18next.t(criterionIdentifier), // Translate identifier
+                                     option: i18next.t(descriptionIdentifier)  // Translate identifier
+                                 }));
+                             } else {
+                                  console.warn(`[generateNarrativeSummary] Incomplete data for criterion ${criterionIdentifier} at index ${selectedOptionIndex}`);
+                             }
+                         }
+                     });
+                 });
+             } catch (iterError) {
+                  console.error("[generateNarrativeSummary] Error during iteration:", iterError);
+             }
+             
+             if (observations.length > 0) { summary += ` ${i18next.t('resultsPage.narrative.part2', { observations: observations.join('；') })}`; } 
+             else { summary += ` ${i18next.t('resultsPage.narrative.noObservations')}`; }
+             if (selectedFlavors && selectedFlavors.length > 0) { summary += ` ${i18next.t('resultsPage.narrative.part3', { flavors: selectedFlavors.join(', ') })}`; }
+             if (finalGrade && finalGrade.grade && finalGrade.name) {
+                 const hierarchy = GRADING_SCALE.map(g => `${g.grade}(${i18next.t(g.nameKey)})`).join(', ');
+                 summary += ` ${i18next.t('resultsPage.narrative.part4', { grade: finalGrade.grade, gradeName: finalGrade.name, hierarchy: hierarchy })}`; 
+             } else { console.warn("[generateNarrativeSummary] Missing finalGrade information."); }
+             summary += `</p>`;
+             console.log("[generateNarrativeSummary] Finished. Summary:", summary); 
+             return summary; 
+        }
 
-        // --- renderSummary (remains the same) ---
-        function renderSummary(container, config, ratings) { /* ... */ }
+        // --- **FIXED: renderSummary** ---
+        function renderSummary(container, config, ratings) {
+             console.log("[renderSummary] Start..."); 
+             if (!container || !config || !config.ratingCriteria || !ratings || typeof ratings !== 'object' || Object.keys(ratings).length === 0) { 
+                 container.innerHTML = `<p class="text-gray-500 italic">${i18next.t('errors.noSummaryData')}</p>`; 
+                 console.warn("renderSummary: Aborting - Missing container, config, ratingCriteria, or ratings data.", { config, ratings });
+                 return; 
+             } 
+            
+             let summaryHtml = '';
+             try { 
+                 summaryHtml = (config.ratingCriteria || []).map(category => {
+                     // **Use category.category (original name) for lookup ID**
+                     const originalCategoryName = category.category; 
+                     // **Use key OR original name for display**
+                     const categoryDisplayIdentifier = category.categoryKey || category.category; 
+                     if (!categoryDisplayIdentifier) { return ''; }
+
+                     const criteriaHtml = (category.criteriaList || []).map(criterion => {
+                         // **Use criterion.name (original name) for lookup ID**
+                         const originalCriterionName = criterion.name;
+                         // **Use key OR original name for display**
+                         const criterionDisplayIdentifier = criterion.nameKey || criterion.name; 
+                         if (!criterionDisplayIdentifier) { return ''; }
+                         
+                         // **Generate ID using original names**
+                         const id = getRatingId(originalCategoryName, originalCriterionName);
+                         if (!id) return ''; 
+
+                         const selectedOptionIndex = ratings[id]; // Use the generated ID
+                         
+                         if (selectedOptionIndex !== undefined && typeof selectedOptionIndex === 'number' && selectedOptionIndex >= 0) { 
+                             const option = criterion.options?.[selectedOptionIndex]; 
+                             // **Use key OR original description for display**
+                             const descriptionDisplayIdentifier = option?.descriptionKey || option?.description; 
+                             
+                             if (option && descriptionDisplayIdentifier) { 
+                                 // **Translate identifiers for display**
+                                 return `<li class="flex justify-between items-center p-1"><div><span class="font-medium text-gray-700">${i18next.t(criterion.nameKey || criterion.name)}:</span><span class="text-gray-500 ml-2">${i18next.t(option.descriptionKey || option.description)}</span></div></li>`; 
+                             } else {
+                                  console.warn(`[renderSummary] Incomplete option data for criterion "${criterionDisplayIdentifier}" at index ${selectedOptionIndex}. Option found:`, option); 
+                             }
+                         } 
+                         return ''; 
+                     }).join(''); 
+                     
+                     if (criteriaHtml.trim()) { 
+                         // **Translate category identifier for display**
+                         return `<div class="mb-4"><h4 class="text-md font-semibold text-gray-600 mb-2 border-b pb-1">${i18next.t(category.categoryKey || category.category)}</h4><ul class="list-none space-y-1 text-sm">${criteriaHtml}</ul></div>`; 
+                     } 
+                     return ''; 
+                 }).join(''); 
+             } catch (iterError) {
+                  console.error("[renderSummary] Error during iteration:", iterError);
+                  summaryHtml = `<p class="text-red-500">${i18next.t('errors.renderDetailsFailed')}</p>`; 
+             }
+            
+             container.innerHTML = summaryHtml || `<p>${i18next.t('resultsPage.summary.noItems')}</p>`; 
+             console.log("[renderSummary] Finished rendering summary HTML.");
+        }
         
         // getScoreRange, getGradeStyles, renderScoreSection remain the same
         function getScoreRange(gradeCode) { /* ... */ }
