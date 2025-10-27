@@ -39,6 +39,7 @@
     "logout": "退出",
     "configAdmin": "评分配置",
     "userAdmin": "用户管理"
+    "nav.configAdmin": "评分配置"
   },
   "indexPage": {
     "searchPlaceholder": "搜索雪茄名称, 产地, 尺寸, 点评, 用户...",

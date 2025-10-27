@@ -39,6 +39,7 @@
     "logout": "Logout",
     "configAdmin": "Rating Config",
     "userAdmin": "User Admin"
+    "nav.configAdmin": "Rating Config"
   },
   "indexPage": {
     "searchPlaceholder": "Search cigar name, origin, size, review, user...",

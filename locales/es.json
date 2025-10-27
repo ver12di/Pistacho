@@ -39,6 +39,7 @@
     "logout": "Cerrar Sesión",
     "configAdmin": "Config. de Calificación",
     "userAdmin": "Admin. de Usuarios"
+    "nav.configAdmin": "Config. de Calificación"
   },
   "indexPage": {
     "searchPlaceholder": "Buscar nombre, origen, tamaño, reseña, usuario...",

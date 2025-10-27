@@ -99,7 +99,8 @@
                      <a href="rate.html" class="py-1.5 px-3 sm:py-2 sm:px-4 bg-green-500 text-white text-xs sm:text-sm font-semibold rounded-lg hover:bg-green-600 transition mx-2" data-i18n="nav.rate">去评分</a>
                      <a href="history.html" class="nav-link" data-i18n="nav.myRatings">我的评分</a>
                      <a href="certified.html" class="nav-link" data-i18n="nav.certified">认证评分</a>
-                 </div>
+                     <a id="config-admin-link" href="cigar_rating_config.html" class="nav-link hidden" data-i18n="nav.configAdmin">评分配置</a>
+                     </div>
 
                  <div class="flex items-center ml-auto md:ml-0">
                     <select id="language-switcher" class="text-xs p-1 rounded border border-gray-300 mr-2 h-7" style="line-height: 1;">
@@ -161,12 +162,15 @@
             document.querySelectorAll('[data-i18n]').forEach(el => {
                 const key = el.getAttribute('data-i18n');
                 const value = i18next.t(key);
-                if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
-                    el.placeholder = value;
-                } else if (el.tagName === 'OPTION') {
-                    el.textContent = value;
-                } else {
-                    el.innerHTML = value;
+                // 仅更新非 Admin 链接的文本
+                if (el.id !== 'config-admin-link') {
+                    if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+                        el.placeholder = value;
+                    } else if (el.tagName === 'OPTION') {
+                        el.textContent = value;
+                    } else {
+                        el.innerHTML = value;
+                    }
                 }
             });
             // 更新 document title
@@ -183,18 +187,17 @@
                 const newLang = e.target.value;
                 await i18next.changeLanguage(newLang);
                 updateContent();
-                // 重新渲染动态内容
-                applyFilters(); // 这会重新渲染网格
-                renderLoginStatus(currentAuthUser); // 重新渲染登录/退出按钮
+                applyFilters(); 
+                renderLoginStatus(currentAuthUser); 
+                renderAdminLinks(); // <<< 更新 Admin 链接文本
             });
         }
         // --- End i18n Functions ---
 
 
         window.handleStampError = function(imgElement) {
-            // 认证图片加载失败时的处理函数
             console.warn('Certified stamp image failed to load.');
-            imgElement.style.display = 'none'; // 隐藏损坏的图片
+            imgElement.style.display = 'none'; 
         }
 
         const ratingsGrid = document.getElementById('ratings-grid');
@@ -207,7 +210,6 @@
         const AUTHING_APP_ID = '68f5b0b6875017c02b3bfdb3';
         const AUTHING_HOST = 'https://xfvu647mcdbk-demo.authing.cn';
 
-        // **MODIFIED**: GRADING_SCALE uses nameKey
         const GRADING_SCALE = [
             { "grade": "P", "nameKey": "resultsPage.grade.P", "min_score": 95, "color": "gold" },
             { "grade": "I", "nameKey": "resultsPage.grade.I", "min_score": 90, "color": "indigo" },
@@ -253,6 +255,25 @@
                 container.innerHTML = `<button onclick="login()" class="px-3 py-1 text-xs font-medium rounded-full bg-green-500 text-white hover:bg-green-600">${i18next.t('nav.login')}</button>`;
             }
         }
+
+        // ==================== 新增渲染 Admin 链接的函数 ====================
+        function renderAdminLinks() {
+            const configLink = document.getElementById('config-admin-link');
+            if (!configLink || !currentAuthUser) {
+                if (configLink) configLink.classList.add('hidden'); // 确保在未登录时隐藏
+                return;
+            };
+            const userRole = currentAuthUser.db_role;
+            const isAdmin = userRole === 'admin' || userRole === 'super_admin';
+            
+            if (isAdmin) {
+                configLink.classList.remove('hidden');
+                configLink.textContent = i18next.t('nav.configAdmin'); // 设置/更新文本
+            } else {
+                configLink.classList.add('hidden');
+            }
+        }
+        // ===================================================================
 
         async function handleOidcCallback(code) {
             try {
@@ -522,11 +543,10 @@
             let detailedData = {};
             const cigarInfo = ratingData.cigarInfo || { name: ratingData.cigarName, size: ratingData.cigarSize, origin: ratingData.cigarOrigin };
             
-            // **MODIFIED**: Reconstruct grade using i18n
             const foundGrade = GRADING_SCALE.find(g => ratingData.normalizedScore >= g.min_score) || GRADING_SCALE[GRADING_SCALE.length - 1];
             const finalGrade = foundGrade ? {
                 grade: foundGrade.grade,
-                nameKey: foundGrade.nameKey, // Pass the key
+                nameKey: foundGrade.nameKey, 
                 color: foundGrade.color
             } : null;
 
@@ -560,7 +580,7 @@
                      cigarReview: ratingData.cigarReview,
                      imageUrls: imageUrls,
                      normalizedScore: ratingData.normalizedScore,
-                     finalGrade: finalGrade, // Pass grade object with nameKey
+                     finalGrade: finalGrade, 
                      selectedFlavors: selectedFlavors,
                      timestamp: ratingData.timestamp,
                      userNickname: ratingData.userNickname,
@@ -575,7 +595,7 @@
                      cigarReview: ratingData.cigarReview,
                      imageUrls: imageUrls,
                      normalizedScore: ratingData.normalizedScore,
-                     finalGrade: finalGrade, // Pass grade object with nameKey
+                     finalGrade: finalGrade, 
                      selectedFlavors: selectedFlavors,
                      timestamp: ratingData.timestamp,
                      userNickname: ratingData.userNickname,
@@ -603,10 +623,11 @@
              if (code) { user = await handleOidcCallback(code); } else { user = await validateSessionAndGetUser(); }
              currentAuthUser = user;
              
-             renderLoginStatus(currentAuthUser); // Render login status *after* i18n
-             setupLanguageSwitcher(); // Setup switcher
+             renderLoginStatus(currentAuthUser); 
+             renderAdminLinks(); // <<< 在获取用户信息后调用
+             setupLanguageSwitcher(); 
              
-             await fetchRatings(); // Fetch data
+             await fetchRatings(); 
 
              searchInput.addEventListener('keypress', function (e) { if (e.key === 'Enter') { applyFilters(); } });
              sortSelect.addEventListener('change', applyFilters);
