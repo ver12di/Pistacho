@@ -161,12 +161,18 @@
                     .use(i18nextHttpBackend)
                     .use(i18nextBrowserLanguageDetector)
                     .init({
-                        fallbackLng: 'zh',
-                        debug: true, // Keep debug on
+                        // *** MODIFICATION START ***
+                        fallbackLng: 'zh', // Keep zh as the ultimate fallback
+                        // Add nonExplicitSupportedLngs and load options
+                        // This tells i18next: if you detect 'zh-CN', try loading just 'zh'
+                        nonExplicitSupportedLngs: true, // Allow loading 'zh' if 'zh-CN' is detected
+                        load: 'languageOnly', // Try loading 'zh' before 'zh-CN'
+                        // *** MODIFICATION END ***
+                        debug: false, // Set to false for production
                         ns: ['translation'],
                         defaultNS: 'translation',
                         backend: {
-                            loadPath: '/locales/{{lng}}.json?v=1'
+                            loadPath: '/locales/{{lng}}.json?v=1' // Use cache busting
                         },
                         detection: {
                             order: ['localStorage', 'navigator'],
@@ -175,18 +181,17 @@
                     }, (err, t) => {
                         if (err) {
                             console.error('i18next initialization failed:', err);
-                            // Update title even on error, maybe show generic title
                             document.title = 'Pistacho Rating Community';
-                            return reject(err); // Reject the promise
+                            return reject(err);
                         }
-                        console.log('i18next initialized successfully.');
+                        console.log('i18next initialized successfully. Detected/loaded language:', i18next.language);
                         try {
-                            updateContent(); // Perform initial update *inside* the callback
+                            updateContent();
                             document.title = i18next.t('nav.title') + ' - ' + i18next.t('nav.community');
-                            resolve(); // Resolve the promise
+                            resolve();
                         } catch (updateErr) {
                             console.error('Error during initial updateContent:', updateErr);
-                            reject(updateErr); // Reject if update fails
+                            reject(updateErr);
                         }
                     });
             });
@@ -196,22 +201,16 @@
             console.log("Running updateContent...");
             document.querySelectorAll('[data-i18n]').forEach(el => {
                 const key = el.getAttribute('data-i18n');
-                let value = ''; // Default to empty string
+                let value = '';
                 try {
-                     value = i18next.t(key); // Get translation
-                     // Basic check if the value is still the key (translation missing)
+                     value = i18next.t(key);
                      if (value === key && key !== '') {
                          console.warn(`Translation missing for key: ${key}`);
-                         // Optionally keep the key visible for debugging, or set to empty/default
-                         // value = `[${key}]`; // Keep key visible
                      }
                 } catch (e) {
                     console.error(`Error translating key "${key}":`, e);
-                    // value = `[Error: ${key}]`; // Indicate error
                 }
 
-
-                // Exclude language buttons from direct update
                 if (el.classList.contains('lang-button')) return;
 
                 if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
@@ -220,7 +219,6 @@
                      el.textContent = value;
                 }
                  else {
-                    // Make sure value is a string before setting innerHTML
                     el.innerHTML = (typeof value === 'string' || typeof value === 'number') ? value : '';
                 }
             });
@@ -232,29 +230,29 @@
             if (!container) return;
             container.innerHTML = '';
             const languages = ['zh', 'en', 'es'];
-            // Ensure i18next is initialized before accessing language
+            // Get the base language (e.g., 'zh' from 'zh-CN')
             const currentLang = i18next.language ? i18next.language.split('-')[0] : 'zh';
 
             languages.forEach(lang => {
                 const button = document.createElement('button');
                 button.textContent = lang.toUpperCase();
+                // Check against the base language for highlighting
                 button.className = `lang-button ${lang === currentLang ? 'active' : ''}`;
                 button.dataset.lang = lang;
                 button.onclick = async (e) => {
                     const newLang = e.target.dataset.lang;
+                    // Check against the base language
                     const oldLang = i18next.language ? i18next.language.split('-')[0] : 'zh';
                     if (newLang === oldLang) return;
 
                     console.log(`Changing language to: ${newLang}`);
                     try {
                         await i18next.changeLanguage(newLang);
-                        console.log("Language changed, running updates...");
+                        console.log("Language changed, running updates... New language:", i18next.language);
                         updateContent();
-                        renderLanguageSwitcher();
+                        renderLanguageSwitcher(); // Re-render to update active state
                         renderLoginStatus(currentAuthUser);
                         renderAdminLinks();
-                        // Re-fetch ratings if needed, or just re-render
-                        // await fetchRatings(); // Could re-fetch if server sends localized data
                         applyFilters();      // Re-render grid based on current data
                         console.log("UI updates after language change finished.");
                     } catch (langErr) {
@@ -272,7 +270,7 @@
             imgElement.style.display = 'none';
         }
 
-        // --- Element References --- (Moved getting elements here for clarity)
+        // --- Element References ---
         const ratingsGrid = document.getElementById('ratings-grid');
         const loadingMessage = document.getElementById('loading-message');
         const searchInput = document.getElementById('search-input');
@@ -296,7 +294,7 @@
             { "grade": "O", "nameKey": "resultsPage.grade.O", "min_score": 0, "color": "red" }
         ];
 
-        // --- Authentication --- (Functions remain the same)
+        // --- Authentication ---
         window.login = function() {
             const redirectUri = window.location.origin;
             const authorizeUrl = new URL('/oidc/auth', AUTHING_HOST);
@@ -322,7 +320,7 @@
 
         function renderLoginStatus(user) {
             const container = document.getElementById('login-status-container');
-            if (!container || !i18next.isInitialized) return; // Guard against premature call
+            if (!container || !i18next.isInitialized) return;
             if (user) {
                 const displayName = user.nickname || user.name || user.preferred_username || user.email || i18next.t('nav.login');
                 container.innerHTML = `<span class="text-xs sm:text-sm font-medium text-gray-700 mr-2 hidden sm:inline">${displayName}</span><button onclick="logout()" class="px-3 py-1 text-xs font-medium rounded-full bg-red-500 text-white hover:bg-red-600">${i18next.t('nav.logout')}</button>`;
@@ -333,7 +331,7 @@
 
         function renderAdminLinks() {
             const configLink = document.getElementById('config-admin-link');
-            if (!configLink || !i18next.isInitialized) return; // Guard
+            if (!configLink || !i18next.isInitialized) return;
             configLink.classList.add('hidden');
             if (!currentAuthUser) return;
 
@@ -365,7 +363,6 @@
                 return fullUserProfile;
             } catch (e) {
                 console.error('认证回调处理失败:', e);
-                // Use i18next only if initialized
                 const errorMsg = i18next.isInitialized ? i18next.t('errors.loginFailed', { message: e.message }) : `Login failed: ${e.message}`;
                 alert(errorMsg);
                 sessionStorage.removeItem('userInfo');
@@ -400,10 +397,10 @@
         }
         // --- 认证功能结束 ---
 
-        // --- Rating Actions (delete, certify, pin - remain the same) ---
+        // --- Rating Actions ---
         window.deleteRating = async function(ratingId, event) {
             event?.stopPropagation();
-             if (!i18next.isInitialized) return; // Guard
+             if (!i18next.isInitialized) return;
             if (!confirm(i18next.t('common.confirmDeletion'))) { return; }
             const button = event ? (event.currentTarget || event.target) : null;
             const originalText = button ? button.textContent : i18next.t('common.delete');
@@ -424,6 +421,8 @@
                 const cardToRemove = document.getElementById(`rating-card-${ratingId}`);
                 if (cardToRemove) { cardToRemove.style.transition = 'opacity 0.5s ease-out'; cardToRemove.style.opacity = '0'; setTimeout(() => cardToRemove.remove(), 500); }
                 delete displayedRatings[ratingId];
+                // Remove from allRatings as well
+                allRatings = allRatings.filter(r => r.id !== ratingId);
                 alert(i18next.t('common.deleteSuccess'));
             } catch (error) {
                 console.error("[deleteRating @ index] Caught error:", error);
@@ -434,7 +433,7 @@
 
         window.updateCertification = async function(ratingId, shouldCertify, event) {
             event?.stopPropagation();
-             if (!i18next.isInitialized) return; // Guard
+             if (!i18next.isInitialized) return;
             const button = event ? (event.currentTarget || event.target) : null;
             const isCertifying = shouldCertify;
             const actionText = isCertifying ? i18next.t('common.certify') : i18next.t('common.uncertify');
@@ -451,10 +450,24 @@
                 const response = await fetch(apiUrl, { method: 'POST', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ ratingId: ratingId, certify: isCertifying }) });
                 if (!response.ok) { let errorText = `${actionText} failed: ${response.status}`; try { const err = await response.json(); errorText = err.error || errorText; } catch(e){/*ignore*/} throw new Error(errorText); }
                 const data = await response.json();
-                if (displayedRatings[ratingId]) {
-                    displayedRatings[ratingId].isCertified = isCertifying;
-                    const cardElement = document.getElementById(`rating-card-${ratingId}`);
-                    if (cardElement) { const newCard = createRatingCard(displayedRatings[ratingId]); cardElement.replaceWith(newCard); }
+                // Update local cache
+                if (displayedRatings[ratingId]) displayedRatings[ratingId].isCertified = isCertifying;
+                const masterIndex = allRatings.findIndex(r => r.id === ratingId);
+                if(masterIndex > -1) allRatings[masterIndex].isCertified = isCertifying;
+                // Update UI directly
+                const cardElement = document.getElementById(`rating-card-${ratingId}`);
+                if (cardElement) {
+                    const stamp = cardElement.querySelector('img[alt="Certified"]');
+                    const certifyBtn = cardElement.querySelector('button[data-action="certify"]');
+                    const uncertifyBtn = cardElement.querySelector('button[data-action="uncertify"]');
+                    if (stamp) stamp.style.display = isCertifying ? 'block' : 'none';
+                    if (certifyBtn) certifyBtn.classList.toggle('hidden', isCertifying);
+                    if (uncertifyBtn) uncertifyBtn.classList.toggle('hidden', !isCertifying);
+                }
+                if(button) { // Re-enable the *correct* button
+                    const otherAction = isCertifying ? 'uncertify' : 'certify';
+                    const otherButton = cardElement?.querySelector(`button[data-action="${otherAction}"]`);
+                    if(otherButton) otherButton.disabled = false;
                 }
                 alert(i18next.t('common.opSuccess'));
             } catch (error) {
@@ -466,7 +479,7 @@
 
         window.updatePinStatus = async function(ratingId, shouldPin, event) {
             event?.stopPropagation();
-             if (!i18next.isInitialized) return; // Guard
+             if (!i18next.isInitialized) return;
             const button = event ? (event.currentTarget || event.target) : null;
             const actionText = shouldPin ? i18next.t('common.pin') : i18next.t('common.unpin');
             const originalText = button ? button.textContent : actionText;
@@ -482,12 +495,11 @@
                 const response = await fetch(apiUrl, { method: 'POST', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ ratingId: ratingId, pin: shouldPin }) });
                 if (!response.ok) { let errorText = `${actionText} failed: ${response.status}`; try { const err = await response.json(); errorText = err.error || errorText; } catch(e){/*ignore*/} throw new Error(errorText); }
                 const data = await response.json();
-                if (displayedRatings[ratingId]) {
-                    displayedRatings[ratingId].isPinned = shouldPin;
-                    const masterIndex = allRatings.findIndex(r => r.id === ratingId);
-                    if(masterIndex > -1) allRatings[masterIndex].isPinned = shouldPin;
-                    applyFilters(); // Re-sort and re-render the grid
-                }
+                // Update local cache
+                if (displayedRatings[ratingId]) displayedRatings[ratingId].isPinned = shouldPin;
+                const masterIndex = allRatings.findIndex(r => r.id === ratingId);
+                if(masterIndex > -1) allRatings[masterIndex].isPinned = shouldPin;
+                applyFilters(); // Re-sort and re-render the grid
                 alert(i18next.t('common.opSuccess'));
             } catch (error) {
                 console.error(`${actionText} failed:`, error);
@@ -500,14 +512,13 @@
 
         // --- Data Fetching and Rendering ---
         async function fetchRatings() {
-            // Guard: Make sure elements exist and i18n is ready
              if (!loadingMessage || !ratingsGrid || !i18next.isInitialized) {
                  console.error("fetchRatings called before DOM ready or i18n initialized.");
                  return;
              }
             loadingMessage.textContent = i18next.t('indexPage.loadingRatings');
             loadingMessage.style.display = 'block';
-            ratingsGrid.innerHTML = ''; // Clear previous results
+            ratingsGrid.innerHTML = '';
             try {
                 const apiUrl = new URL('/api/ratings', window.location.origin);
                 const response = await fetch(apiUrl);
@@ -517,31 +528,27 @@
                     throw new Error(errorText);
                 }
                 allRatings = await response.json();
-                // Basic validation if data is array
                 if (!Array.isArray(allRatings)) {
                     console.error("API did not return an array:", allRatings);
-                    allRatings = []; // Reset to empty array
+                    allRatings = [];
                     throw new Error("Invalid data received from server.");
                 }
 
                 displayedRatings = {};
                 allRatings.forEach(r => displayedRatings[r.id] = r);
-                applyFilters(); // Apply initial filter/sort and render
+                applyFilters();
             } catch (error) {
                 console.error("加载点评失败:", error);
-                // Ensure loadingMessage is still accessible
                  if (loadingMessage) {
                     loadingMessage.textContent = i18next.t('indexPage.loadFailed', { msg: error.message });
                     loadingMessage.style.color = 'red';
                  } else {
-                     // Fallback if loadingMessage somehow disappeared
                      ratingsGrid.innerHTML = `<p class="col-span-full text-center text-red-500 py-10">加载点评失败: ${error.message}</p>`;
                  }
             }
         }
 
         window.applyFilters = function() {
-            // Guard: Make sure elements exist and i18n is ready
             if (!searchInput || !sortSelect || !ratingsGrid || !loadingMessage || !i18next.isInitialized) {
                 console.error("applyFilters called before DOM ready or i18n initialized.");
                 return;
@@ -549,15 +556,13 @@
             const searchTerm = searchInput.value.toLowerCase().trim();
             const sortBy = sortSelect.value;
 
-            // Ensure allRatings is an array before filtering
             if (!Array.isArray(allRatings)) {
                  console.error("Cannot filter ratings, data is not an array.");
-                 renderGrid([]); // Render empty grid
+                 renderGrid([]);
                  return;
             }
 
             let filtered = allRatings.filter(rating => {
-                // Add checks for potentially missing properties
                 const nameMatch = rating?.cigarInfo?.name?.toLowerCase().includes(searchTerm);
                 const originMatch = rating?.cigarInfo?.origin?.toLowerCase().includes(searchTerm);
                 const sizeMatch = rating?.cigarInfo?.size?.toLowerCase().includes(searchTerm);
@@ -571,7 +576,6 @@
                 if (sortBy === 'latest' && pinDiff !== 0) return pinDiff;
                 if (sortBy === 'highest') return (b.normalizedScore ?? 0) - (a.normalizedScore ?? 0);
                 if (sortBy === 'lowest') return (a.normalizedScore ?? 0) - (b.normalizedScore ?? 0);
-                // Default: latest (pinned first)
                 return pinDiff !== 0 ? pinDiff : (new Date(b.timestamp) - new Date(a.timestamp));
              });
 
@@ -579,7 +583,6 @@
         }
 
         function renderGrid(ratingsToRender) {
-             // Guard
              if (!ratingsGrid || !loadingMessage || !i18next.isInitialized) return;
 
             ratingsGrid.innerHTML = '';
@@ -590,24 +593,22 @@
             }
             loadingMessage.style.display = 'none';
             ratingsToRender.forEach(rating => {
-                 // Basic check for rating ID
                  if (!rating || !rating.id) {
                      console.warn("Skipping rendering invalid rating object:", rating);
                      return;
                  }
                 displayedRatings[rating.id] = rating;
                 const card = createRatingCard(rating);
-                if (card) { // createRatingCard might return null if data is bad
+                if (card) {
                      ratingsGrid.appendChild(card);
                 }
             });
         }
 
         function createRatingCard(rating) {
-            // Basic check for essential rating data
             if (!rating || !rating.id || !i18next.isInitialized) {
                 console.warn("Cannot create card, invalid rating data or i18n not ready:", rating);
-                return null; // Return null if data is invalid
+                return null;
             }
 
             const div = document.createElement('div');
@@ -627,18 +628,17 @@
             if (Array.isArray(rating.imageUrl) && rating.imageUrl.length > 0) {
                 coverImageUrl = rating.imageUrl[0];
             } else if (typeof rating.imageUrl === 'string' && rating.imageUrl) {
-                 // Attempt to parse if it's a JSON string, otherwise assume it's a single key
                  try {
                      const parsed = JSON.parse(rating.imageUrl);
                      if (Array.isArray(parsed) && parsed.length > 0) {
                          coverImageUrl = parsed[0];
                      } else if (typeof parsed === 'string' && parsed) {
-                          coverImageUrl = parsed; // Should not happen ideally
+                          coverImageUrl = parsed;
                      } else {
-                         coverImageUrl = rating.imageUrl; // Fallback to using the string directly if parsing fails but it's not empty
+                         coverImageUrl = rating.imageUrl;
                      }
                  } catch (e) {
-                      coverImageUrl = rating.imageUrl; // Use string directly if parsing fails
+                      coverImageUrl = rating.imageUrl;
                  }
             }
 
@@ -690,7 +690,6 @@
         }
 
         window.viewRatingDetails = function(ratingId) {
-             // Guard
              if (!i18next.isInitialized) return;
 
             const ratingData = displayedRatings[ratingId];
@@ -709,13 +708,12 @@
                 color: foundGrade.color
             } : null;
 
-            if (!ratingData || ratingData.normalizedScore === undefined || !finalGrade || !cigarInfo || ratingData.title === undefined ) { // Check title defined
+            if (!ratingData || ratingData.normalizedScore === undefined || !finalGrade || !cigarInfo || ratingData.title === undefined ) {
                 console.error("viewRatingDetails: Essential data missing or couldn't be constructed!", {ratingData, finalGrade, cigarInfo});
                 alert(i18next.t('resultsPage.loadErrorMissing'));
                 return;
             }
 
-            // Ensure imageUrls is always an array
             let imageUrls = [];
             if (Array.isArray(ratingData.imageUrl)) {
                  imageUrls = ratingData.imageUrl;
@@ -725,12 +723,12 @@
                      if (Array.isArray(parsed)) {
                          imageUrls = parsed;
                      } else if (typeof parsed === 'string' && parsed) {
-                          imageUrls = [parsed]; // Treat as single key if parsing results in string
+                          imageUrls = [parsed];
                      } else {
-                         imageUrls = [ratingData.imageUrl]; // Use original string if parsing weird
+                         imageUrls = [ratingData.imageUrl];
                      }
                  } catch (e) {
-                      imageUrls = [ratingData.imageUrl]; // Treat as single key if parsing fails
+                      imageUrls = [ratingData.imageUrl];
                  }
             }
 
@@ -738,26 +736,25 @@
             let selectedFlavors = [];
             if (ratingData.fullData && Array.isArray(ratingData.fullData.selectedFlavors)) {
                 selectedFlavors = ratingData.fullData.selectedFlavors;
-            } else if (Array.isArray(ratingData.selectedFlavors)) { // Fallback check
+            } else if (Array.isArray(ratingData.selectedFlavors)) {
                 selectedFlavors = ratingData.selectedFlavors;
             }
 
             const hasCompleteFullData = ratingData.fullData && ratingData.fullData.config && ratingData.fullData.ratings && ratingData.fullData.calculatedScore !== undefined;
 
-            // Build detailedData object
             detailedData = {
                  ratingId: ratingData.id,
-                 title: ratingData.title, // Already checked it exists
+                 title: ratingData.title,
                  cigarInfo: cigarInfo,
-                 cigarReview: ratingData.cigarReview || '', // Default to empty string
-                 imageUrls: imageUrls, // Now guaranteed to be an array
+                 cigarReview: ratingData.cigarReview || '',
+                 imageUrls: imageUrls,
                  normalizedScore: ratingData.normalizedScore,
                  finalGrade: finalGrade,
                  selectedFlavors: selectedFlavors,
                  timestamp: ratingData.timestamp,
                  userNickname: ratingData.userNickname,
                  userEmail: ratingData.userEmail,
-                 isDraft: false // Ratings from index are never drafts
+                 isDraft: false
             };
 
             if (hasCompleteFullData) {
@@ -781,12 +778,10 @@
         window.onload = async function() {
              console.log("window.onload started");
              try {
-                 // 1. Initialize i18n (waits for callback including first updateContent)
                  console.log("Initializing i18n...");
                  await initI18n();
                  console.log("i18n initialized and first updateContent completed.");
 
-                 // 2. Handle Authentication
                  console.log("Handling authentication...");
                  const urlParams = new URLSearchParams(window.location.search);
                  const code = urlParams.get('code');
@@ -794,26 +789,21 @@
                  currentAuthUser = user;
                  console.log("Authentication handled. User:", currentAuthUser ? currentAuthUser.sub : 'None');
 
-                 // 3. Render User UI (now that translations are ready)
                  console.log("Rendering user UI elements...");
                  renderLoginStatus(currentAuthUser);
                  renderAdminLinks();
-                 renderLanguageSwitcher(); // Render language buttons
+                 renderLanguageSwitcher();
                  console.log("User UI elements rendered.");
 
-                 // 4. Fetch Ratings (now that auth is potentially done and i18n ready)
                  console.log("Fetching ratings...");
-                 // Ensure loading message is visible initially if not already set by i18n
                  if (loadingMessage && i18next.isInitialized) {
                     loadingMessage.textContent = i18next.t('indexPage.loadingRatings');
                     loadingMessage.style.display = 'block';
                  }
                  await fetchRatings();
-                 console.log("Ratings fetch process completed."); // fetchRatings calls applyFilters/renderGrid
+                 console.log("Ratings fetch process completed.");
 
-                 // 5. Add Event Listeners
                  console.log("Adding event listeners...");
-                 // Ensure elements exist before adding listeners
                  if (searchInput) searchInput.addEventListener('keypress', function (e) { if (e.key === 'Enter') { applyFilters(); } });
                  if (sortSelect) sortSelect.addEventListener('change', applyFilters);
                  if (menuToggle && navLinks) {
@@ -826,16 +816,15 @@
 
              } catch (error) {
                  console.error("Initialization error in window.onload:", error);
-                 // Display a user-friendly error message using i18n if available
                  let errorMsg = `页面加载初始化出错: ${error.message || error}`;
                  if (i18next.isInitialized) {
                      errorMsg = i18next.t('errors.initFailed', { msg: error.message || error });
                  }
-                 if (loadingMessage) { // Check if loadingMessage exists
+                 if (loadingMessage) {
                     loadingMessage.textContent = errorMsg;
                     loadingMessage.style.color = 'red';
                     loadingMessage.style.display = 'block';
-                 } else if (ratingsGrid) { // Fallback to grid if loading message gone
+                 } else if (ratingsGrid) {
                     ratingsGrid.innerHTML = `<p class="col-span-full text-center text-red-500 py-10">${errorMsg}</p>`;
                  }
              }
