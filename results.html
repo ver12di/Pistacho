@@ -31,7 +31,7 @@
         .tooltip:hover .tooltiptext { visibility: visible; opacity: 1; }
         /* Swiper styles */
         .swiper-container.main-swiper { width: 100%; position: relative; }
-        .swiper-slide { height: auto; display: flex; flex-direction: column; }
+        .swiper-slide { height: auto; display: flex; flex-direction: column; align-items: center; /* Center content */ justify-content: center; /* Center content */ }
         .swiper-slide img { display: block; width: 100%; height: auto; object-fit: contain; max-height: 80vh; }
         .swiper-slide.share-image-slide img { max-height: none; object-fit: contain; }
         .swiper-button-next, .swiper-button-prev { color: #fff; background-color: rgba(0,0,0,0.3); padding: 10px; border-radius: 50%; width: 40px; height: 40px; } .swiper-button-next::after, .swiper-button-prev::after { font-size: 1.2rem; }
@@ -57,6 +57,7 @@
         .share-card-footer { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 0; }
         #share-card-watermark { font-size: 0.55rem; color: #9ca3af; width: 65%; line-height: 1.1; margin: 0; }
         #share-card-qrcode { width: 32%; height: auto; background-color: white; padding: 0; border: 1px solid #eee; box-shadow: 0 0 2px rgba(0,0,0,0.1); }
+        /* Ensure QR code image is visible for html2canvas */
         #share-card-qrcode img { display: block; width: 100%; height: 100%; }
     </style>
 </head>
@@ -208,7 +209,9 @@
                          <span id="share-card-username">用户</span>
                          <!-- Placeholder for 'rating on...' text -->
                          </p>
-                     <div id="share-card-qrcode"></div>
+                     <div id="share-card-qrcode">
+                         <!-- QR code img will be added here -->
+                     </div>
                 </div>
             </div>
         </div>
@@ -234,6 +237,7 @@
         const AUTHING_HOST = 'https://xfvu647mcdbk-demo.authing.cn'; // Authing Host
         let mainSwiper = null;      // Swiper instance for main images
         let thumbnailSwiper = null; // Swiper instance for thumbnails
+        let shareImageGenerated = false; // Flag to prevent multiple generations
 
         // --- i18n Initialization Functions ---
         async function initI18n() {
@@ -300,6 +304,12 @@
                 renderLoginStatus(currentAuthUser);
                 if (resultsData) {
                     renderPageContent(resultsData); // Re-render main content with new language
+                    // Re-populate share card and QR before potential regeneration
+                    populateShareCard(resultsData);
+                    generateQRCode();
+                    // Optionally regenerate share image on language change if needed
+                    // shareImageGenerated = false; // Reset flag to allow regeneration
+                    // tryAutoGenerateShareImage(); // Try generating again
                 }
             });
         }
@@ -429,7 +439,12 @@
                     newUrl.searchParams.set('ratingId', newRatingId);
                     window.history.replaceState({}, document.title, newUrl.toString());
                     // Re-render to hide the save button based on isDraft=false
+                    // Also regenerate QR code with the final URL
                     renderPageContent(resultsData);
+                    generateQRCode(); // Regenerate QR for the new URL
+                    // Try generating share image again now that we have the final ID/URL
+                    shareImageGenerated = false; // Reset flag
+                    tryAutoGenerateShareImage(); // Attempt generation
                 }
             } catch (e) {
                 console.error("保存评分失败:", e);
@@ -503,7 +518,7 @@
                  // Initialize main swiper linked to thumbnails
                  mainSwiper = new Swiper('.main-swiper', {
                      spaceBetween: 10,
-                     autoHeight: true, // Adjust height based on image
+                     autoHeight: false, // Keep consistent height if possible
                      navigation: { nextEl: '.swiper-button-next', prevEl: '.swiper-button-prev', },
                      pagination: { el: '.main-swiper .swiper-pagination', clickable: true, },
                      thumbs: { swiper: thumbnailSwiper, }, // Link thumbs
@@ -512,62 +527,219 @@
                  thumbContainer.classList.add('hidden'); // Hide thumbnails
                  // Initialize main swiper without navigation/thumbs
                  mainSwiper = new Swiper('.main-swiper', {
-                     autoHeight: true,
+                     autoHeight: false, // Keep consistent height
                      pagination: { el: '.main-swiper .swiper-pagination', clickable: true, },
                      allowTouchMove: false // Disable swiping for single image
                  });
              }
         }
 
-        // Auto-generates a shareable image using html2canvas
+        // **MODIFIED**: Function to check if image is loaded
+        function isImageLoaded(imgElement) {
+            return imgElement && imgElement.complete && imgElement.naturalWidth !== 0;
+        }
+
+        // **MODIFIED**: Waits for images before generating share card
         async function autoGenerateShareImage() {
+            if (shareImageGenerated) return; // Prevent multiple calls
+
             const shareCardElement = document.getElementById('share-card-container');
             const coverImageElement = document.getElementById('share-card-image');
+            const qrCodeContainer = document.getElementById('share-card-qrcode');
             const mainSwiperWrapper = document.getElementById('main-swiper-wrapper');
 
-            // Safety checks for necessary elements and libraries
-            if (!shareCardElement || !coverImageElement || typeof html2canvas === 'undefined' || !resultsData || !mainSwiperWrapper) {
-                console.warn("Cannot auto-generate share image: Missing required elements or html2canvas library."); return;
+            // Safety checks
+            if (!shareCardElement || !coverImageElement || !qrCodeContainer || typeof html2canvas === 'undefined' || !resultsData || !mainSwiperWrapper) {
+                console.warn("Cannot auto-generate share image: Missing required elements or libraries."); return;
             }
-            // Check if cover image is loaded and valid
-            const coverImageUrl = coverImageElement.src;
-            if (!coverImageUrl || coverImageUrl.includes('placehold.co') || !coverImageElement.complete || coverImageElement.naturalWidth === 0) {
-                 console.warn("Cover image not loaded or invalid, cannot auto-generate share image."); return;
-            }
-            // Temporarily make the hidden card visible for canvas generation
-            shareCardElement.style.visibility = 'visible';
-            const statusElement = document.getElementById('loading-indicator'); // Use loading indicator for status
-            statusElement.textContent = i18next.t('resultsPage.shareCard.generating');
-            statusElement.classList.remove('hidden');
-            try {
-                // Short delay to ensure styles are applied
-                await new Promise(resolve => setTimeout(resolve, 300));
-                // Generate canvas from the share card element
-                const canvas = await html2canvas(shareCardElement, {
-                    useCORS: true,      // Allow cross-origin images (important for /api/image/)
-                    allowTaint: true,   // Allow tainted canvas (needed for CORS images)
-                    scale: 2            // Increase scale for better resolution
-                });
-                const dataUrl = canvas.toDataURL('image/png'); // Get image as Data URL
 
-                // Create a new slide for the generated image
-                const newSlide = document.createElement('div');
-                newSlide.className = 'swiper-slide share-image-slide';
-                newSlide.innerHTML = `<img src="${dataUrl}" alt="${i18next.t('resultsPage.shareImageAlt')}">`;
-                mainSwiperWrapper.appendChild(newSlide); // Add to the main swiper
-                // Update swiper to include the new slide
-                if (mainSwiper) mainSwiper.update();
+            // --- **NEW**: Wait for cover image and QR code image ---
+            const coverImagePromise = new Promise((resolve, reject) => {
+                if (isImageLoaded(coverImageElement)) {
+                    resolve();
+                } else if (!coverImageElement.src || coverImageElement.src.includes('placehold.co')) {
+                    // No cover image or placeholder, resolve immediately but maybe skip generation later
+                    console.log("No valid cover image set for share card.");
+                    resolve('no-cover'); // Indicate no cover
+                } else {
+                    coverImageElement.onload = resolve;
+                    coverImageElement.onerror = () => reject(new Error('Cover image failed to load for share card.'));
+                }
+            });
+
+            const qrCodeImagePromise = new Promise((resolve, reject) => {
+                 // Check if QR code img element exists and is loaded
+                 const qrImg = qrCodeContainer.querySelector('img');
+                 if (isImageLoaded(qrImg)) {
+                      resolve();
+                 } else if (qrImg) {
+                     // If img exists but not loaded, wait for onload
+                     qrImg.onload = resolve;
+                     qrImg.onerror = () => reject(new Error('QR code image failed to load for share card.'));
+                 } else {
+                      // If no img tag yet, assume QR hasn't been generated or failed
+                      // We might need to trigger QR generation again or wait differently
+                      console.warn("QR code image element not found when trying to generate share card.");
+                      // Resolve immediately, but html2canvas might capture blank space
+                      resolve('no-qr-img');
+                 }
+            });
+
+            const statusElement = document.getElementById('loading-indicator');
+            try {
+                 statusElement.textContent = i18next.t('resultsPage.shareCard.generating');
+                 statusElement.classList.remove('hidden');
+
+                 // Wait for both images to be ready
+                 console.log("Waiting for share card images (cover & QR)...");
+                 const [coverStatus] = await Promise.all([coverImagePromise, qrCodeImagePromise]);
+                 console.log("Share card images ready.");
+
+                 // Check if we should skip generation (e.g., no cover image)
+                 if (coverStatus === 'no-cover') {
+                      console.warn("Skipping share image generation because cover image is missing or invalid.");
+                      statusElement.classList.add('hidden');
+                      return;
+                 }
+
+
+                 // Temporarily make the hidden card visible
+                 shareCardElement.style.visibility = 'visible';
+                 await new Promise(resolve => setTimeout(resolve, 300)); // Ensure styles applied
+
+                 // Generate canvas
+                 const canvas = await html2canvas(shareCardElement, {
+                     useCORS: true,
+                     allowTaint: true,
+                     scale: 2
+                 });
+                 const dataUrl = canvas.toDataURL('image/png');
+
+                 // Create and add the new slide
+                 const newSlide = document.createElement('div');
+                 newSlide.className = 'swiper-slide share-image-slide';
+                 newSlide.innerHTML = `<img src="${dataUrl}" alt="${i18next.t('resultsPage.shareImageAlt')}">`;
+                 mainSwiperWrapper.appendChild(newSlide);
+                 if (mainSwiper) mainSwiper.update(); // Update Swiper
+                 shareImageGenerated = true; // Set flag
+                 console.log("Share image generated and added to slider.");
 
             } catch (error) {
-                console.error(i18next.t('resultsPage.shareCard.generateFailed'), error);
-                statusElement.textContent = `${i18next.t('resultsPage.shareCard.generateFailed')} ${error.message}`;
+                 console.error(i18next.t('resultsPage.shareCard.generateFailed'), error);
+                 statusElement.textContent = `${i18next.t('resultsPage.shareCard.generateFailed')} ${error.message}`;
+                 // Don't retry automatically on failure
             } finally {
-                 // Hide the card element again regardless of success/failure
+                 // Always hide the card element and status
                  shareCardElement.style.visibility = 'hidden';
-                 // Hide status message after a short delay
                  setTimeout(() => { statusElement.classList.add('hidden'); }, 3000);
             }
         }
+
+        // **NEW**: Helper to attempt share image generation safely
+        function tryAutoGenerateShareImage() {
+            // Only proceed if not already generated and we have resultsData
+            if (!shareImageGenerated && resultsData) {
+                // Check if the share card's cover image is set and not a placeholder
+                const shareImg = document.getElementById('share-card-image');
+                if (shareImg && shareImg.src && !shareImg.src.includes('placehold.co')) {
+                    // Call the generation function
+                     autoGenerateShareImage();
+                } else {
+                     console.log("Skipping auto-generation: No valid cover image set for share card yet.");
+                }
+            }
+        }
+
+        // **MODIFIED**: Populates the hidden share card elements (doesn't generate image here)
+        function populateShareCard(data) {
+             if (!data || !i18next.isInitialized) return;
+             const { normalizedScore, finalGrade, userNickname, userEmail, imageUrls = [] } = data;
+             const nickname = userNickname || userEmail || i18next.t('common.anonymous');
+
+             // Check if finalGrade exists
+             if (!finalGrade || !finalGrade.grade || !finalGrade.nameKey || !finalGrade.color) {
+                  console.warn("populateShareCard: finalGrade data missing or incomplete. Cannot populate share card grade.");
+                  // Populate score but indicate missing grade
+                  document.getElementById('share-card-score').textContent = normalizedScore?.toFixed(2) ?? '?.??';
+                  document.getElementById('share-card-grade-badge').textContent = i18next.t('common.unrated');
+                  document.getElementById('share-card-grade-badge').className = 'inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-300 text-gray-800 bg-opacity-20'; // Default style
+             } else {
+                  // Populate if grade exists
+                  const gradeName = i18next.t(finalGrade.nameKey);
+                  const gradeStyles = getGradeStyles(finalGrade.color);
+                  const scoreEl = document.getElementById('share-card-score');
+                  const gradeEl = document.getElementById('share-card-grade-badge');
+                  scoreEl.className = `font-black ${gradeStyles.textColor}`;
+                  scoreEl.textContent = normalizedScore.toFixed(2);
+                  gradeEl.className = `inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${gradeStyles.bgColor} ${gradeStyles.textColor} bg-opacity-20`;
+                  gradeEl.textContent = gradeName;
+             }
+
+             // Populate other elements
+             const watermarkEl = document.getElementById('share-card-watermark');
+             watermarkEl.innerHTML = i18next.t('resultsPage.shareCard.userRatingOn', { user: `<span id="share-card-username">${nickname}</span>` });
+
+             // Set cover image source
+             const shareCardImage = document.getElementById('share-card-image');
+             const shareCardImageWrapper = document.getElementById('share-card-image-wrapper');
+             if (imageUrls.length > 0) {
+                 shareCardImage.src = `/api/image/${imageUrls[0]}`;
+                 shareCardImage.style.display = 'block'; // Ensure img tag is shown
+                 // Remove potential placeholder text if image exists
+                 const placeholder = shareCardImageWrapper.querySelector('span');
+                 if(placeholder) placeholder.remove();
+             } else {
+                 shareCardImage.src = ''; // Clear src
+                 shareCardImage.style.display = 'none'; // Hide img tag
+                 // Add placeholder text if not already present
+                 if(!shareCardImageWrapper.querySelector('span')) {
+                     shareCardImageWrapper.innerHTML = `<span class="text-gray-400 text-sm">${i18next.t('resultsPage.shareCard.noCover')}</span>`;
+                 }
+             }
+        }
+
+        // **MODIFIED**: Generates QR code and resolves promise on image load/error
+        function generateQRCode() {
+            return new Promise((resolve, reject) => {
+                 const qrCodeContainer = document.getElementById('share-card-qrcode');
+                 if (qrCodeContainer && typeof QRCode !== 'undefined') {
+                    qrCodeContainer.innerHTML = ''; // Clear previous
+                    const uniqueUrl = ratingId ? `${window.location.origin}/results.html?ratingId=${ratingId}` : window.location.href.split('?')[0];
+                    try {
+                         new QRCode(qrCodeContainer, {
+                             text: uniqueUrl, width: 90, height: 90,
+                             colorDark : "#000000", colorLight : "#ffffff",
+                             correctLevel : QRCode.CorrectLevel.H
+                         });
+                         // --- **NEW**: Wait for image inside QR code to load ---
+                         const qrImg = qrCodeContainer.querySelector('img');
+                         if (qrImg) {
+                             if (isImageLoaded(qrImg)) {
+                                 console.log("QR Code image already loaded.");
+                                 resolve(); // Already loaded
+                             } else {
+                                 console.log("Waiting for QR Code image to load...");
+                                 qrImg.onload = () => { console.log("QR Code image loaded."); resolve(); };
+                                 qrImg.onerror = () => { console.error("QR Code image failed to load."); reject(new Error('QR Code image load failed')); };
+                             }
+                         } else {
+                              console.warn("QR Code generated, but no img tag found immediately.");
+                              // Resolve anyway, assuming it might appear later, but generation might fail
+                              resolve('no-qr-img');
+                         }
+                         // --- End New ---
+                    } catch (qrError) {
+                         console.error("QR Code generation failed:", qrError);
+                         qrCodeContainer.innerHTML = `<p class="text-2xs text-red-500">QR Error</p>`;
+                         reject(qrError); // Reject promise on error
+                    }
+                 } else {
+                     console.warn(i18next.t('resultsPage.shareCard.qrError'));
+                     reject(new Error('QR Code container or library not found.')); // Reject promise
+                 }
+            });
+        }
+
 
         // Renders the main content of the results page using the provided data
         function renderPageContent(data) {
@@ -585,6 +757,31 @@
                  document.getElementById('narrative-summary-container').innerHTML = `<p class="text-red-500 italic">${i18next.t('resultsPage.narrativeGenFailed')}</p>`;
                  document.getElementById('summary-container').innerHTML = ''; // Clear summary too
                  // Continue rendering other parts if possible
+                 // Populate static info fields even if grade fails
+                 document.getElementById('user-nickname').textContent = userNickname;
+                 document.getElementById('rating-title').textContent = title;
+                 document.getElementById('cigar-name').textContent = cigarInfo?.name ?? i18next.t('common.unknown');
+                 document.getElementById('cigar-size').textContent = cigarInfo?.size ?? i18next.t('common.unknown');
+                 document.getElementById('cigar-origin').textContent = cigarInfo?.origin ?? i18next.t('common.unknown');
+                 // Render review and flavors (don't depend on grade)
+                 const reviewContainer = document.getElementById('cigar-review-container');
+                 reviewContainer.innerHTML = (cigarReview && cigarReview.trim() && cigarReview !== i18next.t('common.noReview'))
+                    ? `<p>${cigarReview.replace(/\n/g, '<br>')}</p>`
+                    : `<p class="text-gray-400 italic">${i18next.t('common.noReview')}</p>`;
+                 const flavorsContainer = document.getElementById('selected-flavors-container');
+                 if (selectedFlavors.length > 0) {
+                     document.getElementById('flavors-display').innerHTML = selectedFlavors
+                        .map(flavorKey => `<span class="flavor-tag">${i18next.t(flavorKey) || flavorKey}</span>`)
+                        .join('');
+                     flavorsContainer.classList.remove('hidden');
+                 } else {
+                     flavorsContainer.classList.add('hidden');
+                 }
+                 // Hide details sections if grade failed (as they depend on fullData which might be linked)
+                 ['narrative-summary-details', 'summary-details'].forEach(id => {
+                     document.getElementById(id).style.display = 'none';
+                 });
+
             } else {
                  // Proceed with rendering if finalGrade is valid
                  const gradeName = i18next.t(finalGrade.nameKey); // Get translated grade name
@@ -592,9 +789,10 @@
                  // Populate static info fields
                  document.getElementById('user-nickname').textContent = userNickname;
                  document.getElementById('rating-title').textContent = title;
-                 document.getElementById('cigar-name').textContent = cigarInfo.name;
-                 document.getElementById('cigar-size').textContent = cigarInfo.size;
-                 document.getElementById('cigar-origin').textContent = cigarInfo.origin;
+                 document.getElementById('cigar-name').textContent = cigarInfo?.name ?? i18next.t('common.unknown');
+                 document.getElementById('cigar-size').textContent = cigarInfo?.size ?? i18next.t('common.unknown');
+                 document.getElementById('cigar-origin').textContent = cigarInfo?.origin ?? i18next.t('common.unknown');
+
 
                  // Render written review
                  const reviewContainer = document.getElementById('cigar-review-container');
@@ -619,8 +817,10 @@
                  // Conditionally show/hide narrative and summary sections based on fullData
                  const hasFullData = data.config && data.ratings;
                  ['narrative-summary-details', 'summary-details'].forEach(id => {
-                     document.getElementById(id).style.display = hasFullData ? 'block' : 'none';
+                     const detailElement = document.getElementById(id);
+                     if (detailElement) detailElement.style.display = hasFullData ? 'block' : 'none';
                  });
+
 
                  // Render narrative summary and details if full data exists
                  if (hasFullData) {
@@ -629,44 +829,8 @@
                  }
 
                  // Populate Hidden Share Card (with translated grade name)
-                 const shareCardImage = document.getElementById('share-card-image');
-                 const gradeStyles = getGradeStyles(finalGrade.color);
-                 const shareCardScoreEl = document.getElementById('share-card-score');
-                 const shareCardGradeEl = document.getElementById('share-card-grade-badge');
-                 const shareCardWatermarkEl = document.getElementById('share-card-watermark');
-                 shareCardScoreEl.className = `font-black ${gradeStyles.textColor}`; // Apply text color
-                 shareCardScoreEl.textContent = normalizedScore.toFixed(2);
-                 shareCardGradeEl.className = `inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${gradeStyles.bgColor} ${gradeStyles.textColor} bg-opacity-20`;
-                 shareCardGradeEl.textContent = gradeName; // Use translated name
-                 // Update watermark text using i18n
-                 shareCardWatermarkEl.innerHTML = i18next.t('resultsPage.shareCard.userRatingOn', {
-                     user: `<span id="share-card-username">${userNickname}</span>`
-                 });
+                 populateShareCard(data);
 
-
-                 // Generate QR Code
-                 const shareCardQrCode = document.getElementById('share-card-qrcode');
-                 if (shareCardQrCode && typeof QRCode !== 'undefined') {
-                    shareCardQrCode.innerHTML = ''; // Clear previous QR code
-                    // Use ratingId if available, otherwise current URL (for drafts)
-                    const uniqueUrl = ratingId ? `${window.location.origin}/results.html?ratingId=${ratingId}` : window.location.href.split('?')[0]; // Use base URL for drafts
-                    try {
-                         new QRCode(shareCardQrCode, { text: uniqueUrl, width: 90, height: 90, colorDark : "#000000", colorLight : "#ffffff", correctLevel : QRCode.CorrectLevel.H });
-                    } catch (qrError) {
-                         console.error("QR Code generation failed:", qrError);
-                         shareCardQrCode.innerHTML = `<p class="text-2xs text-red-500">QR Error</p>`;
-                    }
-                 } else {
-                     console.warn("QR Code container or library not found.");
-                 }
-
-                 // Set share card image source
-                 const images = data.imageUrls || [];
-                 if (images.length > 0) {
-                      shareCardImage.src = `/api/image/${images[0]}`;
-                 } else {
-                      document.getElementById('share-card-image-wrapper').innerHTML = `<span class="text-gray-400 text-sm">${i18next.t('resultsPage.shareCard.noCover')}</span>`;
-                 }
             } // End of else block for valid finalGrade
 
              // Show/hide save button based on user login and draft status
@@ -734,19 +898,10 @@
                  initSwipers(resultsData.imageUrls || []);
                  renderPageContent(resultsData); // Render main content *after* i18n is ready
 
-                 // 7. Auto-generate Share Image (with checks)
-                 const shareImg = document.getElementById('share-card-image');
-                 if (shareImg.src && !shareImg.src.includes('placehold.co')) {
-                    if (shareImg.complete) {
-                        autoGenerateShareImage();
-                    } else {
-                        shareImg.onload = autoGenerateShareImage;
-                        shareImg.onerror = () => console.warn("Share card image failed to load, cannot generate share image.");
-                    }
-                 } else if (ratingId) { // Only generate if it's a saved rating (has ID)
-                      console.warn("No valid cover image for share card.");
-                      autoGenerateShareImage(); // Attempt anyway (might show placeholder)
-                 }
+                 // 7. Generate QR Code and then attempt share image generation
+                 // Generate QR Code first, as autoGenerateShareImage depends on it
+                 await generateQRCode();
+                 tryAutoGenerateShareImage(); // Attempt generation after QR is ready
 
                  // 8. Hide Loading, Show Content
                  loadingIndicator.classList.add('hidden');
@@ -776,7 +931,7 @@
         function generateNarrativeSummary(cigarInfo, config, ratings, finalGrade, selectedFlavors) {
             if (!config || !ratings) return `<p class="text-gray-500 italic">${i18next.t('errors.noNarrativeData')}</p>`;
 
-            const { origin = i18next.t('common.unknown'), name = i18next.t('common.unknown'), size = i18next.t('common.unknown') } = cigarInfo;
+            const { origin = i18next.t('common.unknown'), name = i18next.t('common.unknown'), size = i18next.t('common.unknown') } = cigarInfo || {};
             let summary = `<p>${i18next.t('resultsPage.narrative.part1', { origin, name, size })}`;
             let observations = [];
 
@@ -804,7 +959,7 @@
                             const finalCriterionText = (criterionText === criterion.nameKey || criterionText === criterion.name || criterionText === '?') ? (criterion.name || '?') : criterionText;
                             const finalOptionText = (optionText === option.descriptionKey || optionText === option.description || optionText === '?') ? (option.description || '?') : optionText;
 
-                            observations.push(`${finalCriterionText}: ${finalOptionText}`);
+                            observations.push(i18next.t('resultsPage.narrative.observation', { criterion: finalCriterionText, option: finalOptionText }));
                         }
                     } else {
                          console.warn("Could not determine ID for criterion in generateNarrativeSummary:", {category, criterion});
@@ -920,8 +1075,8 @@
              const scoreHtml = `
                 <div>
                     <p class="text-xl font-bold text-yellow-500 mb-1">${i18next.t('resultsPage.scoreSectionTitle')}</p>
-                    <p class="text-7xl font-black ${styles.textColor}">${score.toFixed(2)}</p>
-                    <div class="mt-2 text-3xl font-black ${styles.textColor}">${grade.name}</div>
+                    <p class="text-7xl font-black ${styles.textColor}">${score?.toFixed(2) ?? '?.??'}</p>
+                    <div class="mt-2 text-3xl font-black ${styles.textColor}">${grade.name ?? i18next.t('common.unrated')}</div>
                 </div>`;
              // HTML for the grading scale visual
              const scaleHtml = GRADING_SCALE.map(g => {
