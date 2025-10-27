@@ -1039,7 +1039,7 @@
                 reviewTextarea.value = (data.cigarReview && data.cigarReview !== i18next.t('common.noReview')) ? data.cigarReview : '';
 
                 // *** FIX: Correctly assign imageUrls to currentImageKeys ***
-                currentImageKeys = Array.isArray(data.imageUrls) ? data.imageUrls : []; // Ensure it's an array
+                currentImageKeys = Array.isArray(data.imageUrl) ? data.imageUrl : []; // Ensure it's an array
 
                 selectedFlavors = Array.isArray(data.selectedFlavors) ? data.selectedFlavors : []; // Load flavor keys
 
