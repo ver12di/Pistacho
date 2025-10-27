@@ -428,7 +428,7 @@
                 return null;
             } finally {
                 // Clean up URL by removing code and state parameters from the address bar
-                const cleanUrl = window.location.origin + window.location.pathname;
+                const cleanUrl = window.location.origin + window.location.pathname + window.location.search.replace(/&?code=[^&]*/, '').replace(/&?state=[^&]*/, '');
                 window.history.replaceState({}, document.title, cleanUrl);
             }
         }
@@ -856,7 +856,7 @@
             <div class="bg-gray-50 p-4 rounded-lg border">
                 <div class="flex justify-between items-center mb-3">
                     <h4 class="text-lg font-semibold text-gray-800">
-                        ${i18next.t(criterionKey)} ${isSuperAdmin ? `(${currentWeight} pts)` : ''}
+                        ${i18next.t(criterionKey)} ${isSuperAdmin ? `(${currentWeight} ${i18next.t('common.points')})` : ''}
                     </h4>
                     <span class="text-xl font-extrabold text-green-600">${currentScore.toFixed(2)}</span>
                 </div>
@@ -867,7 +867,7 @@
                     return `<button type="button" onclick="updateRatingSelection('${categoryKey}', '${criterionKey}', ${optIndex})"
                         class="p-2 text-sm text-center rounded-lg border transition ${isSelected ? 'bg-indigo-600 text-white shadow-md' : 'bg-white hover:bg-indigo-50'}">
                         ${i18next.t(option.descriptionKey)}
-                        <span class="block text-xs ${isSelected ? 'text-indigo-200' : 'text-gray-500'}">(Score ${scoreValue} pts)</span>
+                        <span class="block text-xs ${isSelected ? 'text-indigo-200' : 'text-gray-500'}">(${i18next.t('common.score')} ${scoreValue} ${i18next.t('common.points')})</span>
                     </button>`;
                 }).join('')}
                 </div>
@@ -1009,6 +1009,7 @@
             if(reviewTextarea && reviewCharCount) reviewCharCount.textContent = `${reviewTextarea.value.length} / 1500`;
         }
 
+        // *** MODIFIED: loadRatingForEdit to correctly handle imageUrls ***
         // Loads data for editing if 'edit' parameter is present in URL
         async function loadRatingForEdit(ratingId) {
              const status = document.getElementById('config-load-status'); // Use config status area
@@ -1018,6 +1019,7 @@
              mainActionButton.classList.add('bg-blue-600', 'hover:bg-blue-700');
              isEditMode = true;
              editRatingId = ratingId;
+             currentImageKeys = []; // Initialize image keys
 
             try {
                 const token = sessionStorage.getItem('accessToken');
@@ -1035,7 +1037,10 @@
                 document.getElementById('cigar-size').value = data.cigarInfo?.size || '';
                 document.getElementById('cigar-origin').value = data.cigarInfo?.origin || '';
                 reviewTextarea.value = (data.cigarReview && data.cigarReview !== i18next.t('common.noReview')) ? data.cigarReview : '';
+
+                // *** FIX: Correctly assign imageUrls to currentImageKeys ***
                 currentImageKeys = Array.isArray(data.imageUrls) ? data.imageUrls : []; // Ensure it's an array
+
                 selectedFlavors = Array.isArray(data.selectedFlavors) ? data.selectedFlavors : []; // Load flavor keys
 
                 // Load user selections (ratings) - critical: use the data from fullData
@@ -1046,8 +1051,8 @@
                      userRatings = {}; // Fallback to empty if missing
                 }
 
-                // Re-render UI components
-                renderImagePreviews();
+                // Re-render UI components AFTER data is loaded
+                renderImagePreviews(); // Render images using updated currentImageKeys
                 renderFlavorButtons();
                 renderRatingView(); // Important: call after userRatings is populated
                 updateCharCounts();
