@@ -27,7 +27,7 @@
     <style>
         .cropper-container { max-height: 60vh; }
         .cropper-modal-content { width: 90%; max-width: 800px; }
-        /* ... (all other styles remain the same) ... */
+        /* Preview grid and item styles */
         .preview-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 0.5rem; }
         .preview-item {
             position: relative; aspect-ratio: 1179 / 1572; overflow: hidden; border-radius: 0.375rem; /* rounded-md */
@@ -77,6 +77,7 @@
 </head>
 <body class="bg-gray-100 font-sans antialiased text-gray-800">
     <div id="app-container" class="max-w-4xl mx-auto p-4 md:p-8">
+        <!-- Navigation Bar -->
         <nav class="mb-6 flex flex-wrap justify-between items-center bg-white p-3 rounded-lg shadow-sm gap-4">
             <a href="index.html" class="text-xl font-bold text-indigo-600" data-i18n="nav.title">Pistacho评分</a>
             <div class="flex items-center space-x-4 flex-grow justify-center md:justify-start md:flex-grow-0 order-3 md:order-2 w-full md:w-auto">
@@ -94,11 +95,13 @@
                <div id="login-status-container" class="flex items-center"></div>
             </div>
         </nav>
+        <!-- Header with Score Display -->
         <header class="mb-8 p-6 bg-indigo-700 text-white rounded-xl shadow-2xl">
              <div class="flex justify-between items-start">
                  <div> <h1 id="app-title-display" class="text-3xl font-extrabold mb-1">雪茄评分应用</h1> <p id="app-description-display" class="text-indigo-200 text-sm max-w-lg">正在加载描述...</p> </div>
                  <div class="flex items-center space-x-3 flex-shrink-0"> <div id="admin-links-container" class="flex items-center space-x-3"></div> </div>
              </div>
+             <!-- Score and Progress Bar -->
              <div class="mt-6 bg-black bg-opacity-20 p-4 rounded-lg">
                  <div class="flex justify-between items-end">
                      <div>
@@ -115,20 +118,24 @@
               <p id="config-load-status" class="text-xs text-yellow-300 mt-2 text-right" data-i18n="ratePage.configSyncing">正在连接...</p>
         </header>
 
+        <!-- Login Prompt (hidden if logged in) -->
         <div id="login-prompt" class="hidden text-center p-6 bg-yellow-100 text-yellow-800 rounded-lg shadow mb-8">
              <p class="font-semibold mb-3" data-i18n="ratePage.loginPrompt">请先登录才能进行评分。</p>
              <button onclick="login()" class="px-5 py-2 text-sm font-medium rounded-lg bg-green-500 text-white hover:bg-green-600" data-i18n="nav.login">前往登录/注册</button>
         </div>
 
 
+        <!-- Main Content (hidden if not logged in) -->
         <main id="main-content">
 
+            <!-- Rating Title Section -->
             <section class="mb-8 p-6 bg-white rounded-xl shadow-lg">
                 <h2 class="text-xl font-bold text-gray-800 mb-4" data-i18n="ratePage.ratingTitle">点评标题 <span class="text-red-500">*</span></h2>
                 <input type="text" id="rating-title" maxlength="22" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 focus:border-indigo-500 focus:ring-indigo-500" data-i18n="ratePage.ratingTitlePlaceholder" placeholder="填写标题会被更多人看到 (最多22字)">
                 <p id="title-char-count" class="text-xs text-gray-500 text-right mt-1">0 / 22</p>
             </section>
 
+            <!-- Image Upload Section -->
             <section class="mb-8 p-6 bg-white rounded-xl shadow-lg">
                 <h2 class="text-xl font-bold text-gray-800 mb-4" data-i18n="ratePage.uploadImages" data-i18n-options='{ "max": 5 }'>上传图片 (最多5张, 可拖拽排序) <span class="text-red-500">*</span></h2>
                 <p class="text-sm text-gray-600 mb-3" data-i18n="ratePage.uploadImagesDesc">第一张图片将作为封面图显示。点击图片左下角按钮更换封面。</p>
@@ -145,14 +152,17 @@
                 </div>
             </section>
 
+            <!-- Review and Flavors Section -->
             <section class="mb-8 p-6 bg-white rounded-xl shadow-lg">
                 <h2 class="text-xl font-bold text-gray-800 mb-4" data-i18n="ratePage.reviewAndFlavors">文字评价与风味选择</h2>
+                <!-- Flavor Buttons -->
                 <div class="mb-4 border-b pb-4">
                     <label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="ratePage.selectFlavors">选择您感受到的主要风味 (可选):</label>
                     <div id="flavor-buttons-container" class="flex flex-wrap">
                         <!-- Flavor buttons will be rendered here -->
                     </div>
                 </div>
+                <!-- Detailed Review Textarea -->
                 <div>
                     <label for="cigar-review" class="block text-sm font-medium text-gray-700 mb-2" data-i18n="ratePage.detailedReview">详细文字评价:</label>
                     <textarea id="cigar-review" rows="6" maxlength="1500" class="w-full p-3 border rounded-md focus:border-indigo-500 focus:ring-indigo-500" data-i18n="ratePage.reviewPlaceholder" placeholder="在此处输入您的详细品吸感受..."></textarea>
@@ -160,6 +170,7 @@
                 </div>
             </section>
 
+            <!-- Cigar Information Section -->
             <section class="mb-8 p-6 bg-white rounded-xl shadow-lg">
                 <h2 class="text-xl font-bold text-gray-800 mb-4" data-i18n="ratePage.cigarInfo">雪茄信息</h2>
                  <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -178,10 +189,12 @@
                  </div>
             </section>
 
+            <!-- Dynamic Rating Form Container -->
             <div id="rating-form-container">
-                <!-- Rating criteria will be rendered here -->
+                <!-- Rating criteria will be rendered here by JS -->
             </div>
 
+            <!-- Action Buttons -->
             <div class="mt-8 grid grid-cols-2 gap-4">
                 <button onclick="resetRatings()" class="w-full py-3 px-6 bg-red-500 text-white font-bold text-lg rounded-lg shadow-md hover:bg-red-600" data-i18n="ratePage.reset">重置</button>
                 <button id="main-action-button" onclick="showResults()" class="w-full py-3 px-6 bg-green-600 text-white font-bold text-lg rounded-lg shadow-md hover:bg-green-700" data-i18n="ratePage.viewReport">查看报告</button>
@@ -209,6 +222,7 @@
     <script type="module">
         // --- i18n Functions ---
         async function initI18n() {
+            // Initialize i18next with backend and language detector
             await i18next
                 .use(i18nextHttpBackend)
                 .use(i18nextBrowserLanguageDetector)
@@ -229,7 +243,7 @@
         }
 
         function updateContent() {
-            // Update static elements with data-i18n attribute
+             // Update static elements with data-i18n attribute
             document.querySelectorAll('[data-i18n]').forEach(el => {
                 const key = el.getAttribute('data-i18n');
                 const options = el.dataset.i18nOptions ? JSON.parse(el.dataset.i18nOptions) : undefined;
@@ -253,6 +267,7 @@
         }
 
         function setupLanguageSwitcher() {
+            // Setup language dropdown functionality
             const switcher = document.getElementById('language-switcher');
             if (!switcher) return;
             // Set initial value based on detected language
@@ -274,27 +289,31 @@
         // --- End i18n Functions ---
 
         // --- Global Variables ---
-        let ratingConfig = null; // Holds the structure fetched from API
-        let userRatings = {}; // Holds user's selections { "categoryKey-criterionKey": optionIndex }
-        let currentAuthUser = null; // Holds user info after login
-        let currentImageKeys = []; // Array of R2 image keys, order matters (index 0 is cover)
-        let sortableInstance = null; // Instance for SortableJS on image previews
-        let isEditMode = false; // Flag for editing an existing rating
-        let editRatingId = null; // ID of the rating being edited
-        let cropper = null; // CropperJS instance
-        let selectedFlavors = []; // Array of selected flavor *keys* (e.g., "flavors.coffee")
+        let ratingConfig = null;        // Stores the rating configuration loaded from API
+        let userRatings = {};           // Stores user's selections { "categoryKey-criterionKey": optionIndex }
+        let currentAuthUser = null;     // Stores logged-in user info from Authing/API
+        let currentImageKeys = [];      // Array of uploaded image keys (UUIDs) from R2
+        let sortableInstance = null;    // Instance of SortableJS for image reordering
+        let isEditMode = false;         // Flag indicating if the page is in edit mode
+        let editRatingId = null;        // ID of the rating being edited
+        let cropper = null;             // Cropper.js instance
+        let selectedFlavors = [];       // Array of selected flavor i18n keys
 
-        // DOM Element references for modals and cropper
+        // DOM Element References (cached for performance)
         const cropperModal = document.getElementById('cropper-modal');
         const cropperImage = document.getElementById('cropper-image');
         const cropperStatus = document.getElementById('cropper-status');
+        const titleInput = document.getElementById('rating-title');
+        const titleCharCount = document.getElementById('title-char-count');
+        const reviewTextarea = document.getElementById('cigar-review');
+        const reviewCharCount = document.getElementById('review-char-count');
+        const imageGrid = document.getElementById('image-preview-grid');
+        const mainActionButton = document.getElementById('main-action-button');
 
-        // Authing configuration constants
-        const AUTHING_APP_ID = '68f5b0b6875017c02b3bfdb3'; // Replace with your actual App ID
-        const AUTHING_HOST = 'https://xfvu647mcdbk-demo.authing.cn'; // Replace with your actual Authing host
-
-        // Grading scale (used for calculating final grade, relies on i18n keys)
-        const GRADING_SCALE = [
+        // Constants
+        const AUTHING_APP_ID = '68f5b0b6875017c02b3bfdb3'; // Authing Application ID
+        const AUTHING_HOST = 'https://xfvu647mcdbk-demo.authing.cn'; // Authing Host URL
+        const GRADING_SCALE = [ // Defines score ranges and i18n keys for grades
             { "grade": "P", "nameKey": "resultsPage.grade.P", "min_score": 95 },
             { "grade": "I", "nameKey": "resultsPage.grade.I", "min_score": 90 },
             { "grade": "S", "nameKey": "resultsPage.grade.S", "min_score": 80 },
@@ -304,9 +323,7 @@
             { "grade": "H", "nameKey": "resultsPage.grade.H", "min_score": 30 },
             { "grade": "O", "nameKey": "resultsPage.grade.O", "min_score": 0 }
         ];
-
-        // Define FLAVOR_KEYS using i18n keys
-        const FLAVOR_KEYS = [
+        const FLAVOR_KEYS = [ // i18n keys for flavor options
              "flavors.coffee", "flavors.chocolate", "flavors.cedar", "flavors.earth",
              "flavors.hay", "flavors.leather", "flavors.nuts", "flavors.spice",
              "flavors.wood", "flavors.sweetness", "flavors.cream", "flavors.floral",
@@ -315,173 +332,181 @@
 
 
         // --- Authentication ---
+        // Initiates Authing login process
         window.login = function() {
-            const redirectUri = window.location.origin + window.location.pathname; // Use current page as redirect
+            const redirectUri = window.location.origin; // Use base origin for redirect
             const authorizeUrl = new URL('/oidc/auth', AUTHING_HOST);
             authorizeUrl.search = new URLSearchParams({
                 client_id: AUTHING_APP_ID,
-                redirect_uri: redirectUri,
+                redirect_uri: redirectUri, // Pass base origin
                 response_type: 'code',
-                scope: 'openid profile email phone', // Request necessary scopes
-                state: Math.random().toString(36).substring(2) // Basic CSRF protection
+                scope: 'openid profile email phone',
+                state: Math.random().toString(36).substring(2) // Random state for security
             }).toString();
-            window.location.href = authorizeUrl.toString();
+            window.location.href = authorizeUrl.toString(); // Redirect to Authing
         }
 
+        // Initiates Authing logout process
         window.logout = function() {
             const logoutUrl = new URL('/oidc/session/end', AUTHING_HOST);
-             // Redirect back to the current page after logout
+             // Redirect back to the base origin after logout
             logoutUrl.search = new URLSearchParams({
-                post_logout_redirect_uri: window.location.origin + window.location.pathname
+                post_logout_redirect_uri: window.location.origin // Use base origin
             }).toString();
+            // Clear local session data
             sessionStorage.removeItem('userInfo');
             sessionStorage.removeItem('accessToken');
-            window.location.href = logoutUrl.toString();
+            window.location.href = logoutUrl.toString(); // Redirect to Authing logout
         }
 
+        // Updates the UI to show login/logout button and user info
         function renderLoginStatus(user) {
             const container = document.getElementById('login-status-container');
             const loginPrompt = document.getElementById('login-prompt');
             const mainContent = document.getElementById('main-content');
-            if (!container) return; // Ensure container exists
+            if (!container || !i18next.isInitialized) return; // Ensure container and i18n exist
 
-            if (user) {
-                // User is logged in
-                const displayName = user.nickname || user.name || user.preferred_username || user.email || i18next.t('nav.loggedIn'); // Use i18n fallback
+            if (user) { // User is logged in
+                const displayName = user.nickname || user.name || user.preferred_username || user.email || i18next.t('nav.loggedIn');
                 container.innerHTML = `<span class="text-sm font-medium text-gray-700 mr-2 hidden sm:inline">${displayName}</span><button onclick="logout()" class="px-3 py-1 text-xs font-medium rounded-full bg-red-500 text-white hover:bg-red-600">${i18next.t('nav.logout')}</button>`;
-                if (loginPrompt) loginPrompt.classList.add('hidden'); // Hide login prompt
-                if (mainContent) mainContent.style.display = 'block'; // Show main content
-            } else {
-                // User is not logged in
+                if (loginPrompt) loginPrompt.classList.add('hidden');
+                if (mainContent) mainContent.style.display = 'block'; // Show rating form
+            } else { // User is not logged in
                 container.innerHTML = `<button onclick="login()" class="px-3 py-1 text-xs font-medium rounded-full bg-green-500 text-white hover:bg-green-600">${i18next.t('nav.login')}</button>`;
-                if (loginPrompt) loginPrompt.classList.remove('hidden'); // Show login prompt
-                if (mainContent) mainContent.style.display = 'none'; // Hide main content
+                if (loginPrompt) loginPrompt.classList.remove('hidden');
+                if (mainContent) mainContent.style.display = 'none'; // Hide rating form
             }
         }
 
+        // Renders admin-specific navigation links if user has permissions
         function renderAdminLinks() {
             const adminLinksContainer = document.getElementById('admin-links-container');
             adminLinksContainer.innerHTML = ''; // Clear previous links
-            if (!adminLinksContainer || !currentAuthUser) return; // Exit if container or user not available
+            if (!adminLinksContainer || !currentAuthUser) return;
 
-            const userRole = currentAuthUser.db_role; // Get role from our DB check
+            const userRole = currentAuthUser.db_role; // Role from our database
             const isAdmin = userRole === 'admin' || userRole === 'super_admin';
             const isSuperAdmin = userRole === 'super_admin';
 
+            // Show config link for admins and super admins
             if (isAdmin) {
                 adminLinksContainer.innerHTML += `<a href="cigar_rating_config.html" class="flex items-center px-3 py-1.5 border text-xs font-medium rounded-full text-white bg-blue-600 hover:bg-blue-500 transition duration-150">${i18next.t('nav.configAdmin')}</a>`;
             }
+            // Show user management link only for super admins
             if (isSuperAdmin) {
                 adminLinksContainer.innerHTML += `<a href="role_management.html" class="flex items-center px-3 py-1.5 border text-xs font-medium rounded-full text-yellow-100 bg-purple-600 hover:bg-purple-500 ml-2 transition duration-150">${i18next.t('nav.userAdmin')}</a>`;
             }
         }
 
+        // Handles the OIDC callback from Authing after successful login
         async function handleOidcCallback(code) {
             try {
-                const redirectUri = window.location.origin + window.location.pathname; // Match the redirect used in login()
+                const redirectUri = window.location.origin; // Use base origin
                 const apiUrl = new URL('/api/authing/callback', window.location.origin);
+                // Send the code and redirect URI to our backend function
                 const response = await fetch(apiUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ code: code, redirect_uri: redirectUri }) // Send the correct redirect_uri
+                    body: JSON.stringify({ code: code, redirect_uri: redirectUri }) // Send base origin
                 });
-                if (!response.ok) {
+                if (!response.ok) { // Handle errors from our backend
                     let errorText = i18next.t('errors.authCallbackFailed', { status: response.status });
                     try { const err = await response.json(); errorText = err.error || errorText; } catch(e){}
                     throw new Error(errorText);
                 }
-                const fullUserProfile = await response.json();
+                const fullUserProfile = await response.json(); // Contains Authing info + db_role
+                // Store user info and token in session storage
                 sessionStorage.setItem('userInfo', JSON.stringify(fullUserProfile));
                 sessionStorage.setItem('accessToken', fullUserProfile.accessToken);
                 return fullUserProfile;
             } catch (e) {
-                console.error('认证回调处理失败:', e);
+                console.error('Authing callback handling failed:', e);
                 alert(i18next.t('errors.loginFailed', { message: e.message }));
+                // Clear any partial session data on failure
                 sessionStorage.removeItem('userInfo');
                 sessionStorage.removeItem('accessToken');
                 return null;
             } finally {
-                // Clean up URL by removing code and state parameters
-                const cleanUrl = window.location.origin + window.location.pathname + window.location.search.replace(/&?code=[^&]*/, '').replace(/&?state=[^&]*/, '');
+                // Clean up URL by removing code and state parameters from the address bar
+                const cleanUrl = window.location.origin + window.location.pathname;
                 window.history.replaceState({}, document.title, cleanUrl);
             }
         }
 
+        // Validates the existing session token by calling our /api/me endpoint
         async function validateSessionAndGetUser() {
-            const token = sessionStorage.getItem('accessToken');
-            if (!token) return null;
+             const token = sessionStorage.getItem('accessToken');
+            if (!token) return null; // No token, definitely not logged in
             try {
-                // Call our '/api/me' endpoint which validates the token AND gets the DB role
+                // Call our '/api/me' endpoint which validates the token with Authing AND gets the DB role
                 const apiUrl = new URL('/api/me', window.location.origin);
                 const response = await fetch(apiUrl, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
-                if (!response.ok) {
-                    // Token invalid or expired, clear session
+                if (!response.ok) { // Token invalid or expired
                     sessionStorage.removeItem('userInfo');
                     sessionStorage.removeItem('accessToken');
                     return null;
                 }
-                const fullUserProfile = await response.json();
+                const fullUserProfile = await response.json(); // Contains Authing info + db_role
                 // Refresh userInfo in sessionStorage (in case role/nickname changed)
                 sessionStorage.setItem('userInfo', JSON.stringify(fullUserProfile));
-                return fullUserProfile; // Contains db_role
+                return fullUserProfile;
             } catch (e) {
-                console.error("Session validation failed:", e);
+                console.error("Session validation network/fetch error:", e);
                 return null; // Treat errors as logged out
             }
         }
 
-        // Helper function to set the current user and update UI
+        // Helper function to update the global user state and UI
         function setUser(user) {
             currentAuthUser = user;
-            renderLoginStatus(currentAuthUser); // Update login/logout button and visibility
-            setTimeout(() => { renderAdminLinks(); }, 0); // Update admin links (needs timeout for DOM update)
+            renderLoginStatus(currentAuthUser); // Update login/logout button and main content visibility
+            // Update admin links (needs timeout for DOM update after login status change)
+            setTimeout(() => { renderAdminLinks(); }, 0);
         }
         // --- End Authentication ---
 
 
         // --- Flavor Selection Logic ---
-        // Uses FLAVOR_KEYS and i18n
+        // Renders the flavor selection buttons based on FLAVOR_KEYS
         function renderFlavorButtons() {
             const container = document.getElementById('flavor-buttons-container');
-            if (!container || !i18next.isInitialized) return; // Ensure container and i18n are ready
+            if (!container || !i18next.isInitialized) return;
             container.innerHTML = ''; // Clear previous buttons
             FLAVOR_KEYS.forEach(flavorKey => {
                 const isSelected = selectedFlavors.includes(flavorKey);
                 const button = document.createElement('button');
                 button.type = 'button';
                 button.className = `flavor-btn ${isSelected ? 'selected' : ''}`;
-                button.textContent = i18next.t(flavorKey); // Display translated flavor
-                button.dataset.flavorKey = flavorKey; // Store the key on the button
+                button.textContent = i18next.t(flavorKey); // Display translated flavor name
+                button.dataset.flavorKey = flavorKey; // Store the key on the button for toggling
                 button.onclick = () => toggleFlavorSelection(flavorKey, button);
                 container.appendChild(button);
             });
         }
 
-        // Works with flavorKey
+        // Toggles the selection state of a flavor button and updates the selectedFlavors array
         function toggleFlavorSelection(flavorKey, button) {
-            const index = selectedFlavors.indexOf(flavorKey);
-            if (index > -1) {
-                // Flavor is selected, remove it
-                selectedFlavors.splice(index, 1);
+             const index = selectedFlavors.indexOf(flavorKey);
+            if (index > -1) { // Flavor is currently selected
+                selectedFlavors.splice(index, 1); // Remove key from array
                 button.classList.remove('selected');
-            } else {
-                // Flavor is not selected, add it
-                selectedFlavors.push(flavorKey);
+            } else { // Flavor is not selected
+                selectedFlavors.push(flavorKey); // Add key to array
                 button.classList.add('selected');
             }
-            console.log("Selected flavor keys:", selectedFlavors); // Log the keys
+            // console.log("Selected flavor keys:", selectedFlavors); // For debugging
         }
         // --- End Flavor Selection ---
 
 
-        // --- Image Handling (with Sorting and Cover Selection) ---
-        const MAX_IMAGES = 5; // Maximum number of images allowed
-        let filesToProcess = []; // Array of files selected by user, waiting for cropping/upload
-        let currentFileIndex = 0; // Index of the file currently being processed
+        // --- Image Handling (Upload, Crop, Sort, Delete) ---
+        const MAX_IMAGES = 5;       // Maximum number of images allowed
+        let filesToProcess = [];    // Array of files selected by user, waiting for cropping/upload
+        let currentFileIndex = 0;   // Index of the file currently being processed
 
-        // Function to render the image previews in the grid
+        // Renders image previews in the grid based on currentImageKeys array
         function renderImagePreviews() {
             const grid = document.getElementById('image-preview-grid');
             const uploadLabel = document.getElementById('image-upload-label');
@@ -490,16 +515,12 @@
 
             currentImageKeys.forEach((key, index) => {
                 const item = document.createElement('div');
-                item.className = `preview-item ${index === 0 ? 'is-cover' : ''}`; // Add 'is-cover' class to the first image
-                item.dataset.key = key; // Store the image key
-
-                // Use i18n for button text/titles
+                item.className = `preview-item ${index === 0 ? 'is-cover' : ''}`; // Mark first item as cover
+                item.dataset.key = key; // Store the image key (UUID)
                 const coverButtonText = index === 0 ? i18next.t('common.cover') : i18next.t('ratePage.setCover');
-                const deleteTitle = i18next.t('common.delete') + ' ' + i18next.t('common.image');
-
                 item.innerHTML = `
                     <img src="/api/image/${key}" alt="${i18next.t('common.image')} ${index + 1}">
-                    <button class="remove-btn" onclick="removeImage(${index})" title="${deleteTitle}">&times;</button>
+                    <button class="remove-btn" onclick="removeImage(${index})" title="${i18next.t('common.delete')} ${i18next.t('common.image')}">&times;</button>
                     <button class="set-cover-btn" onclick="setCoverImage(${index})" title="${coverButtonText}">
                         ${coverButtonText}
                     </button>
@@ -519,70 +540,65 @@
             }
         }
 
-        // Initialize SortableJS for drag-and-drop reordering of images
+        // Initializes SortableJS library for drag-and-drop image reordering
         function initializeSortable() {
-            const grid = document.getElementById('image-preview-grid');
             if (sortableInstance) {
                 sortableInstance.destroy(); // Destroy previous instance if exists
             }
-            sortableInstance = new Sortable(grid, {
+            sortableInstance = new Sortable(imageGrid, {
                 animation: 150, // Animation speed
-                ghostClass: 'sortable-ghost', // Class for the placeholder
-                dragClass: 'sortable-drag', // Class for the item being dragged
-                onEnd: function (evt) {
-                    // Update the order of keys in currentImageKeys array
-                    const movedItemKey = currentImageKeys.splice(evt.oldIndex, 1)[0];
-                    currentImageKeys.splice(evt.newIndex, 0, movedItemKey);
-                    // Re-render previews to update cover status and button text
-                    renderImagePreviews();
-                }
+                ghostClass: 'sortable-ghost', // Class for placeholder
+                dragClass: 'sortable-drag',   // Class for item being dragged
+                onEnd: function (evt) { // Callback when dragging ends
+                    // Rearrange the currentImageKeys array based on the new order
+                    const movedItem = currentImageKeys.splice(evt.oldIndex, 1)[0];
+                    currentImageKeys.splice(evt.newIndex, 0, movedItem);
+                    renderImagePreviews(); // Re-render previews to update cover status/buttons
+                },
             });
         }
 
-        // Function called when "Set Cover" button is clicked
+        // Sets the image at the given index as the cover image (moves it to index 0)
         window.setCoverImage = function(index) {
-            if (index > 0 && index < currentImageKeys.length) {
-                // Move the selected image key to the beginning of the array
-                const newCoverKey = currentImageKeys.splice(index, 1)[0];
-                currentImageKeys.unshift(newCoverKey);
-                // Re-render previews to reflect the change
-                renderImagePreviews();
-            }
+            if (index === 0 || index >= currentImageKeys.length) return; // Already cover or invalid index
+            const keyToMove = currentImageKeys.splice(index, 1)[0]; // Remove item
+            currentImageKeys.unshift(keyToMove); // Add to beginning
+            renderImagePreviews(); // Re-render to update UI
         }
 
-        // Function called when remove (×) button is clicked
+        // Removes the image at the specified index
         window.removeImage = function(indexToRemove) {
-            if (indexToRemove >= 0 && indexToRemove < currentImageKeys.length) {
-                currentImageKeys.splice(indexToRemove, 1); // Remove the key
-                renderImagePreviews(); // Re-render previews
-            }
+            if (indexToRemove < 0 || indexToRemove >= currentImageKeys.length) return;
+            // Note: We don't delete from R2 here, only remove from the list for this rating.
+            // Actual deletion might happen if the rating itself is deleted later.
+            currentImageKeys.splice(indexToRemove, 1);
+            renderImagePreviews(); // Re-render previews
         }
 
-        // Function called when files are selected via the input
+        // Handles file selection from the input element
         window.handleFileSelect = function(event) {
             const status = document.getElementById('image-upload-status');
             status.textContent = ''; // Clear previous status
             const selectedFiles = Array.from(event.target.files);
             if (selectedFiles.length === 0) return;
 
-            // Check if user is logged in
-            if (!currentAuthUser) {
+            if (!currentAuthUser) { // Check login status
                 alert(i18next.t('ratePage.loginToUpload'));
                 return;
             }
 
+            // Filter selected files based on limits, size, and type
             const allowedFiles = [];
-            // Filter selected files based on count, size, and type
             for (const file of selectedFiles) {
                 if (currentImageKeys.length + allowedFiles.length >= MAX_IMAGES) {
                     alert(i18next.t('ratePage.maxImages', { max: MAX_IMAGES }));
-                    break; // Stop processing if max count reached
+                    break; // Stop processing if max limit reached
                 }
-                if (file.size > 5 * 1024 * 1024) { // 5MB limit
+                if (file.size > 5 * 1024 * 1024) { // Check size (5MB)
                     alert(i18next.t('ratePage.imageTooLarge', { name: file.name }));
                     continue; // Skip this file
                 }
-                if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+                if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) { // Check type
                     alert(i18next.t('ratePage.imageTypeNotSupported', { name: file.name }));
                     continue; // Skip this file
                 }
@@ -595,223 +611,209 @@
                 currentFileIndex = 0;
                 showCropperForNextFile();
             }
-            event.target.value = null; // Reset file input
+
+            event.target.value = null; // Reset file input to allow selecting the same file again
         }
 
-        // Show the cropper modal for the next file in the queue
+        // Shows the cropper modal for the next file in the filesToProcess array
         function showCropperForNextFile() {
-            if (currentFileIndex >= filesToProcess.length) {
-                // All files processed
-                filesToProcess = [];
-                cancelCrop(); // Hide modal
+            if (currentFileIndex >= filesToProcess.length) { // All files processed
+                filesToProcess = []; // Clear the processing queue
+                cancelCrop(); // Close the modal
                 return;
             }
+
             const file = filesToProcess[currentFileIndex];
             const reader = new FileReader();
-            reader.onload = (e) => {
+            reader.onload = (e) => { // When file is read
                 cropperModal.classList.remove('hidden'); // Show modal
-                cropperImage.src = e.target.result; // Load image data
-                if (cropper) cropper.destroy(); // Destroy previous cropper instance
-                // Initialize CropperJS
+                cropperImage.src = e.target.result; // Set image source for cropper
+
+                // Initialize or reinitialize Cropper.js
+                if (cropper) cropper.destroy();
                 cropper = new Cropper(cropperImage, {
-                    aspectRatio: 1179 / 1572, // Set aspect ratio
+                    aspectRatio: 1179 / 1572, // Set aspect ratio for consistency
                     viewMode: 1, // Restrict crop box to canvas
                     autoCropArea: 0.9, // Initial crop area size
-                    background: false, // No grid background
+                    background: false, // Hide grid background
                 });
                 // Update status message
                 cropperStatus.textContent = i18next.t('ratePage.processingImage', { current: currentFileIndex + 1, total: filesToProcess.length });
             };
-            reader.readAsDataURL(file); // Read file as Data URL
+            reader.readAsDataURL(file); // Read the file as Data URL
         }
 
-        // Function called when "Confirm & Upload" is clicked in the modal
+        // Confirms the crop, uploads the cropped image, and proceeds to the next file
         window.confirmCropAndUpload = async function() {
-            if (!cropper || !filesToProcess[currentFileIndex]) return;
+            if (!cropper || !filesToProcess[currentFileIndex]) return; // Safety check
 
             const token = sessionStorage.getItem('accessToken');
-            if (!token) {
-                alert(i18next.t('common.sessionExpired')); // Use i18n
+            if (!token) { // Check login token
+                alert(i18next.t('common.sessionExpired'));
+                cancelCrop(); // Close modal on error
                 return;
             }
 
-            cropperStatus.textContent = i18next.t('ratePage.croppingAndUploading', { current: currentFileIndex + 1 }); // Update status
+            cropperStatus.textContent = i18next.t('ratePage.croppingAndUploading', { current: currentFileIndex + 1 });
             const originalFileName = filesToProcess[currentFileIndex].name;
 
-            // Get cropped image data as a canvas
+            // Get cropped canvas data as a Blob (JPEG format, 90% quality)
             const canvas = cropper.getCroppedCanvas({
-                width: 600, // Desired width
-                height: 800, // Desired height based on aspect ratio
+                width: 600, // Standard width for uploaded images
+                height: 800, // Standard height based on aspect ratio
                 imageSmoothingQuality: 'high',
             });
 
-            // Convert canvas to Blob (JPEG format, 90% quality)
             canvas.toBlob(async (blob) => {
-                if (!blob) {
+                if (!blob) { // Handle blob creation failure
                     cropperStatus.textContent = i18next.t('ratePage.cropFailed');
                     return;
                 }
-                try {
-                    const formData = new FormData();
-                    // Append blob with original filename (extension might change due to conversion)
-                    formData.append('image', blob, originalFileName.replace(/\.\w+$/, '.jpg'));
 
-                    // Send blob to the upload API endpoint
+                try {
+                    // Create FormData to send the blob to the API
+                    const formData = new FormData();
+                    // Append blob with original filename (API generates UUID anyway)
+                    formData.append('image', blob, originalFileName);
+
+                    // Call the upload API endpoint
                     const response = await fetch('/api/upload-image', {
                         method: 'POST',
-                        headers: { 'Authorization': `Bearer ${token}` },
+                        headers: { 'Authorization': `Bearer ${token}` }, // Add auth token
                         body: formData
                     });
                     const result = await response.json();
-                    if (!response.ok) throw new Error(result.error || 'Upload failed');
+                    if (!response.ok) throw new Error(result.error || 'Upload failed'); // Handle API errors
 
-                    currentImageKeys.push(result.imageKey); // Add the returned key
-                    renderImagePreviews(); // Update previews
-                    currentFileIndex++; // Move to the next file
-                    showCropperForNextFile(); // Show cropper for the next file or close modal
+                    // Upload successful, add the returned key to our list
+                    currentImageKeys.push(result.imageKey);
+                    renderImagePreviews(); // Update the UI
+
+                    // Process the next file
+                    currentFileIndex++;
+                    showCropperForNextFile();
+
                 } catch (e) {
-                    console.error("上传图片失败:", e);
-                    cropperStatus.textContent = i18next.t('ratePage.uploadFailed', { msg: e.message }); // Show error
+                    console.error("Image upload failed:", e);
+                    cropperStatus.textContent = i18next.t('ratePage.uploadFailed', { msg: e.message });
+                    // Don't proceed to next file on error, let user retry or cancel
                 }
-            }, 'image/jpeg', 0.9); // Specify MIME type and quality
+            }, 'image/jpeg', 0.9); // Output as JPEG with 90% quality
         }
 
-        // Function called when "Cancel" is clicked in the modal
+        // Cancels the cropping process and closes the modal
         window.cancelCrop = function() {
-            if (cropper) cropper.destroy(); // Clean up cropper instance
-            cropper = null;
-            cropperImage.src = ''; // Clear image source
             cropperModal.classList.add('hidden'); // Hide modal
+            if (cropper) {
+                cropper.destroy(); // Destroy cropper instance
+                cropper = null;
+            }
+            cropperImage.src = ''; // Clear image source
             cropperStatus.textContent = ''; // Clear status message
-            // Optionally clear remaining filesToProcess if needed
-            // filesToProcess = [];
         }
         // --- End Image Handling ---
 
 
         // --- Core Rating Logic ---
-        // Function to load the rating configuration from the API
+        // Loads the rating configuration from the API
         async function loadConfig() {
             document.getElementById('config-load-status').textContent = i18next.t('ratePage.configSyncing');
             try {
-                const apiUrl = new URL('/api/config/latest', window.location.origin);
+                const apiUrl = new URL('/api/config/latest', window.location.origin); // Fetch 'latest' config
                 const response = await fetch(apiUrl);
                 if (!response.ok) throw new Error(`Server error: ${response.statusText}`);
-                ratingConfig = await response.json();
+                ratingConfig = await response.json(); // Store config globally
                 if (!ratingConfig || !ratingConfig.ratingCriteria) throw new Error("Loaded config is invalid.");
 
-                calculateWeights(ratingConfig); // Calculate total weights and counts
-                userRatings = {}; // Reset user selections
-                renderRatingView(); // Render the form based on the config
-                renderFlavorButtons(); // Render flavor buttons (now uses i18n keys)
+                // Pre-calculate total criteria count and max score for progress display
+                calculateWeights(ratingConfig);
+
+                // Initialize/reset user selections and render the rating form
+                userRatings = {};
+                renderRatingView();
                 document.getElementById('config-load-status').textContent = i18next.t('ratePage.configSynced');
             } catch (error) {
-                console.error("加载配置失败:", error);
+                console.error("Failed to load rating config:", error);
                 document.getElementById('config-load-status').textContent = i18next.t('ratePage.configFailed');
-                alert(`Failed to load core app config. Please refresh.\nDetails: ${error.message}`);
-                // Optionally disable the form or show a more prominent error
+                // Display error and potentially prevent rating
+                alert(`Failed to load core app configuration. Please refresh.\nDetails: ${error.message}`);
+                // Optionally disable the form here
             }
         }
 
-        // Generates a unique ID for each criterion based on its i18n key
+        // Generates a unique ID string for a rating criterion based on its category and name keys
         function getRatingId(categoryKey, criterionKey) {
-            // Use keys directly for a stable ID
+            // Use keys directly to ensure consistency regardless of language
             return `${categoryKey}-${criterionKey}`;
         }
 
-        // Calculate total possible weight and number of criteria from the config
+        // Pre-calculates total criteria count and theoretical maximum score
         function calculateWeights(config) {
-            let totalWeight = 0;
-            let criteriaCount = 0;
-            if (config && config.ratingCriteria) {
-                config.ratingCriteria.forEach(cat => {
-                    if (cat.criteriaList) {
-                        cat.criteriaList.forEach(crit => {
-                            totalWeight += (crit.weight || 0);
-                            criteriaCount++;
-                        });
-                    }
+            let totalCriteriaCount = 0;
+            let totalWeightMax = 0;
+            (config?.ratingCriteria || []).forEach(category => {
+                (category?.criteriaList || []).forEach(criterion => {
+                    totalCriteriaCount++;
+                    totalWeightMax += criterion.weight || 0;
                 });
-            }
-            config.totalWeightMax = totalWeight; // Store calculated max weight
-            config.totalCriteriaCount = criteriaCount; // Store total criteria count
+            });
+            config.totalCriteriaCount = totalCriteriaCount; // Store on config object
+            config.totalWeightMax = totalWeightMax;         // Store on config object
         }
 
-        // Calculate the user's current total score based on selections
+        // Calculates the current total score based on user selections
         function calculateFinalScore() {
-            let score = 0;
+            let totalScore = 0;
             if (!ratingConfig || !ratingConfig.ratingCriteria) return 0;
 
-            for (const ratingId in userRatings) {
-                // Parse keys from ratingId
-                 // More robust split needed if keys contain hyphens
-                 let categoryKey = '';
-                 let criterionKey = '';
-                 // Try to find a valid category key first by iterating through possible splits
-                 const keys = ratingId.split('-');
-                 for (let i = 1; i < keys.length; i++) {
-                     let potentialCatKey = keys.slice(0, i).join('-');
-                     // Check if this potential key exists in the config's category keys
-                     if (ratingConfig.ratingCriteria.some(cat => cat.categoryKey === potentialCatKey)) {
-                         categoryKey = potentialCatKey;
-                         criterionKey = keys.slice(i).join('-'); // The rest is the criterion key
-                         break;
-                     }
-                 }
+            // Iterate through the config structure
+            ratingConfig.ratingCriteria.forEach(category => {
+                category.criteriaList?.forEach(criterion => {
+                    // Generate the ID using keys
+                    const id = getRatingId(category.categoryKey, criterion.nameKey);
+                    const selectedOptionIndex = userRatings[id]; // Get user's choice for this criterion
 
-                 if (!categoryKey || !criterionKey) {
-                     console.warn("Could not parse keys from ratingId:", ratingId);
-                     continue; // Skip if parsing fails
-                 }
-
-
-                const selectedOptionIndex = userRatings[ratingId];
-
-                // Find the corresponding category and criterion in the config
-                const category = ratingConfig.ratingCriteria.find(cat => cat.categoryKey === categoryKey);
-                const criterion = category?.criteriaList?.find(crit => crit.nameKey === criterionKey);
-
-                if (criterion && criterion.options && selectedOptionIndex < criterion.options.length) {
-                    const weight = criterion.weight || 0;
-                    const scorePct = criterion.options[selectedOptionIndex]?.scorePct || 0;
-                    score += weight * scorePct;
-                } else {
-                     console.warn(`Could not find criterion or option for: ${ratingId} with index ${selectedOptionIndex}`);
-                }
-            }
-            return score;
+                    // If user selected an option and the option exists
+                    if (selectedOptionIndex !== undefined && criterion.options?.[selectedOptionIndex]) {
+                        const option = criterion.options[selectedOptionIndex];
+                        const weight = criterion.weight || 0;
+                        const scorePct = option.scorePct || 0;
+                        totalScore += weight * scorePct; // Add weighted score
+                    }
+                });
+            });
+            return totalScore;
         }
 
-        // Update user's selection for a criterion using keys
+        // Updates user's selection for a criterion and recalculates the score
         window.updateRatingSelection = function(categoryKey, criterionKey, optionIndex) {
-            const id = getRatingId(categoryKey, criterionKey); // Generate ID using keys
-            userRatings[id] = optionIndex; // Store the selected option index
-            renderRatingView(); // Re-render to update score, progress, and button styles
+            const id = getRatingId(categoryKey, criterionKey); // Generate ID from keys
+            if (userRatings[id] === optionIndex) {
+                // If clicking the same option again, deselect it (optional behavior)
+                 // delete userRatings[id];
+                 // console.log(`Deselected: ${id}`);
+                 return; // Keep selected if clicked again - current behavior
+            } else {
+                userRatings[id] = optionIndex; // Store the selected option index
+                // console.log(`Selected: ${id} = ${optionIndex}`);
+            }
+            renderRatingView(); // Re-render the form to update score and button states
         };
 
-        // Render the entire rating form based on the loaded config and user selections
+        // Renders the entire rating form based on the loaded config and user selections
         function renderRatingView() {
-            const formContainer = document.getElementById('rating-form-container');
-            if (!formContainer || !i18next.isInitialized) return; // Exit if container not found or i18n not ready
-
-            // Handle case where config failed to load
-            if (!ratingConfig || !ratingConfig.ratingCriteria) {
+            // Ensure config is loaded and i18n is ready
+            if (!ratingConfig || !ratingConfig.ratingCriteria || !i18next.isInitialized) {
+                const formContainer = document.getElementById('rating-form-container');
                 formContainer.innerHTML = `<div class="text-center p-6 bg-white rounded-lg shadow"><p>${i18next.t('ratePage.configFailed')}</p></div>`;
-                // Update header displays to zero/default
-                document.getElementById('app-title-display').textContent = i18next.t('ratePage.title'); // Default title
-                document.getElementById('app-description-display').textContent = '';
-                document.getElementById('total-weight-max-display').textContent = '0';
-                document.getElementById('current-score-display').textContent = '0.00';
-                document.getElementById('progress-bar').style.width = '0%';
-                document.getElementById('progress-text').textContent = '0 / 0';
                 return;
             };
 
-            // Update header displays
+            // Update header display (score, progress)
             const totalScore = calculateFinalScore();
-            // Use i18n for title/description if keys are provided, otherwise use the text directly
-            document.getElementById('app-title-display').textContent = i18next.t(ratingConfig.appTitle || 'ratePage.title');
-            document.getElementById('app-description-display').textContent = i18next.t(ratingConfig.description || '');
+            // Use i18next.t() for app title and description if they are keys
+            document.getElementById('app-title-display').textContent = i18next.t(ratingConfig.appTitle || "Rating App");
+            document.getElementById('app-description-display').textContent = i18next.t(ratingConfig.description || "Loading description...");
             document.getElementById('total-weight-max-display').textContent = ratingConfig.totalWeightMax ?? 0;
             document.getElementById('current-score-display').textContent = totalScore.toFixed(2);
 
@@ -821,314 +823,294 @@
             document.getElementById('progress-bar').style.width = `${(ratedCount / totalCount) * 100}%`;
             document.getElementById('progress-text').textContent = `${ratedCount} / ${totalCount}`;
 
-            // Generate HTML for each category and its criteria
+            // Get the container for the rating criteria
+            const formContainer = document.getElementById('rating-form-container');
+            // Generate HTML for each category
             formContainer.innerHTML = ratingConfig.ratingCriteria.map((category) => `
                 <div class="bg-white p-6 rounded-xl shadow-lg mb-8 border-l-4 border-indigo-500">
-                    <h3 class="text-xl font-bold text-indigo-700 mb-2">${i18next.t(category.categoryKey || '')}</h3>
-                    <p class="text-gray-500 text-sm mb-4">${i18next.t(category.detailKey || '')}</p>
+                    <h3 class="text-xl font-bold text-indigo-700 mb-2">${i18next.t(category.categoryKey)}</h3>
+                    <p class="text-gray-500 text-sm mb-4">${i18next.t(category.detailKey) || ''}</p>
                     <div class="space-y-6">
                         ${(category.criteriaList || []).map((criterion) => renderRatingCriterion(category.categoryKey, criterion)).join('')}
                     </div>
-                </div>
-            `).join('');
+                </div>`).join('');
         }
 
-        // Render a single criterion section with its options
+        // Renders a single rating criterion section (name, options, score)
         function renderRatingCriterion(categoryKey, criterion) {
-            const criterionKey = criterion.nameKey; // Use the key
-            if (!criterionKey) { console.warn("Criterion missing nameKey:", criterion); return ''; } // Add guard for missing key
+            const criterionKey = criterion.nameKey;
+            const id = getRatingId(categoryKey, criterionKey); // ID based on keys
+            const selectedOptionIndex = userRatings[id]; // User's current selection
+            const currentWeight = criterion.weight || 0;
+            let currentScore = 0; // Score for this specific criterion
 
-            const id = getRatingId(categoryKey, criterionKey); // Generate ID using keys
-            const selectedOptionIndex = userRatings[id]; // Get user selection for this criterion
-            const currentWeight = criterion.weight || 0; // Get weight or default to 0
-            let currentScore = 0; // Calculate score for this criterion based on selection
+            // Calculate score for this criterion if an option is selected
             if (selectedOptionIndex !== undefined && criterion.options?.[selectedOptionIndex]) {
                 currentScore = currentWeight * (criterion.options[selectedOptionIndex].scorePct || 0);
             }
-
-            // Check if current user is super admin to show score details
+            // Check if current user is super admin for displaying weights/scores
             const isSuperAdmin = currentAuthUser?.db_role === 'super_admin';
 
+            // Generate HTML for the criterion
             return `
-                <div class="bg-gray-50 p-4 rounded-lg border">
-                    <div class="flex justify-between items-center mb-3">
-                        <h4 class="text-lg font-semibold text-gray-800">
-                            ${i18next.t(criterionKey)} ${isSuperAdmin ? `(${currentWeight} ${i18next.t('common.points')})` : ''}
-                        </h4>
-                        ${isSuperAdmin ? `<span class="text-xl font-extrabold text-green-600">${currentScore.toFixed(2)}</span>` : ''}
-                    </div>
-                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
-                    ${(criterion.options || []).map((option, optIndex) => {
-                        const isSelected = selectedOptionIndex === optIndex; // Check if this option is selected
-                        const score = (currentWeight * (option.scorePct || 0)).toFixed(2); // Calculate potential score
-                        const descriptionKey = option.descriptionKey; // Use the key
-                        if (!descriptionKey) { console.warn("Option missing descriptionKey:", option); return ''; } // Add guard
-
-                        return `
-                            <button
-                                type="button"
-                                onclick="updateRatingSelection('${categoryKey}', '${criterionKey}', ${optIndex})"
-                                class="p-2 text-sm text-center rounded-lg border transition ${isSelected ? 'bg-indigo-600 text-white shadow-md ring-2 ring-indigo-300 ring-offset-1' : 'bg-white text-gray-700 hover:bg-indigo-50 hover:border-indigo-300'}">
-                                ${i18next.t(descriptionKey)}
-                                ${isSuperAdmin ? `<span class="block text-xs ${isSelected ? 'text-indigo-200' : 'text-gray-500'}">(${i18next.t('common.score')} ${score} ${i18next.t('common.points')})</span>` : ''}
-                            </button>
-                        `;
-                    }).join('')}
-                    </div>
+            <div class="bg-gray-50 p-4 rounded-lg border">
+                <div class="flex justify-between items-center mb-3">
+                    <h4 class="text-lg font-semibold text-gray-800">
+                        ${i18next.t(criterionKey)} ${isSuperAdmin ? `(${currentWeight} pts)` : ''}
+                    </h4>
+                    <span class="text-xl font-extrabold text-green-600">${currentScore.toFixed(2)}</span>
                 </div>
-            `;
+                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
+                ${(criterion.options || []).map((option, optIndex) => {
+                    const isSelected = selectedOptionIndex === optIndex; // Check if this option is selected
+                    const scoreValue = (currentWeight * (option.scorePct || 0)).toFixed(2); // Score for this option
+                    return `<button type="button" onclick="updateRatingSelection('${categoryKey}', '${criterionKey}', ${optIndex})"
+                        class="p-2 text-sm text-center rounded-lg border transition ${isSelected ? 'bg-indigo-600 text-white shadow-md' : 'bg-white hover:bg-indigo-50'}">
+                        ${i18next.t(option.descriptionKey)}
+                        <span class="block text-xs ${isSelected ? 'text-indigo-200' : 'text-gray-500'}">(Score ${scoreValue} pts)</span>
+                    </button>`;
+                }).join('')}
+                </div>
+            </div>`;
         }
         // --- End Core Rating Logic ---
 
 
         // --- Actions (Reset, Show Results / Save Changes) ---
-        // Function to reset all selections and input fields
+        // Resets the entire rating form to its initial state
         window.resetRatings = function() {
-            if (confirm(i18next.t('ratePage.confirmReset'))) {
-                userRatings = {}; // Clear selections
-                // Clear input fields
-                document.getElementById('rating-title').value = '';
+            if (confirm(i18next.t('ratePage.confirmReset'))) { // Ask for confirmation
+                // Clear user selections and input fields
+                userRatings = {};
+                titleInput.value = '';
                 document.getElementById('cigar-name').value = '';
                 document.getElementById('cigar-size').value = '';
                 document.getElementById('cigar-origin').value = '';
-                document.getElementById('cigar-review').value = '';
-                // Clear images and flavors
+                reviewTextarea.value = '';
                 currentImageKeys = [];
                 selectedFlavors = [];
-                renderFlavorButtons(); // Re-render flavors (will be empty)
-                renderImagePreviews(); // Re-render images (will be empty)
 
-                // If in edit mode, switch back to create mode
+                // Re-render components to reflect reset state
+                renderFlavorButtons();
+                renderImagePreviews();
+                renderRatingView(); // This recalculates score and updates progress
+                updateCharCounts(); // Reset character counts
+
+                // If in edit mode, exit edit mode
                 if (isEditMode) {
                     isEditMode = false;
                     editRatingId = null;
-                    const actionButton = document.getElementById('main-action-button');
-                    actionButton.textContent = i18next.t('ratePage.viewReport'); // Change button text back
-                    actionButton.classList.remove('bg-blue-600', 'hover:bg-blue-700');
-                    actionButton.classList.add('bg-green-600', 'hover:bg-green-700'); // Change button color back
-                    // Clean URL
+                    mainActionButton.textContent = i18next.t('ratePage.viewReport'); // Change button text back
+                    mainActionButton.classList.remove('bg-blue-600', 'hover:bg-blue-700'); // Revert button style
+                    mainActionButton.classList.add('bg-green-600', 'hover:bg-green-700');
+                    // Remove edit parameter from URL
                     window.history.replaceState({}, document.title, window.location.pathname);
                 }
-                renderRatingView(); // Re-render the form (will show 0 score etc.)
-                updateCharCounts(); // Reset character counters
             }
         }
 
-        // Prepares resultsData with keys for flavors and handles saving or redirecting
+        // Gathers all data, navigates to results page (new rating) or saves changes (edit mode)
         window.showResults = async function() {
-            // --- Validation Checks ---
             const token = sessionStorage.getItem('accessToken');
-            // Login check (only if creating new, not editing)
-            if (!isEditMode && (!currentAuthUser || !token)) {
+            // Validation checks
+            if (!isEditMode && (!currentAuthUser || !token)) { // Login required for new ratings
                 return alert(i18next.t('ratePage.loginToSubmit'));
             }
-            // Config and selection checks
-            if (!ratingConfig || Object.keys(userRatings).length === 0) {
+            if (!ratingConfig || Object.keys(userRatings).length === 0) { // Check if config loaded and at least one item rated
                 return alert(i18next.t('ratePage.selectOneOption'));
             }
-            // Required field checks
-            const title = document.getElementById('rating-title').value.trim();
-            if (!title) {
+            const title = titleInput.value.trim();
+            if (!title) { // Title required
                 return alert(i18next.t('ratePage.titleRequired'));
             }
-            if (currentImageKeys.length === 0) {
+            if (currentImageKeys.length === 0) { // Image required
                 return alert(i18next.t('ratePage.imageRequired'));
             }
             const cigarNameValue = document.getElementById('cigar-name').value.trim();
-            if (!cigarNameValue) {
+            if (!cigarNameValue) { // Cigar name required
                 return alert(i18next.t('ratePage.nameRequired'));
             }
-            // --- End Validation ---
 
-            // --- Prepare Data ---
+            // Gather data for the results page or saving
             const cigarInfo = {
                 name: cigarNameValue,
-                size: document.getElementById('cigar-size').value || i18next.t('common.unknown'), // Use i18n for default
-                origin: document.getElementById('cigar-origin').value || i18next.t('common.unknown') // Use i18n for default
+                size: document.getElementById('cigar-size').value || i18next.t('common.unknown'), // Use translated 'unknown'
+                origin: document.getElementById('cigar-origin').value || i18next.t('common.unknown') // Use translated 'unknown'
             };
-            const cigarReview = document.getElementById('cigar-review').value || ''; // Default to empty string
+            const cigarReview = reviewTextarea.value || i18next.t('common.noReview'); // Use translated default
             const finalScore = calculateFinalScore();
             const maxScore = ratingConfig.totalWeightMax || 1; // Avoid division by zero
-            const normalizedScore = maxScore > 0 ? (finalScore / maxScore) * 100 : 0;
+            const normalizedScore = maxScore > 0 ? (finalScore / maxScore) * 100 : 0; // Normalize score to 0-100
 
-            // Find the grade based on normalized score
-            const foundGrade = GRADING_SCALE.find(g => normalizedScore >= g.min_score) || GRADING_SCALE[GRADING_SCALE.length - 1]; // Default to lowest grade
-            const finalGrade = foundGrade ? {
+            // Determine grade based on normalized score
+            const foundGrade = GRADING_SCALE.find(g => normalizedScore >= g.min_score) || GRADING_SCALE[GRADING_SCALE.length - 1]; // Find matching grade or use lowest
+            const finalGrade = {
                 grade: foundGrade.grade,
                 nameKey: foundGrade.nameKey, // Pass the i18n key for the grade name
-                color: foundGrade.color
-            } : null; // Should always find a grade
+                color: foundGrade.color      // Pass color associated with the grade
+            };
 
-            // Construct the data object to be saved or passed to results page
+            // Prepare the data object
             const resultsData = {
                 title: title,
-                config: ratingConfig,       // Include the config structure used
-                ratings: userRatings,       // User's selections { "catKey-critKey": index }
-                calculatedScore: finalScore,// Raw score based on weights
+                config: ratingConfig,           // Include the config used for rating
+                ratings: userRatings,           // User's selections { "catKey-critKey": index }
+                calculatedScore: finalScore,    // Raw calculated score
                 cigarInfo: cigarInfo,
                 cigarReview: cigarReview,
-                imageUrls: currentImageKeys,// Array of R2 image keys
+                imageUrls: currentImageKeys,    // Array of image keys
                 normalizedScore: normalizedScore, // Score normalized to 0-100
-                finalGrade: finalGrade,     // Grade object { grade: 'P', nameKey: '...', color: '...' }
-                selectedFlavors: selectedFlavors, // Array of selected flavor *keys*
-                isDraft: !isEditMode        // Mark as draft if creating new
+                finalGrade: finalGrade,         // Grade object { grade, nameKey, color }
+                selectedFlavors: selectedFlavors, // Array of selected flavor keys
+                isDraft: !isEditMode            // Mark as draft if it's a new rating
             };
-            // --- End Prepare Data ---
 
-            // --- Save Changes (Edit Mode) or Show Results (Create Mode) ---
+            // Handle Edit Mode: Save changes via PUT request
             if (isEditMode && editRatingId) {
-                // --- Save Changes Logic ---
-                const actionButton = document.getElementById('main-action-button');
-                actionButton.textContent = i18next.t('common.saving'); // Update button text
-                actionButton.disabled = true;
+                mainActionButton.textContent = i18next.t('common.saving'); // Update button text
+                mainActionButton.disabled = true;
                 try {
-                    if (!token) throw new Error(i18next.t('common.sessionExpired')); // Check token again
+                    if (!token) throw new Error(i18next.t('common.sessionExpiredWrite')); // Re-check token
                     resultsData.ratingId = editRatingId; // Add the ID for the PUT request
                     const apiUrl = new URL(`/api/ratings`, window.location.origin);
                     const response = await fetch(apiUrl, {
-                        method: 'PUT', // Use PUT for update
+                        method: 'PUT', // Use PUT for updates
                         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                         body: JSON.stringify(resultsData)
                     });
-                    if (!response.ok) {
-                        let errorText = i18next.t('errors.saveFailedNoMsg');
-                        try { const err = await response.json(); errorText = err.error || errorText; } catch(e){}
-                        throw new Error(errorText);
-                    }
+                    if (!response.ok) { const err = await response.json(); throw new Error(err.error || 'Update failed'); } // Handle API error
                     alert(i18next.t('common.saveSuccess')); // Show success message
-                    window.location.href = 'history.html'; // Redirect to history page
+                    window.location.href = 'history.html'; // Redirect to history page after saving
                 } catch (e) {
                     alert(i18next.t('common.saveFailed', { msg: e.message })); // Show error message
-                    actionButton.textContent = i18next.t('ratePage.saveChanges'); // Reset button text
-                    actionButton.disabled = false;
+                    // Reset button state on failure
+                    mainActionButton.textContent = i18next.t('ratePage.saveChanges');
+                    mainActionButton.disabled = false;
                 }
-                // --- End Save Changes Logic ---
-            } else {
-                // --- Show Results Logic ---
+            }
+            // Handle New Rating Mode: Store data in session storage and navigate to results page
+            else {
                 try {
-                    // Store the results in session storage for the results page to pick up
+                    // Store the complete rating data for the results page to display
                     sessionStorage.setItem('cigarRatingResults', JSON.stringify(resultsData));
-                    window.location.href = 'results.html'; // Redirect to results page
+                    window.location.href = 'results.html'; // Navigate to results page
                 } catch (e) {
-                    console.error("存储 Session Storage 失败:", e);
-                    alert(i18next.t('common.sessionStoreFailed')); // Show error
+                    console.error("Error storing results in sessionStorage:", e);
+                    alert(i18next.t('common.sessionStoreFailed')); // Show error if storage fails
                 }
-                // --- End Show Results Logic ---
             }
         };
         // --- End Actions ---
 
+        // --- Utility Functions ---
+        // Updates character counts for title and review fields
+        function updateCharCounts() {
+            if(titleInput && titleCharCount) titleCharCount.textContent = `${titleInput.value.length} / 22`;
+            if(reviewTextarea && reviewCharCount) reviewCharCount.textContent = `${reviewTextarea.value.length} / 1500`;
+        }
 
-        // --- Initialization and Edit Mode Handling ---
-        // Function to load data for editing
+        // Loads data for editing if 'edit' parameter is present in URL
         async function loadRatingForEdit(ratingId) {
-             const statusElement = document.getElementById('config-load-status');
-             statusElement.textContent = i18next.t('ratePage.loadingEdit', { id: ratingId.substring(0, 8) }); // Show loading message
+             const status = document.getElementById('config-load-status'); // Use config status area
+             status.textContent = i18next.t('ratePage.loadingEdit', { id: ratingId.substring(0, 8) + '...' });
+             mainActionButton.textContent = i18next.t('ratePage.saveChanges'); // Change button text
+             mainActionButton.classList.remove('bg-green-600', 'hover:bg-green-700'); // Change button style
+             mainActionButton.classList.add('bg-blue-600', 'hover:bg-blue-700');
+             isEditMode = true;
+             editRatingId = ratingId;
+
             try {
                 const token = sessionStorage.getItem('accessToken');
-                if (!token) throw new Error(i18next.t('common.loginRequired')); // Check login
+                if (!token) throw new Error(i18next.t('common.sessionExpiredRead', { status: 'none'}));
 
                 const apiUrl = new URL(`/api/ratings?id=${ratingId}`, window.location.origin);
                 const response = await fetch(apiUrl, { headers: { 'Authorization': `Bearer ${token}` } });
-                if (!response.ok) {
-                     let errorText = i18next.t('ratePage.editLoadFailed', { msg: `Status ${response.status}` });
-                     try { const err = await response.json(); errorText = err.error || errorText; } catch(e){}
-                     throw new Error(errorText);
-                }
+                if (!response.ok) { throw new Error(i18next.t('ratePage.editLoadFailed', { msg: `Status ${response.status}` })); }
+
                 const data = await response.json();
 
                 // Populate form fields
-                document.getElementById('rating-title').value = data.title || '';
+                titleInput.value = data.title || '';
                 document.getElementById('cigar-name').value = data.cigarInfo?.name || '';
                 document.getElementById('cigar-size').value = data.cigarInfo?.size || '';
                 document.getElementById('cigar-origin').value = data.cigarInfo?.origin || '';
-                document.getElementById('cigar-review').value = data.cigarReview || '';
+                reviewTextarea.value = (data.cigarReview && data.cigarReview !== i18next.t('common.noReview')) ? data.cigarReview : '';
+                currentImageKeys = Array.isArray(data.imageUrls) ? data.imageUrls : []; // Ensure it's an array
+                selectedFlavors = Array.isArray(data.selectedFlavors) ? data.selectedFlavors : []; // Load flavor keys
 
-                // Load images
-                currentImageKeys = Array.isArray(data.imageUrl) ? data.imageUrl : (data.imageUrl ? [data.imageUrl] : []);
-                renderImagePreviews();
-                initializeSortable(); // Init sortable after images are loaded
-
-                // Load flavor selections (expecting keys)
-                selectedFlavors = Array.isArray(data.fullData?.selectedFlavors) ? data.fullData.selectedFlavors : []; // Use fullData if available
-                renderFlavorButtons(); // Render and mark selected flavors
-
-                // Load rating selections (using the structure with keys)
-                userRatings = data.fullData?.ratings || {}; // Assumes ratings are stored with key-based IDs
-
-                // Ensure the config is loaded before rendering the view with selections
-                if (!ratingConfig) {
-                    await loadConfig(); // Wait for config if not already loaded
+                // Load user selections (ratings) - critical: use the data from fullData
+                if (data.fullData && data.fullData.ratings) {
+                     userRatings = data.fullData.ratings; // Use the stored ratings object directly
+                } else {
+                     console.warn("Editing rating, but fullData.ratings is missing. Score might be inaccurate.");
+                     userRatings = {}; // Fallback to empty if missing
                 }
-                 // IMPORTANT: Re-render rating view *after* config is potentially loaded and userRatings are set
-                renderRatingView();
+
+                // Re-render UI components
+                renderImagePreviews();
+                renderFlavorButtons();
+                renderRatingView(); // Important: call after userRatings is populated
+                updateCharCounts();
+
+                status.textContent = i18next.t('ratePage.editLoaded', { id: ratingId.substring(0, 8) + '...' });
+            } catch (error) {
+                console.error("Failed to load rating for editing:", error);
+                status.textContent = i18next.t('ratePage.editLoadFailed', { msg: error.message });
+                alert(i18next.t('ratePage.editLoadFailed', { msg: error.message }) + "\n" + i18next.t('common.backToHomePrompt')); // Using generic prompt key
+                window.location.href = 'history.html'; // Redirect back if loading fails
+            }
+        }
+        // --- End Utility Functions ---
 
 
-                statusElement.textContent = i18next.t('ratePage.editLoaded', { id: ratingId.substring(0, 8) }); // Show success message
+        // --- Initialization ---
+        // Runs when the page is fully loaded
+        window.addEventListener('load', async function() {
+            try {
+                 // 1. Initialize i18next for translations
+                 await initI18n();
 
-                // Update button text and style for saving changes
-                const actionButton = document.getElementById('main-action-button');
-                actionButton.textContent = i18next.t('ratePage.saveChanges');
-                actionButton.classList.remove('bg-green-600', 'hover:bg-green-700');
-                actionButton.classList.add('bg-blue-600', 'hover:bg-blue-700');
+                 // 2. Handle Authentication (check URL for code, validate session)
+                 const urlParams = new URLSearchParams(window.location.search);
+                 const code = urlParams.get('code');        // Check for OIDC code from redirect
+                 const editIdParam = urlParams.get('edit'); // Check for edit mode parameter
+
+                 let user = code ? await handleOidcCallback(code) : await validateSessionAndGetUser();
+                 setUser(user); // Update global user state and UI
+
+                 // 3. Setup UI Elements (language switcher, char counts, sortable images)
+                 setupLanguageSwitcher();
+                 titleInput?.addEventListener('input', updateCharCounts); // Add listener if element exists
+                 reviewTextarea?.addEventListener('input', updateCharCounts); // Add listener if element exists
+                 updateCharCounts(); // Initial count update
+                 initializeSortable(); // Setup drag-and-drop for images
+
+                 // 4. Load Core Rating Configuration (essential for rating)
+                 await loadConfig(); // Fetches config from /api/config/latest
+
+                 // 5. Load Data for Editing (if applicable)
+                 // Must happen *after* config is loaded and user is validated
+                 if (editIdParam && currentAuthUser) {
+                      await loadRatingForEdit(editIdParam);
+                 } else {
+                      // Ensure flavor buttons are rendered even if not editing
+                      renderFlavorButtons();
+                 }
 
             } catch (error) {
-                console.error("加载编辑数据失败:", error);
-                statusElement.textContent = i18next.t('ratePage.editLoadFailed', { msg: error.message }); // Show error
-                alert(i18next.t('ratePage.editLoadFailed', { msg: error.message }));
-                // Optionally redirect or disable form
-                window.location.href = 'history.html'; // Redirect back if load fails
+                 console.error("Initialization failed:", error);
+                 // Display a general error message if something critical fails during init
+                 const status = document.getElementById('config-load-status');
+                 if (status) {
+                      status.textContent = i18next.isInitialized ? i18next.t('errors.initFailed', { msg: error.message }) : `Initialization Error: ${error.message}`;
+                      status.style.color = 'red';
+                 }
+                 // Optionally hide the main content if init fails severely
+                 const mainContent = document.getElementById('main-content');
+                 if(mainContent) mainContent.style.display = 'none';
             }
-        }
-
-        // --- Character Counters ---
-        function updateCharCounts() {
-             const titleInput = document.getElementById('rating-title');
-             const reviewInput = document.getElementById('cigar-review');
-             const titleCount = document.getElementById('title-char-count');
-             const reviewCount = document.getElementById('review-char-count');
-             if(titleInput && titleCount) titleCount.textContent = `${titleInput.value.length} / ${titleInput.maxLength}`;
-             if(reviewInput && reviewCount) reviewCount.textContent = `${reviewInput.value.length} / ${reviewInput.maxLength}`;
-        }
-
-        // --- Window Onload ---
-        window.onload = async function() {
-            await initI18n(); // 1. Initialize i18n first
-
-            // 2. Handle Authentication
-            const urlParams = new URLSearchParams(window.location.search);
-            const code = urlParams.get('code');
-            const editIdParam = urlParams.get('edit'); // Check for 'edit' parameter
-            let user = code ? await handleOidcCallback(code) : await validateSessionAndGetUser();
-            setUser(user); // Set user and update UI (login status, admin links)
-
-            // 3. Setup UI elements dependent on i18n
-            setupLanguageSwitcher(); // Setup language switcher now that i18n is ready
-
-            // Add event listeners for character counts
-            document.getElementById('rating-title')?.addEventListener('input', updateCharCounts);
-            document.getElementById('cigar-review')?.addEventListener('input', updateCharCounts);
-
-            // 4. Load Core Config OR Edit Data
-            if (editIdParam && user) { // Only load edit data if logged in
-                // Edit Mode
-                isEditMode = true;
-                editRatingId = editIdParam;
-                // loadConfig will be called inside loadRatingForEdit if needed
-                await loadRatingForEdit(editRatingId);
-            } else if (user) { // Only load config if logged in (for create mode)
-                // Create Mode
-                isEditMode = false;
-                await loadConfig(); // Load the default config for rating
-                renderImagePreviews(); // Render empty image previews
-                initializeSortable(); // Initialize sortable for images
-            } else {
-                 // Not logged in and not an auth callback - main content remains hidden by renderLoginStatus
-                 document.getElementById('config-load-status').textContent = i18next.t('ratePage.loginPrompt');
-            }
-             updateCharCounts(); // Initial count update
-        };
-        // --- End Window Onload ---
+        });
+        // --- End Initialization ---
 
     </script>
 </body>
