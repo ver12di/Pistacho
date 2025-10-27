@@ -155,27 +155,42 @@
         let currentAuthUser = null;
 
         // --- i18n Functions ---
+        
+        // ==================== 修改后的 initI18n ====================
         async function initI18n() {
-            await i18next
-                .use(i18nextHttpBackend)
-                .use(i18nextBrowserLanguageDetector)
-                .init({
-                    fallbackLng: 'zh',
-                    debug: false, // Turn off debug logging
-                    ns: ['translation'],
-                    defaultNS: 'translation',
-                    backend: {
-                        loadPath: '/locales/{{lng}}.json?v=1' 
-                    },
-                    detection: {
-                        order: ['localStorage', 'navigator'],
-                        caches: ['localStorage']
-                    }
-                });
-            // Don't call updateContent here immediately
+            return new Promise((resolve, reject) => { // Wrap in a promise
+                i18next
+                    .use(i18nextHttpBackend)
+                    .use(i18nextBrowserLanguageDetector)
+                    .init({
+                        fallbackLng: 'zh',
+                        debug: true, // Keep debug enabled for now
+                        ns: ['translation'],
+                        defaultNS: 'translation',
+                        backend: {
+                            loadPath: '/locales/{{lng}}.json?v=1' 
+                        },
+                        detection: {
+                            order: ['localStorage', 'navigator'],
+                            caches: ['localStorage']
+                        }
+                    }, (err, t) => { // Use the callback form of init
+                        if (err) {
+                            console.error('i18next initialization failed:', err);
+                            return reject(err); // Reject the promise on error
+                        }
+                        console.log('i18next initialized successfully.');
+                        // Perform initial update *inside* the callback
+                        updateContent(); 
+                        document.title = i18next.t('nav.title') + ' - ' + i18next.t('nav.community'); // Update title here
+                        resolve(); // Resolve the promise once initialized and updated
+                    });
+            });
         }
+        // ==========================================================
 
         function updateContent() {
+            console.log("Running updateContent..."); // Add log
             document.querySelectorAll('[data-i18n]').forEach(el => {
                 const key = el.getAttribute('data-i18n');
                 const value = i18next.t(key);
@@ -192,11 +207,9 @@
                     el.innerHTML = value;
                 }
             });
-            // Update document title
-            document.title = i18next.t('nav.title') + ' - ' + i18next.t('nav.community');
+            console.log("updateContent finished."); // Add log
         }
 
-        // ==================== 新增语言按钮渲染函数 ====================
         function renderLanguageSwitcher() {
             const container = document.getElementById('language-flags');
             if (!container) return;
@@ -211,20 +224,22 @@
                 button.dataset.lang = lang;
                 button.onclick = async (e) => {
                     const newLang = e.target.dataset.lang;
-                    if (newLang === currentLang) return; // Don't reload if same language
+                    if (newLang === currentLang) return; 
                     
+                    console.log(`Changing language to: ${newLang}`); // Add log
                     await i18next.changeLanguage(newLang);
-                    updateContent(); // Update static text
-                    renderLanguageSwitcher(); // Re-render buttons to update active state
-                    renderLoginStatus(currentAuthUser); // Re-render login status text
-                    renderAdminLinks(); // Re-render admin link text
-                    applyFilters(); // Re-filter and render grid (as cards might contain language-specific data like dates)
+                    console.log("Language changed, running updates..."); // Add log
+                    
+                    updateContent();         // Update static text
+                    renderLanguageSwitcher(); // Update button active state
+                    renderLoginStatus(currentAuthUser); // Update login/logout text
+                    renderAdminLinks();     // Update admin link text
+                    applyFilters();         // Re-render grid (might have language-specific content like dates)
+                    console.log("UI updates after language change finished."); // Add log
                 };
                 container.appendChild(button);
             });
         }
-        // =============================================================
-
         // --- End i18n Functions ---
 
 
@@ -254,7 +269,7 @@
             { "grade": "O", "nameKey": "resultsPage.grade.O", "min_score": 0, "color": "red" }
         ];
 
-        // --- Authentication ---
+        // --- Authentication --- (Functions remain the same)
         window.login = function() {
             const redirectUri = window.location.origin;
             const authorizeUrl = new URL('/oidc/auth', AUTHING_HOST);
@@ -291,22 +306,18 @@
 
         function renderAdminLinks() {
             const configLink = document.getElementById('config-admin-link');
-            if (!configLink) return; // Exit if element not found
-            
-            // Default to hidden
+            if (!configLink) return; 
             configLink.classList.add('hidden'); 
-            
-            if (!currentAuthUser) return; // Exit if no user logged in
+            if (!currentAuthUser) return; 
 
             const userRole = currentAuthUser.db_role;
             const isAdmin = userRole === 'admin' || userRole === 'super_admin';
             
             if (isAdmin) {
                 configLink.classList.remove('hidden');
-                configLink.textContent = i18next.t('nav.configAdmin'); // Set/update text
+                configLink.textContent = i18next.t('nav.configAdmin'); 
             } 
         }
-
 
         async function handleOidcCallback(code) {
             try {
@@ -360,7 +371,7 @@
         }
         // --- 认证功能结束 ---
 
-
+        // --- Rating Actions (delete, certify, pin - remain the same) ---
         window.deleteRating = async function(ratingId, event) {
             event?.stopPropagation();
             if (!confirm(i18next.t('common.confirmDeletion'))) { return; }
@@ -442,10 +453,16 @@
                 if (displayedRatings[ratingId]) {
                     displayedRatings[ratingId].isPinned = shouldPin;
                     // Re-fetch or re-render needed if sorting relies on pinned status immediately
-                    // For now, just update the card visually
+                    // For now, just update the card visually and re-apply filters locally
                     const cardElement = document.getElementById(`rating-card-${ratingId}`);
-                    if (cardElement) { const newCard = createRatingCard(displayedRatings[ratingId]); cardElement.replaceWith(newCard); }
-
+                    if (cardElement) { 
+                        const newCard = createRatingCard(displayedRatings[ratingId]); 
+                        cardElement.replaceWith(newCard); 
+                        // Update the master list as well for correct re-sorting
+                        const masterIndex = allRatings.findIndex(r => r.id === ratingId);
+                        if(masterIndex > -1) allRatings[masterIndex].isPinned = shouldPin;
+                        applyFilters(); // Re-sort and re-render the grid
+                    }
                 }
                 alert(i18next.t('common.opSuccess'));
             } catch (error) {
@@ -454,7 +471,9 @@
                 if (button) { button.textContent = originalText; button.disabled = false; }
             }
         }
+        // --- End Rating Actions ---
 
+        // --- Data Fetching and Rendering (fetchRatings, applyFilters, renderGrid, createRatingCard, viewRatingDetails - remain the same) ---
         async function fetchRatings() {
             loadingMessage.textContent = i18next.t('indexPage.loadingRatings');
             loadingMessage.style.display = 'block';
@@ -490,9 +509,8 @@
                 return nameMatch || originMatch || sizeMatch || reviewMatch || authorMatch;
             });
             
-            // Sort logic - always prioritize pinned items if sorting by 'latest'
             filtered.sort((a, b) => {
-                const pinDiff = (b.isPinned || 0) - (a.isPinned || 0); // Pinned first
+                const pinDiff = (b.isPinned || 0) - (a.isPinned || 0); 
                 if (sortBy === 'latest' && pinDiff !== 0) {
                     return pinDiff;
                 }
@@ -500,8 +518,7 @@
                      return (b.normalizedScore ?? 0) - (a.normalizedScore ?? 0);
                  } else if (sortBy === 'lowest') {
                      return (a.normalizedScore ?? 0) - (b.normalizedScore ?? 0);
-                 } else { // 'latest' (default or explicit)
-                    // If pin status is different, sort by pin. If same, sort by date.
+                 } else { // 'latest'
                      return pinDiff !== 0 ? pinDiff : (new Date(b.timestamp) - new Date(a.timestamp));
                  }
              });
@@ -528,7 +545,6 @@
             const div = document.createElement('div');
             div.id = `rating-card-${rating.id}`;
             div.className = 'rating-card bg-white rounded-lg shadow-md overflow-hidden transition-all duration-300 cursor-pointer flex flex-col';
-            // Prevent click propagation from buttons/details inside the card
             div.onclick = (event) => { 
                 if (event.target.tagName === 'BUTTON' || event.target.closest('button, details')) { 
                     return; 
@@ -548,7 +564,7 @@
 
             const isCertified = rating.isCertified;
             const isPinned = rating.isPinned;
-            const cacheBuster = `?v=${new Date().getTime()}`; // Maybe use timestamp?
+            const cacheBuster = `?t=${Date.now()}`; // Simple cache buster
 
             const isAdmin = currentAuthUser && (currentAuthUser.db_role === 'admin' || currentAuthUser.db_role === 'super_admin');
             let adminActionsHtml = '';
@@ -672,42 +688,61 @@
                 alert(i18next.t('common.sessionStoreFailed'));
             }
         }
+        // --- End Data Fetching and Rendering ---
 
-        // ==================== Modified window.onload ====================
+        // ==================== Corrected window.onload ====================
         window.onload = async function() {
-             // 1. Initialize i18n and wait for it to complete
-             await initI18n(); 
-             
-             // 2. Initial content update (now that translations are loaded)
-             updateContent(); 
+             console.log("window.onload started"); // Add log
+             try {
+                 // 1. Initialize i18n and wait for it to complete AND run initial updateContent
+                 console.log("Initializing i18n..."); // Add log
+                 await initI18n(); 
+                 console.log("i18n initialized and first updateContent presumably called via callback.");
 
-             // 3. Handle Authing callback or validate existing session
-             const urlParams = new URLSearchParams(window.location.search);
-             const code = urlParams.get('code');
-             let user = null;
-             if (code) { 
-                 user = await handleOidcCallback(code); 
-             } else { 
-                 user = await validateSessionAndGetUser(); 
-             }
-             currentAuthUser = user;
-             
-             // 4. Render user-specific elements (now that translations are loaded)
-             renderLoginStatus(currentAuthUser); 
-             renderAdminLinks(); 
-             renderLanguageSwitcher(); // Render language buttons
-             
-             // 5. Fetch and render rating data
-             await fetchRatings(); 
+                 // 2. Handle Authing callback or validate existing session
+                 console.log("Handling authentication..."); // Add log
+                 const urlParams = new URLSearchParams(window.location.search);
+                 const code = urlParams.get('code');
+                 let user = null;
+                 if (code) { 
+                     user = await handleOidcCallback(code); 
+                 } else { 
+                     user = await validateSessionAndGetUser(); 
+                 }
+                 currentAuthUser = user;
+                 console.log("Authentication handled. User:", currentAuthUser ? currentAuthUser.sub : 'None');
+                 
+                 // 3. Render user-specific elements (translations should now be available)
+                 console.log("Rendering user UI elements..."); // Add log
+                 renderLoginStatus(currentAuthUser); 
+                 renderAdminLinks(); 
+                 renderLanguageSwitcher(); // Render language buttons
+                 console.log("User UI elements rendered.");
+                 
+                 // 4. Fetch and render rating data
+                 console.log("Fetching ratings..."); // Add log
+                 await fetchRatings(); 
+                 console.log("Ratings fetched and rendered.");
 
-             // 6. Add event listeners
-             searchInput.addEventListener('keypress', function (e) { if (e.key === 'Enter') { applyFilters(); } });
-             sortSelect.addEventListener('change', applyFilters);
+                 // 5. Add event listeners
+                 console.log("Adding event listeners..."); // Add log
+                 searchInput.addEventListener('keypress', function (e) { if (e.key === 'Enter') { applyFilters(); } });
+                 sortSelect.addEventListener('change', applyFilters);
 
-             if (menuToggle && navLinks) {
-                 menuToggle.addEventListener('click', () => {
-                     navLinks.classList.toggle('hidden');
-                 });
+                 if (menuToggle && navLinks) {
+                     menuToggle.addEventListener('click', () => {
+                         navLinks.classList.toggle('hidden');
+                     });
+                 }
+                 console.log("Event listeners added.");
+                 console.log("window.onload finished successfully."); // Add log
+
+             } catch (error) {
+                 console.error("Initialization error in window.onload:", error);
+                 // Display a user-friendly error message
+                 loadingMessage.textContent = `页面加载初始化出错: ${error.message}`;
+                 loadingMessage.style.color = 'red';
+                 loadingMessage.style.display = 'block';
              }
         };
         // =============================================================
