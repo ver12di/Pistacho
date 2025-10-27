@@ -26,6 +26,30 @@
              console.warn('Tailwind object not found. Skipping config.');
         }
     </script>
+    <style>
+        /* Style for language buttons */
+        .lang-button {
+            padding: 2px 6px;
+            margin: 0 2px;
+            border: 1px solid transparent;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.75rem; /* text-xs */
+            transition: background-color 0.2s, border-color 0.2s;
+            background-color: #f3f4f6; /* bg-gray-100 */
+            color: #374151; /* text-gray-700 */
+        }
+        .lang-button:hover {
+            background-color: #e5e7eb; /* bg-gray-200 */
+        }
+        .lang-button.active {
+            font-weight: bold;
+            background-color: #e0e7ff; /* bg-indigo-100 */
+            border-color: #a5b4fc; /* border-indigo-300 */
+            color: #3730a3; /* text-indigo-800 */
+            cursor: default;
+        }
+    </style>
 </head>
 <body class="bg-gray-100 font-sans antialiased text-gray-800">
 
@@ -37,11 +61,10 @@
             <div id="role-display" class="text-xs text-yellow-300" data-i18n="configPage.checkingAuth">正在检查权限...</div>
             
             <div class="absolute top-4 right-4 flex items-center space-x-3">
-                <select id="language-switcher" class="text-xs p-1 rounded border border-gray-300 mr-2 bg-white text-gray-800" style="height: 30px; line-height: 1.5;">
-                    <option value="zh">简体中文</option>
-                    <option value="en">English</option>
-                    <option value="es">Español</option>
-                </select>
+                <!-- **MODIFIED**: Replaced select with div for buttons -->
+                <div id="language-buttons-container" class="flex items-center space-x-1 mr-2">
+                    <!-- Language buttons will be inserted here by JS -->
+                </div>
                 <a href="index.html" class="text-indigo-200 hover:text-white transition" data-i18n="common.backToHome">← 返回主页</a>
             </div>
         </header>
@@ -138,6 +161,9 @@
 
         function updateContent() {
             document.querySelectorAll('[data-i18n]').forEach(el => {
+                // **MODIFIED**: Exclude language buttons
+                if (el.classList.contains('lang-button')) return;
+
                 const key = el.getAttribute('data-i18n');
                 const value = i18next.t(key);
                 if (el.tagName === 'OPTION' || el.tagName === 'BUTTON') {
@@ -151,21 +177,38 @@
             });
         }
 
-        function setupLanguageSwitcher() {
-            const switcher = document.getElementById('language-switcher');
-            if (!switcher) return;
-            const currentLang = i18next.language.split('-')[0];
-            if ([...switcher.options].some(opt => opt.value === currentLang)) {
-                switcher.value = currentLang;
-            } else {
-                switcher.value = i18next.options.fallbackLng[0];
-            }
-            switcher.addEventListener('change', async (e) => {
-                await i18next.changeLanguage(e.target.value);
-                updateContent();
-                document.title = i18next.t('configPage.pageTitle');
-                // Re-render dynamic parts if needed
-                renderConfigView(); 
+        // --- **MODIFIED**: Replaced setupLanguageSwitcher with renderLanguageSwitcher ---
+        function renderLanguageSwitcher() {
+            const container = document.getElementById('language-buttons-container');
+            if (!container) return;
+            container.innerHTML = '';
+            const languages = ['zh', 'en', 'es'];
+            // Ensure i18next is initialized before accessing language
+            const currentLang = i18next.language ? i18next.language.split('-')[0] : 'zh';
+
+            languages.forEach(lang => {
+                const button = document.createElement('button');
+                button.textContent = lang.toUpperCase();
+                button.className = `lang-button ${lang === currentLang ? 'active' : ''}`;
+                button.dataset.lang = lang;
+                button.onclick = async (e) => {
+                    const newLang = e.target.dataset.lang;
+                    const oldLang = i18next.language ? i18next.language.split('-')[0] : 'zh';
+                    if (newLang === oldLang) return;
+
+                    console.log(`Changing language to: ${newLang}`);
+                    try {
+                        await i18next.changeLanguage(newLang);
+                        console.log("Language changed, running updates...");
+                        updateContent();
+                        renderLanguageSwitcher(); // Re-render buttons
+                        renderConfigView();     // Re-render config view
+                        console.log("UI updates after language change finished.");
+                    } catch (langErr) {
+                        console.error(`Failed to change language to ${newLang}:`, langErr);
+                    }
+                };
+                container.appendChild(button);
             });
         }
         
@@ -195,7 +238,22 @@
             }
         }
         
-        function deepCleanObject(obj) { /* ... (no changes needed) ... */ }
+        function deepCleanObject(obj) { 
+            if (obj === null || obj === undefined) return null;
+            if (typeof obj !== 'object') return obj;
+            if (Array.isArray(obj)) {
+                return obj.map(deepCleanObject).filter(v => v !== null);
+            }
+            const newObj = {};
+            for (const key in obj) {
+                if (key.startsWith('__')) continue; 
+                const value = deepCleanObject(obj[key]);
+                if (value !== null && value !== undefined) {
+                    newObj[key] = value;
+                }
+            }
+            return newObj;
+        }
 
         // --- API 调用封装 ---
         async function apiFetch(endpoint, options = {}) {
@@ -269,12 +327,43 @@
         // --- UI 渲染 ---
         // **MODIFIED**: renderConfigView and sub-functions now use i18next.t()
         // This is crucial for Step 4 (dynamic keys)
+        // --- **BUGFIX**: Added element definitions and button logic ---
         function renderConfigView() {
             const isAdmin = hasAdminAccess();
-            // ... (element getters) ...
-            const container = document.getElementById('config-form-container');
             
-            // ... (button className/disabled logic) ...
+            // --- FIX: Define element getters ---
+            const container = document.getElementById('config-form-container');
+            const titleInput = document.getElementById('app-title-input');
+            const descInput = document.getElementById('app-description-input');
+            const saveProfileButton = document.getElementById('save-profile-button');
+            const publishButton = document.getElementById('publish-button');
+            const deleteProfileButton = document.getElementById('delete-profile-button');
+            // --- END FIX ---
+            
+            // --- FIX: Add button state logic ---
+            if (isAdmin) {
+                // Reset styles
+                [saveProfileButton, publishButton, deleteProfileButton].forEach(btn => {
+                    btn.disabled = false;
+                    btn.classList.remove('bg-gray-400', 'text-gray-700', 'cursor-not-allowed', 'bg-blue-600', 'hover:bg-blue-700', 'bg-red-600', 'hover:bg-red-700', 'bg-yellow-500', 'hover:bg-yellow-600');
+                });
+                
+                // Apply specific styles
+                saveProfileButton.disabled = currentProfileId === 'latest';
+                publishButton.classList.add('bg-yellow-500', 'text-white', 'hover:bg-yellow-600'); // Publish is always active
+                deleteProfileButton.disabled = currentProfileId === 'latest';
+
+                if (currentProfileId === 'latest') {
+                    saveProfileButton.classList.add('bg-gray-400', 'text-gray-700', 'cursor-not-allowed');
+                    deleteProfileButton.classList.add('bg-gray-400', 'text-gray-700', 'cursor-not-allowed');
+                } else {
+                    saveProfileButton.classList.add('bg-blue-600', 'text-white', 'hover:bg-blue-700');
+                    deleteProfileButton.classList.add('bg-red-600', 'text-white', 'hover:bg-red-700');
+                }
+            } else {
+                document.querySelectorAll('.admin-feature').forEach(el => el.disabled = true);
+            }
+            // --- END FIX ---
             
             // Render basic info (this is for Step 4)
             // If ratingConfig.appTitle is a key, t() will translate it.
@@ -351,7 +440,23 @@
         }
 
         // --- 数据操作 (增删改) ---
-        window.handleInputChange = function(element) { /* ... (no changes needed) ... */ };
+        window.handleInputChange = function(element) { 
+            const { type, index, catIndex, critIndex, field } = element.dataset;
+            let value = element.type === 'number' ? parseFloat(element.value) : element.value;
+            if (isNaN(value) && element.type === 'number') value = 0;
+            try {
+                if (type === 'category') {
+                    ratingConfig.ratingCriteria[index][field] = value;
+                } else if (type === 'criterion') {
+                    ratingConfig.ratingCriteria[catIndex].criteriaList[index][field] = value;
+                } else if (type === 'option') {
+                    ratingConfig.ratingCriteria[catIndex].criteriaList[critIndex].options[index][field] = value;
+                }
+            } catch (e) {
+                console.error("Error handling input change:", e, {type, index, catIndex, critIndex, field});
+            }
+        };
+
         // **MODIFIED**: Add functions now create objects with *Key fields
         window.addCategory = function() {
             if (!ratingConfig.ratingCriteria) ratingConfig.ratingCriteria = [];
@@ -412,8 +517,8 @@
                 return false;
             } finally {
                 button.textContent = originalText; 
-                 button.disabled = !hasAdminAccess() || (button.id === 'save-profile-button' && currentProfileId === 'latest');
-                 // ... (delete button logic) ...
+                 // Re-enable buttons based on logic
+                 renderConfigView();
             }
         }
         window.publishConfig = () => saveConfig('latest', document.getElementById('publish-button'));
@@ -530,7 +635,7 @@
                  await loadConfigById('latest');
 
                  // **NEW**: 2. Setup switcher at the end
-                 setupLanguageSwitcher();
+                 renderLanguageSwitcher(); // **MODIFIED**: Call new function
 
              } catch(e) {
                  console.error("Initialization failed:", e);
