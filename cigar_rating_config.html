@@ -366,20 +366,23 @@
             // --- END FIX ---
             
             // Render basic info (this is for Step 4)
-            // ** REVERTED CHANGE **: The input value *must* be the key for editing.
-            titleInput.value = ratingConfig?.appTitle || ''; 
-            descInput.value = ratingConfig?.description || ''; 
+            // ** APPLYING FIX AGAIN **: Translate the keys for display in input fields.
+            titleInput.value = i18next.t(ratingConfig?.appTitle || '') || ratingConfig?.appTitle || ''; // Translate, fallback to key if untranslated
+            descInput.value = i18next.t(ratingConfig?.description || '') || ratingConfig?.description || ''; // Translate, fallback to key if untranslated
             
             container.innerHTML = (ratingConfig?.ratingCriteria || []).map((category, catIndex) => {
                 // **MODIFIED for Step 4**: Use categoryKey
                 const categoryName = i18next.t(category.categoryKey || category.category); // Fallback to old 'category'
                 const categoryDetail = i18next.t(category.detailKey || category.detail); // Fallback to old 'detail'
                 
-                // --- **REVERTED CHANGE** ---
-                // The input values must be the *keys* themselves for editing.
-                const categoryKeyValue = category.categoryKey || category.category || '';
-                const detailKeyValue = category.detailKey || category.detail || '';
-                // --- **END REVERT** ---
+                // --- **APPLYING FIX AGAIN** ---
+                // Translate the keys for display in the input/textarea value
+                const categoryKeyValueTranslated = i18next.t(category.categoryKey || category.category || '') || category.categoryKey || category.category || '';
+                const detailKeyValueTranslated = i18next.t(category.detailKey || category.detail || '') || category.detailKey || category.detail || '';
+                // Store the original key in a data attribute for saving
+                const categoryKeyValueOriginal = category.categoryKey || category.category || '';
+                const detailKeyValueOriginal = category.detailKey || category.detail || '';
+                // --- **END FIX** ---
 
                 return `
                 <div class="bg-white p-6 rounded-xl shadow-lg mb-6 border-l-4 border-indigo-500">
@@ -388,9 +391,9 @@
                         <button type="button" onclick="removeCategory(${catIndex})" class="text-red-500 hover:text-red-700 transition admin-feature">${i18next.t('common.deleteCategory')}</button>
                     </div>
                     <label class="block mb-2">${i18next.t('configPage.categoryName')}:</label>
-                    <input type="text" data-type="category" data-index="${catIndex}" data-field="categoryKey" value="${categoryKeyValue}" class="config-input w-full p-2 border rounded-md mb-3 admin-feature" oninput="handleInputChange(this)">
+                    <input type="text" data-type="category" data-index="${catIndex}" data-field="categoryKey" value="${categoryKeyValueTranslated}" data-original-key="${categoryKeyValueOriginal}" class="config-input w-full p-2 border rounded-md mb-3 admin-feature" oninput="handleInputChange(this)">
                     <label class="block mb-4">${i18next.t('common.description')}:</label>
-                    <textarea data-type="category" data-index="${catIndex}" data-field="detailKey" class="config-input w-full p-2 border rounded-md mb-3 admin-feature" oninput="handleInputChange(this)">${detailKeyValue}</textarea>
+                    <textarea data-type="category" data-index="${catIndex}" data-field="detailKey" data-original-key="${detailKeyValueOriginal}" class="config-input w-full p-2 border rounded-md mb-3 admin-feature" oninput="handleInputChange(this)">${detailKeyValueTranslated}</textarea>
                     <h4 class="text-lg font-semibold mt-6 mb-3 border-t pt-4">${i18next.t('configPage.criteria')}:</h4>
                     <div class="space-y-4">
                         ${(category.criteriaList || []).map((criterion, critIndex) => renderCriterion(catIndex, critIndex, criterion)).join('')}
@@ -406,9 +409,10 @@
              // **MODIFIED for Step 4**: Use nameKey
              const criterionName = i18next.t(criterion.nameKey || criterion.name);
              
-             // --- **REVERTED CHANGE** ---
-             const criterionNameValue = criterion.nameKey || criterion.name || '';
-             // --- **END REVERT** ---
+             // --- **APPLYING FIX AGAIN** ---
+             const criterionNameValueTranslated = i18next.t(criterion.nameKey || criterion.name || '') || criterion.nameKey || criterion.name || '';
+             const criterionNameValueOriginal = criterion.nameKey || criterion.name || '';
+             // --- **END FIX** ---
 
              return `
                  <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
@@ -417,7 +421,7 @@
                          <button type="button" onclick="removeCriterion(${catIndex}, ${critIndex})" class="text-red-400 hover:text-red-600 transition text-sm admin-feature">${i18next.t('common.delete')}</button>
                      </div>
                      <label class="block text-sm">${i18next.t('common.name')}:</label>
-                     <input type="text" data-type="criterion" data-cat-index="${catIndex}" data-index="${critIndex}" data-field="nameKey" value="${criterionNameValue}" class="config-input w-full p-1 border rounded-md mb-2 text-sm admin-feature" oninput="handleInputChange(this)">
+                     <input type="text" data-type="criterion" data-cat-index="${catIndex}" data-index="${critIndex}" data-field="nameKey" value="${criterionNameValueTranslated}" data-original-key="${criterionNameValueOriginal}" class="config-input w-full p-1 border rounded-md mb-2 text-sm admin-feature" oninput="handleInputChange(this)">
                      <label class="block text-sm">${i18next.t('configPage.weight')}:</label>
                      <input type="number" data-type="criterion" data-cat-index="${catIndex}" data-index="${critIndex}" data-field="weight" value="${criterion.weight || 0}" class="config-input w-full p-1 border rounded-md mb-3 text-sm admin-feature" oninput="handleInputChange(this)">
                      <h6 class="text-sm font-semibold mb-2 mt-3">${i18next.t('configPage.options')}:</h6>
@@ -433,15 +437,16 @@
              // **MODIFIED for Step 4**: Use descriptionKey
              const optionDesc = i18next.t(option.descriptionKey || option.description);
 
-             // --- **REVERTED CHANGE** ---
-             const optionDescValue = option.descriptionKey || option.description || '';
-             // --- **END REVERT** ---
+             // --- **APPLYING FIX AGAIN** ---
+             const optionDescValueTranslated = i18next.t(option.descriptionKey || option.description || '') || option.descriptionKey || option.description || '';
+             const optionDescValueOriginal = option.descriptionKey || option.description || '';
+             // --- **END FIX** ---
 
              return `
                  <div class="flex space-x-2 items-center bg-white p-2 rounded-md border text-sm">
                      <div class="flex-1">
                          <label class="block text-xs">${i18next.t('common.description')}:</label>
-                         <input type="text" data-type="option" data-cat-index="${catIndex}" data-crit-index="${critIndex}" data-index="${optIndex}" data-field="descriptionKey" value="${optionDescValue}" class="config-input w-full p-1 border rounded-md text-xs admin-feature" oninput="handleInputChange(this)">
+                         <input type="text" data-type="option" data-cat-index="${catIndex}" data-crit-index="${critIndex}" data-index="${optIndex}" data-field="descriptionKey" value="${optionDescValueTranslated}" data-original-key="${optionDescValueOriginal}" class="config-input w-full p-1 border rounded-md text-xs admin-feature" oninput="handleInputChange(this)">
                      </div>
                      <div class="w-1/4">
                          <label class="block text-xs">${i18next.t('configPage.scorePct')}:</label>
@@ -455,21 +460,48 @@
         }
 
         // --- 数据操作 (增删改) ---
+        // **MODIFIED**: handleInputChange now saves the ORIGINAL KEY
         window.handleInputChange = function(element) { 
             const { type, index, catIndex, critIndex, field } = element.dataset;
-            let value = element.type === 'number' ? parseFloat(element.value) : element.value;
-            if (isNaN(value) && element.type === 'number') value = 0;
+            let value;
+            if (element.type === 'number') {
+                value = parseFloat(element.value);
+                if (isNaN(value)) value = 0;
+            } else {
+                 // Get the ORIGINAL key from the data-original-key attribute if it exists
+                 // Otherwise, assume the input value *is* the key (e.g., for weight, scorePct)
+                 value = element.dataset.originalKey !== undefined ? element.dataset.originalKey : element.value;
+                 // Update the data-original-key in case the user types a new key
+                 if (element.dataset.originalKey !== undefined) {
+                     element.dataset.originalKey = element.value; // Store the *new* value as the potential key
+                 }
+            }
+
             try {
                 if (type === 'category') {
+                    // Special handling for top-level appTitle and description
+                    if (element.id === 'app-title-input') {
+                        ratingConfig.appTitle = value;
+                        element.dataset.originalKey = value; // Update original key
+                        return;
+                    }
+                    if (element.id === 'app-description-input') {
+                        ratingConfig.description = value;
+                        element.dataset.originalKey = value; // Update original key
+                        return;
+                    }
+                    // Handle category fields
                     ratingConfig.ratingCriteria[index][field] = value;
+
                 } else if (type === 'criterion') {
                     ratingConfig.ratingCriteria[catIndex].criteriaList[index][field] = value;
                 } else if (type === 'option') {
                     ratingConfig.ratingCriteria[catIndex].criteriaList[critIndex].options[index][field] = value;
                 }
             } catch (e) {
-                console.error("Error handling input change:", e, {type, index, catIndex, critIndex, field});
+                console.error("Error handling input change:", e, {type, index, catIndex, critIndex, field, value});
             }
+             console.log("Updated ratingConfig:", ratingConfig); // Add log to see changes
         };
 
         // **MODIFIED**: Add functions now create objects with *Key fields
@@ -510,17 +542,38 @@
         window.removeOption = (i, j, k) => { if (ratingConfig?.ratingCriteria?.[i]?.criteriaList?.[j]?.options) { ratingConfig.ratingCriteria[i].criteriaList[j].options.splice(k, 1); renderConfigView(); }};
 
         // --- 保存与发布逻辑 ---
-        // **MODIFIED**: All alerts/text use i18n
+        // **MODIFIED**: saveConfig now needs to get the ORIGINAL KEY from the inputs
         async function saveConfig(profileId, button) {
             if (!hasAdminAccess()) return;
             const originalText = button.textContent;
             button.textContent = i18next.t('common.processing'); 
             button.disabled = true;
             
-            // **MODIFIED for Step 4**: Save the *keys* from the input fields
-            ratingConfig.appTitle = document.getElementById('app-title-input').value; // This should be a key now
-            ratingConfig.description = document.getElementById('app-description-input').value; // This should be a key now
+            // --- **START OF MODIFICATION** ---
+            // Before cleaning, update the ratingConfig object with the ORIGINAL keys
+            // stored in the data-original-key attributes
+            document.querySelectorAll('.config-input[data-original-key]').forEach(element => {
+                const { type, index, catIndex, critIndex, field } = element.dataset;
+                const originalKey = element.dataset.originalKey; // Get the stored key
+                try {
+                    if (type === 'category') {
+                         if (element.id === 'app-title-input') ratingConfig.appTitle = originalKey;
+                         else if (element.id === 'app-description-input') ratingConfig.description = originalKey;
+                         else ratingConfig.ratingCriteria[index][field] = originalKey;
+                    } else if (type === 'criterion') {
+                        ratingConfig.ratingCriteria[catIndex].criteriaList[index][field] = originalKey;
+                    } else if (type === 'option') {
+                        ratingConfig.ratingCriteria[catIndex].criteriaList[critIndex].options[index][field] = originalKey;
+                    }
+                } catch (e) {
+                    console.error("Error collecting original keys before save:", e, {element, originalKey});
+                }
+            });
+            // --- **END OF MODIFICATION** ---
+
+            // Now clean the object which should contain the keys
             const cleanConfig = deepCleanObject(ratingConfig);
+             console.log("Saving cleanConfig:", cleanConfig); // Log the object being saved
 
             try {
                 if (!cleanConfig) throw new Error(i18next.t('errors.emptyConfig'));
@@ -533,7 +586,7 @@
             } finally {
                 button.textContent = originalText; 
                  // Re-enable buttons based on logic
-                 renderConfigView();
+                 renderConfigView(); // Re-render to show updated keys (translated)
             }
         }
         window.publishConfig = () => saveConfig('latest', document.getElementById('publish-button'));
@@ -570,10 +623,27 @@
         };
 
         // --- 导入 / 导出功能 ---
-        // **MODIFIED**: All alerts/text use i18n
+        // **MODIFIED**: downloadConfigJSON needs to collect original keys first
         window.downloadConfigJSON = function() {
-            ratingConfig.appTitle = document.getElementById('app-title-input').value;
-            ratingConfig.description = document.getElementById('app-description-input').value;
+            // Collect original keys before downloading
+             document.querySelectorAll('.config-input[data-original-key]').forEach(element => {
+                const { type, index, catIndex, critIndex, field } = element.dataset;
+                const originalKey = element.dataset.originalKey; // Get the stored key
+                try {
+                     if (type === 'category') {
+                         if (element.id === 'app-title-input') ratingConfig.appTitle = originalKey;
+                         else if (element.id === 'app-description-input') ratingConfig.description = originalKey;
+                         else ratingConfig.ratingCriteria[index][field] = originalKey;
+                    } else if (type === 'criterion') {
+                        ratingConfig.ratingCriteria[catIndex].criteriaList[index][field] = originalKey;
+                    } else if (type === 'option') {
+                        ratingConfig.ratingCriteria[catIndex].criteriaList[critIndex].options[index][field] = originalKey;
+                    }
+                } catch (e) {
+                     console.error("Error collecting original keys before download:", e, {element, originalKey});
+                }
+             });
+
             const cleanConfig = deepCleanObject(ratingConfig);
             if (!cleanConfig) {
                  alert(i18next.t('errors.emptyConfigDownload'));
