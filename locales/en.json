@@ -38,7 +38,7 @@
     "login": "Login/Register",
     "logout": "Logout",
     "configAdmin": "Rating Config",
-    "userAdmin": "User Admin"
+    "userAdmin": "User Admin",
     "nav.configAdmin": "Rating Config"
   },
   "indexPage": {
