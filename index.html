@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pistacho 评分社区</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>Pistacho 评分社区</title> <script src="https://cdn.tailwindcss.com"></script>
     
     <script src="https://unpkg.com/i18next/i18next.min.js"></script>
     <script src="https://unpkg.com/i18next-http-backend/i18nextHttpBackend.min.js"></script>
@@ -80,6 +79,27 @@
         .admin-actions details .action-buttons-content {
             margin-top: 0.5rem;
         }
+        /* Style for language buttons */
+        .lang-button {
+            padding: 2px 6px;
+            margin: 0 2px;
+            border: 1px solid transparent;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.75rem; /* text-xs */
+            transition: background-color 0.2s, border-color 0.2s;
+            background-color: #f3f4f6; /* bg-gray-100 */
+        }
+        .lang-button:hover {
+            background-color: #e5e7eb; /* bg-gray-200 */
+        }
+        .lang-button.active {
+            font-weight: bold;
+            background-color: #e0e7ff; /* bg-indigo-100 */
+            border-color: #a5b4fc; /* border-indigo-300 */
+            color: #3730a3; /* text-indigo-800 */
+            cursor: default;
+        }
     </style>
 </head>
 <body class="bg-gray-100 font-sans">
@@ -100,14 +120,11 @@
                      <a href="history.html" class="nav-link" data-i18n="nav.myRatings">我的评分</a>
                      <a href="certified.html" class="nav-link" data-i18n="nav.certified">认证评分</a>
                      <a id="config-admin-link" href="cigar_rating_config.html" class="nav-link hidden" data-i18n="nav.configAdmin">评分配置</a>
-                     </div>
+                 </div>
 
                  <div class="flex items-center ml-auto md:ml-0">
-                    <select id="language-switcher" class="text-xs p-1 rounded border border-gray-300 mr-2 h-7" style="line-height: 1;">
-                        <option value="zh">简体中文</option>
-                        <option value="en">English</option>
-                        <option value="es">Español</option>
-                    </select>
+                    <div id="language-flags" class="flex items-center space-x-1 mr-2">
+                        </div>
                     <div id="login-status-container" class="flex items-center"></div>
                  </div>
              </div>
@@ -144,54 +161,70 @@
                 .use(i18nextBrowserLanguageDetector)
                 .init({
                     fallbackLng: 'zh',
-                    debug: false,
+                    debug: false, // Turn off debug logging
                     ns: ['translation'],
                     defaultNS: 'translation',
                     backend: {
-                        loadPath: '/locales/{{lng}}.json?v=1' // 确保更新
+                        loadPath: '/locales/{{lng}}.json?v=1' 
                     },
                     detection: {
                         order: ['localStorage', 'navigator'],
                         caches: ['localStorage']
                     }
                 });
-            updateContent();
+            // Don't call updateContent here immediately
         }
 
         function updateContent() {
             document.querySelectorAll('[data-i18n]').forEach(el => {
                 const key = el.getAttribute('data-i18n');
                 const value = i18next.t(key);
-                // 仅更新非 Admin 链接的文本
-                if (el.id !== 'config-admin-link') {
-                    if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
-                        el.placeholder = value;
-                    } else if (el.tagName === 'OPTION') {
-                        el.textContent = value;
-                    } else {
-                        el.innerHTML = value;
-                    }
+                
+                // Exclude language buttons from direct update
+                if (el.classList.contains('lang-button')) return; 
+
+                if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+                    if (el.hasAttribute('placeholder')) el.placeholder = value;
+                } else if (el.tagName === 'OPTION') {
+                     el.textContent = value;
+                }
+                 else {
+                    el.innerHTML = value;
                 }
             });
-            // 更新 document title
+            // Update document title
             document.title = i18next.t('nav.title') + ' - ' + i18next.t('nav.community');
         }
 
-        function setupLanguageSwitcher() {
-            const switcher = document.getElementById('language-switcher');
-            if (!switcher) return;
+        // ==================== 新增语言按钮渲染函数 ====================
+        function renderLanguageSwitcher() {
+            const container = document.getElementById('language-flags');
+            if (!container) return;
+            container.innerHTML = ''; // Clear existing buttons
+            const languages = ['zh', 'en', 'es'];
             const currentLang = i18next.language.split('-')[0];
-            switcher.value = ['zh', 'en', 'es'].includes(currentLang) ? currentLang : 'zh';
-            
-            switcher.addEventListener('change', async (e) => {
-                const newLang = e.target.value;
-                await i18next.changeLanguage(newLang);
-                updateContent();
-                applyFilters(); 
-                renderLoginStatus(currentAuthUser); 
-                renderAdminLinks(); // <<< 更新 Admin 链接文本
+
+            languages.forEach(lang => {
+                const button = document.createElement('button');
+                button.textContent = lang.toUpperCase(); // Display ZH, EN, ES
+                button.className = `lang-button ${lang === currentLang ? 'active' : ''}`;
+                button.dataset.lang = lang;
+                button.onclick = async (e) => {
+                    const newLang = e.target.dataset.lang;
+                    if (newLang === currentLang) return; // Don't reload if same language
+                    
+                    await i18next.changeLanguage(newLang);
+                    updateContent(); // Update static text
+                    renderLanguageSwitcher(); // Re-render buttons to update active state
+                    renderLoginStatus(currentAuthUser); // Re-render login status text
+                    renderAdminLinks(); // Re-render admin link text
+                    applyFilters(); // Re-filter and render grid (as cards might contain language-specific data like dates)
+                };
+                container.appendChild(button);
             });
         }
+        // =============================================================
+
         // --- End i18n Functions ---
 
 
@@ -256,24 +289,24 @@
             }
         }
 
-        // ==================== 新增渲染 Admin 链接的函数 ====================
         function renderAdminLinks() {
             const configLink = document.getElementById('config-admin-link');
-            if (!configLink || !currentAuthUser) {
-                if (configLink) configLink.classList.add('hidden'); // 确保在未登录时隐藏
-                return;
-            };
+            if (!configLink) return; // Exit if element not found
+            
+            // Default to hidden
+            configLink.classList.add('hidden'); 
+            
+            if (!currentAuthUser) return; // Exit if no user logged in
+
             const userRole = currentAuthUser.db_role;
             const isAdmin = userRole === 'admin' || userRole === 'super_admin';
             
             if (isAdmin) {
                 configLink.classList.remove('hidden');
-                configLink.textContent = i18next.t('nav.configAdmin'); // 设置/更新文本
-            } else {
-                configLink.classList.add('hidden');
-            }
+                configLink.textContent = i18next.t('nav.configAdmin'); // Set/update text
+            } 
         }
-        // ===================================================================
+
 
         async function handleOidcCallback(code) {
             try {
@@ -408,8 +441,11 @@
                 const data = await response.json();
                 if (displayedRatings[ratingId]) {
                     displayedRatings[ratingId].isPinned = shouldPin;
+                    // Re-fetch or re-render needed if sorting relies on pinned status immediately
+                    // For now, just update the card visually
                     const cardElement = document.getElementById(`rating-card-${ratingId}`);
                     if (cardElement) { const newCard = createRatingCard(displayedRatings[ratingId]); cardElement.replaceWith(newCard); }
+
                 }
                 alert(i18next.t('common.opSuccess'));
             } catch (error) {
@@ -434,7 +470,7 @@
                 allRatings = await response.json();
                 displayedRatings = {};
                 allRatings.forEach(r => displayedRatings[r.id] = r);
-                applyFilters();
+                applyFilters(); // Apply initial filter/sort and render
             } catch (error) {
                 console.error("加载点评失败:", error);
                 loadingMessage.textContent = i18next.t('indexPage.loadFailed', { msg: error.message });
@@ -453,14 +489,28 @@
                 const authorMatch = rating.userNickname?.toLowerCase().includes(searchTerm);
                 return nameMatch || originMatch || sizeMatch || reviewMatch || authorMatch;
             });
-            if (sortBy === 'highest') { filtered.sort((a, b) => (b.normalizedScore ?? 0) - (a.normalizedScore ?? 0)); }
-            else if (sortBy === 'lowest') { filtered.sort((a, b) => (a.normalizedScore ?? 0) - (b.normalizedScore ?? 0)); }
-            else { filtered.sort((a, b) => (b.isPinned - a.isPinned) || (new Date(b.timestamp) - new Date(a.timestamp)));}
+            
+            // Sort logic - always prioritize pinned items if sorting by 'latest'
+            filtered.sort((a, b) => {
+                const pinDiff = (b.isPinned || 0) - (a.isPinned || 0); // Pinned first
+                if (sortBy === 'latest' && pinDiff !== 0) {
+                    return pinDiff;
+                }
+                if (sortBy === 'highest') {
+                     return (b.normalizedScore ?? 0) - (a.normalizedScore ?? 0);
+                 } else if (sortBy === 'lowest') {
+                     return (a.normalizedScore ?? 0) - (b.normalizedScore ?? 0);
+                 } else { // 'latest' (default or explicit)
+                    // If pin status is different, sort by pin. If same, sort by date.
+                     return pinDiff !== 0 ? pinDiff : (new Date(b.timestamp) - new Date(a.timestamp));
+                 }
+             });
+
             renderGrid(filtered);
         }
 
         function renderGrid(ratingsToRender) {
-            ratingsGrid.innerHTML = '';
+            ratingsGrid.innerHTML = ''; // Clear previous grid
             if (ratingsToRender.length === 0) {
                 loadingMessage.textContent = i18next.t('indexPage.noMatches');
                 loadingMessage.style.display = 'block';
@@ -468,7 +518,7 @@
             }
             loadingMessage.style.display = 'none';
             ratingsToRender.forEach(rating => {
-                displayedRatings[rating.id] = rating;
+                displayedRatings[rating.id] = rating; // Update cache
                 const card = createRatingCard(rating);
                 ratingsGrid.appendChild(card);
             });
@@ -478,18 +528,27 @@
             const div = document.createElement('div');
             div.id = `rating-card-${rating.id}`;
             div.className = 'rating-card bg-white rounded-lg shadow-md overflow-hidden transition-all duration-300 cursor-pointer flex flex-col';
-            div.onclick = (event) => { if (event.target.tagName === 'BUTTON' || event.target.closest('button, details')) { return; } viewRatingDetails(rating.id); };
+            // Prevent click propagation from buttons/details inside the card
+            div.onclick = (event) => { 
+                if (event.target.tagName === 'BUTTON' || event.target.closest('button, details')) { 
+                    return; 
+                } 
+                viewRatingDetails(rating.id); 
+            };
 
             const score = rating.normalizedScore !== undefined ? rating.normalizedScore.toFixed(2) : 'N/A';
             const author = rating.userNickname || rating.userEmail || i18next.t('common.anonymous');
 
             let coverImageUrl = null;
-            if (Array.isArray(rating.imageUrl) && rating.imageUrl.length > 0) { coverImageUrl = rating.imageUrl[0]; }
-            else if (typeof rating.imageUrl === 'string' && rating.imageUrl) { coverImageUrl = rating.imageUrl; }
+            if (Array.isArray(rating.imageUrl) && rating.imageUrl.length > 0) { 
+                coverImageUrl = rating.imageUrl[0]; 
+            } else if (typeof rating.imageUrl === 'string' && rating.imageUrl) { 
+                coverImageUrl = rating.imageUrl; 
+            }
 
             const isCertified = rating.isCertified;
             const isPinned = rating.isPinned;
-            const cacheBuster = `?v=${new Date().getTime()}`;
+            const cacheBuster = `?v=${new Date().getTime()}`; // Maybe use timestamp?
 
             const isAdmin = currentAuthUser && (currentAuthUser.db_role === 'admin' || currentAuthUser.db_role === 'super_admin');
             let adminActionsHtml = '';
@@ -514,7 +573,7 @@
 
             div.innerHTML = `
                 <div class="aspect-[1179/1572] w-full overflow-hidden flex-shrink-0 relative">
-                     ${isAdmin && isPinned ? `<div class="pinned-indicator" title="${i18next.t('common.pin')}">${pinIconSvg} ${i18next.t('common.pin')}</div>` : ''}
+                     ${isPinned ? `<div class="pinned-indicator" title="${i18next.t('common.pin')}">${pinIconSvg} ${i18next.t('common.pin')}</div>` : ''}
                      ${isCertified ? `<img src="/Certifiedstamp.png${cacheBuster}" alt="Certified" class="absolute top-2 left-2 w-1/3 h-auto z-10" title="Pistacho 认证评分" onerror="handleStampError(this)">` : ''}
                      ${coverImageUrl ? `<img src="/api/image/${coverImageUrl}" alt="${rating.cigarInfo?.name || '雪茄图片'}" class="w-full h-full object-cover">` : `<div class="w-full h-full bg-gray-200 flex items-center justify-center text-gray-400 text-sm">${i18next.t('certifiedPage.noImage')}</div>`}
                 </div>
@@ -614,21 +673,34 @@
             }
         }
 
+        // ==================== Modified window.onload ====================
         window.onload = async function() {
-             await initI18n(); // Wait for i18n
+             // 1. Initialize i18n and wait for it to complete
+             await initI18n(); 
              
+             // 2. Initial content update (now that translations are loaded)
+             updateContent(); 
+
+             // 3. Handle Authing callback or validate existing session
              const urlParams = new URLSearchParams(window.location.search);
              const code = urlParams.get('code');
              let user = null;
-             if (code) { user = await handleOidcCallback(code); } else { user = await validateSessionAndGetUser(); }
+             if (code) { 
+                 user = await handleOidcCallback(code); 
+             } else { 
+                 user = await validateSessionAndGetUser(); 
+             }
              currentAuthUser = user;
              
+             // 4. Render user-specific elements (now that translations are loaded)
              renderLoginStatus(currentAuthUser); 
-             renderAdminLinks(); // <<< 在获取用户信息后调用
-             setupLanguageSwitcher(); 
+             renderAdminLinks(); 
+             renderLanguageSwitcher(); // Render language buttons
              
+             // 5. Fetch and render rating data
              await fetchRatings(); 
 
+             // 6. Add event listeners
              searchInput.addEventListener('keypress', function (e) { if (e.key === 'Enter') { applyFilters(); } });
              sortSelect.addEventListener('change', applyFilters);
 
@@ -638,6 +710,7 @@
                  });
              }
         };
+        // =============================================================
     </script>
 </body>
 </html>
