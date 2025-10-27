@@ -161,7 +161,7 @@
         const AUTHING_APP_ID = '68f5b0b6875017c02b3bfdb3';
         const AUTHING_HOST = 'https://xfvu647mcdbk-demo.authing.cn';
 
-        // **NEW**: GRADING_SCALE constant definition
+        // GRADING_SCALE constant definition
         const GRADING_SCALE = [
             { "grade": "P", "nameKey": "resultsPage.grade.P", "min_score": 95, "color": "gold" },
             { "grade": "I", "nameKey": "resultsPage.grade.I", "min_score": 90, "color": "indigo" },
@@ -323,6 +323,7 @@
             }
          }
 
+        // *** MODIFIED: viewRatingDetails to remove strict finalGrade check ***
          window.viewRatingDetails = function(ratingId) {
              const ratingData = historicalRatings[ratingId];
              if (!ratingData) {
@@ -330,20 +331,29 @@
                  return;
              }
 
-             // **MODIFIED**: Construct finalGrade with nameKey for results.html
-             const foundGrade = ratingData.finalGrade?.grade ? GRADING_SCALE.find(g => g.grade === ratingData.finalGrade.grade) : null;
-             const finalGrade = foundGrade ? {
-                 grade: foundGrade.grade,
-                 nameKey: foundGrade.nameKey, // Pass the key
-                 color: foundGrade.color
-             } : null; // If grade is missing or invalid, pass null
+             // Attempt to construct finalGrade object, but allow it to be null if grade info is missing
+             let finalGrade = null;
+             if (ratingData.finalGrade?.grade) {
+                  const foundGrade = GRADING_SCALE.find(g => g.grade === ratingData.finalGrade.grade);
+                  if (foundGrade) {
+                      finalGrade = {
+                          grade: foundGrade.grade,
+                          nameKey: foundGrade.nameKey,
+                          color: foundGrade.color
+                      };
+                  }
+             }
 
-             if (!ratingData || ratingData.normalizedScore === undefined || !finalGrade || !ratingData.cigarInfo) {
-                console.error("viewRatingDetails: Essential data missing or couldn't be constructed!", {ratingData, finalGrade});
+             // *** REMOVED: Strict check for !finalGrade ***
+             // Check only for essential data needed by results.html (score and cigar info)
+             if (!ratingData || ratingData.normalizedScore === undefined || !ratingData.cigarInfo) {
+                console.error("viewRatingDetails: Essential data (score, cigarInfo) missing!", {ratingData});
+                // Use a slightly different error message if grade is the likely missing piece
                 alert(i18next.t('resultsPage.loadErrorMissing'));
                 return;
              }
 
+             // Prepare data for results page
              let detailedData = {
                  ratingId: ratingData.id,
                  title: ratingData.title || i18next.t('certifiedPage.noTitle'),
@@ -351,7 +361,7 @@
                  cigarReview: ratingData.cigarReview || i18next.t('resultsPage.noReview'),
                  imageUrls: Array.isArray(ratingData.imageUrl) ? ratingData.imageUrl : (ratingData.imageUrl ? [ratingData.imageUrl] : []),
                  normalizedScore: ratingData.normalizedScore,
-                 finalGrade: finalGrade, // Pass grade object with nameKey
+                 finalGrade: finalGrade, // Pass the potentially null finalGrade object
                  timestamp: ratingData.timestamp,
                  userNickname: ratingData.userNickname,
                  userEmail: ratingData.userEmail,
@@ -359,6 +369,7 @@
                  isDraft: false
              };
 
+             // Include full config/ratings if available
              const hasCompleteFullData = ratingData.fullData && ratingData.fullData.config && ratingData.fullData.ratings && ratingData.fullData.calculatedScore !== undefined;
              if (hasCompleteFullData) {
                  detailedData.config = ratingData.fullData.config;
@@ -370,7 +381,7 @@
 
              try {
                  sessionStorage.setItem('cigarRatingResults', JSON.stringify(detailedData));
-                 window.location.href = `results.html`;
+                 window.location.href = 'results.html';
              } catch (e) {
                  console.error("Error setting sessionStorage:", e);
                  alert(i18next.t('common.sessionStoreFailed'));
@@ -427,7 +438,7 @@
                     ratings.sort((a, b) => (b.isPinned - a.isPinned) || (new Date(b.timestamp) - new Date(a.timestamp)));
                     ratings.forEach(data => {
                         // Ensure required fields exist, provide defaults if not
-                        data.finalGrade = data.finalGrade || {};
+                        data.finalGrade = data.finalGrade || {}; // Ensure finalGrade object exists even if empty
                         data.cigarInfo = data.cigarInfo || {};
                         historyHtml += renderRatingCard(data, user.sub, userRole);
                     });
@@ -448,16 +459,21 @@
             const date = data.timestamp ? new Date(data.timestamp).toLocaleDateString(i18next.language, { year: 'numeric', month: '2-digit', day: '2-digit' }) : i18next.t('historyPage.unknownDate');
             const scoreDisplay = data.normalizedScore !== undefined ? data.normalizedScore.toFixed(2) : 'N/A';
 
-            // **MODIFIED**: Use GRADING_SCALE and i18n
+            // Use GRADING_SCALE and i18n
             let gradeDisplay = i18next.t('historyPage.unrated'); // Default text
-            if (data.finalGrade && data.finalGrade.grade) {
+            if (data.finalGrade && data.finalGrade.grade) { // Check if grade exists
                 const foundGrade = GRADING_SCALE.find(g => g.grade === data.finalGrade.grade);
                 if (foundGrade) {
                     const gradeName = i18next.t(foundGrade.nameKey); // Use i18n to get translated name
                     gradeDisplay = `${data.finalGrade.grade} - ${gradeName}`;
                 } else {
-                    gradeDisplay = `${data.finalGrade.grade} - ?`; // Fallback if grade letter not found
+                    gradeDisplay = `${data.finalGrade.grade} - ?`; // Fallback if grade letter not found in scale
                 }
+            } else if (data.normalizedScore !== undefined) {
+                 // Fallback: Calculate grade from score if grade info is missing in data
+                 const foundGrade = GRADING_SCALE.find(g => data.normalizedScore >= g.min_score) || GRADING_SCALE[GRADING_SCALE.length - 1];
+                 const gradeName = i18next.t(foundGrade.nameKey);
+                 gradeDisplay = `${foundGrade.grade} - ${gradeName}`;
             }
             // --- End Modification ---
 
