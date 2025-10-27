@@ -7,11 +7,11 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
-    
+
     <script src="https://unpkg.com/i18next/i18next.min.js"></script>
     <script src="https://unpkg.com/i18next-http-backend/i18nextHttpBackend.min.js"></script>
     <script src="https://unpkg.com/i18next-browser-languagedetector/i18nextBrowserLanguageDetector.min.js"></script>
-    
+
     <script>
         if (typeof tailwind !== 'undefined') {
             tailwind.config = {
@@ -133,7 +133,8 @@
                 <h2 class="text-xl font-bold text-gray-800 mb-4" data-i18n="ratePage.uploadImages" data-i18n-options='{ "max": 5 }'>上传图片 (最多5张, 可拖拽排序) <span class="text-red-500">*</span></h2>
                 <p class="text-sm text-gray-600 mb-3" data-i18n="ratePage.uploadImagesDesc">第一张图片将作为封面图显示。点击图片左下角按钮更换封面。</p>
                 <div class="preview-grid mb-4" id="image-preview-grid">
-                    </div>
+                    <!-- Image previews will be rendered here -->
+                </div>
                 <div>
                     <label for="image-upload-input" id="image-upload-label" class="w-full md:w-auto text-center py-2 px-6 bg-blue-600 text-white font-bold rounded-lg shadow-md hover:bg-blue-700 cursor-pointer inline-block" data-i18n="ratePage.selectImages">
                         选择图片
@@ -149,7 +150,8 @@
                 <div class="mb-4 border-b pb-4">
                     <label class="block text-sm font-medium text-gray-700 mb-2" data-i18n="ratePage.selectFlavors">选择您感受到的主要风味 (可选):</label>
                     <div id="flavor-buttons-container" class="flex flex-wrap">
-                        </div>
+                        <!-- Flavor buttons will be rendered here -->
+                    </div>
                 </div>
                 <div>
                     <label for="cigar-review" class="block text-sm font-medium text-gray-700 mb-2" data-i18n="ratePage.detailedReview">详细文字评价:</label>
@@ -177,7 +179,7 @@
             </section>
 
             <div id="rating-form-container">
-                 <p class="text-center text-gray-500 py-10" data-i18n="common.loading">正在加载评分项...</p>
+                <!-- Rating criteria will be rendered here -->
             </div>
 
             <div class="mt-8 grid grid-cols-2 gap-4">
@@ -189,6 +191,7 @@
         <footer class="mt-8 text-center text-gray-500 text-sm p-4 border-t">评分应用数据由云端配置中心实时同步。</footer>
     </div>
 
+    <!-- Cropper Modal -->
     <div id="cropper-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50 hidden">
          <div class="bg-white rounded-lg shadow-xl p-6 cropper-modal-content">
             <h2 class="text-2xl font-bold mb-4" data-i18n="ratePage.cropImage">裁切图片</h2>
@@ -211,34 +214,40 @@
                 .use(i18nextBrowserLanguageDetector)
                 .init({
                     fallbackLng: 'zh',
-                    debug: true, // Keep debug on for development
+                    debug: false, // Turn off debug for production/less console noise
                     ns: ['translation'],
                     defaultNS: 'translation',
                     backend: {
-                        loadPath: '/locales/{{lng}}.json?v=1'
+                        loadPath: '/locales/{{lng}}.json?v=1' // Add cache busting
                     },
                     detection: {
                         order: ['localStorage', 'navigator'],
                         caches: ['localStorage']
                     }
                 });
-            updateContent();
+            updateContent(); // Initial content update after init
         }
 
         function updateContent() {
+            // Update static elements with data-i18n attribute
             document.querySelectorAll('[data-i18n]').forEach(el => {
                 const key = el.getAttribute('data-i18n');
                 const options = el.dataset.i18nOptions ? JSON.parse(el.dataset.i18nOptions) : undefined;
-                const value = i18next.t(key, options);
+                let value = '';
+                try {
+                     value = i18next.t(key, options);
+                     if (value === key && key !== '') console.warn(`Translation missing for key: ${key}`);
+                } catch (e) { console.error(`Error translating key "${key}":`, e); value = `[Error: ${key}]`; }
+
                 if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
                     if (el.type !== 'file' && el.hasAttribute('placeholder')) el.placeholder = value;
                 } else if (el.tagName === 'OPTION') {
                     el.textContent = value;
                 } else {
-                    el.innerHTML = value;
+                    el.innerHTML = value; // Use innerHTML for most elements
                 }
             });
-            // 更新 document title
+            // Update document title dynamically based on edit mode
             const titleKey = isEditMode ? 'ratePage.editTitle' : 'ratePage.title';
             document.title = i18next.t(titleKey);
         }
@@ -246,34 +255,45 @@
         function setupLanguageSwitcher() {
             const switcher = document.getElementById('language-switcher');
             if (!switcher) return;
-            const currentLang = i18next.language.split('-')[0];
+            // Set initial value based on detected language
+            const currentLang = i18next.language ? i18next.language.split('-')[0] : 'zh';
             switcher.value = ['zh', 'en', 'es'].includes(currentLang) ? currentLang : 'zh';
-            
+
+            // Add event listener for language change
             switcher.addEventListener('change', async (e) => {
                 const newLang = e.target.value;
                 await i18next.changeLanguage(newLang);
-                updateContent();
-                // 重新渲染动态内容
+                updateContent(); // Update all static text
+                // Re-render dynamic content that depends on translations
                 renderRatingView();
                 renderLoginStatus(currentAuthUser);
                 renderAdminLinks();
-                renderFlavorButtons();
+                renderFlavorButtons(); // Re-render flavor buttons with new translations
             });
         }
         // --- End i18n Functions ---
 
         // --- Global Variables ---
-        let ratingConfig = null; let userRatings = {}; let currentAuthUser = null;
-        let currentImageKeys = []; let sortableInstance = null;
-        let isEditMode = false; let editRatingId = null; let cropper = null;
-        let selectedFlavors = [];
+        let ratingConfig = null; // Holds the structure fetched from API
+        let userRatings = {}; // Holds user's selections { "categoryKey-criterionKey": optionIndex }
+        let currentAuthUser = null; // Holds user info after login
+        let currentImageKeys = []; // Array of R2 image keys, order matters (index 0 is cover)
+        let sortableInstance = null; // Instance for SortableJS on image previews
+        let isEditMode = false; // Flag for editing an existing rating
+        let editRatingId = null; // ID of the rating being edited
+        let cropper = null; // CropperJS instance
+        let selectedFlavors = []; // Array of selected flavor *keys* (e.g., "flavors.coffee")
+
+        // DOM Element references for modals and cropper
         const cropperModal = document.getElementById('cropper-modal');
         const cropperImage = document.getElementById('cropper-image');
         const cropperStatus = document.getElementById('cropper-status');
-        const AUTHING_APP_ID = '68f5b0b6875017c02b3bfdb3';
-        const AUTHING_HOST = 'https://xfvu647mcdbk-demo.authing.cn';
-        
-        // **MODIFIED**: GRADING_SCALE uses nameKey
+
+        // Authing configuration constants
+        const AUTHING_APP_ID = '68f5b0b6875017c02b3bfdb3'; // Replace with your actual App ID
+        const AUTHING_HOST = 'https://xfvu647mcdbk-demo.authing.cn'; // Replace with your actual Authing host
+
+        // Grading scale (used for calculating final grade, relies on i18n keys)
         const GRADING_SCALE = [
             { "grade": "P", "nameKey": "resultsPage.grade.P", "min_score": 95 },
             { "grade": "I", "nameKey": "resultsPage.grade.I", "min_score": 90 },
@@ -284,82 +304,210 @@
             { "grade": "H", "nameKey": "resultsPage.grade.H", "min_score": 30 },
             { "grade": "O", "nameKey": "resultsPage.grade.O", "min_score": 0 }
         ];
-        
-        const COMMON_FLAVORS = [ "咖啡", "巧克力", "雪松", "泥土", "干草", "皮革", "坚果", "香料", "木质", "甜味", "奶油", "花香", "果香", "焦糖", "香草", "柑橘" ];
+
+        // **MODIFIED**: Define FLAVOR_KEYS using i18n keys
+        const FLAVOR_KEYS = [
+             "flavors.coffee", "flavors.chocolate", "flavors.cedar", "flavors.earth",
+             "flavors.hay", "flavors.leather", "flavors.nuts", "flavors.spice",
+             "flavors.wood", "flavors.sweetness", "flavors.cream", "flavors.floral",
+             "flavors.fruit", "flavors.caramel", "flavors.vanilla", "flavors.citrus"
+        ];
+
 
         // --- Authentication ---
-         window.login = function() { const redirectUri = window.location.origin; const authorizeUrl = new URL('/oidc/auth', AUTHING_HOST); authorizeUrl.search = new URLSearchParams({ client_id: AUTHING_APP_ID, redirect_uri: redirectUri, response_type: 'code', scope: 'openid profile email phone', state: Math.random().toString(36).substring(2) }).toString(); window.location.href = authorizeUrl.toString(); }
-         window.logout = function() { const logoutUrl = new URL('/oidc/session/end', AUTHING_HOST); logoutUrl.search = new URLSearchParams({ post_logout_redirect_uri: window.location.origin }).toString(); sessionStorage.removeItem('userInfo'); sessionStorage.removeItem('accessToken'); window.location.href = logoutUrl.toString(); }
-         
-         function renderLoginStatus(user) {
+        window.login = function() {
+            const redirectUri = window.location.origin + window.location.pathname; // Use current page as redirect
+            const authorizeUrl = new URL('/oidc/auth', AUTHING_HOST);
+            authorizeUrl.search = new URLSearchParams({
+                client_id: AUTHING_APP_ID,
+                redirect_uri: redirectUri,
+                response_type: 'code',
+                scope: 'openid profile email phone', // Request necessary scopes
+                state: Math.random().toString(36).substring(2) // Basic CSRF protection
+            }).toString();
+            window.location.href = authorizeUrl.toString();
+        }
+
+        window.logout = function() {
+            const logoutUrl = new URL('/oidc/session/end', AUTHING_HOST);
+             // Redirect back to the current page after logout
+            logoutUrl.search = new URLSearchParams({
+                post_logout_redirect_uri: window.location.origin + window.location.pathname
+            }).toString();
+            sessionStorage.removeItem('userInfo');
+            sessionStorage.removeItem('accessToken');
+            window.location.href = logoutUrl.toString();
+        }
+
+        function renderLoginStatus(user) {
             const container = document.getElementById('login-status-container');
-            if (!container) return;
+            const loginPrompt = document.getElementById('login-prompt');
+            const mainContent = document.getElementById('main-content');
+            if (!container) return; // Ensure container exists
+
             if (user) {
-                const displayName = user.nickname || user.name || user.preferred_username || user.email || i18next.t('nav.login');
+                // User is logged in
+                const displayName = user.nickname || user.name || user.preferred_username || user.email || i18next.t('nav.loggedIn'); // Use i18n fallback
                 container.innerHTML = `<span class="text-sm font-medium text-gray-700 mr-2 hidden sm:inline">${displayName}</span><button onclick="logout()" class="px-3 py-1 text-xs font-medium rounded-full bg-red-500 text-white hover:bg-red-600">${i18next.t('nav.logout')}</button>`;
+                if (loginPrompt) loginPrompt.classList.add('hidden'); // Hide login prompt
+                if (mainContent) mainContent.style.display = 'block'; // Show main content
             } else {
+                // User is not logged in
                 container.innerHTML = `<button onclick="login()" class="px-3 py-1 text-xs font-medium rounded-full bg-green-500 text-white hover:bg-green-600">${i18next.t('nav.login')}</button>`;
+                if (loginPrompt) loginPrompt.classList.remove('hidden'); // Show login prompt
+                if (mainContent) mainContent.style.display = 'none'; // Hide main content
             }
-         }
-         
-         function renderAdminLinks() {
+        }
+
+        function renderAdminLinks() {
             const adminLinksContainer = document.getElementById('admin-links-container');
-            adminLinksContainer.innerHTML = '';
-            if (!adminLinksContainer || !currentAuthUser) return;
-            const userRole = currentAuthUser.db_role;
+            adminLinksContainer.innerHTML = ''; // Clear previous links
+            if (!adminLinksContainer || !currentAuthUser) return; // Exit if container or user not available
+
+            const userRole = currentAuthUser.db_role; // Get role from our DB check
             const isAdmin = userRole === 'admin' || userRole === 'super_admin';
             const isSuperAdmin = userRole === 'super_admin';
+
             if (isAdmin) {
-                adminLinksContainer.innerHTML += `<a href="cigar_rating_config.html" class="flex items-center px-3 py-1.5 border text-xs font-medium rounded-full text-white bg-blue-600 hover:bg-blue-500">${i18next.t('nav.configAdmin')}</a>`;
+                adminLinksContainer.innerHTML += `<a href="cigar_rating_config.html" class="flex items-center px-3 py-1.5 border text-xs font-medium rounded-full text-white bg-blue-600 hover:bg-blue-500 transition duration-150">${i18next.t('nav.configAdmin')}</a>`;
             }
             if (isSuperAdmin) {
-                adminLinksContainer.innerHTML += `<a href="role_management.html" class="flex items-center px-3 py-1.5 border text-xs font-medium rounded-full text-yellow-100 bg-purple-600 hover:bg-purple-500 ml-2">${i18next.t('nav.userAdmin')}</a>`;
+                adminLinksContainer.innerHTML += `<a href="role_management.html" class="flex items-center px-3 py-1.5 border text-xs font-medium rounded-full text-yellow-100 bg-purple-600 hover:bg-purple-500 ml-2 transition duration-150">${i18next.t('nav.userAdmin')}</a>`;
             }
-         }
-         
-         async function handleOidcCallback(code) { try { const redirectUri = window.location.origin; const apiUrl = new URL('/api/authing/callback', window.location.origin); const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: code, redirect_uri: redirectUri }) }); if (!response.ok) { const err = await response.json(); throw new Error(err.error || `Token exchange failed (status ${response.status})`); } const fullUserProfile = await response.json(); sessionStorage.setItem('userInfo', JSON.stringify(fullUserProfile)); sessionStorage.setItem('accessToken', fullUserProfile.accessToken); return fullUserProfile; } catch (e) { console.error('认证回调处理失败:', e); alert(`登录失败: ${e.message}`); sessionStorage.removeItem('userInfo'); sessionStorage.removeItem('accessToken'); return null; } finally { window.history.replaceState({}, document.title, window.location.pathname + window.location.search.replace(/&?code=[^&]*/, '').replace(/&?state=[^&]*/, '')); } }
-         async function validateSessionAndGetUser() { const token = sessionStorage.getItem('accessToken'); if (!token) return null; try { const apiUrl = new URL('/api/me', window.location.origin); const response = await fetch(apiUrl, { headers: { 'Authorization': `Bearer ${token}` } }); if (!response.ok) { console.warn("Session validation failed:", response.status); sessionStorage.removeItem('userInfo'); sessionStorage.removeItem('accessToken'); return null; } const fullUserProfile = await response.json(); sessionStorage.setItem('userInfo', JSON.stringify(fullUserProfile)); return fullUserProfile; } catch (e) { console.error("Session validation failed:", e); return null; } }
-         function setUser(user) { currentAuthUser = user; renderLoginStatus(currentAuthUser); setTimeout(() => { renderAdminLinks(); }, 0); }
+        }
+
+        async function handleOidcCallback(code) {
+            try {
+                const redirectUri = window.location.origin + window.location.pathname; // Match the redirect used in login()
+                const apiUrl = new URL('/api/authing/callback', window.location.origin);
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code: code, redirect_uri: redirectUri }) // Send the correct redirect_uri
+                });
+                if (!response.ok) {
+                    let errorText = i18next.t('errors.authCallbackFailed', { status: response.status });
+                    try { const err = await response.json(); errorText = err.error || errorText; } catch(e){}
+                    throw new Error(errorText);
+                }
+                const fullUserProfile = await response.json();
+                sessionStorage.setItem('userInfo', JSON.stringify(fullUserProfile));
+                sessionStorage.setItem('accessToken', fullUserProfile.accessToken);
+                return fullUserProfile;
+            } catch (e) {
+                console.error('认证回调处理失败:', e);
+                alert(i18next.t('errors.loginFailed', { message: e.message }));
+                sessionStorage.removeItem('userInfo');
+                sessionStorage.removeItem('accessToken');
+                return null;
+            } finally {
+                // Clean up URL by removing code and state parameters
+                const cleanUrl = window.location.origin + window.location.pathname + window.location.search.replace(/&?code=[^&]*/, '').replace(/&?state=[^&]*/, '');
+                window.history.replaceState({}, document.title, cleanUrl);
+            }
+        }
+
+        async function validateSessionAndGetUser() {
+            const token = sessionStorage.getItem('accessToken');
+            if (!token) return null;
+            try {
+                // Call our '/api/me' endpoint which validates the token AND gets the DB role
+                const apiUrl = new URL('/api/me', window.location.origin);
+                const response = await fetch(apiUrl, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!response.ok) {
+                    // Token invalid or expired, clear session
+                    sessionStorage.removeItem('userInfo');
+                    sessionStorage.removeItem('accessToken');
+                    return null;
+                }
+                const fullUserProfile = await response.json();
+                // Refresh userInfo in sessionStorage (in case role/nickname changed)
+                sessionStorage.setItem('userInfo', JSON.stringify(fullUserProfile));
+                return fullUserProfile; // Contains db_role
+            } catch (e) {
+                console.error("Session validation failed:", e);
+                return null; // Treat errors as logged out
+            }
+        }
+
+        // Helper function to set the current user and update UI
+        function setUser(user) {
+            currentAuthUser = user;
+            renderLoginStatus(currentAuthUser); // Update login/logout button and visibility
+            setTimeout(() => { renderAdminLinks(); }, 0); // Update admin links (needs timeout for DOM update)
+        }
+        // --- End Authentication ---
+
 
         // --- Flavor Selection Logic ---
-         function renderFlavorButtons() {
+        // **MODIFIED**: Uses FLAVOR_KEYS and i18n
+        function renderFlavorButtons() {
             const container = document.getElementById('flavor-buttons-container');
-            container.innerHTML = '';
-            // TODO: Flavor list itself should be internationalized if keys are available
-            COMMON_FLAVORS.forEach(flavor => {
-                const isSelected = selectedFlavors.includes(flavor);
+            if (!container || !i18next.isInitialized) return; // Ensure container and i18n are ready
+            container.innerHTML = ''; // Clear previous buttons
+            FLAVOR_KEYS.forEach(flavorKey => {
+                const isSelected = selectedFlavors.includes(flavorKey);
                 const button = document.createElement('button');
                 button.type = 'button';
                 button.className = `flavor-btn ${isSelected ? 'selected' : ''}`;
-                button.textContent = flavor; // This will remain Chinese for now
-                button.onclick = () => toggleFlavorSelection(flavor, button);
+                button.textContent = i18next.t(flavorKey); // Display translated flavor
+                button.dataset.flavorKey = flavorKey; // Store the key on the button
+                button.onclick = () => toggleFlavorSelection(flavorKey, button);
                 container.appendChild(button);
             });
-         }
-         function toggleFlavorSelection(flavor, button) { const index = selectedFlavors.indexOf(flavor); if (index > -1) { selectedFlavors.splice(index, 1); button.classList.remove('selected'); } else { selectedFlavors.push(flavor); button.classList.add('selected'); } }
+        }
+
+        // **MODIFIED**: Works with flavorKey
+        function toggleFlavorSelection(flavorKey, button) {
+            const index = selectedFlavors.indexOf(flavorKey);
+            if (index > -1) {
+                // Flavor is selected, remove it
+                selectedFlavors.splice(index, 1);
+                button.classList.remove('selected');
+            } else {
+                // Flavor is not selected, add it
+                selectedFlavors.push(flavorKey);
+                button.classList.add('selected');
+            }
+            console.log("Selected flavor keys:", selectedFlavors); // Log the keys
+        }
+        // --- End Flavor Selection ---
+
 
         // --- Image Handling (with Sorting and Cover Selection) ---
-         const MAX_IMAGES = 5; let filesToProcess = []; let currentFileIndex = 0;
-         
-         function renderImagePreviews() {
+        const MAX_IMAGES = 5; // Maximum number of images allowed
+        let filesToProcess = []; // Array of files selected by user, waiting for cropping/upload
+        let currentFileIndex = 0; // Index of the file currently being processed
+
+        // Function to render the image previews in the grid
+        function renderImagePreviews() {
             const grid = document.getElementById('image-preview-grid');
             const uploadLabel = document.getElementById('image-upload-label');
             const uploadInput = document.getElementById('image-upload-input');
-            grid.innerHTML = '';
+            grid.innerHTML = ''; // Clear existing previews
+
             currentImageKeys.forEach((key, index) => {
                 const item = document.createElement('div');
-                item.className = `preview-item ${index === 0 ? 'is-cover' : ''}`;
-                item.dataset.key = key;
-                const coverText = index === 0 ? i18next.t('common.cover') : i18next.t('ratePage.setCover'); // Ensure 'ratePage.setCover' is in JSON
+                item.className = `preview-item ${index === 0 ? 'is-cover' : ''}`; // Add 'is-cover' class to the first image
+                item.dataset.key = key; // Store the image key
+
+                // Use i18n for button text/titles
+                const coverButtonText = index === 0 ? i18next.t('common.cover') : i18next.t('ratePage.setCover');
+                const deleteTitle = i18next.t('common.delete') + ' ' + i18next.t('common.image');
+
                 item.innerHTML = `
                     <img src="/api/image/${key}" alt="${i18next.t('common.image')} ${index + 1}">
-                    <button class="remove-btn" onclick="removeImage(${index})" title="${i18next.t('common.delete')} ${i18next.t('common.image')}">&times;</button>
-                    <button class="set-cover-btn" onclick="setCoverImage(${index})" title="${coverText}">
-                        ${coverText}
+                    <button class="remove-btn" onclick="removeImage(${index})" title="${deleteTitle}">&times;</button>
+                    <button class="set-cover-btn" onclick="setCoverImage(${index})" title="${coverButtonText}">
+                        ${coverButtonText}
                     </button>
                 `;
                 grid.appendChild(item);
             });
+
+            // Disable upload button if max images reached
             if (currentImageKeys.length >= MAX_IMAGES) {
                 uploadLabel.classList.add('opacity-50', 'cursor-not-allowed', 'bg-gray-400');
                 uploadLabel.classList.remove('bg-blue-600', 'hover:bg-blue-700');
@@ -369,73 +517,135 @@
                 uploadLabel.classList.add('bg-blue-600', 'hover:bg-blue-700');
                 uploadInput.disabled = false;
             }
-         }
-         
-         function initializeSortable() { const grid = document.getElementById('image-preview-grid'); if (sortableInstance) { sortableInstance.destroy(); } sortableInstance = Sortable.create(grid, { animation: 150, ghostClass: 'sortable-ghost', dragClass: 'sortable-drag', onEnd: (evt) => { if (evt.oldIndex !== evt.newIndex) { const movedItem = currentImageKeys.splice(evt.oldIndex, 1)[0]; currentImageKeys.splice(evt.newIndex, 0, movedItem); renderImagePreviews(); } } }); }
-         window.setCoverImage = function(index) { if (index === 0 || index >= currentImageKeys.length) return; const coverKey = currentImageKeys.splice(index, 1)[0]; currentImageKeys.unshift(coverKey); renderImagePreviews(); }
-         window.removeImage = function(indexToRemove) { if (indexToRemove < 0 || indexToRemove >= currentImageKeys.length) return; currentImageKeys.splice(indexToRemove, 1); renderImagePreviews(); }
-         
-         window.handleFileSelect = function(event) {
+        }
+
+        // Initialize SortableJS for drag-and-drop reordering of images
+        function initializeSortable() {
+            const grid = document.getElementById('image-preview-grid');
+            if (sortableInstance) {
+                sortableInstance.destroy(); // Destroy previous instance if exists
+            }
+            sortableInstance = new Sortable(grid, {
+                animation: 150, // Animation speed
+                ghostClass: 'sortable-ghost', // Class for the placeholder
+                dragClass: 'sortable-drag', // Class for the item being dragged
+                onEnd: function (evt) {
+                    // Update the order of keys in currentImageKeys array
+                    const movedItemKey = currentImageKeys.splice(evt.oldIndex, 1)[0];
+                    currentImageKeys.splice(evt.newIndex, 0, movedItemKey);
+                    // Re-render previews to update cover status and button text
+                    renderImagePreviews();
+                }
+            });
+        }
+
+        // Function called when "Set Cover" button is clicked
+        window.setCoverImage = function(index) {
+            if (index > 0 && index < currentImageKeys.length) {
+                // Move the selected image key to the beginning of the array
+                const newCoverKey = currentImageKeys.splice(index, 1)[0];
+                currentImageKeys.unshift(newCoverKey);
+                // Re-render previews to reflect the change
+                renderImagePreviews();
+            }
+        }
+
+        // Function called when remove (×) button is clicked
+        window.removeImage = function(indexToRemove) {
+            if (indexToRemove >= 0 && indexToRemove < currentImageKeys.length) {
+                currentImageKeys.splice(indexToRemove, 1); // Remove the key
+                renderImagePreviews(); // Re-render previews
+            }
+        }
+
+        // Function called when files are selected via the input
+        window.handleFileSelect = function(event) {
             const status = document.getElementById('image-upload-status');
-            status.textContent = '';
+            status.textContent = ''; // Clear previous status
             const selectedFiles = Array.from(event.target.files);
             if (selectedFiles.length === 0) return;
+
+            // Check if user is logged in
             if (!currentAuthUser) {
                 alert(i18next.t('ratePage.loginToUpload'));
                 return;
             }
+
             const allowedFiles = [];
+            // Filter selected files based on count, size, and type
             for (const file of selectedFiles) {
                 if (currentImageKeys.length + allowedFiles.length >= MAX_IMAGES) {
                     alert(i18next.t('ratePage.maxImages', { max: MAX_IMAGES }));
-                    break;
+                    break; // Stop processing if max count reached
                 }
-                if (file.size > 5 * 1024 * 1024) {
+                if (file.size > 5 * 1024 * 1024) { // 5MB limit
                     alert(i18next.t('ratePage.imageTooLarge', { name: file.name }));
-                    continue;
+                    continue; // Skip this file
                 }
                 if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
                     alert(i18next.t('ratePage.imageTypeNotSupported', { name: file.name }));
-                    continue;
+                    continue; // Skip this file
                 }
                 allowedFiles.push(file);
             }
+
+            // If valid files were selected, start the cropping process
             if (allowedFiles.length > 0) {
                 filesToProcess = allowedFiles;
                 currentFileIndex = 0;
                 showCropperForNextFile();
             }
-            event.target.value = null;
-         }
-         
-         function showCropperForNextFile() {
+            event.target.value = null; // Reset file input
+        }
+
+        // Show the cropper modal for the next file in the queue
+        function showCropperForNextFile() {
             if (currentFileIndex >= filesToProcess.length) {
+                // All files processed
                 filesToProcess = [];
-                cancelCrop();
+                cancelCrop(); // Hide modal
                 return;
             }
             const file = filesToProcess[currentFileIndex];
             const reader = new FileReader();
             reader.onload = (e) => {
-                cropperModal.classList.remove('hidden');
-                cropperImage.src = e.target.result;
-                if (cropper) cropper.destroy();
-                cropper = new Cropper(cropperImage, { aspectRatio: 1179 / 1572, viewMode: 1, autoCropArea: 0.9, background: false, });
+                cropperModal.classList.remove('hidden'); // Show modal
+                cropperImage.src = e.target.result; // Load image data
+                if (cropper) cropper.destroy(); // Destroy previous cropper instance
+                // Initialize CropperJS
+                cropper = new Cropper(cropperImage, {
+                    aspectRatio: 1179 / 1572, // Set aspect ratio
+                    viewMode: 1, // Restrict crop box to canvas
+                    autoCropArea: 0.9, // Initial crop area size
+                    background: false, // No grid background
+                });
+                // Update status message
                 cropperStatus.textContent = i18next.t('ratePage.processingImage', { current: currentFileIndex + 1, total: filesToProcess.length });
             };
-            reader.readAsDataURL(file);
-         }
-         
-         window.confirmCropAndUpload = async function() {
+            reader.readAsDataURL(file); // Read file as Data URL
+        }
+
+        // Function called when "Confirm & Upload" is clicked in the modal
+        window.confirmCropAndUpload = async function() {
             if (!cropper || !filesToProcess[currentFileIndex]) return;
+
             const token = sessionStorage.getItem('accessToken');
             if (!token) {
-                alert(i18next.t('common.sessionExpired'));
+                alert(i18next.t('common.sessionExpired')); // Use i18n
                 return;
             }
-            cropperStatus.textContent = i18next.t('ratePage.croppingAndUploading', { current: currentFileIndex + 1 });
-            const fileName = filesToProcess[currentFileIndex].name;
-            const canvas = cropper.getCroppedCanvas({ width: 600, height: 800, imageSmoothingQuality: 'high', });
+
+            cropperStatus.textContent = i18next.t('ratePage.croppingAndUploading', { current: currentFileIndex + 1 }); // Update status
+            const originalFileName = filesToProcess[currentFileIndex].name;
+
+            // Get cropped image data as a canvas
+            const canvas = cropper.getCroppedCanvas({
+                width: 600, // Desired width
+                height: 800, // Desired height based on aspect ratio
+                imageSmoothingQuality: 'high',
+            });
+
+            // Convert canvas to Blob (JPEG format, 90% quality)
             canvas.toBlob(async (blob) => {
                 if (!blob) {
                     cropperStatus.textContent = i18next.t('ratePage.cropFailed');
@@ -443,265 +653,257 @@
                 }
                 try {
                     const formData = new FormData();
-                    formData.append('image', blob, fileName);
-                    const response = await fetch('/api/upload-image', { method: 'POST', headers: { 'Authorization': `Bearer ${token}` }, body: formData });
+                    // Append blob with original filename (extension might change due to conversion)
+                    formData.append('image', blob, originalFileName.replace(/\.\w+$/, '.jpg'));
+
+                    // Send blob to the upload API endpoint
+                    const response = await fetch('/api/upload-image', {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${token}` },
+                        body: formData
+                    });
                     const result = await response.json();
                     if (!response.ok) throw new Error(result.error || 'Upload failed');
-                    currentImageKeys.push(result.imageKey);
-                    renderImagePreviews();
-                    currentFileIndex++;
-                    showCropperForNextFile();
+
+                    currentImageKeys.push(result.imageKey); // Add the returned key
+                    renderImagePreviews(); // Update previews
+                    currentFileIndex++; // Move to the next file
+                    showCropperForNextFile(); // Show cropper for the next file or close modal
                 } catch (e) {
                     console.error("上传图片失败:", e);
-                    cropperStatus.textContent = i18next.t('ratePage.uploadFailed', { msg: e.message });
+                    cropperStatus.textContent = i18next.t('ratePage.uploadFailed', { msg: e.message }); // Show error
                 }
-            }, 'image/jpeg', 0.9);
-         }
-         
-         window.cancelCrop = function() { if (cropper) { cropper.destroy(); cropper = null; } cropperImage.src = ''; cropperModal.classList.add('hidden'); cropperStatus.textContent = ''; }
+            }, 'image/jpeg', 0.9); // Specify MIME type and quality
+        }
+
+        // Function called when "Cancel" is clicked in the modal
+        window.cancelCrop = function() {
+            if (cropper) cropper.destroy(); // Clean up cropper instance
+            cropper = null;
+            cropperImage.src = ''; // Clear image source
+            cropperModal.classList.add('hidden'); // Hide modal
+            cropperStatus.textContent = ''; // Clear status message
+            // Optionally clear remaining filesToProcess if needed
+            // filesToProcess = [];
+        }
+        // --- End Image Handling ---
+
 
         // --- Core Rating Logic ---
-         async function loadConfig() {
+        // Function to load the rating configuration from the API
+        async function loadConfig() {
             document.getElementById('config-load-status').textContent = i18next.t('ratePage.configSyncing');
             try {
                 const apiUrl = new URL('/api/config/latest', window.location.origin);
                 const response = await fetch(apiUrl);
                 if (!response.ok) throw new Error(`Server error: ${response.statusText}`);
                 ratingConfig = await response.json();
-                console.log("Loaded config:", ratingConfig); // Add log
                 if (!ratingConfig || !ratingConfig.ratingCriteria) throw new Error("Loaded config is invalid.");
-                calculateWeights(ratingConfig);
-                userRatings = {};
-                renderRatingView();
+
+                calculateWeights(ratingConfig); // Calculate total weights and counts
+                userRatings = {}; // Reset user selections
+                renderRatingView(); // Render the form based on the config
+                renderFlavorButtons(); // Render flavor buttons (now uses i18n keys)
                 document.getElementById('config-load-status').textContent = i18next.t('ratePage.configSynced');
             } catch (error) {
                 console.error("加载配置失败:", error);
                 document.getElementById('config-load-status').textContent = i18next.t('ratePage.configFailed');
-                 // Ensure renderRatingView shows an error if config fails
-                 renderRatingView(); 
                 alert(`Failed to load core app config. Please refresh.\nDetails: ${error.message}`);
+                // Optionally disable the form or show a more prominent error
             }
-         }
-         
-         // **MODIFIED**: Use keys for ID generation
-         function getRatingId(categoryKey, criterionKey) {
-            // Basic validation
-             if (!categoryKey || !criterionKey) {
-                 console.error("Cannot get rating ID: Missing categoryKey or criterionKey", {categoryKey, criterionKey});
-                 return `error-invalid-key`;
-             }
-            return `${categoryKey}-${criterionKey}`;
-         }
+        }
 
-         function calculateWeights(config) {
+        // **MODIFIED**: Generates a unique ID for each criterion based on its i18n key
+        function getRatingId(categoryKey, criterionKey) {
+            // Use keys directly for a stable ID
+            return `${categoryKey}-${criterionKey}`;
+        }
+
+        // Calculate total possible weight and number of criteria from the config
+        function calculateWeights(config) {
             let totalWeight = 0;
-            let totalCriteria = 0;
+            let criteriaCount = 0;
             if (config && config.ratingCriteria) {
-                config.ratingCriteria.forEach(category => {
-                    if (category.criteriaList) {
-                        category.criteriaList.forEach(criterion => {
-                            totalWeight += criterion.weight || 0;
-                            totalCriteria++;
+                config.ratingCriteria.forEach(cat => {
+                    if (cat.criteriaList) {
+                        cat.criteriaList.forEach(crit => {
+                            totalWeight += (crit.weight || 0);
+                            criteriaCount++;
                         });
                     }
                 });
             }
-             // Store calculated totals in the config object itself for easier access
-             config.totalWeightMax = totalWeight;
-             config.totalCriteriaCount = totalCriteria;
-             console.log("Calculated weights:", {totalWeight, totalCriteria}); // Add log
-         }
+            config.totalWeightMax = totalWeight; // Store calculated max weight
+            config.totalCriteriaCount = criteriaCount; // Store total criteria count
+        }
 
-         // **MODIFIED**: Use key-based ID and find criterion by key
-         function calculateFinalScore() {
-             let totalScore = 0;
-             if (!ratingConfig || !ratingConfig.ratingCriteria) {
-                 return 0; // Config not loaded or invalid
-             }
+        // Calculate the user's current total score based on selections
+        function calculateFinalScore() {
+            let score = 0;
+            if (!ratingConfig || !ratingConfig.ratingCriteria) return 0;
 
-             // Iterate through userRatings (which now use key-based IDs)
-             for (const ratingId in userRatings) {
-                 const selectedOptionIndex = userRatings[ratingId];
-                 if (selectedOptionIndex === undefined) continue;
+            for (const ratingId in userRatings) {
+                 // **MODIFIED**: Parse keys from ratingId
+                const keys = ratingId.split('-');
+                if (keys.length < 2) continue; // Basic check
+                const categoryKey = keys[0];
+                const criterionKey = keys.slice(1).join('-'); // Re-join if criterion key had hyphens
 
-                 // Parse the categoryKey and criterionKey from the ratingId
-                 const keys = ratingId.split('-');
-                 if (keys.length < 2) {
-                      console.warn(`Invalid rating ID format found: ${ratingId}`);
-                      continue; // Skip invalid IDs
-                 }
-                 const categoryKey = keys[0];
-                 // Reconstruct criterionKey (might contain hyphens)
-                 const criterionKey = keys.slice(1).join('-');
+                const selectedOptionIndex = userRatings[ratingId];
 
-                 // Find the corresponding criterion in the config using the keys
-                 let foundCriterion = null;
-                 for (const category of ratingConfig.ratingCriteria) {
-                      // Check if categoryKey matches (or fallback to old category name if needed)
-                      if (category.categoryKey === categoryKey || category.category === categoryKey) {
-                         foundCriterion = category.criteriaList?.find(
-                              crit => crit.nameKey === criterionKey || crit.name === criterionKey // Check nameKey or fallback to old name
-                         );
-                         if (foundCriterion) break; // Found it, exit inner loop
-                      }
-                 }
+                // Find the corresponding category and criterion in the config
+                const category = ratingConfig.ratingCriteria.find(cat => cat.categoryKey === categoryKey);
+                const criterion = category?.criteriaList?.find(crit => crit.nameKey === criterionKey);
 
+                if (criterion && criterion.options && selectedOptionIndex < criterion.options.length) {
+                    const weight = criterion.weight || 0;
+                    const scorePct = criterion.options[selectedOptionIndex]?.scorePct || 0;
+                    score += weight * scorePct;
+                }
+            }
+            return score;
+        }
 
-                 if (foundCriterion && foundCriterion.options && foundCriterion.options[selectedOptionIndex]) {
-                     const criterionWeight = foundCriterion.weight || 0;
-                     const optionScorePct = foundCriterion.options[selectedOptionIndex].scorePct || 0;
-                     totalScore += criterionWeight * optionScorePct;
-                 } else {
-                      console.warn(`Could not find criterion or option for ratingId: ${ratingId}, categoryKey: ${categoryKey}, criterionKey: ${criterionKey}, optionIndex: ${selectedOptionIndex}`);
-                 }
-             }
-             return totalScore;
-         }
+        // **MODIFIED**: Update user's selection for a criterion using keys
+        window.updateRatingSelection = function(categoryKey, criterionKey, optionIndex) {
+            const id = getRatingId(categoryKey, criterionKey); // Generate ID using keys
+            userRatings[id] = optionIndex; // Store the selected option index
+            renderRatingView(); // Re-render to update score, progress, and button styles
+        };
 
-         // **MODIFIED**: Accept keys, use key-based ID
-         window.updateRatingSelection = function(categoryKey, criterionKey, optionIndex) {
-            const id = getRatingId(categoryKey, criterionKey);
-            userRatings[id] = optionIndex;
-            renderRatingView(); // Re-render to update score and buttons
-         };
-         
-         // **MODIFIED**: Use i18n keys for rendering
-         function renderRatingView() {
+        // Render the entire rating form based on the loaded config and user selections
+        function renderRatingView() {
             const formContainer = document.getElementById('rating-form-container');
-            // Check if config is loaded and valid
+            if (!formContainer) return; // Exit if container not found
+
+            // Handle case where config failed to load
             if (!ratingConfig || !ratingConfig.ratingCriteria) {
-                formContainer.innerHTML = `<div class="text-center p-6 bg-white rounded-lg shadow"><p class="text-red-500">${i18next.t('ratePage.configFailed')}</p></div>`;
-                // Clear score displays as well
-                document.getElementById('current-score-display').textContent = 'ERR';
+                formContainer.innerHTML = `<div class="text-center p-6 bg-white rounded-lg shadow"><p>${i18next.t('ratePage.configFailed')}</p></div>`;
+                // Update header displays to zero/default
+                document.getElementById('app-title-display').textContent = i18next.t('ratePage.title'); // Default title
+                document.getElementById('app-description-display').textContent = '';
                 document.getElementById('total-weight-max-display').textContent = '0';
+                document.getElementById('current-score-display').textContent = '0.00';
                 document.getElementById('progress-bar').style.width = '0%';
-                document.getElementById('progress-text').textContent = `0 / 0`;
+                document.getElementById('progress-text').textContent = '0 / 0';
                 return;
             };
 
-            // Calculate score *before* rendering to display correctly
+            // Update header displays
             const totalScore = calculateFinalScore();
-            const ratedCount = Object.keys(userRatings).length;
-            const totalCount = ratingConfig.totalCriteriaCount || 1; // Use pre-calculated count
-
-            // Update header elements using i18n keys from config
-            document.getElementById('app-title-display').textContent = i18next.t(ratingConfig.appTitleKey || ratingConfig.appTitle || ''); // Use key, fallback to old title
-            document.getElementById('app-description-display').textContent = i18next.t(ratingConfig.descriptionKey || ratingConfig.description || ''); // Use key, fallback to old desc
-            document.getElementById('total-weight-max-display').textContent = ratingConfig.totalWeightMax ?? 0; // Use pre-calculated weight
+            // Use i18n for title/description if keys are provided, otherwise use the text directly
+            document.getElementById('app-title-display').textContent = i18next.t(ratingConfig.appTitle || 'ratePage.title');
+            document.getElementById('app-description-display').textContent = i18next.t(ratingConfig.description || '');
+            document.getElementById('total-weight-max-display').textContent = ratingConfig.totalWeightMax ?? 0;
             document.getElementById('current-score-display').textContent = totalScore.toFixed(2);
+
+            // Update progress bar
+            const ratedCount = Object.keys(userRatings).length;
+            const totalCount = ratingConfig.totalCriteriaCount || 1; // Avoid division by zero
             document.getElementById('progress-bar').style.width = `${(ratedCount / totalCount) * 100}%`;
             document.getElementById('progress-text').textContent = `${ratedCount} / ${totalCount}`;
 
-            // Render form sections
-            formContainer.innerHTML = ratingConfig.ratingCriteria.map((category) => {
-                 // Get keys, fallback to old properties if keys don't exist
-                 const categoryKey = category.categoryKey || category.category || 'unknownCategory';
-                 const detailKey = category.detailKey || category.detail || '';
-                 
-                 // Translate using keys
-                 const categoryName = i18next.t(categoryKey);
-                 const categoryDetail = i18next.t(detailKey);
+            // Generate HTML for each category and its criteria
+            formContainer.innerHTML = ratingConfig.ratingCriteria.map((category) => `
+                <div class="bg-white p-6 rounded-xl shadow-lg mb-8 border-l-4 border-indigo-500">
+                    <h3 class="text-xl font-bold text-indigo-700 mb-2">${i18next.t(category.categoryKey || '')}</h3>
+                    <p class="text-gray-500 text-sm mb-4">${i18next.t(category.detailKey || '')}</p>
+                    <div class="space-y-6">
+                        ${(category.criteriaList || []).map((criterion) => renderRatingCriterion(category.categoryKey, criterion)).join('')}
+                    </div>
+                </div>
+            `).join('');
+        }
 
-                 return `
-                 <div class="bg-white p-6 rounded-xl shadow-lg mb-8 border-l-4 border-indigo-500">
-                      <h3 class="text-xl font-bold text-indigo-700 mb-2">${categoryName}</h3>
-                      <p class="text-gray-500 text-sm mb-4">${categoryDetail}</p>
-                      <div class="space-y-6">
-                           ${(category.criteriaList || []).map((criterion) => renderRatingCriterion(categoryKey, criterion)).join('')}
-                      </div>
-                 </div>`;
-            }).join('');
-         }
-         
-         // **MODIFIED**: Accept categoryKey, use i18n keys for rendering and function calls
-         function renderRatingCriterion(categoryKey, criterion) {
-            // Get keys, fallback to old properties
-             const criterionKey = criterion.nameKey || criterion.name || 'unknownCriterion';
-             const id = getRatingId(categoryKey, criterionKey); // Use keys to generate ID
-             const selectedOptionIndex = userRatings[id];
-             const currentWeight = criterion.weight || 0;
-             let currentScore = 0;
-             if (selectedOptionIndex !== undefined && criterion.options?.[selectedOptionIndex]) {
-                 currentScore = currentWeight * (criterion.options[selectedOptionIndex].scorePct || 0);
-             }
-             const isSuperAdmin = currentAuthUser?.db_role === 'super_admin';
-            
-             // Translate name using key
-             const criterionName = i18next.t(criterionKey);
+        // Render a single criterion section with its options
+        function renderRatingCriterion(categoryKey, criterion) {
+            const criterionKey = criterion.nameKey; // Use the key
+            const id = getRatingId(categoryKey, criterionKey); // Generate ID using keys
+            const selectedOptionIndex = userRatings[id]; // Get user selection for this criterion
+            const currentWeight = criterion.weight || 0; // Get weight or default to 0
+            let currentScore = 0; // Calculate score for this criterion based on selection
+            if (selectedOptionIndex !== undefined && criterion.options?.[selectedOptionIndex]) {
+                currentScore = currentWeight * (criterion.options[selectedOptionIndex].scorePct || 0);
+            }
 
-             return `<div class="bg-gray-50 p-4 rounded-lg border">
-                 <div class="flex justify-between items-center mb-3">
-                     <h4 class="text-lg font-semibold text-gray-800">${criterionName} ${isSuperAdmin ? `(${currentWeight} 分)` : ''}</h4>
-                     ${isSuperAdmin ? `<span class="text-xl font-extrabold text-green-600">${currentScore.toFixed(2)}</span>` : ''}
-                 </div>
-                 <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
-                 ${(criterion.options || []).map((option, optIndex) => {
-                     const isSelected = selectedOptionIndex === optIndex;
-                     const score = (currentWeight * (option.scorePct || 0)).toFixed(2);
-                     
-                     // Get description key, fallback to old property
-                     const descriptionKey = option.descriptionKey || option.description || 'unknownOption';
-                     // Translate description using key
-                     const optionDescription = i18next.t(descriptionKey);
+            // Check if current user is super admin to show score details
+            const isSuperAdmin = currentAuthUser?.db_role === 'super_admin';
 
-                     // **MODIFIED**: Pass KEYS to updateRatingSelection
-                     return `<button onclick="updateRatingSelection('${categoryKey}', '${criterionKey}', ${optIndex})"
-                         class="p-2 text-sm text-center rounded-lg border transition ${ isSelected ? 'bg-indigo-600 text-white shadow-md' : 'bg-white hover:bg-indigo-50' }">
-                         ${optionDescription}
-                         ${isSuperAdmin ? `<span class="block text-xs ${isSelected ? 'text-indigo-200' : 'text-gray-500'}">(得 ${score} 分)</span>` : ''}
-                     </button>`;
-                 }).join('')}
-                 </div>
-             </div>`;
-         }
-
-        // --- Character Counters ---
-         function updateCharCounts() {
-             const titleInput = document.getElementById('rating-title');
-             const titleCount = document.getElementById('title-char-count');
-             const reviewInput = document.getElementById('cigar-review');
-             const reviewCount = document.getElementById('review-char-count');
-             if(titleInput && titleCount) titleCount.textContent = `${titleInput.value.length} / ${titleInput.maxLength}`;
-             if(reviewInput && reviewCount) reviewCount.textContent = `${reviewInput.value.length} / ${reviewInput.maxLength}`;
-         }
+            return `
+                <div class="bg-gray-50 p-4 rounded-lg border">
+                    <div class="flex justify-between items-center mb-3">
+                        <h4 class="text-lg font-semibold text-gray-800">
+                            ${i18next.t(criterionKey || '')} ${isSuperAdmin ? `(${currentWeight} ${i18next.t('common.points', '分')})` : ''} {/* Add 'points' key */}
+                        </h4>
+                        ${isSuperAdmin ? `<span class="text-xl font-extrabold text-green-600">${currentScore.toFixed(2)}</span>` : ''} {/* Show score for super admin */}
+                    </div>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
+                    ${(criterion.options || []).map((option, optIndex) => {
+                        const isSelected = selectedOptionIndex === optIndex; // Check if this option is selected
+                        const score = (currentWeight * (option.scorePct || 0)).toFixed(2); // Calculate potential score
+                        return `
+                            <button
+                                type="button"
+                                onclick="updateRatingSelection('${categoryKey}', '${criterionKey}', ${optIndex})"
+                                class="p-2 text-sm text-center rounded-lg border transition ${isSelected ? 'bg-indigo-600 text-white shadow-md ring-2 ring-indigo-300 ring-offset-1' : 'bg-white text-gray-700 hover:bg-indigo-50 hover:border-indigo-300'}">
+                                ${i18next.t(option.descriptionKey || '')} {/* Display translated option text */}
+                                ${isSuperAdmin ? `<span class="block text-xs ${isSelected ? 'text-indigo-200' : 'text-gray-500'}">(${i18next.t('common.score', '得')} ${score} ${i18next.t('common.points', '分')})</span>` : ''} {/* Add 'score' key */}
+                            </button>
+                        `;
+                    }).join('')}
+                    </div>
+                </div>
+            `;
+        }
+        // --- End Core Rating Logic ---
 
 
         // --- Actions (Reset, Show Results / Save Changes) ---
-         window.resetRatings = function() {
+        // Function to reset all selections and input fields
+        window.resetRatings = function() {
             if (confirm(i18next.t('ratePage.confirmReset'))) {
-                userRatings = {};
+                userRatings = {}; // Clear selections
+                // Clear input fields
                 document.getElementById('rating-title').value = '';
                 document.getElementById('cigar-name').value = '';
                 document.getElementById('cigar-size').value = '';
                 document.getElementById('cigar-origin').value = '';
                 document.getElementById('cigar-review').value = '';
+                // Clear images and flavors
                 currentImageKeys = [];
                 selectedFlavors = [];
-                renderFlavorButtons();
-                renderImagePreviews();
+                renderFlavorButtons(); // Re-render flavors (will be empty)
+                renderImagePreviews(); // Re-render images (will be empty)
+
+                // If in edit mode, switch back to create mode
                 if (isEditMode) {
                     isEditMode = false;
                     editRatingId = null;
                     const actionButton = document.getElementById('main-action-button');
-                    actionButton.textContent = i18next.t('ratePage.viewReport');
+                    actionButton.textContent = i18next.t('ratePage.viewReport'); // Change button text back
                     actionButton.classList.remove('bg-blue-600', 'hover:bg-blue-700');
-                    actionButton.classList.add('bg-green-600', 'hover:bg-green-700');
+                    actionButton.classList.add('bg-green-600', 'hover:bg-green-700'); // Change button color back
+                    // Clean URL
                     window.history.replaceState({}, document.title, window.location.pathname);
                 }
-                renderRatingView();
-                updateCharCounts();
+                renderRatingView(); // Re-render the form (will show 0 score etc.)
+                updateCharCounts(); // Reset character counters
             }
-         }
-         
-         window.showResults = async function() {
+        }
+
+        // **MODIFIED**: Prepares resultsData with keys for flavors
+        window.showResults = async function() {
+            // --- Validation Checks ---
             const token = sessionStorage.getItem('accessToken');
+            // Login check (only if creating new, not editing)
             if (!isEditMode && (!currentAuthUser || !token)) {
                 return alert(i18next.t('ratePage.loginToSubmit'));
             }
-            // Check if config loaded AND at least one rating was selected
-            if (!ratingConfig || !ratingConfig.ratingCriteria || Object.keys(userRatings).length === 0) {
-                 return alert(i18next.t('ratePage.selectOneOption'));
+            // Config and selection checks
+            if (!ratingConfig || Object.keys(userRatings).length === 0) {
+                return alert(i18next.t('ratePage.selectOneOption'));
             }
+            // Required field checks
             const title = document.getElementById('rating-title').value.trim();
             if (!title) {
                 return alert(i18next.t('ratePage.titleRequired'));
@@ -713,167 +915,196 @@
             if (!cigarNameValue) {
                 return alert(i18next.t('ratePage.nameRequired'));
             }
-            
-            const cigarInfo = { name: cigarNameValue, size: document.getElementById('cigar-size').value || i18next.t('common.unknown'), origin: document.getElementById('cigar-origin').value || i18next.t('common.unknown') };
-            const cigarReview = document.getElementById('cigar-review').value || i18next.t('common.noReview');
+            // --- End Validation ---
+
+            // --- Prepare Data ---
+            const cigarInfo = {
+                name: cigarNameValue,
+                size: document.getElementById('cigar-size').value || i18next.t('common.unknown'), // Use i18n for default
+                origin: document.getElementById('cigar-origin').value || i18next.t('common.unknown') // Use i18n for default
+            };
+            const cigarReview = document.getElementById('cigar-review').value || ''; // Default to empty string
             const finalScore = calculateFinalScore();
-            const maxScore = ratingConfig.totalWeightMax || 1;
+            const maxScore = ratingConfig.totalWeightMax || 1; // Avoid division by zero
             const normalizedScore = maxScore > 0 ? (finalScore / maxScore) * 100 : 0;
-            
-            // **MODIFIED**: Pass the nameKey, not the translated string
-            const foundGrade = GRADING_SCALE.find(g => normalizedScore >= g.min_score) || GRADING_SCALE[GRADING_SCALE.length - 1]; // Ensure fallback
+
+            // Find the grade based on normalized score
+            const foundGrade = GRADING_SCALE.find(g => normalizedScore >= g.min_score) || GRADING_SCALE[GRADING_SCALE.length - 1]; // Default to lowest grade
             const finalGrade = foundGrade ? {
                 grade: foundGrade.grade,
-                nameKey: foundGrade.nameKey, // Pass the key
+                nameKey: foundGrade.nameKey, // Pass the i18n key for the grade name
                 color: foundGrade.color
-            } : null; // Handle potential case where GRADING_SCALE is empty or invalid
-             
-            if (!finalGrade) {
-                 console.error("Could not determine final grade.");
-                 alert("Error: Could not determine final grade."); // User-facing error
-                 return;
-            }
+            } : null; // Should always find a grade
 
+            // Construct the data object to be saved or passed to results page
             const resultsData = {
                 title: title,
-                config: ratingConfig,
-                ratings: userRatings, // Contains selections with key-based IDs
-                calculatedScore: finalScore,
+                config: ratingConfig,       // Include the config structure used
+                ratings: userRatings,       // User's selections { "catKey-critKey": index }
+                calculatedScore: finalScore,// Raw score based on weights
                 cigarInfo: cigarInfo,
                 cigarReview: cigarReview,
-                imageUrls: currentImageKeys,
-                normalizedScore: normalizedScore,
-                finalGrade: finalGrade, // Contains nameKey
-                selectedFlavors: selectedFlavors,
-                isDraft: !isEditMode, // True if creating new, false if editing
-                 ratingId: isEditMode ? editRatingId : undefined // Include ID if editing
+                imageUrls: currentImageKeys,// Array of R2 image keys
+                normalizedScore: normalizedScore, // Score normalized to 0-100
+                finalGrade: finalGrade,     // Grade object { grade: 'P', nameKey: '...', color: '...' }
+                selectedFlavors: selectedFlavors, // Array of selected flavor *keys*
+                isDraft: !isEditMode        // Mark as draft if creating new
             };
-            
+            // --- End Prepare Data ---
+
+            // --- Save Changes (Edit Mode) or Show Results (Create Mode) ---
             if (isEditMode && editRatingId) {
+                // --- Save Changes Logic ---
                 const actionButton = document.getElementById('main-action-button');
-                actionButton.textContent = i18next.t('common.loading');
+                actionButton.textContent = i18next.t('common.saving'); // Update button text
                 actionButton.disabled = true;
                 try {
-                    if (!token) throw new Error(i18next.t('common.sessionExpired'));
-                    // resultsData.ratingId = editRatingId; // Already added above
+                    if (!token) throw new Error(i18next.t('common.sessionExpired')); // Check token again
+                    resultsData.ratingId = editRatingId; // Add the ID for the PUT request
                     const apiUrl = new URL(`/api/ratings`, window.location.origin);
-                    const response = await fetch(apiUrl, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify(resultsData) });
-                    if (!response.ok) { const err = await response.json(); throw new Error(err.error || 'Update failed'); }
-                    alert(i18next.t('common.saveSuccess'));
-                    window.location.href = 'history.html';
+                    const response = await fetch(apiUrl, {
+                        method: 'PUT', // Use PUT for update
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                        body: JSON.stringify(resultsData)
+                    });
+                    if (!response.ok) {
+                        let errorText = i18next.t('errors.saveFailedNoMsg');
+                        try { const err = await response.json(); errorText = err.error || errorText; } catch(e){}
+                        throw new Error(errorText);
+                    }
+                    alert(i18next.t('common.saveSuccess')); // Show success message
+                    window.location.href = 'history.html'; // Redirect to history page
                 } catch (e) {
-                    alert(i18next.t('common.saveFailed', { msg: e.message }));
-                    actionButton.textContent = i18next.t('ratePage.saveChanges');
+                    alert(i18next.t('common.saveFailed', { msg: e.message })); // Show error message
+                    actionButton.textContent = i18next.t('ratePage.saveChanges'); // Reset button text
                     actionButton.disabled = false;
                 }
+                // --- End Save Changes Logic ---
             } else {
+                // --- Show Results Logic ---
                 try {
+                    // Store the results in session storage for the results page to pick up
                     sessionStorage.setItem('cigarRatingResults', JSON.stringify(resultsData));
-                     window.location.href = `results.html`;
+                    window.location.href = 'results.html'; // Redirect to results page
                 } catch (e) {
-                     alert(i18next.t('common.sessionStoreFailed') + `: ${e.message}`);
+                    console.error("存储 Session Storage 失败:", e);
+                    alert(i18next.t('common.sessionStoreFailed')); // Show error
                 }
+                // --- End Show Results Logic ---
             }
-         }
-
-        // --- Initialization ---
-         async function initializePage() {
-             try {
-                await initI18n(); // Wait for translations
-                const urlParams = new URLSearchParams(window.location.search);
-                const code = urlParams.get('code');
-                editRatingId = urlParams.get('edit'); // Check if in edit mode
-                isEditMode = !!editRatingId;
-
-                let user = code ? await handleOidcCallback(code) : await validateSessionAndGetUser();
-                setUser(user); // Sets currentAuthUser and renders login status/admin links
-
-                setupLanguageSwitcher(); // Setup language dropdown
-                renderFlavorButtons(); // Render flavor buttons (static for now)
-                initializeSortable(); // Setup image drag-and-drop
-                renderImagePreviews(); // Render initial empty image previews
-                 
-                 // Add listeners for character counts
-                 document.getElementById('rating-title').addEventListener('input', updateCharCounts);
-                 document.getElementById('cigar-review').addEventListener('input', updateCharCounts);
-                 updateCharCounts(); // Initial count update
+        };
+        // --- End Actions ---
 
 
-                if (!currentAuthUser && !isEditMode) {
-                     // Show login prompt only if creating new and not logged in
-                     document.getElementById('login-prompt').classList.remove('hidden');
-                     document.getElementById('main-content').classList.add('hidden'); // Hide main form
-                     document.getElementById('config-load-status').textContent = i18next.t('ratePage.loginPrompt'); // Update status
-                 } else {
-                      document.getElementById('login-prompt').classList.add('hidden');
-                      document.getElementById('main-content').classList.remove('hidden');
-                     
-                      // Load config first
-                      await loadConfig();
-
-                      // If in edit mode, load the specific rating data AFTER config is ready
-                      if (isEditMode && editRatingId) {
-                          await loadRatingForEdit(editRatingId);
-                      }
-                 }
-
-             } catch (error) {
-                 console.error("Page initialization failed:", error);
-                 document.getElementById('config-load-status').textContent = i18next.t('errors.initFailed', { msg: error.message });
-                 document.getElementById('rating-form-container').innerHTML = `<p class="text-red-500">${i18next.t('errors.initFailed', { msg: error.message })}</p>`;
-             }
-         }
-
-        // --- Edit Mode Logic ---
-         async function loadRatingForEdit(id) {
-            document.getElementById('config-load-status').textContent = i18next.t('ratePage.loadingEdit', { id: id });
-            const actionButton = document.getElementById('main-action-button');
-            actionButton.textContent = i18next.t('ratePage.saveChanges'); // Change button text
-            actionButton.classList.remove('bg-green-600', 'hover:bg-green-700');
-            actionButton.classList.add('bg-blue-600', 'hover:bg-blue-700');
-            document.title = i18next.t('ratePage.editTitle'); // Change page title
-
+        // --- Initialization and Edit Mode Handling ---
+        // Function to load data for editing
+        async function loadRatingForEdit(ratingId) {
+             const statusElement = document.getElementById('config-load-status');
+             statusElement.textContent = i18next.t('ratePage.loadingEdit', { id: ratingId.substring(0, 8) }); // Show loading message
             try {
-                 const token = sessionStorage.getItem('accessToken');
-                 if (!token) throw new Error(i18next.t('common.sessionExpired'));
-                 const apiUrl = new URL(`/api/ratings?id=${id}`, window.location.origin);
-                 const response = await fetch(apiUrl, { headers: { 'Authorization': `Bearer ${token}` } });
-                 if (!response.ok) { const err = await response.json(); throw new Error(err.error || `Load failed status ${response.status}`); }
-                 const data = await response.json();
-                
-                 // --- Populate fields ---
-                 document.getElementById('rating-title').value = data.title || '';
-                 document.getElementById('cigar-name').value = data.cigarInfo?.name || '';
-                 document.getElementById('cigar-size').value = data.cigarInfo?.size || '';
-                 document.getElementById('cigar-origin').value = data.cigarInfo?.origin || '';
-                 document.getElementById('cigar-review').value = data.cigarReview || '';
-                 
-                 // Images
-                 currentImageKeys = Array.isArray(data.imageUrl) ? data.imageUrl : [];
-                 renderImagePreviews();
-                 
-                 // Flavors
-                 selectedFlavors = Array.isArray(data.fullData?.selectedFlavors) ? data.fullData.selectedFlavors : [];
-                 renderFlavorButtons();
-                 
-                 // Ratings - IMPORTANT: Use the key-based IDs from fullData.ratings
-                 userRatings = data.fullData?.ratings || {}; 
-                 
-                 renderRatingView(); // Re-render form with loaded selections
-                 updateCharCounts(); // Update character counts
-                 document.getElementById('config-load-status').textContent = i18next.t('ratePage.editLoaded', { id: id });
-                
-            } catch (error) {
-                console.error("加载待编辑点评失败:", error);
-                document.getElementById('config-load-status').textContent = i18next.t('ratePage.editLoadFailed', { msg: error.message });
-                alert(i18next.t('ratePage.editLoadFailed', { msg: error.message }));
-                 // Optionally disable form or redirect
-            }
-         }
+                const token = sessionStorage.getItem('accessToken');
+                if (!token) throw new Error(i18next.t('common.loginRequired')); // Check login
 
-        // --- Start Initialization ---
-         window.addEventListener('load', initializePage);
-        
+                const apiUrl = new URL(`/api/ratings?id=${ratingId}`, window.location.origin);
+                const response = await fetch(apiUrl, { headers: { 'Authorization': `Bearer ${token}` } });
+                if (!response.ok) {
+                     let errorText = i18next.t('ratePage.editLoadFailed', { msg: `Status ${response.status}` });
+                     try { const err = await response.json(); errorText = err.error || errorText; } catch(e){}
+                     throw new Error(errorText);
+                }
+                const data = await response.json();
+
+                // Populate form fields
+                document.getElementById('rating-title').value = data.title || '';
+                document.getElementById('cigar-name').value = data.cigarInfo?.name || '';
+                document.getElementById('cigar-size').value = data.cigarInfo?.size || '';
+                document.getElementById('cigar-origin').value = data.cigarInfo?.origin || '';
+                document.getElementById('cigar-review').value = data.cigarReview || '';
+
+                // Load images
+                currentImageKeys = Array.isArray(data.imageUrl) ? data.imageUrl : (data.imageUrl ? [data.imageUrl] : []);
+                renderImagePreviews();
+                initializeSortable(); // Init sortable after images are loaded
+
+                // Load flavor selections (expecting keys)
+                selectedFlavors = Array.isArray(data.selectedFlavors) ? data.selectedFlavors : [];
+                renderFlavorButtons(); // Render and mark selected flavors
+
+                // Load rating selections (using the structure with keys)
+                userRatings = data.fullData?.ratings || {}; // Assumes ratings are stored with key-based IDs
+
+                // Ensure the config is loaded before rendering the view with selections
+                if (!ratingConfig) {
+                    await loadConfig(); // Wait for config if not already loaded
+                } else {
+                     renderRatingView(); // Re-render with loaded selections if config was already present
+                }
+
+
+                statusElement.textContent = i18next.t('ratePage.editLoaded', { id: ratingId.substring(0, 8) }); // Show success message
+
+                // Update button text and style for saving changes
+                const actionButton = document.getElementById('main-action-button');
+                actionButton.textContent = i18next.t('ratePage.saveChanges');
+                actionButton.classList.remove('bg-green-600', 'hover:bg-green-700');
+                actionButton.classList.add('bg-blue-600', 'hover:bg-blue-700');
+
+            } catch (error) {
+                console.error("加载编辑数据失败:", error);
+                statusElement.textContent = i18next.t('ratePage.editLoadFailed', { msg: error.message }); // Show error
+                alert(i18next.t('ratePage.editLoadFailed', { msg: error.message }));
+                // Optionally redirect or disable form
+                window.location.href = 'history.html'; // Redirect back if load fails
+            }
+        }
+
+        // --- Character Counters ---
+        function updateCharCounts() {
+             const titleInput = document.getElementById('rating-title');
+             const reviewInput = document.getElementById('cigar-review');
+             const titleCount = document.getElementById('title-char-count');
+             const reviewCount = document.getElementById('review-char-count');
+             if(titleInput && titleCount) titleCount.textContent = `${titleInput.value.length} / ${titleInput.maxLength}`;
+             if(reviewInput && reviewCount) reviewCount.textContent = `${reviewInput.value.length} / ${reviewInput.maxLength}`;
+        }
+
+        // --- Window Onload ---
+        window.onload = async function() {
+            await initI18n(); // 1. Initialize i18n first
+
+            // 2. Handle Authentication
+            const urlParams = new URLSearchParams(window.location.search);
+            const code = urlParams.get('code');
+            const editIdParam = urlParams.get('edit'); // Check for 'edit' parameter
+            let user = code ? await handleOidcCallback(code) : await validateSessionAndGetUser();
+            setUser(user); // Set user and update UI (login status, admin links)
+
+            // 3. Setup UI elements dependent on i18n
+            setupLanguageSwitcher(); // Setup language switcher now that i18n is ready
+
+            // Add event listeners for character counts
+            document.getElementById('rating-title')?.addEventListener('input', updateCharCounts);
+            document.getElementById('cigar-review')?.addEventListener('input', updateCharCounts);
+
+            // 4. Load Core Config OR Edit Data
+            if (editIdParam) {
+                // Edit Mode
+                isEditMode = true;
+                editRatingId = editIdParam;
+                // loadConfig will be called inside loadRatingForEdit if needed
+                await loadRatingForEdit(editRatingId);
+            } else {
+                // Create Mode
+                isEditMode = false;
+                await loadConfig(); // Load the default config for rating
+                renderImagePreviews(); // Render empty image previews
+                initializeSortable(); // Initialize sortable for images
+            }
+             updateCharCounts(); // Initial count update
+        };
+        // --- End Window Onload ---
+
     </script>
 </body>
 </html>
+
