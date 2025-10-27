@@ -744,16 +744,17 @@
 
             for (const ratingId in userRatings) {
                 // Parse keys from ratingId
-                const keys = ratingId.split('-'); // Simple split, assumes keys don't contain hyphens
                  // More robust split needed if keys contain hyphens
                  let categoryKey = '';
                  let criterionKey = '';
-                 // Try to find a valid category key first
+                 // Try to find a valid category key first by iterating through possible splits
+                 const keys = ratingId.split('-');
                  for (let i = 1; i < keys.length; i++) {
                      let potentialCatKey = keys.slice(0, i).join('-');
+                     // Check if this potential key exists in the config's category keys
                      if (ratingConfig.ratingCriteria.some(cat => cat.categoryKey === potentialCatKey)) {
                          categoryKey = potentialCatKey;
-                         criterionKey = keys.slice(i).join('-');
+                         criterionKey = keys.slice(i).join('-'); // The rest is the criterion key
                          break;
                      }
                  }
@@ -791,7 +792,7 @@
         // Render the entire rating form based on the loaded config and user selections
         function renderRatingView() {
             const formContainer = document.getElementById('rating-form-container');
-            if (!formContainer) return; // Exit if container not found
+            if (!formContainer || !i18next.isInitialized) return; // Exit if container not found or i18n not ready
 
             // Handle case where config failed to load
             if (!ratingConfig || !ratingConfig.ratingCriteria) {
@@ -835,6 +836,8 @@
         // Render a single criterion section with its options
         function renderRatingCriterion(categoryKey, criterion) {
             const criterionKey = criterion.nameKey; // Use the key
+            if (!criterionKey) { console.warn("Criterion missing nameKey:", criterion); return ''; } // Add guard for missing key
+
             const id = getRatingId(categoryKey, criterionKey); // Generate ID using keys
             const selectedOptionIndex = userRatings[id]; // Get user selection for this criterion
             const currentWeight = criterion.weight || 0; // Get weight or default to 0
@@ -850,7 +853,7 @@
                 <div class="bg-gray-50 p-4 rounded-lg border">
                     <div class="flex justify-between items-center mb-3">
                         <h4 class="text-lg font-semibold text-gray-800">
-                            ${i18next.t(criterionKey || '')} ${isSuperAdmin ? `(${currentWeight} ${i18next.t('common.points')})` : ''}
+                            ${i18next.t(criterionKey)} ${isSuperAdmin ? `(${currentWeight} ${i18next.t('common.points')})` : ''}
                         </h4>
                         ${isSuperAdmin ? `<span class="text-xl font-extrabold text-green-600">${currentScore.toFixed(2)}</span>` : ''}
                     </div>
@@ -858,12 +861,15 @@
                     ${(criterion.options || []).map((option, optIndex) => {
                         const isSelected = selectedOptionIndex === optIndex; // Check if this option is selected
                         const score = (currentWeight * (option.scorePct || 0)).toFixed(2); // Calculate potential score
+                        const descriptionKey = option.descriptionKey; // Use the key
+                        if (!descriptionKey) { console.warn("Option missing descriptionKey:", option); return ''; } // Add guard
+
                         return `
                             <button
                                 type="button"
                                 onclick="updateRatingSelection('${categoryKey}', '${criterionKey}', ${optIndex})"
                                 class="p-2 text-sm text-center rounded-lg border transition ${isSelected ? 'bg-indigo-600 text-white shadow-md ring-2 ring-indigo-300 ring-offset-1' : 'bg-white text-gray-700 hover:bg-indigo-50 hover:border-indigo-300'}">
-                                ${i18next.t(option.descriptionKey || '')} {/* Display translated option text */}
+                                ${i18next.t(descriptionKey)}
                                 ${isSuperAdmin ? `<span class="block text-xs ${isSelected ? 'text-indigo-200' : 'text-gray-500'}">(${i18next.t('common.score')} ${score} ${i18next.t('common.points')})</span>` : ''}
                             </button>
                         `;
