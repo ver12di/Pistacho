@@ -24,6 +24,7 @@
          } else { console.warn('Tailwind object not found.'); }
     </script>
     <style>
+        /* CSS styles (omitted for brevity, remains the same) */
         .tooltip { position: relative; display: inline-block; } 
         .tooltip .tooltiptext { visibility: hidden; width: 60px; background-color: #555; color: #fff; text-align: center; border-radius: 6px; padding: 5px 0; position: absolute; z-index: 1; bottom: 125%; left: 50%; margin-left: -30px; opacity: 0; transition: opacity 0.3s; font-size: 10px; } 
         .tooltip .tooltiptext::after { content: ""; position: absolute; top: 100%; left: 50%; margin-left: -5px; border-width: 5px; border-style: solid; border-color: #555 transparent transparent transparent; } 
@@ -572,6 +573,10 @@
 
         // --- Rendering Utilities ---
 
+        // =================================================================================
+        // *** 修正后的函数 ***
+        // =================================================================================
+
         function generateNarrativeSummary(cigarInfo, config, ratings, finalGrade, selectedFlavors) {
             if (!config || !ratings) return `<p class="text-gray-500 italic">${i18next.t('errors.noNarrativeData')}</p>`;
             const { origin = i18next.t('common.unknown'), name = i18next.t('common.unknown'), size = i18next.t('common.unknown') } = cigarInfo;
@@ -580,20 +585,21 @@
             (config.ratingCriteria || []).forEach(category => {
                 (category.criteriaList || []).forEach(criterion => {
                     
-                    // ================================================================
-                    // *** 修正点 #1 (已修正) ***
-                    // 使用 'category.category' 和 'criterion.name' (中文字符串) 来构造 ID
+                    // *** 修正 #1 ***
+                    // 使用 config 中的中文字符串 'category.category' 和 'criterion.name' 来构造 ID
+                    // 这与 rate.html 中 getRatingId 的逻辑一致
                     const id = `${category.category}-${criterion.name}`; 
-                    // ================================================================
 
                     const selectedOptionIndex = ratings[id];
                     if (selectedOptionIndex !== undefined) {
                         const option = criterion.options[selectedOptionIndex];
-                        // (修正) 确保我们使用 i18n Key 来 *显示* 文本
-                        observations.push(i18next.t('resultsPage.narrative.observation', { 
-                            criterion: i18next.t(criterion.nameKey), // 使用 Key 翻译
-                            option: i18next.t(option.descriptionKey) // 使用 Key 翻译
-                        }));
+                        
+                        // *** 修正 #2 ***
+                        // i18n 键 'resultsPage.narrative.observation' 不存在。
+                        // 我们直接使用 config 中的中文字符串来构建观察结果。
+                        const criterionText = criterion.name; 
+                        const optionText = option.description;
+                        observations.push(`${criterionText}: ${optionText}`);
                     }
                 });
             });
@@ -611,27 +617,33 @@
             let summaryHtml = (config.ratingCriteria || []).map(category => {
                 const criteriaHtml = (category.criteriaList || []).map(criterion => {
                     
-                    // ================================================================
-                    // *** 修正点 #2 (已修正) ***
+                    // *** 修正 #3 ***
                     // 同样, 使用 'category.category' 和 'criterion.name' 来构造 ID
                     const id = `${category.category}-${criterion.name}`; 
-                    // ================================================================
                     
                     const selectedOptionIndex = ratings[id];
                     if (selectedOptionIndex !== undefined) {
                         const option = criterion.options[selectedOptionIndex];
-                        // (修正) 使用 i18n Key 来 *显示* 文本
-                        return `<li><strong>${i18next.t(criterion.nameKey)}:</strong> ${i18next.t(option.descriptionKey)}</li>`; 
+                        
+                        // *** 修正 #4 ***
+                        // 直接使用 config 中的中文字符串 'criterion.name' 和 'option.description'
+                        return `<li><strong>${criterion.name}:</strong> ${option.description}</li>`; 
                     } return '';
                 }).join('');
                 if (criteriaHtml.trim()) { 
-                    // (修正) 使用 categoryKey 来显示翻译后的类别标题
-                    return `<h4 class="font-semibold mt-4 mb-1 text-gray-700">${i18next.t(category.categoryKey)}</h4><ul class="list-disc list-inside space-y-1 text-sm">${criteriaHtml}</ul>`; 
+                    
+                    // *** 修正 #5 ***
+                    // 同样, 使用 'category.category' 作为类别标题
+                    return `<h4 class="font-semibold mt-4 mb-1 text-gray-700">${category.category}</h4><ul class="list-disc list-inside space-y-1 text-sm">${criteriaHtml}</ul>`; 
                 } return '';
             }).join('');
             container.innerHTML = summaryHtml || `<p>${i18next.t('resultsPage.summary.noItems')}</p>`; 
         }
         
+        // =================================================================================
+        // *** 结束修正 ***
+        // =================================================================================
+
         function getScoreRange(gradeCode) { const index = GRADING_SCALE.findIndex(g => g.grade === gradeCode); if (index === -1) return ''; const min = GRADING_SCALE[index].min_score; if (index === 0) return `${min}-100`; const max = GRADING_SCALE[index - 1].min_score - 0.01; return `${min.toFixed(0)}-${max.toFixed(2)}`; }
         function getGradeStyles(color) { const stylesMap = { 'gold': { textColor: 'text-yellow-800', bgColor: 'bg-yellow-400' }, 'indigo': { textColor: 'text-indigo-800', bgColor: 'bg-indigo-300' }, 'purple': { textColor: 'text-purple-800', bgColor: 'bg-purple-300' }, 'blue': { textColor: 'text-blue-800', bgColor: 'bg-blue-300' }, 'green': { textColor: 'text-green-800', bgColor: 'bg-green-300' }, 'gray': { textColor: 'text-gray-800', bgColor: 'bg-gray-300' }, 'orange': { textColor: 'text-orange-800', bgColor: 'bg-orange-300' }, 'red': { textColor: 'text-red-800', bgColor: 'bg-red-300' } }; return stylesMap[color] || stylesMap['gray']; }
          
