@@ -37,9 +37,22 @@
         .swiper-slide img { display: block; width: 100%; height: auto; object-fit: contain; max-height: 80vh; }
         .swiper-slide.share-image-slide img { max-height: none; object-fit: contain; }
         .swiper-button-next, .swiper-button-prev { color: #fff; background-color: rgba(0,0,0,0.3); padding: 10px; border-radius: 50%; width: 40px; height: 40px; } .swiper-button-next::after, .swiper-button-prev::after { font-size: 1.2rem; }
-        .swiper-pagination { position: absolute; bottom: 20px !important; left: 50%; transform: translateX(-50%); width: auto; z-index: 10; }
-        .swiper-pagination-bullet { background-color: rgba(128, 128, 128, 0.7); opacity: 1; width: 8px; height: 8px; }
+        /* --- MODIFIED: Adjust Swiper Pagination Position --- */
+        .swiper-pagination {
+            position: absolute;
+            bottom: 10px !important; /* Move higher from the absolute bottom edge */
+            left: 50%;
+            transform: translateX(-50%);
+            width: auto;
+            z-index: 10;
+             /* Add a semi-transparent background for better visibility on images */
+             background-color: rgba(0, 0, 0, 0.2);
+             padding: 2px 5px;
+             border-radius: 10px;
+        }
+        .swiper-pagination-bullet { background-color: rgba(255, 255, 255, 0.5); opacity: 1; width: 6px; height: 6px; margin: 0 3px !important; } /* Smaller bullets */
         .swiper-pagination-bullet-active { background: #FFFFFF; }
+        /* --- End Modified Swiper Pagination --- */
         .thumbnail-swiper .swiper-slide { width: 60px !important; height: 80px; opacity: 0.6; cursor: pointer; border: 2px solid transparent; transition: opacity 0.3s, border-color 0.3s; }
         .thumbnail-swiper .swiper-slide img { object-fit: cover; width: 100%; height: 100%;}
         .thumbnail-swiper .swiper-slide-thumb-active { opacity: 1; border-color: #4f46e5; } .thumbnail-swiper { margin-top: 0.5rem; padding: 5px 0; }
@@ -75,16 +88,16 @@
             margin-right: 8px; /* Add space between left and QR */
         }
         #share-card-score {
-            font-size: 2.5rem; /* Slightly smaller score */ font-weight: 900; line-height: 1;
-            margin-bottom: 2px; /* Space below score */
+            font-size: 2.5rem; /* Slightly smaller score */ font-weight: 900; line-height: 0.9; /* Tighter line height */
+            margin-bottom: 0px; /* --- MODIFIED: Reduced space below score --- */
         }
         #share-card-grade-badge {
              /* Grade badge styles */
              display: inline-block; /* Allow it to sit below score */
              padding: 1px 6px; /* Adjust padding */
              border-radius: 9999px;
-             font-size: 0.6rem; /* Small text */ font-weight: 600;
-             margin-bottom: 4px; /* Space below grade */
+             font-size: 0.7rem; /* --- MODIFIED: Increased font size --- */ font-weight: 600;
+             margin-bottom: 3px; /* --- MODIFIED: Adjusted space below grade --- */
              /* Color applied dynamically */
         }
         #share-card-watermark {
@@ -703,7 +716,7 @@
                   const gradeStyles = getGradeStyles(finalGrade.color);
                   const scoreEl = document.getElementById('share-card-score');
                   const gradeEl = document.getElementById('share-card-grade-badge');
-                  scoreEl.className = `font-black ${gradeStyles.textColor}`;
+                  scoreEl.className = `font-black ${gradeStyles.textColor}`; // Apply color class
                   scoreEl.textContent = normalizedScore.toFixed(2);
                   gradeEl.className = `inline-block px-1 py-0.5 rounded-full text-xs font-semibold ${gradeStyles.bgColor} ${gradeStyles.textColor} bg-opacity-20`; // Adjusted class
                   gradeEl.textContent = gradeName;
