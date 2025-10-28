@@ -32,7 +32,7 @@
         /* Swiper styles */
         .swiper-container.main-swiper { width: 100%; position: relative; }
         .swiper-slide { height: auto; display: flex; flex-direction: column; align-items: center; /* Center content */ justify-content: center; /* Center content */ }
-        /* --- MODIFIED: Ensure slides adapt height --- */
+        /* --- Ensure slides adapt height --- */
         .swiper-wrapper { align-items: flex-start; /* Prevent vertical stretching */ }
         .swiper-slide img { display: block; width: 100%; height: auto; object-fit: contain; max-height: 80vh; }
         .swiper-slide.share-image-slide img { max-height: none; object-fit: contain; }
@@ -48,19 +48,62 @@
         /* Flavor tag style */
         .flavor-tag { display: inline-block; background-color: #e5e7eb; color: #374151; font-size: 0.75rem; font-weight: 600; margin-right: 0.5rem; margin-bottom: 0.5rem; padding: 0.125rem 0.625rem; border-radius: 9999px; }
 
-        /* Share Card Styles (Hidden off-screen for generation) */
-        #share-card-container { position: absolute; left: -9999px; top: 0; width: 350px; background-color: white; border-radius: 0.5rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); overflow: hidden; border: 1px solid #e5e7eb; visibility: hidden; z-index: -1; }
-        #share-card-image-wrapper { background-color: #e5e7eb; display: flex; align-items: center; justify-content: center; aspect-ratio: 1179 / 1572; }
+        /* --- MODIFIED: Share Card Styles --- */
+        #share-card-container {
+            position: absolute; left: -9999px; top: 0; width: 350px; /* Fixed width */
+            background-color: white; border-radius: 0.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            overflow: hidden; border: 1px solid #e5e7eb; visibility: hidden; z-index: -1;
+        }
+        #share-card-image-wrapper {
+            background-color: #e5e7eb; display: flex; align-items: center; justify-content: center;
+            aspect-ratio: 1179 / 1572; /* Keep aspect ratio */
+        }
         #share-card-image { width: 100%; height: 100%; object-fit: cover; }
-        #share-card-content { padding: 0.25rem; position: relative; }
-        #share-card-score-grade { display: flex; flex-direction: column; align-items: flex-start; margin-bottom: 0.1rem; }
-        #share-card-score { font-size: 2.75rem; font-weight: 900; line-height: 1; margin-bottom: 0.3rem; }
-        #share-card-grade-badge { display: inline-block; padding: 0.1rem 0.4rem; border-radius: 9999px; font-size: 0.6rem; font-weight: 600; margin-bottom: 0.2rem; }
-        .share-card-footer { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 0; }
-        #share-card-watermark { font-size: 0.55rem; color: #9ca3af; width: 65%; line-height: 1.1; margin: 0; }
-        #share-card-qrcode { width: 32%; height: auto; background-color: white; padding: 0; border: 1px solid #eee; box-shadow: 0 0 2px rgba(0,0,0,0.1); }
-        /* Ensure QR code image is visible for html2canvas */
-        #share-card-qrcode img { display: block; width: 100%; height: 100%; }
+        #share-card-content {
+            padding: 8px; /* Adjust padding if needed */
+            display: flex; /* Use flexbox for layout */
+            justify-content: space-between; /* Space between left (score/text) and right (QR) */
+            align-items: flex-end; /* Align items to the bottom */
+            min-height: 75px; /* Adjust min-height as needed, but try to keep it compact */
+        }
+        #share-card-left {
+            display: flex;
+            flex-direction: column; /* Stack score, grade, watermark */
+            justify-content: flex-end; /* Align items to bottom */
+            flex-grow: 1; /* Allow left side to take available space */
+            margin-right: 8px; /* Add space between left and QR */
+        }
+        #share-card-score {
+            font-size: 2.5rem; /* Slightly smaller score */ font-weight: 900; line-height: 1;
+            margin-bottom: 2px; /* Space below score */
+        }
+        #share-card-grade-badge {
+             /* Grade badge styles */
+             display: inline-block; /* Allow it to sit below score */
+             padding: 1px 6px; /* Adjust padding */
+             border-radius: 9999px;
+             font-size: 0.6rem; /* Small text */ font-weight: 600;
+             margin-bottom: 4px; /* Space below grade */
+             /* Color applied dynamically */
+        }
+        #share-card-watermark {
+            font-size: 0.55rem; color: #9ca3af; line-height: 1.1; margin: 0; /* Remove default margin */
+            /* Removed width constraint, let flexbox handle it */
+        }
+        #share-card-qrcode {
+            width: 65px; /* Fixed width for QR code */ height: 65px; /* Fixed height */
+            flex-shrink: 0; /* Prevent QR code from shrinking */
+            background-color: white; padding: 2px; /* Small padding around QR */
+            border: 1px solid #eee; box-shadow: 0 0 2px rgba(0,0,0,0.1);
+            display: flex; /* Center the img tag if needed */
+            align-items: center;
+            justify-content: center;
+        }
+        #share-card-qrcode img {
+            display: block; width: 100%; height: 100%; object-fit: contain; /* Ensure QR fits */
+        }
+        /* --- End Modified Share Card Styles --- */
     </style>
 </head>
 <body class="bg-gray-100 font-sans antialiased text-gray-800">
@@ -201,21 +244,21 @@
             <div id="share-card-image-wrapper">
                 <img id="share-card-image" src="" alt="Cigar Cover Image" crossorigin="anonymous">
             </div>
+            <!-- --- MODIFIED: Share Card Content Structure --- -->
             <div id="share-card-content">
-                <div id="share-card-score-grade">
+                <div id="share-card-left">
                     <span id="share-card-score">0.00</span>
                     <span id="share-card-grade-badge">? - ???</span>
+                    <p id="share-card-watermark">
+                        <span id="share-card-username">用户</span>
+                        <!-- Placeholder for 'rating on...' text -->
+                    </p>
                 </div>
-                <div class="share-card-footer">
-                     <p id="share-card-watermark">
-                         <span id="share-card-username">用户</span>
-                         <!-- Placeholder for 'rating on...' text -->
-                         </p>
-                     <div id="share-card-qrcode">
-                         <!-- QR code img will be added here -->
-                     </div>
+                <div id="share-card-qrcode">
+                    <!-- QR code img will be added here -->
                 </div>
             </div>
+            <!-- --- End Modified Share Card Content --- -->
         </div>
     </div>
 
@@ -506,65 +549,52 @@
              if(mainSwiper) mainSwiper.destroy(true, true);
              if(thumbnailSwiper) thumbnailSwiper.destroy(true, true);
 
-             // --- MODIFIED: Adjust based on whether share image will be added ---
-             // Initially assume multiple items if imageUrls > 1, but hide thumbs if share image exists
+             // Adjust based on whether share image will be added
              const hasMultipleItems = imageUrls.length > 1;
-             const thumbDisplayClass = hasMultipleItems && !shareImageGenerated ? '' : 'hidden'; // Hide thumbs if share image already generated or only 1 image
+             const thumbDisplayClass = hasMultipleItems && !shareImageGenerated ? '' : 'hidden';
 
              // Initialize thumbnails only if initially needed
              if (hasMultipleItems && !shareImageGenerated) {
                  thumbContainer.classList.remove('hidden');
                  thumbnailSwiper = new Swiper('.thumbnail-swiper', {
-                     spaceBetween: 10,
-                     slidesPerView: 'auto', // Adjust based on number of thumbs
-                     freeMode: true,
-                     watchSlidesProgress: true,
+                     spaceBetween: 10, slidesPerView: 'auto', freeMode: true, watchSlidesProgress: true,
                  });
              } else {
                  thumbContainer.classList.add('hidden');
-                 thumbnailSwiper = null; // Ensure it's null if not initialized
+                 thumbnailSwiper = null;
              }
 
              // Initialize main swiper
              mainSwiper = new Swiper('.main-swiper', {
                  spaceBetween: 10,
-                 autoHeight: true, // --- MODIFIED: Set autoHeight to true ---
+                 autoHeight: true, // Set autoHeight to true
                  navigation: { nextEl: '.swiper-button-next', prevEl: '.swiper-button-prev', },
                  pagination: { el: '.main-swiper .swiper-pagination', clickable: true, },
-                 thumbs: {
-                     // Link thumbs only if thumbnailSwiper instance exists
-                     swiper: thumbnailSwiper,
-                 },
-                 // Disable swiping only if there's exactly one initial image AND no share image yet
+                 thumbs: { swiper: thumbnailSwiper, },
                  allowTouchMove: !(imageUrls.length === 1 && !shareImageGenerated),
              });
-
         }
 
-        // **MODIFIED**: Function to check if image is loaded
+        // Function to check if image is loaded
         function isImageLoaded(imgElement) {
             return imgElement && imgElement.complete && imgElement.naturalWidth !== 0;
         }
 
-        // **MODIFIED**: Waits for images, generates share card, adds to main AND thumb swiper
+        // Waits for images, generates share card, adds to main AND thumb swiper
         async function autoGenerateShareImage() {
-            if (shareImageGenerated) return; // Prevent multiple calls
+            if (shareImageGenerated) return;
 
             const shareCardElement = document.getElementById('share-card-container');
             const coverImageElement = document.getElementById('share-card-image');
             const qrCodeContainer = document.getElementById('share-card-qrcode');
             const mainSwiperWrapper = document.getElementById('main-swiper-wrapper');
-            // --- NEW: Get thumbnail wrapper ---
             const thumbSwiperWrapper = document.getElementById('thumbnail-swiper-wrapper');
             const thumbContainer = document.querySelector('.thumbnail-swiper');
 
-
-            // Safety checks
             if (!shareCardElement || !coverImageElement || !qrCodeContainer || !thumbSwiperWrapper || !thumbContainer || typeof html2canvas === 'undefined' || !resultsData || !mainSwiperWrapper) {
                 console.warn("Cannot auto-generate share image: Missing required elements or libraries."); return;
             }
 
-            // --- Wait for cover image and QR code image ---
             const coverImagePromise = new Promise((resolve, reject) => {
                 if (isImageLoaded(coverImageElement)) { resolve(); }
                 else if (!coverImageElement.src || coverImageElement.src.includes('placehold.co')) { resolve('no-cover'); }
@@ -593,47 +623,46 @@
                  }
 
                  shareCardElement.style.visibility = 'visible';
-                 await new Promise(resolve => setTimeout(resolve, 300)); // Ensure styles applied
+                 await new Promise(resolve => setTimeout(resolve, 300));
 
                  const canvas = await html2canvas(shareCardElement, { useCORS: true, allowTaint: true, scale: 2 });
                  const dataUrl = canvas.toDataURL('image/png');
 
-                 // --- Create and add slides ---
-                 // Main Slide
+                 // Create and add slides
                  const newMainSlide = document.createElement('div');
-                 newMainSlide.className = 'swiper-slide share-image-slide'; // Mark as share image slide
+                 newMainSlide.className = 'swiper-slide share-image-slide';
                  newMainSlide.innerHTML = `<img src="${dataUrl}" alt="${i18next.t('resultsPage.shareImageAlt')}">`;
                  mainSwiperWrapper.appendChild(newMainSlide);
 
-                 // Thumbnail Slide
                  const newThumbSlide = document.createElement('div');
-                 newThumbSlide.className = 'swiper-slide thumbnail-slide share-thumb-slide'; // Mark as share thumb slide
-                 // Create a smaller image for the thumb using the same dataUrl
+                 newThumbSlide.className = 'swiper-slide thumbnail-slide share-thumb-slide';
                  newThumbSlide.innerHTML = `<img src="${dataUrl}" alt="${i18next.t('resultsPage.shareThumb')}">`;
                  thumbSwiperWrapper.appendChild(newThumbSlide);
 
-                 // --- Update Swipers ---
+                 // Update Swipers
                  if (mainSwiper) mainSwiper.update();
-                 // Show and update thumbnail swiper if it exists, or initialize if needed
                  if (thumbnailSwiper) {
                       thumbnailSwiper.update();
-                      thumbContainer.classList.remove('hidden'); // Ensure visible
-                 } else if (resultsData.imageUrls && resultsData.imageUrls.length > 0) { // If original images exist, init thumbs now
+                      thumbContainer.classList.remove('hidden');
+                 } else if (resultsData.imageUrls && resultsData.imageUrls.length >= 0) { // Update condition to >= 0
                       thumbContainer.classList.remove('hidden');
                       thumbnailSwiper = new Swiper('.thumbnail-swiper', {
                            spaceBetween: 10, slidesPerView: 'auto', freeMode: true, watchSlidesProgress: true,
                       });
-                      // Re-link thumbs to main swiper
-                      if (mainSwiper) mainSwiper.thumbs.swiper = thumbnailSwiper;
+                      if (mainSwiper) {
+                          // Ensure thumbs object exists before assigning
+                          if (!mainSwiper.thumbs) mainSwiper.thumbs = {};
+                          mainSwiper.thumbs.swiper = thumbnailSwiper;
+                          mainSwiper.thumbs.init(); // Re-initialize thumbs connection
+                          mainSwiper.thumbs.update(true); // Force update
+                      }
                  }
-                 // Allow touch move now that share image is added (if it was disabled)
                  if (mainSwiper && !mainSwiper.params.allowTouchMove) {
                      mainSwiper.params.allowTouchMove = true;
                      mainSwiper.allowTouchMove = true;
                  }
 
-
-                 shareImageGenerated = true; // Set flag
+                 shareImageGenerated = true;
                  console.log("Share image generated and added to sliders.");
 
             } catch (error) {
@@ -668,7 +697,7 @@
                   console.warn("populateShareCard: finalGrade data missing or incomplete. Cannot populate share card grade.");
                   document.getElementById('share-card-score').textContent = normalizedScore?.toFixed(2) ?? '?.??';
                   document.getElementById('share-card-grade-badge').textContent = i18next.t('common.unrated');
-                  document.getElementById('share-card-grade-badge').className = 'inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-300 text-gray-800 bg-opacity-20';
+                  document.getElementById('share-card-grade-badge').className = 'inline-block px-1 py-0.5 rounded-full text-xs font-semibold bg-gray-300 text-gray-800 bg-opacity-20'; // Adjusted class
              } else {
                   const gradeName = i18next.t(finalGrade.nameKey);
                   const gradeStyles = getGradeStyles(finalGrade.color);
@@ -676,7 +705,7 @@
                   const gradeEl = document.getElementById('share-card-grade-badge');
                   scoreEl.className = `font-black ${gradeStyles.textColor}`;
                   scoreEl.textContent = normalizedScore.toFixed(2);
-                  gradeEl.className = `inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${gradeStyles.bgColor} ${gradeStyles.textColor} bg-opacity-20`;
+                  gradeEl.className = `inline-block px-1 py-0.5 rounded-full text-xs font-semibold ${gradeStyles.bgColor} ${gradeStyles.textColor} bg-opacity-20`; // Adjusted class
                   gradeEl.textContent = gradeName;
              }
 
@@ -708,7 +737,7 @@
                     const uniqueUrl = ratingId ? `${window.location.origin}/results.html?ratingId=${ratingId}` : window.location.href.split('?')[0];
                     try {
                          new QRCode(qrCodeContainer, {
-                             text: uniqueUrl, width: 90, height: 90,
+                             text: uniqueUrl, width: 60, height: 60, // Smaller QR code for new layout
                              colorDark : "#000000", colorLight : "#ffffff",
                              correctLevel : QRCode.CorrectLevel.H
                          });
