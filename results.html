@@ -32,6 +32,8 @@
         /* Swiper styles */
         .swiper-container.main-swiper { width: 100%; position: relative; }
         .swiper-slide { height: auto; display: flex; flex-direction: column; align-items: center; /* Center content */ justify-content: center; /* Center content */ }
+        /* --- MODIFIED: Ensure slides adapt height --- */
+        .swiper-wrapper { align-items: flex-start; /* Prevent vertical stretching */ }
         .swiper-slide img { display: block; width: 100%; height: auto; object-fit: contain; max-height: 80vh; }
         .swiper-slide.share-image-slide img { max-height: none; object-fit: contain; }
         .swiper-button-next, .swiper-button-prev { color: #fff; background-color: rgba(0,0,0,0.3); padding: 10px; border-radius: 50%; width: 40px; height: 40px; } .swiper-button-next::after, .swiper-button-prev::after { font-size: 1.2rem; }
@@ -105,7 +107,7 @@
                               <div class="swiper-button-next"></div>
                               <div class="swiper-button-prev"></div>
                          </div>
-                         <!-- Thumbnail Swiper (hidden if only one image) -->
+                         <!-- Thumbnail Swiper (hidden if only one image or share image present) -->
                          <div class="swiper-container thumbnail-swiper hidden"> <div class="swiper-wrapper" id="thumbnail-swiper-wrapper"> </div> </div>
                      </div>
                 </div>
@@ -504,10 +506,13 @@
              if(mainSwiper) mainSwiper.destroy(true, true);
              if(thumbnailSwiper) thumbnailSwiper.destroy(true, true);
 
+             // --- MODIFIED: Adjust based on whether share image will be added ---
+             // Initially assume multiple items if imageUrls > 1, but hide thumbs if share image exists
              const hasMultipleItems = imageUrls.length > 1;
+             const thumbDisplayClass = hasMultipleItems && !shareImageGenerated ? '' : 'hidden'; // Hide thumbs if share image already generated or only 1 image
 
-             // Initialize thumbnails only if more than one image
-             if (hasMultipleItems) {
+             // Initialize thumbnails only if initially needed
+             if (hasMultipleItems && !shareImageGenerated) {
                  thumbContainer.classList.remove('hidden');
                  thumbnailSwiper = new Swiper('.thumbnail-swiper', {
                      spaceBetween: 10,
@@ -515,23 +520,25 @@
                      freeMode: true,
                      watchSlidesProgress: true,
                  });
-                 // Initialize main swiper linked to thumbnails
-                 mainSwiper = new Swiper('.main-swiper', {
-                     spaceBetween: 10,
-                     autoHeight: false, // Keep consistent height if possible
-                     navigation: { nextEl: '.swiper-button-next', prevEl: '.swiper-button-prev', },
-                     pagination: { el: '.main-swiper .swiper-pagination', clickable: true, },
-                     thumbs: { swiper: thumbnailSwiper, }, // Link thumbs
-                 });
-             } else { // Only one image
-                 thumbContainer.classList.add('hidden'); // Hide thumbnails
-                 // Initialize main swiper without navigation/thumbs
-                 mainSwiper = new Swiper('.main-swiper', {
-                     autoHeight: false, // Keep consistent height
-                     pagination: { el: '.main-swiper .swiper-pagination', clickable: true, },
-                     allowTouchMove: false // Disable swiping for single image
-                 });
+             } else {
+                 thumbContainer.classList.add('hidden');
+                 thumbnailSwiper = null; // Ensure it's null if not initialized
              }
+
+             // Initialize main swiper
+             mainSwiper = new Swiper('.main-swiper', {
+                 spaceBetween: 10,
+                 autoHeight: true, // --- MODIFIED: Set autoHeight to true ---
+                 navigation: { nextEl: '.swiper-button-next', prevEl: '.swiper-button-prev', },
+                 pagination: { el: '.main-swiper .swiper-pagination', clickable: true, },
+                 thumbs: {
+                     // Link thumbs only if thumbnailSwiper instance exists
+                     swiper: thumbnailSwiper,
+                 },
+                 // Disable swiping only if there's exactly one initial image AND no share image yet
+                 allowTouchMove: !(imageUrls.length === 1 && !shareImageGenerated),
+             });
+
         }
 
         // **MODIFIED**: Function to check if image is loaded
@@ -539,7 +546,7 @@
             return imgElement && imgElement.complete && imgElement.naturalWidth !== 0;
         }
 
-        // **MODIFIED**: Waits for images before generating share card
+        // **MODIFIED**: Waits for images, generates share card, adds to main AND thumb swiper
         async function autoGenerateShareImage() {
             if (shareImageGenerated) return; // Prevent multiple calls
 
@@ -547,42 +554,27 @@
             const coverImageElement = document.getElementById('share-card-image');
             const qrCodeContainer = document.getElementById('share-card-qrcode');
             const mainSwiperWrapper = document.getElementById('main-swiper-wrapper');
+            // --- NEW: Get thumbnail wrapper ---
+            const thumbSwiperWrapper = document.getElementById('thumbnail-swiper-wrapper');
+            const thumbContainer = document.querySelector('.thumbnail-swiper');
+
 
             // Safety checks
-            if (!shareCardElement || !coverImageElement || !qrCodeContainer || typeof html2canvas === 'undefined' || !resultsData || !mainSwiperWrapper) {
+            if (!shareCardElement || !coverImageElement || !qrCodeContainer || !thumbSwiperWrapper || !thumbContainer || typeof html2canvas === 'undefined' || !resultsData || !mainSwiperWrapper) {
                 console.warn("Cannot auto-generate share image: Missing required elements or libraries."); return;
             }
 
-            // --- **NEW**: Wait for cover image and QR code image ---
+            // --- Wait for cover image and QR code image ---
             const coverImagePromise = new Promise((resolve, reject) => {
-                if (isImageLoaded(coverImageElement)) {
-                    resolve();
-                } else if (!coverImageElement.src || coverImageElement.src.includes('placehold.co')) {
-                    // No cover image or placeholder, resolve immediately but maybe skip generation later
-                    console.log("No valid cover image set for share card.");
-                    resolve('no-cover'); // Indicate no cover
-                } else {
-                    coverImageElement.onload = resolve;
-                    coverImageElement.onerror = () => reject(new Error('Cover image failed to load for share card.'));
-                }
+                if (isImageLoaded(coverImageElement)) { resolve(); }
+                else if (!coverImageElement.src || coverImageElement.src.includes('placehold.co')) { resolve('no-cover'); }
+                else { coverImageElement.onload = resolve; coverImageElement.onerror = () => reject(new Error('Cover image failed to load for share card.')); }
             });
-
             const qrCodeImagePromise = new Promise((resolve, reject) => {
-                 // Check if QR code img element exists and is loaded
                  const qrImg = qrCodeContainer.querySelector('img');
-                 if (isImageLoaded(qrImg)) {
-                      resolve();
-                 } else if (qrImg) {
-                     // If img exists but not loaded, wait for onload
-                     qrImg.onload = resolve;
-                     qrImg.onerror = () => reject(new Error('QR code image failed to load for share card.'));
-                 } else {
-                      // If no img tag yet, assume QR hasn't been generated or failed
-                      // We might need to trigger QR generation again or wait differently
-                      console.warn("QR code image element not found when trying to generate share card.");
-                      // Resolve immediately, but html2canvas might capture blank space
-                      resolve('no-qr-img');
-                 }
+                 if (isImageLoaded(qrImg)) { resolve(); }
+                 else if (qrImg) { qrImg.onload = resolve; qrImg.onerror = () => reject(new Error('QR code image failed to load for share card.')); }
+                 else { resolve('no-qr-img'); }
             });
 
             const statusElement = document.getElementById('loading-indicator');
@@ -590,59 +582,75 @@
                  statusElement.textContent = i18next.t('resultsPage.shareCard.generating');
                  statusElement.classList.remove('hidden');
 
-                 // Wait for both images to be ready
                  console.log("Waiting for share card images (cover & QR)...");
                  const [coverStatus] = await Promise.all([coverImagePromise, qrCodeImagePromise]);
                  console.log("Share card images ready.");
 
-                 // Check if we should skip generation (e.g., no cover image)
                  if (coverStatus === 'no-cover') {
                       console.warn("Skipping share image generation because cover image is missing or invalid.");
                       statusElement.classList.add('hidden');
                       return;
                  }
 
-
-                 // Temporarily make the hidden card visible
                  shareCardElement.style.visibility = 'visible';
                  await new Promise(resolve => setTimeout(resolve, 300)); // Ensure styles applied
 
-                 // Generate canvas
-                 const canvas = await html2canvas(shareCardElement, {
-                     useCORS: true,
-                     allowTaint: true,
-                     scale: 2
-                 });
+                 const canvas = await html2canvas(shareCardElement, { useCORS: true, allowTaint: true, scale: 2 });
                  const dataUrl = canvas.toDataURL('image/png');
 
-                 // Create and add the new slide
-                 const newSlide = document.createElement('div');
-                 newSlide.className = 'swiper-slide share-image-slide';
-                 newSlide.innerHTML = `<img src="${dataUrl}" alt="${i18next.t('resultsPage.shareImageAlt')}">`;
-                 mainSwiperWrapper.appendChild(newSlide);
-                 if (mainSwiper) mainSwiper.update(); // Update Swiper
+                 // --- Create and add slides ---
+                 // Main Slide
+                 const newMainSlide = document.createElement('div');
+                 newMainSlide.className = 'swiper-slide share-image-slide'; // Mark as share image slide
+                 newMainSlide.innerHTML = `<img src="${dataUrl}" alt="${i18next.t('resultsPage.shareImageAlt')}">`;
+                 mainSwiperWrapper.appendChild(newMainSlide);
+
+                 // Thumbnail Slide
+                 const newThumbSlide = document.createElement('div');
+                 newThumbSlide.className = 'swiper-slide thumbnail-slide share-thumb-slide'; // Mark as share thumb slide
+                 // Create a smaller image for the thumb using the same dataUrl
+                 newThumbSlide.innerHTML = `<img src="${dataUrl}" alt="${i18next.t('resultsPage.shareThumb')}">`;
+                 thumbSwiperWrapper.appendChild(newThumbSlide);
+
+                 // --- Update Swipers ---
+                 if (mainSwiper) mainSwiper.update();
+                 // Show and update thumbnail swiper if it exists, or initialize if needed
+                 if (thumbnailSwiper) {
+                      thumbnailSwiper.update();
+                      thumbContainer.classList.remove('hidden'); // Ensure visible
+                 } else if (resultsData.imageUrls && resultsData.imageUrls.length > 0) { // If original images exist, init thumbs now
+                      thumbContainer.classList.remove('hidden');
+                      thumbnailSwiper = new Swiper('.thumbnail-swiper', {
+                           spaceBetween: 10, slidesPerView: 'auto', freeMode: true, watchSlidesProgress: true,
+                      });
+                      // Re-link thumbs to main swiper
+                      if (mainSwiper) mainSwiper.thumbs.swiper = thumbnailSwiper;
+                 }
+                 // Allow touch move now that share image is added (if it was disabled)
+                 if (mainSwiper && !mainSwiper.params.allowTouchMove) {
+                     mainSwiper.params.allowTouchMove = true;
+                     mainSwiper.allowTouchMove = true;
+                 }
+
+
                  shareImageGenerated = true; // Set flag
-                 console.log("Share image generated and added to slider.");
+                 console.log("Share image generated and added to sliders.");
 
             } catch (error) {
                  console.error(i18next.t('resultsPage.shareCard.generateFailed'), error);
                  statusElement.textContent = `${i18next.t('resultsPage.shareCard.generateFailed')} ${error.message}`;
-                 // Don't retry automatically on failure
             } finally {
-                 // Always hide the card element and status
                  shareCardElement.style.visibility = 'hidden';
                  setTimeout(() => { statusElement.classList.add('hidden'); }, 3000);
             }
         }
 
-        // **NEW**: Helper to attempt share image generation safely
+
+        // Helper to attempt share image generation safely
         function tryAutoGenerateShareImage() {
-            // Only proceed if not already generated and we have resultsData
             if (!shareImageGenerated && resultsData) {
-                // Check if the share card's cover image is set and not a placeholder
                 const shareImg = document.getElementById('share-card-image');
                 if (shareImg && shareImg.src && !shareImg.src.includes('placehold.co')) {
-                    // Call the generation function
                      autoGenerateShareImage();
                 } else {
                      console.log("Skipping auto-generation: No valid cover image set for share card yet.");
@@ -650,21 +658,18 @@
             }
         }
 
-        // **MODIFIED**: Populates the hidden share card elements (doesn't generate image here)
+        // Populates the hidden share card elements
         function populateShareCard(data) {
              if (!data || !i18next.isInitialized) return;
              const { normalizedScore, finalGrade, userNickname, userEmail, imageUrls = [] } = data;
              const nickname = userNickname || userEmail || i18next.t('common.anonymous');
 
-             // Check if finalGrade exists
              if (!finalGrade || !finalGrade.grade || !finalGrade.nameKey || !finalGrade.color) {
                   console.warn("populateShareCard: finalGrade data missing or incomplete. Cannot populate share card grade.");
-                  // Populate score but indicate missing grade
                   document.getElementById('share-card-score').textContent = normalizedScore?.toFixed(2) ?? '?.??';
                   document.getElementById('share-card-grade-badge').textContent = i18next.t('common.unrated');
-                  document.getElementById('share-card-grade-badge').className = 'inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-300 text-gray-800 bg-opacity-20'; // Default style
+                  document.getElementById('share-card-grade-badge').className = 'inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-300 text-gray-800 bg-opacity-20';
              } else {
-                  // Populate if grade exists
                   const gradeName = i18next.t(finalGrade.nameKey);
                   const gradeStyles = getGradeStyles(finalGrade.color);
                   const scoreEl = document.getElementById('share-card-score');
@@ -675,30 +680,26 @@
                   gradeEl.textContent = gradeName;
              }
 
-             // Populate other elements
              const watermarkEl = document.getElementById('share-card-watermark');
              watermarkEl.innerHTML = i18next.t('resultsPage.shareCard.userRatingOn', { user: `<span id="share-card-username">${nickname}</span>` });
 
-             // Set cover image source
              const shareCardImage = document.getElementById('share-card-image');
              const shareCardImageWrapper = document.getElementById('share-card-image-wrapper');
              if (imageUrls.length > 0) {
                  shareCardImage.src = `/api/image/${imageUrls[0]}`;
-                 shareCardImage.style.display = 'block'; // Ensure img tag is shown
-                 // Remove potential placeholder text if image exists
+                 shareCardImage.style.display = 'block';
                  const placeholder = shareCardImageWrapper.querySelector('span');
                  if(placeholder) placeholder.remove();
              } else {
-                 shareCardImage.src = ''; // Clear src
-                 shareCardImage.style.display = 'none'; // Hide img tag
-                 // Add placeholder text if not already present
+                 shareCardImage.src = '';
+                 shareCardImage.style.display = 'none';
                  if(!shareCardImageWrapper.querySelector('span')) {
                      shareCardImageWrapper.innerHTML = `<span class="text-gray-400 text-sm">${i18next.t('resultsPage.shareCard.noCover')}</span>`;
                  }
              }
         }
 
-        // **MODIFIED**: Generates QR code and resolves promise on image load/error
+        // Generates QR code and resolves promise on image load/error
         function generateQRCode() {
             return new Promise((resolve, reject) => {
                  const qrCodeContainer = document.getElementById('share-card-qrcode');
@@ -711,31 +712,19 @@
                              colorDark : "#000000", colorLight : "#ffffff",
                              correctLevel : QRCode.CorrectLevel.H
                          });
-                         // --- **NEW**: Wait for image inside QR code to load ---
                          const qrImg = qrCodeContainer.querySelector('img');
                          if (qrImg) {
-                             if (isImageLoaded(qrImg)) {
-                                 console.log("QR Code image already loaded.");
-                                 resolve(); // Already loaded
-                             } else {
-                                 console.log("Waiting for QR Code image to load...");
-                                 qrImg.onload = () => { console.log("QR Code image loaded."); resolve(); };
-                                 qrImg.onerror = () => { console.error("QR Code image failed to load."); reject(new Error('QR Code image load failed')); };
-                             }
-                         } else {
-                              console.warn("QR Code generated, but no img tag found immediately.");
-                              // Resolve anyway, assuming it might appear later, but generation might fail
-                              resolve('no-qr-img');
-                         }
-                         // --- End New ---
+                             if (isImageLoaded(qrImg)) { console.log("QR Code image already loaded."); resolve(); }
+                             else { console.log("Waiting for QR Code image to load..."); qrImg.onload = () => { console.log("QR Code image loaded."); resolve(); }; qrImg.onerror = () => { console.error("QR Code image failed to load."); reject(new Error('QR Code image load failed')); }; }
+                         } else { console.warn("QR Code generated, but no img tag found immediately."); resolve('no-qr-img'); }
                     } catch (qrError) {
                          console.error("QR Code generation failed:", qrError);
                          qrCodeContainer.innerHTML = `<p class="text-2xs text-red-500">QR Error</p>`;
-                         reject(qrError); // Reject promise on error
+                         reject(qrError);
                     }
                  } else {
                      console.warn(i18next.t('resultsPage.shareCard.qrError'));
-                     reject(new Error('QR Code container or library not found.')); // Reject promise
+                     reject(new Error('QR Code container or library not found.'));
                  }
             });
         }
@@ -752,174 +741,107 @@
             // Validate finalGrade exists before accessing properties
             if (!finalGrade || !finalGrade.grade || !finalGrade.nameKey || !finalGrade.color) {
                  console.error("renderPageContent: finalGrade data is missing or incomplete.", finalGrade);
-                 // Handle the error gracefully, maybe display a placeholder
                  document.getElementById('score-section').innerHTML = `<p class="text-red-500">${i18next.t('resultsPage.scoreCalculationFailed')}</p>`;
                  document.getElementById('narrative-summary-container').innerHTML = `<p class="text-red-500 italic">${i18next.t('resultsPage.narrativeGenFailed')}</p>`;
-                 document.getElementById('summary-container').innerHTML = ''; // Clear summary too
-                 // Continue rendering other parts if possible
-                 // Populate static info fields even if grade fails
+                 document.getElementById('summary-container').innerHTML = '';
                  document.getElementById('user-nickname').textContent = userNickname;
                  document.getElementById('rating-title').textContent = title;
                  document.getElementById('cigar-name').textContent = cigarInfo?.name ?? i18next.t('common.unknown');
                  document.getElementById('cigar-size').textContent = cigarInfo?.size ?? i18next.t('common.unknown');
                  document.getElementById('cigar-origin').textContent = cigarInfo?.origin ?? i18next.t('common.unknown');
-                 // Render review and flavors (don't depend on grade)
                  const reviewContainer = document.getElementById('cigar-review-container');
-                 reviewContainer.innerHTML = (cigarReview && cigarReview.trim() && cigarReview !== i18next.t('common.noReview'))
-                    ? `<p>${cigarReview.replace(/\n/g, '<br>')}</p>`
-                    : `<p class="text-gray-400 italic">${i18next.t('common.noReview')}</p>`;
+                 reviewContainer.innerHTML = (cigarReview && cigarReview.trim() && cigarReview !== i18next.t('common.noReview')) ? `<p>${cigarReview.replace(/\n/g, '<br>')}</p>` : `<p class="text-gray-400 italic">${i18next.t('common.noReview')}</p>`;
                  const flavorsContainer = document.getElementById('selected-flavors-container');
                  if (selectedFlavors.length > 0) {
-                     document.getElementById('flavors-display').innerHTML = selectedFlavors
-                        .map(flavorKey => `<span class="flavor-tag">${i18next.t(flavorKey) || flavorKey}</span>`)
-                        .join('');
+                     document.getElementById('flavors-display').innerHTML = selectedFlavors.map(flavorKey => `<span class="flavor-tag">${i18next.t(flavorKey) || flavorKey}</span>`).join('');
                      flavorsContainer.classList.remove('hidden');
-                 } else {
-                     flavorsContainer.classList.add('hidden');
-                 }
-                 // Hide details sections if grade failed (as they depend on fullData which might be linked)
-                 ['narrative-summary-details', 'summary-details'].forEach(id => {
-                     document.getElementById(id).style.display = 'none';
-                 });
-
+                 } else { flavorsContainer.classList.add('hidden'); }
+                 ['narrative-summary-details', 'summary-details'].forEach(id => { document.getElementById(id).style.display = 'none'; });
             } else {
-                 // Proceed with rendering if finalGrade is valid
-                 const gradeName = i18next.t(finalGrade.nameKey); // Get translated grade name
-
-                 // Populate static info fields
+                 const gradeName = i18next.t(finalGrade.nameKey);
                  document.getElementById('user-nickname').textContent = userNickname;
                  document.getElementById('rating-title').textContent = title;
                  document.getElementById('cigar-name').textContent = cigarInfo?.name ?? i18next.t('common.unknown');
                  document.getElementById('cigar-size').textContent = cigarInfo?.size ?? i18next.t('common.unknown');
                  document.getElementById('cigar-origin').textContent = cigarInfo?.origin ?? i18next.t('common.unknown');
-
-
-                 // Render written review
                  const reviewContainer = document.getElementById('cigar-review-container');
-                 reviewContainer.innerHTML = (cigarReview && cigarReview.trim() && cigarReview !== i18next.t('common.noReview'))
-                    ? `<p>${cigarReview.replace(/\n/g, '<br>')}</p>` // Replace newlines with <br>
-                    : `<p class="text-gray-400 italic">${i18next.t('common.noReview')}</p>`;
-
-                 // Render selected flavors
+                 reviewContainer.innerHTML = (cigarReview && cigarReview.trim() && cigarReview !== i18next.t('common.noReview')) ? `<p>${cigarReview.replace(/\n/g, '<br>')}</p>` : `<p class="text-gray-400 italic">${i18next.t('common.noReview')}</p>`;
                  const flavorsContainer = document.getElementById('selected-flavors-container');
                  if (selectedFlavors.length > 0) {
-                     document.getElementById('flavors-display').innerHTML = selectedFlavors
-                        .map(flavorKey => `<span class="flavor-tag">${i18next.t(flavorKey) || flavorKey}</span>`) // Translate keys
-                        .join('');
+                     document.getElementById('flavors-display').innerHTML = selectedFlavors.map(flavorKey => `<span class="flavor-tag">${i18next.t(flavorKey) || flavorKey}</span>`).join('');
                      flavorsContainer.classList.remove('hidden');
-                 } else {
-                     flavorsContainer.classList.add('hidden');
-                 }
-
-                 // Render the score section with grade details
-                 renderScoreSection(document.getElementById('score-section'), normalizedScore, { ...finalGrade, name: gradeName }); // Pass translated name
-
-                 // Conditionally show/hide narrative and summary sections based on fullData
+                 } else { flavorsContainer.classList.add('hidden'); }
+                 renderScoreSection(document.getElementById('score-section'), normalizedScore, { ...finalGrade, name: gradeName });
                  const hasFullData = data.config && data.ratings;
-                 ['narrative-summary-details', 'summary-details'].forEach(id => {
-                     const detailElement = document.getElementById(id);
-                     if (detailElement) detailElement.style.display = hasFullData ? 'block' : 'none';
-                 });
-
-
-                 // Render narrative summary and details if full data exists
+                 ['narrative-summary-details', 'summary-details'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = hasFullData ? 'block' : 'none'; });
                  if (hasFullData) {
-                     document.getElementById('narrative-summary-container').innerHTML = generateNarrativeSummary(cigarInfo, data.config, data.ratings, { ...finalGrade, name: gradeName }, selectedFlavors); // Pass translated name
+                     document.getElementById('narrative-summary-container').innerHTML = generateNarrativeSummary(cigarInfo, data.config, data.ratings, { ...finalGrade, name: gradeName }, selectedFlavors);
                      renderSummary(document.getElementById('summary-container'), data.config, data.ratings);
                  }
-
-                 // Populate Hidden Share Card (with translated grade name)
                  populateShareCard(data);
+            }
 
-            } // End of else block for valid finalGrade
-
-             // Show/hide save button based on user login and draft status
              const saveButtonContainer = document.getElementById('save-button-container');
              saveButtonContainer.style.display = (currentAuthUser && isDraft) ? 'block' : 'none';
         }
 
         // --- Initialization on page load ---
         window.onload = async function() {
-            // **MODIFIED**: Moved DOM element gets outside try block
             const errorContainer = document.getElementById('error-container');
             const mainContent = document.getElementById('main-content');
             const loadingIndicator = document.getElementById('loading-indicator');
 
             try {
-                 // 1. Init i18n First
                  await initI18n();
-                 updateContent(); // Update static text immediately
+                 updateContent();
 
-                 // 2. Handle Authentication
                  const urlParams = new URLSearchParams(window.location.search);
                  const code = urlParams.get('code');
-                 ratingId = urlParams.get('ratingId'); // Assign global ratingId
+                 ratingId = urlParams.get('ratingId');
 
                  let user = code ? await handleOidcCallback(code) : await validateSessionAndGetUser();
                  currentAuthUser = user;
-                 renderLoginStatus(currentAuthUser); // Render login status *after* i18n
-                 setupLanguageSwitcher(); // Setup switcher
+                 renderLoginStatus(currentAuthUser);
+                 setupLanguageSwitcher();
 
-                 // 3. Show Loading Indicator
                  loadingIndicator.classList.remove('hidden');
 
-                 // 4. Fetch Rating Data (either from ID or session storage)
                  if (ratingId) {
-                     // Fetch by ID (token optional, handled by API)
                      const token = sessionStorage.getItem('accessToken');
                      const apiUrl = new URL(`/api/ratings?id=${ratingId}`, window.location.origin);
                      const fetchOptions = token ? { headers: { 'Authorization': `Bearer ${token}` } } : {};
                      const response = await fetch(apiUrl, fetchOptions);
                      if (!response.ok) throw new Error(i18next.t('errors.loadRatingFailed', { status: response.status }));
                      resultsData = await response.json();
-                     // **FIX**: Explicitly set isDraft to false when loading by ID
                      resultsData.isDraft = false;
                  } else {
-                     // Load from session storage (draft)
                      const storedData = sessionStorage.getItem('cigarRatingResults');
                      if (!storedData) throw new Error(i18next.t('errors.noRatingDataFound'));
-                     try {
-                          resultsData = JSON.parse(storedData);
-                          // Ensure isDraft is correctly set (should be true if from session)
-                          resultsData.isDraft = true;
-                          ratingId = resultsData.ratingId; // Might be null for drafts not yet saved
-                     } catch(parseError) {
-                          console.error("Error parsing sessionStorage data:", parseError);
-                          throw new Error(i18next.t('errors.invalidSessionData'));
-                     }
+                     try { resultsData = JSON.parse(storedData); resultsData.isDraft = true; ratingId = resultsData.ratingId; }
+                     catch(parseError) { console.error("Error parsing sessionStorage data:", parseError); throw new Error(i18next.t('errors.invalidSessionData')); }
                  }
 
-                 // 5. Validate Essential Data
                  if (!resultsData || resultsData.normalizedScore === undefined || !resultsData.cigarInfo) {
                      throw new Error(i18next.t('errors.missingEssentialData'));
                  }
 
-                 // 6. Initialize UI Components
                  initSwipers(resultsData.imageUrls || []);
-                 renderPageContent(resultsData); // Render main content *after* i18n is ready
+                 renderPageContent(resultsData);
 
-                 // 7. Generate QR Code and then attempt share image generation
-                 // Generate QR Code first, as autoGenerateShareImage depends on it
                  await generateQRCode();
-                 tryAutoGenerateShareImage(); // Attempt generation after QR is ready
+                 tryAutoGenerateShareImage();
 
-                 // 8. Hide Loading, Show Content
                  loadingIndicator.classList.add('hidden');
                  mainContent.classList.remove('opacity-0');
 
             } catch (e) {
-                // Handle Errors during initialization
-                 loadingIndicator.classList.add('hidden'); // Hide loading indicator on error
+                 loadingIndicator.classList.add('hidden');
                  const errorTitle = i18next.t('errors.pageLoadError');
                  const backLinkText = i18next.t('common.backToCommunity');
                  const rateLinkText = i18next.t('nav.rate');
-                 errorContainer.innerHTML = `<p class="font-bold text-center">${errorTitle}: ${e.message}</p>
-                                            <div class="mt-4 text-center space-x-4">
-                                                 <a href="index.html" class="text-indigo-600 underline">${backLinkText}</a>
-                                                 <a href="rate.html" class="text-green-600 underline">${rateLinkText}</a>
-                                            </div>`;
+                 errorContainer.innerHTML = `<p class="font-bold text-center">${errorTitle}: ${e.message}</p> <div class="mt-4 text-center space-x-4"> <a href="index.html" class="text-indigo-600 underline">${backLinkText}</a> <a href="rate.html" class="text-green-600 underline">${rateLinkText}</a> </div>`;
                  errorContainer.classList.remove('hidden');
-                 mainContent.classList.add('opacity-0'); // Keep main content hidden
+                 mainContent.classList.add('opacity-0');
                  console.error("Results page initialization error:", e);
             }
         };
@@ -927,177 +849,99 @@
         // --- Rendering Utilities ---
 
         // Generates the narrative summary text
-        // **MODIFIED**: Handles potential missing keys and falls back to raw text
         function generateNarrativeSummary(cigarInfo, config, ratings, finalGrade, selectedFlavors) {
             if (!config || !ratings) return `<p class="text-gray-500 italic">${i18next.t('errors.noNarrativeData')}</p>`;
-
             const { origin = i18next.t('common.unknown'), name = i18next.t('common.unknown'), size = i18next.t('common.unknown') } = cigarInfo || {};
             let summary = `<p>${i18next.t('resultsPage.narrative.part1', { origin, name, size })}`;
             let observations = [];
-
             (config.ratingCriteria || []).forEach(category => {
                 (category.criteriaList || []).forEach(criterion => {
-                    // Try getting ID using Keys first (new format)
                     let id = null;
-                    if (category.categoryKey && criterion.nameKey) {
-                        id = `${category.categoryKey}-${criterion.nameKey}`;
-                    } else if (category.category && criterion.name) {
-                        // Fallback to using raw text (old format)
-                        id = `${category.category}-${criterion.name}`;
-                    }
-
+                    if (category.categoryKey && criterion.nameKey) { id = `${category.categoryKey}-${criterion.nameKey}`; }
+                    else if (category.category && criterion.name) { id = `${category.category}-${criterion.name}`; }
                     if (id) {
-                        const selectedOptionIndex = ratings[id];
-                        if (selectedOptionIndex !== undefined && criterion.options && criterion.options[selectedOptionIndex]) {
-                            const option = criterion.options[selectedOptionIndex];
-
-                            // Try to translate using Keys, fallback to raw text, fallback to '?'
-                            const criterionText = i18next.t(criterion.nameKey || criterion.name || '?');
-                            const optionText = i18next.t(option.descriptionKey || option.description || '?');
-
-                            // If translation failed (returned the key/text itself), use the raw text if available
-                            const finalCriterionText = (criterionText === criterion.nameKey || criterionText === criterion.name || criterionText === '?') ? (criterion.name || '?') : criterionText;
-                            const finalOptionText = (optionText === option.descriptionKey || optionText === option.description || optionText === '?') ? (option.description || '?') : optionText;
-
-                            observations.push(i18next.t('resultsPage.narrative.observation', { criterion: finalCriterionText, option: finalOptionText }));
+                        const idx = ratings[id];
+                        if (idx !== undefined && criterion.options?.[idx]) {
+                            const opt = criterion.options[idx];
+                            const critTxt = i18next.t(criterion.nameKey || criterion.name || '?');
+                            const optTxt = i18next.t(opt.descriptionKey || opt.description || '?');
+                            const finalCrit = (critTxt === criterion.nameKey || critTxt === criterion.name || critTxt === '?') ? (criterion.name || '?') : critTxt;
+                            const finalOpt = (optTxt === opt.descriptionKey || optTxt === opt.description || optTxt === '?') ? (opt.description || '?') : optTxt;
+                            observations.push(i18next.t('resultsPage.narrative.observation', { criterion: finalCrit, option: finalOpt }));
                         }
-                    } else {
-                         console.warn("Could not determine ID for criterion in generateNarrativeSummary:", {category, criterion});
-                    }
+                    } else { console.warn("Could not determine ID for criterion in generateNarrativeSummary:", {category, criterion}); }
                 });
             });
-
             if (observations.length > 0) { summary += ` ${i18next.t('resultsPage.narrative.part2', { observations: observations.join('；') })}`; }
             else { summary += ` ${i18next.t('resultsPage.narrative.noObservations')}`; }
-
-            // Translate flavor keys
-            if (selectedFlavors.length > 0) {
-                 const translatedFlavors = selectedFlavors.map(key => i18next.t(key) || key).join(', ');
-                 summary += ` ${i18next.t('resultsPage.narrative.part3', { flavors: translatedFlavors })}`;
-            }
-
-            // Ensure finalGrade.name (translated) exists before using
-            const gradeNameForNarrative = finalGrade?.name ?? i18next.t('common.unrated');
-            const gradeLetterForNarrative = finalGrade?.grade ?? '?';
-
+            if (selectedFlavors.length > 0) { const translated = selectedFlavors.map(k => i18next.t(k) || k).join(', '); summary += ` ${i18next.t('resultsPage.narrative.part3', { flavors: translated })}`; }
+            const gradeName = finalGrade?.name ?? i18next.t('common.unrated');
+            const gradeLetter = finalGrade?.grade ?? '?';
             const hierarchy = GRADING_SCALE.map(g => `${g.grade}(${i18next.t(g.nameKey)})`).join(', ');
-            summary += ` ${i18next.t('resultsPage.narrative.part4', { grade: gradeLetterForNarrative, gradeName: gradeNameForNarrative, hierarchy: hierarchy })}`;
+            summary += ` ${i18next.t('resultsPage.narrative.part4', { grade: gradeLetter, gradeName: gradeName, hierarchy: hierarchy })}`;
             summary += `</p>`;
             return summary;
         }
 
-
         // Renders the detailed rating summary section
-        // **MODIFIED**: Handles potential missing keys and falls back to raw text
         function renderSummary(container, config, ratings) {
             if (!container || !config || !ratings) { container.innerHTML = `<p class="text-gray-500 italic">${i18next.t('errors.noSummaryData')}</p>`; return; }
-
             let summaryHtml = (config.ratingCriteria || []).map(category => {
                 const criteriaHtml = (category.criteriaList || []).map(criterion => {
-                    // Try getting ID using Keys first (new format)
                     let id = null;
-                    if (category.categoryKey && criterion.nameKey) {
-                        id = `${category.categoryKey}-${criterion.nameKey}`;
-                    } else if (category.category && criterion.name) {
-                        // Fallback to using raw text (old format)
-                        id = `${category.category}-${criterion.name}`;
-                    }
-
+                    if (category.categoryKey && criterion.nameKey) { id = `${category.categoryKey}-${criterion.nameKey}`; }
+                    else if (category.category && criterion.name) { id = `${category.category}-${criterion.name}`; }
                     if (id) {
-                        const selectedOptionIndex = ratings[id];
-                        if (selectedOptionIndex !== undefined && criterion.options && criterion.options[selectedOptionIndex]) {
-                            const option = criterion.options[selectedOptionIndex];
-
-                            // Try to translate using Keys, fallback to raw text, fallback to '?'
-                            const criterionText = i18next.t(criterion.nameKey || criterion.name || '?');
-                            const optionText = i18next.t(option.descriptionKey || option.description || '?');
-
-                             // If translation failed (returned the key/text itself), use the raw text if available
-                            const finalCriterionText = (criterionText === criterion.nameKey || criterionText === criterion.name || criterionText === '?') ? (criterion.name || '?') : criterionText;
-                            const finalOptionText = (optionText === option.descriptionKey || optionText === option.description || optionText === '?') ? (option.description || '?') : optionText;
-
-
-                            return `<li><strong>${finalCriterionText}:</strong> ${finalOptionText}</li>`;
+                        const idx = ratings[id];
+                        if (idx !== undefined && criterion.options?.[idx]) {
+                            const opt = criterion.options[idx];
+                            const critTxt = i18next.t(criterion.nameKey || criterion.name || '?');
+                            const optTxt = i18next.t(opt.descriptionKey || opt.description || '?');
+                            const finalCrit = (critTxt === criterion.nameKey || critTxt === criterion.name || critTxt === '?') ? (criterion.name || '?') : critTxt;
+                            const finalOpt = (optTxt === opt.descriptionKey || optTxt === opt.description || optTxt === '?') ? (opt.description || '?') : optTxt;
+                            return `<li><strong>${finalCrit}:</strong> ${finalOpt}</li>`;
                         }
-                    } else {
-                         console.warn("Could not determine ID for criterion in renderSummary:", {category, criterion});
-                    }
-                    return ''; // Return empty string if not rated or ID not found
+                    } else { console.warn("Could not determine ID for criterion in renderSummary:", {category, criterion}); }
+                    return '';
                 }).join('');
-
                 if (criteriaHtml.trim()) {
-                    // Try to translate category title using Key, fallback to raw text
-                    const categoryTitle = i18next.t(category.categoryKey || category.category || '?');
-                    // If translation failed, use raw text
-                    const finalCategoryTitle = (categoryTitle === category.categoryKey || categoryTitle === category.category || categoryTitle === '?') ? (category.category || '?') : categoryTitle;
-
-                    return `<h4 class="font-semibold mt-4 mb-1 text-gray-700">${finalCategoryTitle}</h4><ul class="list-disc list-inside space-y-1 text-sm">${criteriaHtml}</ul>`;
-                }
-                return ''; // Return empty string if no criteria were rated in this category
+                    const catTitle = i18next.t(category.categoryKey || category.category || '?');
+                    const finalCat = (catTitle === category.categoryKey || catTitle === category.category || catTitle === '?') ? (category.category || '?') : catTitle;
+                    return `<h4 class="font-semibold mt-4 mb-1 text-gray-700">${finalCat}</h4><ul class="list-disc list-inside space-y-1 text-sm">${criteriaHtml}</ul>`;
+                } return '';
             }).join('');
-
             container.innerHTML = summaryHtml || `<p>${i18next.t('resultsPage.summary.noItems')}</p>`;
         }
         // --- End Rendering Utilities ---
         // --- Rendering Utilities (Continued) ---
 
-        // Generates the score range string (e.g., "80-89.99") for a grade
+        // Generates the score range string
         function getScoreRange(gradeCode) {
             const index = GRADING_SCALE.findIndex(g => g.grade === gradeCode);
-            if (index === -1) return ''; // Grade not found
+            if (index === -1) return '';
             const min = GRADING_SCALE[index].min_score;
-            if (index === 0) return `${min}-100`; // Highest grade
-            // Lower bound of the grade above current
+            if (index === 0) return `${min}-100`;
             const max = GRADING_SCALE[index - 1].min_score - 0.01;
             return `${min.toFixed(0)}-${max.toFixed(2)}`;
         }
 
-        // Returns Tailwind CSS classes for a given grade color name
+        // Returns Tailwind CSS classes for a grade color
         function getGradeStyles(color) {
-            const stylesMap = { // Mapping grade colors to Tailwind classes
-                'gold': { textColor: 'text-yellow-800', bgColor: 'bg-yellow-400' },
-                'indigo': { textColor: 'text-indigo-800', bgColor: 'bg-indigo-300' },
-                'purple': { textColor: 'text-purple-800', bgColor: 'bg-purple-300' },
-                'blue': { textColor: 'text-blue-800', bgColor: 'bg-blue-300' },
-                'green': { textColor: 'text-green-800', bgColor: 'bg-green-300' },
-                'gray': { textColor: 'text-gray-800', bgColor: 'bg-gray-300' },
-                'orange': { textColor: 'text-orange-800', bgColor: 'bg-orange-300' },
-                'red': { textColor: 'text-red-800', bgColor: 'bg-red-300' }
-            };
-            return stylesMap[color] || stylesMap['gray']; // Default to gray if color unknown
+            const stylesMap = { 'gold': { textColor: 'text-yellow-800', bgColor: 'bg-yellow-400' }, 'indigo': { textColor: 'text-indigo-800', bgColor: 'bg-indigo-300' }, 'purple': { textColor: 'text-purple-800', bgColor: 'bg-purple-300' }, 'blue': { textColor: 'text-blue-800', bgColor: 'bg-blue-300' }, 'green': { textColor: 'text-green-800', bgColor: 'bg-green-300' }, 'gray': { textColor: 'text-gray-800', bgColor: 'bg-gray-300' }, 'orange': { textColor: 'text-orange-800', bgColor: 'bg-orange-300' }, 'red': { textColor: 'text-red-800', bgColor: 'bg-red-300' } };
+            return stylesMap[color] || stylesMap['gray'];
         }
 
-         // Renders the score section with the main score, grade, and the grading scale visual
+         // Renders the score section
          function renderScoreSection(container, score, grade) {
-             if (!container || !grade || !i18next.isInitialized) return; // Safety check
-             const styles = getGradeStyles(grade.color); // Get color classes for the grade
-             // HTML for the main score and grade display
-             const scoreHtml = `
-                <div>
-                    <p class="text-xl font-bold text-yellow-500 mb-1">${i18next.t('resultsPage.scoreSectionTitle')}</p>
-                    <p class="text-7xl font-black ${styles.textColor}">${score?.toFixed(2) ?? '?.??'}</p>
-                    <div class="mt-2 text-3xl font-black ${styles.textColor}">${grade.name ?? i18next.t('common.unrated')}</div>
-                </div>`;
-             // HTML for the grading scale visual
-             const scaleHtml = GRADING_SCALE.map(g => {
-                 const gStyles = getGradeStyles(g.color); // Get colors for this scale item
-                 const isCurrent = g.grade === grade.grade; // Check if this is the current grade
-                 return `
-                    <div class="flex items-center p-1 rounded ${isCurrent ? 'bg-gray-100' : ''}">
-                        <div class="w-5 h-5 rounded-full flex items-center justify-center font-bold text-xs ${gStyles.bgColor} ${gStyles.textColor} mr-2">${g.grade}</div>
-                        <div class="flex-grow ${isCurrent ? 'font-semibold' : ''} ${gStyles.textColor}">${i18next.t(g.nameKey)}</div>
-                        <div class="font-mono text-xs text-gray-500 ml-2">${getScoreRange(g.grade)}</div>
-                    </div>`;
-             }).join('');
-             // Combine score and scale HTML into the container
-             container.innerHTML = `
-                <div class="w-full md:w-1/3">${scoreHtml}</div>
-                <div class="w-full md:w-2/3 border-t md:border-t-0 md:border-l border-gray-200 pt-4 md:pt-0 md:pl-6">
-                    <div class="space-y-1">${scaleHtml}</div>
-                </div>`;
+             if (!container || !grade || !i18next.isInitialized) return;
+             const styles = getGradeStyles(grade.color);
+             const scoreHtml = `<div> <p class="text-xl font-bold text-yellow-500 mb-1">${i18next.t('resultsPage.scoreSectionTitle')}</p> <p class="text-7xl font-black ${styles.textColor}">${score?.toFixed(2) ?? '?.??'}</p> <div class="mt-2 text-3xl font-black ${styles.textColor}">${grade.name ?? i18next.t('common.unrated')}</div> </div>`;
+             const scaleHtml = GRADING_SCALE.map(g => { const gs = getGradeStyles(g.color); const cur = g.grade === grade.grade; return `<div class="flex items-center p-1 rounded ${cur ? 'bg-gray-100' : ''}"> <div class="w-5 h-5 rounded-full flex items-center justify-center font-bold text-xs ${gs.bgColor} ${gs.textColor} mr-2">${g.grade}</div> <div class="flex-grow ${cur ? 'font-semibold' : ''} ${gs.textColor}">${i18next.t(g.nameKey)}</div> <div class="font-mono text-xs text-gray-500 ml-2">${getScoreRange(g.grade)}</div> </div>`; }).join('');
+             container.innerHTML = `<div class="w-full md:w-1/3">${scoreHtml}</div> <div class="w-full md:w-2/3 border-t md:border-t-0 md:border-l border-gray-200 pt-4 md:pt-0 md:pl-6"> <div class="space-y-1">${scaleHtml}</div> </div>`;
          }
         // --- End Rendering Utilities ---
 
     </script>
 </body>
 </html>
+
