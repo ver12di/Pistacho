@@ -202,11 +202,12 @@
             </section>
 
              <!-- Save Button (visible only for drafts) -->
-             <div id="save-button-container" class="hidden mb-6">
+             <!-- REMOVED: Save button container removed -->
+             <!-- <div id="save-button-container" class="hidden mb-6">
                  <button id="save-rating-button" onclick="saveRating()" class="w-full py-3 px-6 bg-green-600 text-white font-bold text-lg rounded-lg shadow-md hover:bg-green-700 transition" data-i18n="resultsPage.saveRating">
                      保存为我的评分记录
                  </button>
-             </div>
+             </div> -->
 
             <!-- Details Sections (Narrative Summary, Rating Details) -->
             <div class="space-y-4">
@@ -458,60 +459,8 @@
         }
 
         // --- Main Functions ---
-        // Handles saving the rating (only if it's a draft)
-        window.saveRating = async function() {
-            const token = sessionStorage.getItem('accessToken');
-            if (!currentAuthUser || !token) { // Check login
-                return alert(i18next.t('common.loginRequired'));
-            }
-            if (!resultsData || !resultsData.isDraft) { // Check if it's a draft
-                return alert(i18next.t('errors.notADraft'));
-            }
-
-            const button = document.getElementById('save-rating-button');
-            button.textContent = i18next.t('common.saving'); // Update button text
-            button.disabled = true;
-
-            try {
-                const apiUrl = new URL('/api/ratings', window.location.origin);
-                const response = await fetch(apiUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                    body: JSON.stringify(resultsData)
-                });
-                if (!response.ok) { const err = await response.json(); throw new Error(err.error || i18next.t('errors.saveFailedNoMsg')); }
-                const saveResult = await response.json();
-                const newRatingId = saveResult.id; // Get the ID from the response
-                alert(i18next.t('common.saveSuccess'));
-                sessionStorage.removeItem('cigarRatingResults'); // Clear draft from session
-                // Update button state to indicate success
-                button.textContent = i18next.t('common.saveSuccess');
-                button.classList.remove('bg-green-600', 'hover:bg-green-700');
-                button.classList.add('bg-gray-400', 'cursor-not-allowed');
-                // Update state if new ID is received
-                if (newRatingId) {
-                    ratingId = newRatingId; // Store the new ID globally
-                    resultsData.isDraft = false; // Mark as no longer a draft
-                    // Update URL with the new rating ID
-                    const newUrl = new URL(window.location.href);
-                    newUrl.searchParams.set('ratingId', newRatingId);
-                    window.history.replaceState({}, document.title, newUrl.toString());
-                    // Re-render to hide the save button based on isDraft=false
-                    // Also regenerate QR code with the final URL
-                    renderPageContent(resultsData);
-                    generateQRCode(); // Regenerate QR for the new URL
-                    // Try generating share image again now that we have the final ID/URL
-                    shareImageGenerated = false; // Reset flag
-                    tryAutoGenerateShareImage(); // Attempt generation
-                }
-            } catch (e) {
-                console.error("保存评分失败:", e);
-                alert(i18next.t('common.saveFailed', { msg: e.message }));
-                // Reset button state on failure
-                button.textContent = i18next.t('resultsPage.saveRating');
-                button.disabled = false;
-            }
-        };
+        // REMOVED: saveRating function deleted
+        // window.saveRating = async function() { ... };
 
         // Copies the narrative summary text to the clipboard
         window.copySummary = function(event) {
@@ -832,12 +781,12 @@
                      document.getElementById('narrative-summary-container').innerHTML = generateNarrativeSummary(cigarInfo, data.config, data.ratings, { ...finalGrade, name: gradeName }, selectedFlavors);
                      renderSummary(document.getElementById('summary-container'), data.config, data.ratings);
                  }
-                 populateShareCard(data); // Populate share card with potentially incomplete grade
+                 populateShareCard(data);
             }
 
-             // Show/hide save button based on draft status and login
-             const saveButtonContainer = document.getElementById('save-button-container');
-             saveButtonContainer.style.display = (currentAuthUser && isDraft) ? 'block' : 'none';
+             // REMOVED: Logic to show/hide save button container deleted
+             // const saveButtonContainer = document.getElementById('save-button-container');
+             // saveButtonContainer.style.display = (currentAuthUser && isDraft) ? 'block' : 'none';
         }
 
         // --- Initialization on page load ---
