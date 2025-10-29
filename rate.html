@@ -1023,7 +1023,6 @@
             if(reviewTextarea && reviewCharCount) reviewCharCount.textContent = `${reviewTextarea.value.length} / 1500`;
         }
 
-        // *** MODIFIED: loadRatingForEdit to correctly handle imageUrls ***
         // Loads data for editing if 'edit' parameter is present in URL
         async function loadRatingForEdit(ratingId) {
              const status = document.getElementById('config-load-status'); // Use config status area
@@ -1052,9 +1051,8 @@
                 document.getElementById('cigar-origin').value = data.cigarInfo?.origin || '';
                 reviewTextarea.value = (data.cigarReview && data.cigarReview !== i18next.t('common.noReview')) ? data.cigarReview : '';
 
-                // *** FIX: Correctly assign imageUrls to currentImageKeys ***
-                // Ensure imageUrls is always treated as an array
-                currentImageKeys = Array.isArray(data.imageUrls) ? data.imageUrls : []; // Use imageUrls property
+                // FIX: Ensure imageUrls from data is used, default to empty array
+                currentImageKeys = Array.isArray(data.imageUrls) ? data.imageUrls : [];
 
                 selectedFlavors = Array.isArray(data.selectedFlavors) ? data.selectedFlavors : []; // Load flavor keys
 

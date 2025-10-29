@@ -202,7 +202,6 @@
             </section>
 
              <!-- Save Button (visible only for drafts) -->
-             <!-- RESTORED: Save button container -->
              <div id="save-button-container" class="hidden mb-6">
                  <button id="save-rating-button" onclick="saveRating()" class="w-full py-3 px-6 bg-green-600 text-white font-bold text-lg rounded-lg shadow-md hover:bg-green-700 transition" data-i18n="resultsPage.saveRating">
                      保存为我的评分记录
@@ -459,7 +458,7 @@
         }
 
         // --- Main Functions ---
-        // RESTORED: saveRating function
+        // Handles saving the rating (only if it's a draft)
         window.saveRating = async function() {
             const token = sessionStorage.getItem('accessToken');
             if (!currentAuthUser || !token) { // Check login
@@ -530,6 +529,7 @@
                 button.disabled = false;
             }
         };
+
 
         // Copies the narrative summary text to the clipboard
         window.copySummary = function(event) {
@@ -765,7 +765,9 @@
                  const qrCodeContainer = document.getElementById('share-card-qrcode');
                  if (qrCodeContainer && typeof QRCode !== 'undefined') {
                     qrCodeContainer.innerHTML = ''; // Clear previous
-                    const uniqueUrl = ratingId ? `${window.location.origin}/results.html?ratingId=${ratingId}` : window.location.href.split('?')[0];
+                    // Use ratingId if available (after save or loaded), otherwise use current page URL (for draft)
+                    const uniqueUrl = ratingId ? `${window.location.origin}/results.html?ratingId=${ratingId}` : window.location.href;
+                    console.log("[results.html generateQRCode] Generating QR for URL:", uniqueUrl); // Log the URL
                     try {
                          new QRCode(qrCodeContainer, {
                              text: uniqueUrl, width: 60, height: 60, // Smaller QR code for new layout
@@ -792,28 +794,96 @@
 
         // Renders the main content of the results page using the provided data
         function renderPageContent(data) {
-            // ... existing content rendering logic ...
-            // RESTORED: Logic to show/hide save button container
-            const saveButtonContainer = document.getElementById('save-button-container');
-            // Show button only if logged in AND it's a draft (came from rate.html)
-            saveButtonContainer.style.display = (currentAuthUser && data?.isDraft) ? 'block' : 'none';
+             console.log("[results.html renderPageContent] Received data:", JSON.stringify(data).substring(0, 300) + '...'); // Log received data start
+            if (!data || !i18next.isInitialized) return; // Ensure data and i18n are ready
+
+            const { cigarInfo, cigarReview, normalizedScore, isDraft, selectedFlavors = [], finalGrade } = data;
+            const title = data.title || i18next.t('common.noTitle');
+            const userNickname = data.userNickname || data.userEmail || i18next.t('common.anonymous');
+
+            // --- ADDED LOGS ---
+            console.log("[results.html renderPageContent] Trying to render:");
+            console.log("  > Title:", title);
+            console.log("  > User Nickname:", userNickname);
+            console.log("  > Cigar Info:", JSON.stringify(cigarInfo));
+            console.log("  > Cigar Review (start):", (cigarReview || '').substring(0, 50) + '...');
+            console.log("  > Selected Flavors:", JSON.stringify(selectedFlavors));
+            console.log("  > Normalized Score:", normalizedScore);
+            console.log("  > Final Grade:", JSON.stringify(finalGrade));
+            console.log("  > Is Draft:", isDraft);
+            // --- END ADDED LOGS ---
+
+
+            // Validate finalGrade exists before accessing properties
+            if (!finalGrade || !finalGrade.grade || !finalGrade.nameKey || !finalGrade.color) {
+                 console.error("[results.html renderPageContent] finalGrade data is missing or incomplete.", finalGrade);
+                 document.getElementById('score-section').innerHTML = `<p class="text-red-500">${i18next.t('resultsPage.scoreCalculationFailed')}</p>`;
+                 document.getElementById('narrative-summary-container').innerHTML = `<p class="text-red-500 italic">${i18next.t('resultsPage.narrativeGenFailed')}</p>`;
+                 document.getElementById('summary-container').innerHTML = '';
+
+                 // Populate what we can even on error
+                 document.getElementById('user-nickname').textContent = userNickname;
+                 document.getElementById('rating-title').textContent = title;
+                 document.getElementById('cigar-name').textContent = cigarInfo?.name ?? i18next.t('common.unknown');
+                 document.getElementById('cigar-size').textContent = cigarInfo?.size ?? i18next.t('common.unknown');
+                 document.getElementById('cigar-origin').textContent = cigarInfo?.origin ?? i18next.t('common.unknown');
+                 const reviewContainer = document.getElementById('cigar-review-container');
+                 reviewContainer.innerHTML = (cigarReview && cigarReview.trim() && cigarReview !== i18next.t('common.noReview')) ? `<p>${cigarReview.replace(/\n/g, '<br>')}</p>` : `<p class="text-gray-400 italic">${i18next.t('common.noReview')}</p>`;
+                 const flavorsContainer = document.getElementById('selected-flavors-container');
+                 if (selectedFlavors.length > 0) {
+                     document.getElementById('flavors-display').innerHTML = selectedFlavors.map(flavorKey => `<span class="flavor-tag">${i18next.t(flavorKey) || flavorKey}</span>`).join('');
+                     flavorsContainer.classList.remove('hidden');
+                 } else { flavorsContainer.classList.add('hidden'); }
+                 // Hide details sections if grade failed
+                 ['narrative-summary-details', 'summary-details'].forEach(id => {
+                      const el = document.getElementById(id); if (el) el.style.display = 'none';
+                 });
+            } else { // Grade data is valid, proceed normally
+                 const gradeName = i18next.t(finalGrade.nameKey);
+                 document.getElementById('user-nickname').textContent = userNickname;
+                 document.getElementById('rating-title').textContent = title;
+                 document.getElementById('cigar-name').textContent = cigarInfo?.name ?? i18next.t('common.unknown');
+                 document.getElementById('cigar-size').textContent = cigarInfo?.size ?? i18next.t('common.unknown');
+                 document.getElementById('cigar-origin').textContent = cigarInfo?.origin ?? i18next.t('common.unknown');
+                 const reviewContainer = document.getElementById('cigar-review-container');
+                 reviewContainer.innerHTML = (cigarReview && cigarReview.trim() && cigarReview !== i18next.t('common.noReview')) ? `<p>${cigarReview.replace(/\n/g, '<br>')}</p>` : `<p class="text-gray-400 italic">${i18next.t('common.noReview')}</p>`;
+                 const flavorsContainer = document.getElementById('selected-flavors-container');
+                 if (selectedFlavors.length > 0) {
+                     document.getElementById('flavors-display').innerHTML = selectedFlavors.map(flavorKey => `<span class="flavor-tag">${i18next.t(flavorKey) || flavorKey}</span>`).join('');
+                     flavorsContainer.classList.remove('hidden');
+                 } else { flavorsContainer.classList.add('hidden'); }
+                 renderScoreSection(document.getElementById('score-section'), normalizedScore, { ...finalGrade, name: gradeName });
+                 // Check if config and ratings exist for detailed summaries
+                 const hasFullData = data.config && data.ratings;
+                 ['narrative-summary-details', 'summary-details'].forEach(id => {
+                      const el = document.getElementById(id); if (el) el.style.display = hasFullData ? 'block' : 'none';
+                 });
+                 if (hasFullData) {
+                     document.getElementById('narrative-summary-container').innerHTML = generateNarrativeSummary(cigarInfo, data.config, data.ratings, { ...finalGrade, name: gradeName }, selectedFlavors);
+                     renderSummary(document.getElementById('summary-container'), data.config, data.ratings);
+                 }
+                 // Populate share card (only if grade data was valid)
+                 populateShareCard(data);
+            }
+
+             // Show/hide save button based on login status and draft status
+             const saveButtonContainer = document.getElementById('save-button-container');
+             saveButtonContainer.style.display = (currentAuthUser && isDraft) ? 'block' : 'none';
         }
 
         // --- Initialization on page load ---
         window.onload = async function() {
-            // ... existing setup ...
             const errorContainer = document.getElementById('error-container');
             const mainContent = document.getElementById('main-content');
             const loadingIndicator = document.getElementById('loading-indicator');
 
             try {
-                // ... i18n init, auth handling ...
                  await initI18n();
                  updateContent();
 
                  const urlParams = new URLSearchParams(window.location.search);
                  const code = urlParams.get('code');
-                 ratingId = urlParams.get('ratingId'); // Might be null
+                 ratingId = urlParams.get('ratingId'); // Check if loading saved rating by ID
 
                  let user = code ? await handleOidcCallback(code) : await validateSessionAndGetUser();
                  currentAuthUser = user;
@@ -822,9 +892,9 @@
 
                  loadingIndicator.classList.remove('hidden');
 
-                 // Determine data source (API or SessionStorage)
-                 if (ratingId) {
-                     // ... existing API fetch logic ...
+                 // Determine if loading from ID or sessionStorage
+                 if (ratingId) { // Load saved rating from API
+                     console.log("[results.html onload] Loading rating from API with ID:", ratingId);
                      const token = sessionStorage.getItem('accessToken');
                      const apiUrl = new URL(`/api/ratings?id=${ratingId}`, window.location.origin);
                      const fetchOptions = token ? { headers: { 'Authorization': `Bearer ${token}` } } : {};
@@ -832,50 +902,48 @@
                      if (!response.ok) throw new Error(i18next.t('errors.loadRatingFailed', { status: response.status }));
                      resultsData = await response.json();
                      resultsData.isDraft = false; // Data from API is never a draft
-                 } else {
-                     // Get data from sessionStorage (coming from rate.html)
+                     console.log("[results.html onload] Loaded data from API:", JSON.stringify(resultsData).substring(0, 300) + '...');
+                 } else { // Load draft from sessionStorage
+                     console.log("[results.html onload] Loading rating from sessionStorage");
                      const storedData = sessionStorage.getItem('cigarRatingResults');
                      if (!storedData) throw new Error(i18next.t('errors.noRatingDataFound'));
                      try {
                          resultsData = JSON.parse(storedData);
-                         resultsData.isDraft = true; // Mark as draft
-                         // --- ADDED LOG ---
-                         console.log("[results.html onload] Parsed data from sessionStorage:", JSON.stringify(resultsData).substring(0, 500) + '...');
-                         // Assign ratingId (might be null/undefined for new drafts, that's okay)
-                         ratingId = resultsData.ratingId;
+                         resultsData.isDraft = true; // Data from sessionStorage is always a draft
+                         ratingId = resultsData.ratingId; // Might be null if not saved yet
+                         console.log("[results.html onload] Parsed data from sessionStorage:", JSON.stringify(resultsData).substring(0, 300) + '...');
                      } catch(parseError) {
-                         console.error("Error parsing sessionStorage data:", parseError);
+                         console.error("[results.html onload] Error parsing sessionStorage data:", parseError);
                          throw new Error(i18next.t('errors.invalidSessionData'));
                      }
                  }
 
-                 // Check essential data *after* loading/parsing
+                 // Basic validation after loading data
                  if (!resultsData || resultsData.normalizedScore === undefined || !resultsData.cigarInfo) {
+                     console.error("[results.html onload] Essential data missing after loading!", resultsData);
                      throw new Error(i18next.t('errors.missingEssentialData'));
                  }
 
-                 // Render content
-                 initSwipers(resultsData.imageUrls || []);
-                 renderPageContent(resultsData); // Call the potentially error-prone function
+                 // Render UI elements
+                 initSwipers(resultsData.imageUrls || []); // Initialize image slider
+                 renderPageContent(resultsData); // Render main content sections
 
-                 // Generate QR and Share Image (should happen even if rendering failed partially)
+                 // Generate QR and attempt share image AFTER main content is rendered
                  await generateQRCode();
                  tryAutoGenerateShareImage();
 
-                 // Hide loading, show content
-                 loadingIndicator.classList.add('hidden');
-                 mainContent.classList.remove('opacity-0');
+                 loadingIndicator.classList.add('hidden'); // Hide loading indicator
+                 mainContent.classList.remove('opacity-0'); // Show main content
 
-            } catch (e) {
-                 // ... existing error handling ...
+            } catch (e) { // Catch any error during initialization
                  loadingIndicator.classList.add('hidden');
                  const errorTitle = i18next.t('errors.pageLoadError');
                  const backLinkText = i18next.t('common.backToCommunity');
                  const rateLinkText = i18next.t('nav.rate');
                  errorContainer.innerHTML = `<p class="font-bold text-center">${errorTitle}: ${e.message}</p> <div class="mt-4 text-center space-x-4"> <a href="index.html" class="text-indigo-600 underline">${backLinkText}</a> <a href="rate.html" class="text-green-600 underline">${rateLinkText}</a> </div>`;
                  errorContainer.classList.remove('hidden');
-                 mainContent.classList.add('opacity-0');
-                 console.error("Results page initialization error:", e);
+                 mainContent.classList.add('opacity-0'); // Keep main content hidden on error
+                 console.error("[results.html onload] Initialization error:", e);
             }
         };
 
@@ -891,18 +959,15 @@
                 (category.criteriaList || []).forEach(criterion => {
                     let id = null;
                     if (category.categoryKey && criterion.nameKey) { id = `${category.categoryKey}-${criterion.nameKey}`; }
-                    else if (category.category && criterion.name) { id = `${category.category}-${criterion.name}`; } // Fallback for older data format
+                    else if (category.category && criterion.name) { id = `${category.category}-${criterion.name}`; } // Fallback for older data?
                     if (id) {
                         const idx = ratings[id];
                         if (idx !== undefined && criterion.options?.[idx]) {
                             const opt = criterion.options[idx];
-                            const critTxt = i18next.t(criterion.nameKey || criterion.name || '?'); // Translate criterion name
-                            const optTxt = i18next.t(opt.descriptionKey || opt.description || '?'); // Translate option description
-                            // Fallback if translation fails
-                            const finalCrit = (critTxt === (criterion.nameKey || criterion.name) || critTxt === '?') ? (criterion.name || '?') : critTxt;
-                            const finalOpt = (optTxt === (opt.descriptionKey || opt.description) || optTxt === '?') ? (opt.description || '?') : optTxt;
-
-                            observations.push(i18next.t('resultsPage.narrative.observation', { criterion: finalCrit, option: finalOpt }));
+                            // Translate keys, fallback to original text if translation missing
+                            const critTxt = i18next.t(criterion.nameKey || criterion.name, criterion.name || '?');
+                            const optTxt = i18next.t(opt.descriptionKey || opt.description, opt.description || '?');
+                            observations.push(i18next.t('resultsPage.narrative.observation', { criterion: critTxt, option: optTxt }));
                         }
                     } else { console.warn("Could not determine ID for criterion in generateNarrativeSummary:", {category, criterion}); }
                 });
@@ -910,7 +975,6 @@
             if (observations.length > 0) { summary += ` ${i18next.t('resultsPage.narrative.part2', { observations: observations.join('；') })}`; }
             else { summary += ` ${i18next.t('resultsPage.narrative.noObservations')}`; }
             if (selectedFlavors.length > 0) { const translated = selectedFlavors.map(k => i18next.t(k) || k).join(', '); summary += ` ${i18next.t('resultsPage.narrative.part3', { flavors: translated })}`; }
-            // Ensure finalGrade exists before accessing properties
             const gradeName = finalGrade?.name ?? i18next.t('common.unrated');
             const gradeLetter = finalGrade?.grade ?? '?';
             const hierarchy = GRADING_SCALE.map(g => `${g.grade}(${i18next.t(g.nameKey)})`).join(', ');
@@ -918,7 +982,6 @@
             summary += `</p>`;
             return summary;
         }
-
 
         // Renders the detailed rating summary section
         function renderSummary(container, config, ratings) {
@@ -932,19 +995,18 @@
                         const idx = ratings[id];
                         if (idx !== undefined && criterion.options?.[idx]) {
                             const opt = criterion.options[idx];
-                            const critTxt = i18next.t(criterion.nameKey || criterion.name || '?');
-                            const optTxt = i18next.t(opt.descriptionKey || opt.description || '?');
-                            const finalCrit = (critTxt === (criterion.nameKey || criterion.name) || critTxt === '?') ? (criterion.name || '?') : critTxt;
-                            const finalOpt = (optTxt === (opt.descriptionKey || opt.description) || optTxt === '?') ? (opt.description || '?') : optTxt;
-                            return `<li><strong>${finalCrit}:</strong> ${finalOpt}</li>`;
+                            // Translate keys, fallback to original text
+                            const critTxt = i18next.t(criterion.nameKey || criterion.name, criterion.name || '?');
+                            const optTxt = i18next.t(opt.descriptionKey || opt.description, opt.description || '?');
+                            return `<li><strong>${critTxt}:</strong> ${optTxt}</li>`;
                         }
                     } else { console.warn("Could not determine ID for criterion in renderSummary:", {category, criterion}); }
                     return '';
                 }).join('');
                 if (criteriaHtml.trim()) {
-                    const catTitle = i18next.t(category.categoryKey || category.category || '?');
-                    const finalCat = (catTitle === (category.categoryKey || category.category) || catTitle === '?') ? (category.category || '?') : catTitle;
-                    return `<h4 class="font-semibold mt-4 mb-1 text-gray-700">${finalCat}</h4><ul class="list-disc list-inside space-y-1 text-sm">${criteriaHtml}</ul>`;
+                    // Translate category key, fallback to original text
+                    const catTitle = i18next.t(category.categoryKey || category.category, category.category || '?');
+                    return `<h4 class="font-semibold mt-4 mb-1 text-gray-700">${catTitle}</h4><ul class="list-disc list-inside space-y-1 text-sm">${criteriaHtml}</ul>`;
                 } return '';
             }).join('');
             container.innerHTML = summaryHtml || `<p>${i18next.t('resultsPage.summary.noItems')}</p>`;
@@ -957,32 +1019,54 @@
             const index = GRADING_SCALE.findIndex(g => g.grade === gradeCode);
             if (index === -1) return '';
             const min = GRADING_SCALE[index].min_score;
-            if (index === 0) return `${min}-100`;
-            const max = GRADING_SCALE[index - 1].min_score - 0.01;
+            if (index === 0) return `${min}-100`; // Highest grade range
+            const max = GRADING_SCALE[index - 1].min_score - 0.01; // Max is just below the next higher grade's min
             return `${min.toFixed(0)}-${max.toFixed(2)}`;
         }
 
         // Returns Tailwind CSS classes for a grade color
         function getGradeStyles(color) {
-            const stylesMap = { 'gold': { textColor: 'text-yellow-800', bgColor: 'bg-yellow-400' }, 'indigo': { textColor: 'text-indigo-800', bgColor: 'bg-indigo-300' }, 'purple': { textColor: 'text-purple-800', bgColor: 'bg-purple-300' }, 'blue': { textColor: 'text-blue-800', bgColor: 'bg-blue-300' }, 'green': { textColor: 'text-green-800', bgColor: 'bg-green-300' }, 'gray': { textColor: 'text-gray-800', bgColor: 'bg-gray-300' }, 'orange': { textColor: 'text-orange-800', bgColor: 'bg-orange-300' }, 'red': { textColor: 'text-red-800', bgColor: 'bg-red-300' } };
-            return stylesMap[color] || stylesMap['gray'];
+            const stylesMap = {
+                'gold': { textColor: 'text-yellow-800', bgColor: 'bg-yellow-400' },
+                'indigo': { textColor: 'text-indigo-800', bgColor: 'bg-indigo-300' },
+                'purple': { textColor: 'text-purple-800', bgColor: 'bg-purple-300' },
+                'blue': { textColor: 'text-blue-800', bgColor: 'bg-blue-300' },
+                'green': { textColor: 'text-green-800', bgColor: 'bg-green-300' },
+                'gray': { textColor: 'text-gray-800', bgColor: 'bg-gray-300' },
+                'orange': { textColor: 'text-orange-800', bgColor: 'bg-orange-300' },
+                'red': { textColor: 'text-red-800', bgColor: 'bg-red-300' }
+            };
+            return stylesMap[color] || stylesMap['gray']; // Default to gray if color not found
         }
 
          // Renders the score section
          function renderScoreSection(container, score, grade) {
-             // Ensure container, grade, and i18n are ready
-             if (!container || !grade || !grade.color || !grade.nameKey || !i18next.isInitialized) {
-                console.error("renderScoreSection: Missing container, grade info, or i18n not ready.", {container, grade, i18nReady: i18next.isInitialized});
-                // Display error directly in the container if possible
-                if(container) container.innerHTML = `<p class="text-red-500">${i18next.t('resultsPage.scoreCalculationFailed')}</p>`;
-                return;
-             }
+             if (!container || !grade || !i18next.isInitialized) return; // Ensure grade exists and i18n ready
              const styles = getGradeStyles(grade.color);
-             // Ensure grade.name is populated (it's passed in from renderPageContent)
-             const gradeNameDisplay = grade.name ?? i18next.t(grade.nameKey) ?? i18next.t('common.unrated');
-             const scoreHtml = `<div> <p class="text-xl font-bold text-yellow-500 mb-1">${i18next.t('resultsPage.scoreSectionTitle')}</p> <p class="text-7xl font-black ${styles.textColor}">${score?.toFixed(2) ?? '?.??'}</p> <div class="mt-2 text-3xl font-black ${styles.textColor}">${gradeNameDisplay}</div> </div>`;
-             const scaleHtml = GRADING_SCALE.map(g => { const gs = getGradeStyles(g.color); const cur = g.grade === grade.grade; return `<div class="flex items-center p-1 rounded ${cur ? 'bg-gray-100' : ''}"> <div class="w-5 h-5 rounded-full flex items-center justify-center font-bold text-xs ${gs.bgColor} ${gs.textColor} mr-2">${g.grade}</div> <div class="flex-grow ${cur ? 'font-semibold' : ''} ${gs.textColor}">${i18next.t(g.nameKey)}</div> <div class="font-mono text-xs text-gray-500 ml-2">${getScoreRange(g.grade)}</div> </div>`; }).join('');
-             container.innerHTML = `<div class="w-full md:w-1/3">${scoreHtml}</div> <div class="w-full md:w-2/3 border-t md:border-t-0 md:border-l border-gray-200 pt-4 md:pt-0 md:pl-6"> <div class="space-y-1">${scaleHtml}</div> </div>`;
+             // Main score and grade name display
+             const scoreHtml = `
+                <div>
+                    <p class="text-xl font-bold text-yellow-500 mb-1">${i18next.t('resultsPage.scoreSectionTitle')}</p>
+                    <p class="text-7xl font-black ${styles.textColor}">${score?.toFixed(2) ?? '?.??'}</p>
+                    <div class="mt-2 text-3xl font-black ${styles.textColor}">${grade.name ?? i18next.t('common.unrated')}</div>
+                </div>`;
+             // Grading scale legend
+             const scaleHtml = GRADING_SCALE.map(g => {
+                 const gs = getGradeStyles(g.color);
+                 const isCurrentGrade = g.grade === grade.grade;
+                 return `
+                 <div class="flex items-center p-1 rounded ${isCurrentGrade ? 'bg-gray-100' : ''}">
+                     <div class="w-5 h-5 rounded-full flex items-center justify-center font-bold text-xs ${gs.bgColor} ${gs.textColor} mr-2">${g.grade}</div>
+                     <div class="flex-grow ${isCurrentGrade ? 'font-semibold' : ''} ${gs.textColor}">${i18next.t(g.nameKey)}</div>
+                     <div class="font-mono text-xs text-gray-500 ml-2">${getScoreRange(g.grade)}</div>
+                 </div>`;
+             }).join('');
+             // Combine into the container
+             container.innerHTML = `
+                 <div class="w-full md:w-1/3">${scoreHtml}</div>
+                 <div class="w-full md:w-2/3 border-t md:border-t-0 md:border-l border-gray-200 pt-4 md:pt-0 md:pl-6">
+                     <div class="space-y-1">${scaleHtml}</div>
+                 </div>`;
          }
         // --- End Rendering Utilities ---
 
