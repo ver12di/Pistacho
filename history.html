@@ -129,7 +129,10 @@
                     el.innerHTML = value;
                 }
             });
-            document.title = i18next.t('historyPage.title');
+            // Update title based on whether admin view is active
+            const isAdmin = currentAuthUser && (currentAuthUser.db_role === 'admin' || currentAuthUser.db_role === 'super_admin');
+            document.title = i18next.t(isAdmin ? 'historyPage.allRatingsTitle' : 'historyPage.title');
+            historyTitle.textContent = i18next.t(isAdmin ? 'historyPage.allRatingsTitle' : 'historyPage.title');
         }
 
         function setupLanguageSwitcher() {
@@ -150,7 +153,7 @@
         // --- End i18n Functions ---
 
         // --- Global Variables ---
-        let historicalRatings = {};
+        let historicalRatings = {}; // Cache fetched ratings by ID
         let currentAuthUser = null;
         let userRole = 'guest';
         const loadingMessage = document.getElementById('loading-message');
@@ -222,6 +225,7 @@
                 if (!response.ok) throw new Error(data?.error || `Delete failed (status ${response.status})`);
                 const cardToRemove = document.getElementById(`rating-card-${ratingId}`);
                 if (cardToRemove) { cardToRemove.style.transition = 'opacity 0.5s ease-out'; cardToRemove.style.opacity = '0'; setTimeout(() => cardToRemove.remove(), 500); }
+                delete historicalRatings[ratingId]; // Remove from cache
                 alert(i18next.t('common.deleteSuccess'));
             } catch (error) {
                 console.error("[deleteRating] Caught error:", error);
@@ -323,65 +327,95 @@
             }
          }
 
-        // *** MODIFIED: viewRatingDetails to remove strict finalGrade check ***
+        // *** MODIFIED: viewRatingDetails to ensure complete data is stored ***
          window.viewRatingDetails = function(ratingId) {
-             const ratingData = historicalRatings[ratingId];
+             const ratingData = historicalRatings[ratingId]; // Get data from cache
              if (!ratingData) {
+                 console.error(`[history.html viewRatingDetails] Rating data not found in cache for ID: ${ratingId}`);
                  alert(i18next.t('common.loadDetailFailed'));
                  return;
              }
 
-             // Attempt to construct finalGrade object, but allow it to be null if grade info is missing
+             // --- START: Construct finalGrade object robustly ---
              let finalGrade = null;
+             // Try getting grade info directly from the ratingData (preferred)
              if (ratingData.finalGrade?.grade) {
-                  const foundGrade = GRADING_SCALE.find(g => g.grade === ratingData.finalGrade.grade);
-                  if (foundGrade) {
-                      finalGrade = {
-                          grade: foundGrade.grade,
-                          nameKey: foundGrade.nameKey,
-                          color: foundGrade.color
-                      };
-                  }
+                 const foundGrade = GRADING_SCALE.find(g => g.grade === ratingData.finalGrade.grade);
+                 if (foundGrade) {
+                     finalGrade = {
+                         grade: foundGrade.grade,
+                         nameKey: foundGrade.nameKey, // MUST include nameKey
+                         color: foundGrade.color      // MUST include color
+                     };
+                 }
+                 // If grade letter exists but not in scale, keep finalGrade null
              }
+             // Fallback: Calculate from score ONLY if grade info is missing AND score exists
+             else if (ratingData.normalizedScore !== undefined) {
+                 console.warn(`[history.html viewRatingDetails] Rating ${ratingId} missing finalGrade object, calculating from score.`);
+                 const foundGrade = GRADING_SCALE.find(g => ratingData.normalizedScore >= g.min_score) || GRADING_SCALE[GRADING_SCALE.length - 1];
+                 finalGrade = {
+                     grade: foundGrade.grade,
+                     nameKey: foundGrade.nameKey,
+                     color: foundGrade.color
+                 };
+             }
+             // --- END: Construct finalGrade ---
 
-             // *** REMOVED: Strict check for !finalGrade ***
-             // Check only for essential data needed by results.html (score and cigar info)
+             // Basic validation: Ensure score and cigar info exist
              if (!ratingData || ratingData.normalizedScore === undefined || !ratingData.cigarInfo) {
-                console.error("viewRatingDetails: Essential data (score, cigarInfo) missing!", {ratingData});
-                // Use a slightly different error message if grade is the likely missing piece
-                alert(i18next.t('resultsPage.loadErrorMissing'));
-                return;
+                 console.error("[history.html viewRatingDetails] Essential data (score, cigarInfo) missing!", {ratingData});
+                 alert(i18next.t('resultsPage.loadErrorMissing')); // Use a more specific error
+                 return;
+             }
+             // Also check if finalGrade could be constructed (critical for results page)
+             if (!finalGrade) {
+                 console.error("[history.html viewRatingDetails] Could not determine finalGrade!", {ratingData});
+                 alert(i18next.t('resultsPage.scoreCalculationFailed')); // Use specific error
+                 return;
              }
 
-             // Prepare data for results page
-             let detailedData = {
+
+             // Prepare data structure expected by results.html
+             let imageUrls = [];
+             // Handle imageUrl which might be stringified JSON array or just a single key string
+             if (typeof ratingData.imageUrl === 'string') {
+                 try {
+                     const parsed = JSON.parse(ratingData.imageUrl);
+                     if (Array.isArray(parsed)) { imageUrls = parsed; }
+                     else { imageUrls = [ratingData.imageUrl]; } // Assume single string if parse fails or not array
+                 } catch(e) { imageUrls = [ratingData.imageUrl]; } // Treat as single string on parse error
+             } else if (Array.isArray(ratingData.imageUrl)) {
+                  imageUrls = ratingData.imageUrl;
+             }
+
+             // Ensure fullData exists for narrative/summary, provide defaults
+             const hasCompleteFullData = ratingData.fullData && ratingData.fullData.config && ratingData.fullData.ratings && ratingData.fullData.calculatedScore !== undefined;
+
+             const detailedData = {
                  ratingId: ratingData.id,
-                 title: ratingData.title || i18next.t('certifiedPage.noTitle'),
-                 cigarInfo: ratingData.cigarInfo || { name: ratingData.cigarName, size: ratingData.cigarSize, origin: ratingData.cigarOrigin },
-                 cigarReview: ratingData.cigarReview || i18next.t('resultsPage.noReview'),
-                 imageUrls: Array.isArray(ratingData.imageUrl) ? ratingData.imageUrl : (ratingData.imageUrl ? [ratingData.imageUrl] : []),
+                 title: ratingData.title || i18next.t('common.noTitle'),
+                 cigarInfo: ratingData.cigarInfo || { name: ratingData.cigarName, size: ratingData.cigarSize, origin: ratingData.cigarOrigin }, // Provide fallback cigarInfo
+                 cigarReview: ratingData.cigarReview || i18next.t('common.noReview'),
+                 imageUrls: imageUrls,
                  normalizedScore: ratingData.normalizedScore,
-                 finalGrade: finalGrade, // Pass the potentially null finalGrade object
+                 finalGrade: finalGrade, // Pass the constructed finalGrade object
+                 selectedFlavors: Array.isArray(ratingData.fullData?.selectedFlavors) ? ratingData.fullData.selectedFlavors : [],
                  timestamp: ratingData.timestamp,
                  userNickname: ratingData.userNickname,
                  userEmail: ratingData.userEmail,
-                 selectedFlavors: Array.isArray(ratingData.fullData?.selectedFlavors) ? ratingData.fullData.selectedFlavors : [],
-                 isDraft: false
+                 isDraft: false, // Data from history is never a draft
+                 // Include config and ratings ONLY if fullData is complete
+                 config: hasCompleteFullData ? ratingData.fullData.config : null,
+                 ratings: hasCompleteFullData ? ratingData.fullData.ratings : null,
+                 calculatedScore: hasCompleteFullData ? ratingData.fullData.calculatedScore : null
              };
 
-             // Include full config/ratings if available
-             const hasCompleteFullData = ratingData.fullData && ratingData.fullData.config && ratingData.fullData.ratings && ratingData.fullData.calculatedScore !== undefined;
-             if (hasCompleteFullData) {
-                 detailedData.config = ratingData.fullData.config;
-                 detailedData.ratings = ratingData.fullData.ratings;
-                 detailedData.calculatedScore = ratingData.fullData.calculatedScore;
-             } else {
-                 console.warn(`fullData for rating ${ratingId} from history is missing or incomplete.`);
-             }
+            console.log("[history.html viewRatingDetails] Storing data to sessionStorage:", JSON.stringify(detailedData).substring(0,500) + '...'); // Log data being stored
 
              try {
                  sessionStorage.setItem('cigarRatingResults', JSON.stringify(detailedData));
-                 window.location.href = 'results.html';
+                 window.location.href = 'results.html'; // Navigate to results page (will load from sessionStorage)
              } catch (e) {
                  console.error("Error setting sessionStorage:", e);
                  alert(i18next.t('common.sessionStoreFailed'));
@@ -392,7 +426,7 @@
         // --- Data Fetching and Rendering ---
         async function fetchAndRenderHistory(user) {
             if (!user) {
-                historyTitle.textContent = i18next.t('historyPage.title');
+                // historyTitle.textContent = i18next.t('historyPage.title'); // Title updated in updateContent
                 historyContainer.style.display = 'none';
                 loginPrompt.classList.remove('hidden');
                 loadingMessage.style.display = 'none';
@@ -404,7 +438,7 @@
 
             const token = sessionStorage.getItem('accessToken');
             if (!token) {
-                 historyTitle.textContent = i18next.t('historyPage.title');
+                 // historyTitle.textContent = i18next.t('historyPage.title'); // Title updated in updateContent
                  historyContainer.style.display = 'none';
                  loginPrompt.classList.remove('hidden');
                  loginPrompt.querySelector('p').textContent = i18next.t('historyPage.loginExpired');
@@ -414,41 +448,41 @@
 
             loadingMessage.textContent = i18next.t('historyPage.loadingHistory');
             loadingMessage.style.display = 'block';
-            historyContainer.innerHTML = '';
+            historyContainer.innerHTML = ''; // Clear previous results
 
             try {
                  const apiUrl = new URL('/api/ratings', window.location.origin);
+                 // No need to pass userId, API determines based on token/role
                  const response = await fetch(apiUrl, { headers: { 'Authorization': `Bearer ${token}` } });
                  if (!response.ok) { let errorText = `Load failed: ${response.status}`; try { const err = await response.json(); errorText = err.error || errorText; } catch(e){/*ignore*/} throw new Error(errorText); }
-                 const ratings = await response.json();
-                 historicalRatings = {}; ratings.forEach(r => historicalRatings[r.id] = r);
-                 userRole = currentAuthUser?.db_role || 'general';
 
-                 if (userRole === 'admin' || userRole === 'super_admin') {
-                    historyTitle.textContent = i18next.t('historyPage.allRatingsTitle');
-                 } else {
-                    historyTitle.textContent = i18next.t('historyPage.title');
-                 }
+                 const ratings = await response.json();
+                 historicalRatings = {}; // Reset cache
+                 ratings.forEach(r => historicalRatings[r.id] = r); // Populate cache
+                 userRole = currentAuthUser?.db_role || 'general'; // Use the globally set role
+
+                 updateContent(); // Update title based on role
 
                 if (ratings.length === 0) {
                     historyContainer.innerHTML = `<div class="text-center p-6 bg-white rounded-lg shadow"><p>${i18next.t('historyPage.noRatings')}</p></div>`;
                 }
                 else {
                     let historyHtml = '<div class="space-y-4">';
+                    // Sort ratings: Pinned first, then by timestamp descending
                     ratings.sort((a, b) => (b.isPinned - a.isPinned) || (new Date(b.timestamp) - new Date(a.timestamp)));
                     ratings.forEach(data => {
                         // Ensure required fields exist, provide defaults if not
-                        data.finalGrade = data.finalGrade || {}; // Ensure finalGrade object exists even if empty
-                        data.cigarInfo = data.cigarInfo || {};
+                        data.finalGrade = data.finalGrade || {}; // Ensure finalGrade object exists
+                        data.cigarInfo = data.cigarInfo || {}; // Ensure cigarInfo object exists
                         historyHtml += renderRatingCard(data, user.sub, userRole);
                     });
                     historyHtml += '</div>';
                     historyContainer.innerHTML = historyHtml;
                 }
-                 loadingMessage.style.display = 'none';
+                 loadingMessage.style.display = 'none'; // Hide loading indicator
             } catch (error) {
                 console.error("获取历史记录失败:", error);
-                historyTitle.textContent = i18next.t('historyPage.title');
+                // updateContent(); // Update title even on error
                 historyContainer.innerHTML = `<div class="text-center p-6 bg-red-100 text-red-700 rounded-lg shadow"><p>${i18next.t('historyPage.loadFailed', { msg: error.message })}</p></div>`;
                 loadingMessage.style.display = 'none';
             }
@@ -461,16 +495,18 @@
 
             // Use GRADING_SCALE and i18n
             let gradeDisplay = i18next.t('historyPage.unrated'); // Default text
-            if (data.finalGrade && data.finalGrade.grade) { // Check if grade exists
-                const foundGrade = GRADING_SCALE.find(g => g.grade === data.finalGrade.grade);
-                if (foundGrade) {
-                    const gradeName = i18next.t(foundGrade.nameKey); // Use i18n to get translated name
-                    gradeDisplay = `${data.finalGrade.grade} - ${gradeName}`;
-                } else {
-                    gradeDisplay = `${data.finalGrade.grade} - ?`; // Fallback if grade letter not found in scale
-                }
+            // Check based on finalGrade_grade property from API response
+            if (data.finalGrade_grade) {
+                 const foundGrade = GRADING_SCALE.find(g => g.grade === data.finalGrade_grade);
+                 if (foundGrade) {
+                     const gradeName = i18next.t(foundGrade.nameKey); // Use i18n to get translated name
+                     gradeDisplay = `${data.finalGrade_grade} - ${gradeName}`;
+                 } else {
+                     gradeDisplay = `${data.finalGrade_grade} - ?`; // Fallback if grade letter not found in scale
+                 }
             } else if (data.normalizedScore !== undefined) {
                  // Fallback: Calculate grade from score if grade info is missing in data
+                 console.warn(`[history.html renderRatingCard] Rating ${ratingId} missing finalGrade_grade, calculating from score.`);
                  const foundGrade = GRADING_SCALE.find(g => data.normalizedScore >= g.min_score) || GRADING_SCALE[GRADING_SCALE.length - 1];
                  const gradeName = i18next.t(foundGrade.nameKey);
                  gradeDisplay = `${foundGrade.grade} - ${gradeName}`;
@@ -481,7 +517,9 @@
             const isAdmin = currentUserRole === 'admin' || currentUserRole === 'super_admin';
             const canModify = isOwner || isAdmin;
             const canCertifyOrPin = isAdmin;
+            // Display author only if admin is viewing all ratings
             const authorDisplay = data.userNickname || data.userEmail || data.userId || i18next.t('historyPage.unknownUser');
+            const showAuthor = isAdmin; // Only show author for admin view
             const isPinned = data.isPinned;
 
             let actionButtonsHtml = '';
@@ -505,10 +543,10 @@
                         <div class="flex-grow min-w-0 pr-4">
                              <p class="text-lg font-bold text-gray-800 truncate" title="${data.title || ''}">${data.title || i18next.t('certifiedPage.noTitle')}</p>
                              <p class="text-sm text-gray-500 truncate" title="${data.cigarInfo?.name || ''}">
-                                ${data.cigarInfo?.name || i18next.t('certifiedPage.unnamedCigar')} |
-                                ${data.cigarInfo?.size || i18next.t('common.noData')} |
-                                ${data.cigarInfo?.origin || i18next.t('common.noData')} | ${date}
-                                ${ isAdmin ? `<span class="font-medium text-gray-600 ml-2">| ${i18next.t('historyPage.userLabel')} ${authorDisplay}</span>` : '' }
+                                ${data.cigarName || i18next.t('certifiedPage.unnamedCigar')} |
+                                ${data.cigarSize || i18next.t('common.noData')} |
+                                ${data.cigarOrigin || i18next.t('common.noData')} | ${date}
+                                ${ showAuthor ? `<span class="font-medium text-gray-600 ml-2">| ${i18next.t('historyPage.userLabel')} ${authorDisplay}</span>` : '' }
                              </p>
                         </div>
                         <div class="flex items-center flex-shrink-0 space-x-3">
