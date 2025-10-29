@@ -724,11 +724,12 @@
              const { normalizedScore, finalGrade, userNickname, userEmail, imageUrls = [] } = data;
              const nickname = userNickname || userEmail || i18next.t('common.anonymous');
 
-             if (!finalGrade || !finalGrade.grade || !finalGrade.nameKey || !finalGrade.color) {
-                  console.warn("populateShareCard: finalGrade data missing or incomplete. Cannot populate share card grade.");
+             // Robust check for finalGrade
+             if (!finalGrade || typeof finalGrade !== 'object' || !finalGrade.grade || !finalGrade.nameKey || !finalGrade.color) {
+                  console.warn("populateShareCard: finalGrade data missing or incomplete. Cannot populate share card grade.", finalGrade);
                   document.getElementById('share-card-score').textContent = normalizedScore?.toFixed(2) ?? '?.??';
                   document.getElementById('share-card-grade-badge').textContent = i18next.t('common.unrated');
-                  document.getElementById('share-card-grade-badge').className = 'inline-block px-1 py-0.5 rounded-full text-xs font-semibold bg-gray-300 text-gray-800 bg-opacity-20'; // Adjusted class
+                  document.getElementById('share-card-grade-badge').className = 'inline-block px-1 py-0.5 rounded-full text-xs font-semibold bg-gray-300 text-gray-800 bg-opacity-20';
              } else {
                   const gradeName = i18next.t(finalGrade.nameKey);
                   const gradeStyles = getGradeStyles(finalGrade.color);
@@ -736,7 +737,7 @@
                   const gradeEl = document.getElementById('share-card-grade-badge');
                   scoreEl.className = `font-black ${gradeStyles.textColor}`; // Apply color class
                   scoreEl.textContent = normalizedScore.toFixed(2);
-                  gradeEl.className = `inline-block px-1 py-0.5 rounded-full text-xs font-semibold ${gradeStyles.bgColor} ${gradeStyles.textColor} bg-opacity-20`; // Adjusted class
+                  gradeEl.className = `inline-block px-1 py-0.5 rounded-full text-xs font-semibold ${gradeStyles.bgColor} ${gradeStyles.textColor} bg-opacity-20`;
                   gradeEl.textContent = gradeName;
              }
 
@@ -795,9 +796,13 @@
         // Renders the main content of the results page using the provided data
         function renderPageContent(data) {
              console.log("[results.html renderPageContent] Received data:", JSON.stringify(data).substring(0, 300) + '...'); // Log received data start
-            if (!data || !i18next.isInitialized) return; // Ensure data and i18n are ready
+            if (!data || !i18next.isInitialized) {
+                 console.error("[results.html renderPageContent] No data received or i18n not ready.");
+                 return; // Exit if no data or i18n not ready
+            }
 
-            const { cigarInfo, cigarReview, normalizedScore, isDraft, selectedFlavors = [], finalGrade } = data;
+            // Destructure with defaults
+            const { cigarInfo = {}, cigarReview, normalizedScore, isDraft, selectedFlavors = [], finalGrade } = data;
             const title = data.title || i18next.t('common.noTitle');
             const userNickname = data.userNickname || data.userEmail || i18next.t('common.anonymous');
 
@@ -813,62 +818,98 @@
             console.log("  > Is Draft:", isDraft);
             // --- END ADDED LOGS ---
 
+            // --- ADDED: Get references to DOM elements ---
+             const userNicknameEl = document.getElementById('user-nickname');
+             const ratingTitleEl = document.getElementById('rating-title');
+             const cigarNameEl = document.getElementById('cigar-name');
+             const cigarSizeEl = document.getElementById('cigar-size');
+             const cigarOriginEl = document.getElementById('cigar-origin');
+             const reviewContainerEl = document.getElementById('cigar-review-container');
+             const flavorsContainerEl = document.getElementById('selected-flavors-container');
+             const flavorsDisplayEl = document.getElementById('flavors-display');
+             const scoreSectionEl = document.getElementById('score-section');
+             const narrativeSummaryContainerEl = document.getElementById('narrative-summary-container');
+             const summaryContainerEl = document.getElementById('summary-container');
+             const narrativeDetailsEl = document.getElementById('narrative-summary-details');
+             const summaryDetailsEl = document.getElementById('summary-details');
+             const saveButtonContainerEl = document.getElementById('save-button-container');
+             // --- END ADDED ---
 
-            // Validate finalGrade exists before accessing properties
-            if (!finalGrade || !finalGrade.grade || !finalGrade.nameKey || !finalGrade.color) {
+            // --- Robust check for essential data before proceeding ---
+             if (normalizedScore === undefined || !cigarInfo) {
+                 console.error("[results.html renderPageContent] Essential data missing: score or cigarInfo.", {normalizedScore, cigarInfo});
+                 if (scoreSectionEl) scoreSectionEl.innerHTML = `<p class="text-red-500">${i18next.t('errors.missingEssentialData')}</p>`;
+                 // Hide other sections that depend on this data
+                 if (narrativeDetailsEl) narrativeDetailsEl.style.display = 'none';
+                 if (summaryDetailsEl) summaryDetailsEl.style.display = 'none';
+                 // Try to populate basic info anyway
+                 if (userNicknameEl) userNicknameEl.textContent = userNickname;
+                 if (ratingTitleEl) ratingTitleEl.textContent = title;
+                 if (cigarNameEl) cigarNameEl.textContent = cigarInfo?.name ?? i18next.t('common.unknown');
+                 if (cigarSizeEl) cigarSizeEl.textContent = cigarInfo?.size ?? i18next.t('common.unknown');
+                 if (cigarOriginEl) cigarOriginEl.textContent = cigarInfo?.origin ?? i18next.t('common.unknown');
+                 if (reviewContainerEl) reviewContainerEl.innerHTML = `<p class="text-gray-400 italic">${i18next.t('common.noReview')}</p>`;
+                 if (flavorsContainerEl) flavorsContainerEl.classList.add('hidden');
+                 if (saveButtonContainerEl) saveButtonContainerEl.style.display = 'none'; // Don't show save if data is bad
+                 return; // Stop rendering here
+             }
+
+
+            // --- Check finalGrade specifically ---
+            if (!finalGrade || typeof finalGrade !== 'object' || !finalGrade.grade || !finalGrade.nameKey || !finalGrade.color) {
                  console.error("[results.html renderPageContent] finalGrade data is missing or incomplete.", finalGrade);
-                 document.getElementById('score-section').innerHTML = `<p class="text-red-500">${i18next.t('resultsPage.scoreCalculationFailed')}</p>`;
-                 document.getElementById('narrative-summary-container').innerHTML = `<p class="text-red-500 italic">${i18next.t('resultsPage.narrativeGenFailed')}</p>`;
-                 document.getElementById('summary-container').innerHTML = '';
-
-                 // Populate what we can even on error
-                 document.getElementById('user-nickname').textContent = userNickname;
-                 document.getElementById('rating-title').textContent = title;
-                 document.getElementById('cigar-name').textContent = cigarInfo?.name ?? i18next.t('common.unknown');
-                 document.getElementById('cigar-size').textContent = cigarInfo?.size ?? i18next.t('common.unknown');
-                 document.getElementById('cigar-origin').textContent = cigarInfo?.origin ?? i18next.t('common.unknown');
-                 const reviewContainer = document.getElementById('cigar-review-container');
-                 reviewContainer.innerHTML = (cigarReview && cigarReview.trim() && cigarReview !== i18next.t('common.noReview')) ? `<p>${cigarReview.replace(/\n/g, '<br>')}</p>` : `<p class="text-gray-400 italic">${i18next.t('common.noReview')}</p>`;
-                 const flavorsContainer = document.getElementById('selected-flavors-container');
-                 if (selectedFlavors.length > 0) {
-                     document.getElementById('flavors-display').innerHTML = selectedFlavors.map(flavorKey => `<span class="flavor-tag">${i18next.t(flavorKey) || flavorKey}</span>`).join('');
-                     flavorsContainer.classList.remove('hidden');
-                 } else { flavorsContainer.classList.add('hidden'); }
-                 // Hide details sections if grade failed
-                 ['narrative-summary-details', 'summary-details'].forEach(id => {
-                      const el = document.getElementById(id); if (el) el.style.display = 'none';
-                 });
-            } else { // Grade data is valid, proceed normally
+                 if (scoreSectionEl) scoreSectionEl.innerHTML = `<p class="text-red-500">${i18next.t('resultsPage.scoreCalculationFailed')}</p>`;
+                 if (narrativeSummaryContainerEl) narrativeSummaryContainerEl.innerHTML = `<p class="text-red-500 italic">${i18next.t('resultsPage.narrativeGenFailed')}</p>`;
+                 if (summaryContainerEl) summaryContainerEl.innerHTML = '';
+                 // Hide details sections
+                 if (narrativeDetailsEl) narrativeDetailsEl.style.display = 'none';
+                 if (summaryDetailsEl) summaryDetailsEl.style.display = 'none';
+                 // Populate basic info
+                 if (userNicknameEl) userNicknameEl.textContent = userNickname;
+                 if (ratingTitleEl) ratingTitleEl.textContent = title;
+                 if (cigarNameEl) cigarNameEl.textContent = cigarInfo?.name ?? i18next.t('common.unknown');
+                 if (cigarSizeEl) cigarSizeEl.textContent = cigarInfo?.size ?? i18next.t('common.unknown');
+                 if (cigarOriginEl) cigarOriginEl.textContent = cigarInfo?.origin ?? i18next.t('common.unknown');
+                 if (reviewContainerEl) reviewContainerEl.innerHTML = (cigarReview && cigarReview.trim() && cigarReview !== i18next.t('common.noReview')) ? `<p>${cigarReview.replace(/\n/g, '<br>')}</p>` : `<p class="text-gray-400 italic">${i18next.t('common.noReview')}</p>`;
+                 if (flavorsContainerEl) {
+                     if (selectedFlavors.length > 0) {
+                        if (flavorsDisplayEl) flavorsDisplayEl.innerHTML = selectedFlavors.map(flavorKey => `<span class="flavor-tag">${i18next.t(flavorKey) || flavorKey}</span>`).join('');
+                        flavorsContainerEl.classList.remove('hidden');
+                     } else { flavorsContainerEl.classList.add('hidden'); }
+                 }
+                 // Save button logic remains
+                 if (saveButtonContainerEl) saveButtonContainerEl.style.display = (currentAuthUser && isDraft) ? 'block' : 'none';
+            } else { // Grade data IS valid, proceed normally
                  const gradeName = i18next.t(finalGrade.nameKey);
-                 document.getElementById('user-nickname').textContent = userNickname;
-                 document.getElementById('rating-title').textContent = title;
-                 document.getElementById('cigar-name').textContent = cigarInfo?.name ?? i18next.t('common.unknown');
-                 document.getElementById('cigar-size').textContent = cigarInfo?.size ?? i18next.t('common.unknown');
-                 document.getElementById('cigar-origin').textContent = cigarInfo?.origin ?? i18next.t('common.unknown');
-                 const reviewContainer = document.getElementById('cigar-review-container');
-                 reviewContainer.innerHTML = (cigarReview && cigarReview.trim() && cigarReview !== i18next.t('common.noReview')) ? `<p>${cigarReview.replace(/\n/g, '<br>')}</p>` : `<p class="text-gray-400 italic">${i18next.t('common.noReview')}</p>`;
-                 const flavorsContainer = document.getElementById('selected-flavors-container');
-                 if (selectedFlavors.length > 0) {
-                     document.getElementById('flavors-display').innerHTML = selectedFlavors.map(flavorKey => `<span class="flavor-tag">${i18next.t(flavorKey) || flavorKey}</span>`).join('');
-                     flavorsContainer.classList.remove('hidden');
-                 } else { flavorsContainer.classList.add('hidden'); }
-                 renderScoreSection(document.getElementById('score-section'), normalizedScore, { ...finalGrade, name: gradeName });
+                 if (userNicknameEl) userNicknameEl.textContent = userNickname;
+                 if (ratingTitleEl) ratingTitleEl.textContent = title;
+                 if (cigarNameEl) cigarNameEl.textContent = cigarInfo?.name ?? i18next.t('common.unknown');
+                 if (cigarSizeEl) cigarSizeEl.textContent = cigarInfo?.size ?? i18next.t('common.unknown');
+                 if (cigarOriginEl) cigarOriginEl.textContent = cigarInfo?.origin ?? i18next.t('common.unknown');
+                 if (reviewContainerEl) reviewContainerEl.innerHTML = (cigarReview && cigarReview.trim() && cigarReview !== i18next.t('common.noReview')) ? `<p>${cigarReview.replace(/\n/g, '<br>')}</p>` : `<p class="text-gray-400 italic">${i18next.t('common.noReview')}</p>`;
+                 if (flavorsContainerEl) {
+                     if (selectedFlavors.length > 0) {
+                         if(flavorsDisplayEl) flavorsDisplayEl.innerHTML = selectedFlavors.map(flavorKey => `<span class="flavor-tag">${i18next.t(flavorKey) || flavorKey}</span>`).join('');
+                         flavorsContainerEl.classList.remove('hidden');
+                     } else { flavorsContainerEl.classList.add('hidden'); }
+                 }
+                 if (scoreSectionEl) renderScoreSection(scoreSectionEl, normalizedScore, { ...finalGrade, name: gradeName });
+
                  // Check if config and ratings exist for detailed summaries
                  const hasFullData = data.config && data.ratings;
-                 ['narrative-summary-details', 'summary-details'].forEach(id => {
-                      const el = document.getElementById(id); if (el) el.style.display = hasFullData ? 'block' : 'none';
-                 });
+                 [narrativeDetailsEl, summaryDetailsEl].forEach(el => { if (el) el.style.display = hasFullData ? 'block' : 'none'; });
+
                  if (hasFullData) {
-                     document.getElementById('narrative-summary-container').innerHTML = generateNarrativeSummary(cigarInfo, data.config, data.ratings, { ...finalGrade, name: gradeName }, selectedFlavors);
-                     renderSummary(document.getElementById('summary-container'), data.config, data.ratings);
+                    if (narrativeSummaryContainerEl) narrativeSummaryContainerEl.innerHTML = generateNarrativeSummary(cigarInfo, data.config, data.ratings, { ...finalGrade, name: gradeName }, selectedFlavors);
+                    if (summaryContainerEl) renderSummary(summaryContainerEl, data.config, data.ratings);
+                 } else {
+                     console.warn("[results.html renderPageContent] Missing full data (config/ratings), hiding narrative and summary sections.");
                  }
                  // Populate share card (only if grade data was valid)
                  populateShareCard(data);
+                 // Save button logic remains
+                 if (saveButtonContainerEl) saveButtonContainerEl.style.display = (currentAuthUser && isDraft) ? 'block' : 'none';
             }
-
-             // Show/hide save button based on login status and draft status
-             const saveButtonContainer = document.getElementById('save-button-container');
-             saveButtonContainer.style.display = (currentAuthUser && isDraft) ? 'block' : 'none';
         }
 
         // --- Initialization on page load ---
@@ -897,9 +938,14 @@
                      console.log("[results.html onload] Loading rating from API with ID:", ratingId);
                      const token = sessionStorage.getItem('accessToken');
                      const apiUrl = new URL(`/api/ratings?id=${ratingId}`, window.location.origin);
+                     // Allow anonymous fetch if no token (API handles public read)
                      const fetchOptions = token ? { headers: { 'Authorization': `Bearer ${token}` } } : {};
                      const response = await fetch(apiUrl, fetchOptions);
-                     if (!response.ok) throw new Error(i18next.t('errors.loadRatingFailed', { status: response.status }));
+                     if (!response.ok) {
+                         let errorText = i18next.t('errors.loadRatingFailed', { status: response.status });
+                         try { const err = await response.json(); errorText = err.error || errorText; } catch(e){}
+                         throw new Error(errorText);
+                     }
                      resultsData = await response.json();
                      resultsData.isDraft = false; // Data from API is never a draft
                      console.log("[results.html onload] Loaded data from API:", JSON.stringify(resultsData).substring(0, 300) + '...');
@@ -975,8 +1021,9 @@
             if (observations.length > 0) { summary += ` ${i18next.t('resultsPage.narrative.part2', { observations: observations.join('；') })}`; }
             else { summary += ` ${i18next.t('resultsPage.narrative.noObservations')}`; }
             if (selectedFlavors.length > 0) { const translated = selectedFlavors.map(k => i18next.t(k) || k).join(', '); summary += ` ${i18next.t('resultsPage.narrative.part3', { flavors: translated })}`; }
-            const gradeName = finalGrade?.name ?? i18next.t('common.unrated');
-            const gradeLetter = finalGrade?.grade ?? '?';
+            // Use finalGrade object passed to the function
+            const gradeName = (finalGrade && finalGrade.name) ? finalGrade.name : i18next.t('common.unrated');
+            const gradeLetter = (finalGrade && finalGrade.grade) ? finalGrade.grade : '?';
             const hierarchy = GRADING_SCALE.map(g => `${g.grade}(${i18next.t(g.nameKey)})`).join(', ');
             summary += ` ${i18next.t('resultsPage.narrative.part4', { grade: gradeLetter, gradeName: gradeName, hierarchy: hierarchy })}`;
             summary += `</p>`;
@@ -1041,7 +1088,12 @@
 
          // Renders the score section
          function renderScoreSection(container, score, grade) {
-             if (!container || !grade || !i18next.isInitialized) return; // Ensure grade exists and i18n ready
+             // Robust check: Ensure grade object is valid and has expected properties
+             if (!container || !grade || typeof grade !== 'object' || !grade.grade || !grade.name || !grade.color || !i18next.isInitialized) {
+                 console.error("[results.html renderScoreSection] Invalid grade object received or i18n not ready:", grade);
+                 container.innerHTML = `<p class="text-red-500">${i18next.t('resultsPage.scoreCalculationFailed')}</p>`;
+                 return;
+             }
              const styles = getGradeStyles(grade.color);
              // Main score and grade name display
              const scoreHtml = `
