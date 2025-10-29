@@ -13,6 +13,7 @@
     <script src="https://unpkg.com/i18next-browser-languagedetector/i18nextBrowserLanguageDetector.min.js"></script>
 
     <script>
+        // Tailwind config
         if (typeof tailwind !== 'undefined') {
             tailwind.config = {
                 theme: {
@@ -25,6 +26,12 @@
         } else { console.warn('Tailwind object not found. Skipping config.'); }
     </script>
     <style>
+        /* Tooltip style (if needed, otherwise remove) */
+        .tooltip { position: relative; display: inline-block; }
+        .tooltip .tooltiptext { visibility: hidden; width: 60px; background-color: #555; color: #fff; text-align: center; border-radius: 6px; padding: 5px 0; position: absolute; z-index: 1; bottom: 125%; left: 50%; margin-left: -30px; opacity: 0; transition: opacity 0.3s; font-size: 10px; }
+        .tooltip .tooltiptext::after { content: ""; position: absolute; top: 100%; left: 50%; margin-left: -5px; border-width: 5px; border-style: solid; border-color: #555 transparent transparent transparent; }
+        .tooltip:hover .tooltiptext { visibility: visible; opacity: 1; }
+        /* Cropper modal styles */
         .cropper-container { max-height: 60vh; }
         .cropper-modal-content { width: 90%; max-width: 800px; }
         /* Preview grid and item styles */
@@ -314,14 +321,14 @@
         const AUTHING_APP_ID = '68f5b0b6875017c02b3bfdb3'; // Authing Application ID
         const AUTHING_HOST = 'https://xfvu647mcdbk-demo.authing.cn'; // Authing Host URL
         const GRADING_SCALE = [ // Defines score ranges and i18n keys for grades
-            { "grade": "P", "nameKey": "resultsPage.grade.P", "min_score": 95 },
-            { "grade": "I", "nameKey": "resultsPage.grade.I", "min_score": 90 },
-            { "grade": "S", "nameKey": "resultsPage.grade.S", "min_score": 80 },
-            { "grade": "T", "nameKey": "resultsPage.grade.T", "min_score": 70 },
-            { "grade": "A", "nameKey": "resultsPage.grade.A", "min_score": 60 },
-            { "grade": "C", "nameKey": "resultsPage.grade.C", "min_score": 50 },
-            { "grade": "H", "nameKey": "resultsPage.grade.H", "min_score": 30 },
-            { "grade": "O", "nameKey": "resultsPage.grade.O", "min_score": 0 }
+            { "grade": "P", "nameKey": "resultsPage.grade.P", "min_score": 95, "color": "gold" },
+            { "grade": "I", "nameKey": "resultsPage.grade.I", "min_score": 90, "color": "indigo" },
+            { "grade": "S", "nameKey": "resultsPage.grade.S", "min_score": 80, "color": "purple" },
+            { "grade": "T", "nameKey": "resultsPage.grade.T", "min_score": 70, "color": "blue" },
+            { "grade": "A", "nameKey": "resultsPage.grade.A", "min_score": 60, "color": "green" },
+            { "grade": "C", "nameKey": "resultsPage.grade.C", "min_score": 50, "color": "gray" },
+            { "grade": "H", "nameKey": "resultsPage.grade.H", "min_score": 30, "color": "orange" },
+            { "grade": "O", "nameKey": "resultsPage.grade.O", "min_score": 0, "color": "red" }
         ];
         const FLAVOR_KEYS = [ // i18n keys for flavor options
              "flavors.coffee", "flavors.chocolate", "flavors.cedar", "flavors.earth",
@@ -911,27 +918,28 @@
 
         // Gathers all data, navigates to results page (new rating) or saves changes (edit mode)
         window.showResults = async function() {
+            // ... (Validation checks remain the same) ...
             const token = sessionStorage.getItem('accessToken');
-            // Validation checks
-            if (!isEditMode && (!currentAuthUser || !token)) { // Login required for new ratings
+            if (!isEditMode && (!currentAuthUser || !token)) {
                 return alert(i18next.t('ratePage.loginToSubmit'));
             }
-            if (!ratingConfig || Object.keys(userRatings).length === 0) { // Check if config loaded and at least one item rated
+            if (!ratingConfig || Object.keys(userRatings).length === 0) {
                 return alert(i18next.t('ratePage.selectOneOption'));
             }
-            const title = titleInput.value.trim();
-            if (!title) { // Title required
+             const title = titleInput.value.trim();
+            if (!title) {
                 return alert(i18next.t('ratePage.titleRequired'));
             }
-            if (currentImageKeys.length === 0) { // Image required
+            if (currentImageKeys.length === 0) {
                 return alert(i18next.t('ratePage.imageRequired'));
             }
             const cigarNameValue = document.getElementById('cigar-name').value.trim();
-            if (!cigarNameValue) { // Cigar name required
+            if (!cigarNameValue) {
                 return alert(i18next.t('ratePage.nameRequired'));
             }
 
-            // Gather data for the results page or saving
+
+            // ... (Data gathering remains the same) ...
             const cigarInfo = {
                 name: cigarNameValue,
                 size: document.getElementById('cigar-size').value || i18next.t('common.unknown'), // Use translated 'unknown'
@@ -941,14 +949,15 @@
             const finalScore = calculateFinalScore();
             const maxScore = ratingConfig.totalWeightMax || 1; // Avoid division by zero
             const normalizedScore = maxScore > 0 ? (finalScore / maxScore) * 100 : 0; // Normalize score to 0-100
-
-            // Determine grade based on normalized score
             const foundGrade = GRADING_SCALE.find(g => normalizedScore >= g.min_score) || GRADING_SCALE[GRADING_SCALE.length - 1]; // Find matching grade or use lowest
             const finalGrade = {
                 grade: foundGrade.grade,
                 nameKey: foundGrade.nameKey, // Pass the i18n key for the grade name
                 color: foundGrade.color      // Pass color associated with the grade
             };
+
+            // --- ADDED LOG ---
+            console.log("[rate.html showResults] Calculated finalGrade:", JSON.stringify(finalGrade));
 
             // Prepare the data object
             const resultsData = {
@@ -962,8 +971,13 @@
                 normalizedScore: normalizedScore, // Score normalized to 0-100
                 finalGrade: finalGrade,         // Grade object { grade, nameKey, color }
                 selectedFlavors: selectedFlavors, // Array of selected flavor keys
-                isDraft: !isEditMode            // Mark as draft if it's a new rating
+                isDraft: !isEditMode,           // Mark as draft if it's a new rating
+                userNickname: currentAuthUser?.nickname || currentAuthUser?.name || currentAuthUser?.preferred_username || currentAuthUser?.email,
+                userEmail: currentAuthUser?.email
             };
+
+            // --- ADDED LOG ---
+            console.log("[rate.html showResults] resultsData object before saving:", JSON.stringify(resultsData).substring(0, 500) + '...'); // Log first 500 chars
 
             // Handle Edit Mode: Save changes via PUT request
             if (isEditMode && editRatingId) {
@@ -1039,11 +1053,13 @@
                 reviewTextarea.value = (data.cigarReview && data.cigarReview !== i18next.t('common.noReview')) ? data.cigarReview : '';
 
                 // *** FIX: Correctly assign imageUrls to currentImageKeys ***
-                currentImageKeys = Array.isArray(data.imageUrl) ? data.imageUrl : []; // Ensure it's an array
+                // Ensure imageUrls is always treated as an array
+                currentImageKeys = Array.isArray(data.imageUrls) ? data.imageUrls : []; // Use imageUrls property
 
                 selectedFlavors = Array.isArray(data.selectedFlavors) ? data.selectedFlavors : []; // Load flavor keys
 
                 // Load user selections (ratings) - critical: use the data from fullData
+                // Ensure fullData and ratings exist
                 if (data.fullData && data.fullData.ratings) {
                      userRatings = data.fullData.ratings; // Use the stored ratings object directly
                 } else {

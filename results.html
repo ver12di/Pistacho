@@ -774,18 +774,25 @@
 
         // Renders the main content of the results page using the provided data
         function renderPageContent(data) {
+            // --- ADDED LOG ---
+            console.log("[results.html renderPageContent] Received data object:", JSON.stringify(data).substring(0, 500) + '...'); // Log first 500 chars
+
             if (!data || !i18next.isInitialized) return; // Ensure data and i18n are ready
 
-            const { cigarInfo, cigarReview, normalizedScore, isDraft, selectedFlavors = [], finalGrade } = data;
+            const { cigarInfo, cigarReview, normalizedScore, isDraft, selectedFlavors = [], finalGrade } = data; // Destructure finalGrade here
             const title = data.title || i18next.t('common.noTitle');
             const userNickname = data.userNickname || data.userEmail || i18next.t('common.anonymous');
 
-            // Validate finalGrade exists before accessing properties
+            // --- EXISTING CHECK ---
+            // Validate finalGrade exists AND has required properties before accessing them
             if (!finalGrade || !finalGrade.grade || !finalGrade.nameKey || !finalGrade.color) {
-                 console.error("renderPageContent: finalGrade data is missing or incomplete.", finalGrade);
+                 console.error("[results.html renderPageContent] finalGrade data is missing or incomplete.", finalGrade); // Log the problematic finalGrade object
+                 // Display error message for score section
                  document.getElementById('score-section').innerHTML = `<p class="text-red-500">${i18next.t('resultsPage.scoreCalculationFailed')}</p>`;
+                 // Hide or show error messages for other sections
                  document.getElementById('narrative-summary-container').innerHTML = `<p class="text-red-500 italic">${i18next.t('resultsPage.narrativeGenFailed')}</p>`;
-                 document.getElementById('summary-container').innerHTML = '';
+                 document.getElementById('summary-container').innerHTML = ''; // Clear summary if grade failed
+                 // Still populate basic info
                  document.getElementById('user-nickname').textContent = userNickname;
                  document.getElementById('rating-title').textContent = title;
                  document.getElementById('cigar-name').textContent = cigarInfo?.name ?? i18next.t('common.unknown');
@@ -798,9 +805,14 @@
                      document.getElementById('flavors-display').innerHTML = selectedFlavors.map(flavorKey => `<span class="flavor-tag">${i18next.t(flavorKey) || flavorKey}</span>`).join('');
                      flavorsContainer.classList.remove('hidden');
                  } else { flavorsContainer.classList.add('hidden'); }
-                 ['narrative-summary-details', 'summary-details'].forEach(id => { document.getElementById(id).style.display = 'none'; });
+                 // Hide details sections if grade calculation failed
+                 ['narrative-summary-details', 'summary-details'].forEach(id => {
+                      const el = document.getElementById(id);
+                      if (el) el.style.display = 'none';
+                 });
             } else {
-                 const gradeName = i18next.t(finalGrade.nameKey);
+                 // --- RENDER NORMALLY ---
+                 const gradeName = i18next.t(finalGrade.nameKey); // Use the nameKey from the object
                  document.getElementById('user-nickname').textContent = userNickname;
                  document.getElementById('rating-title').textContent = title;
                  document.getElementById('cigar-name').textContent = cigarInfo?.name ?? i18next.t('common.unknown');
@@ -813,33 +825,36 @@
                      document.getElementById('flavors-display').innerHTML = selectedFlavors.map(flavorKey => `<span class="flavor-tag">${i18next.t(flavorKey) || flavorKey}</span>`).join('');
                      flavorsContainer.classList.remove('hidden');
                  } else { flavorsContainer.classList.add('hidden'); }
-                 renderScoreSection(document.getElementById('score-section'), normalizedScore, { ...finalGrade, name: gradeName });
+                 renderScoreSection(document.getElementById('score-section'), normalizedScore, { ...finalGrade, name: gradeName }); // Pass combined grade info
                  const hasFullData = data.config && data.ratings;
                  ['narrative-summary-details', 'summary-details'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = hasFullData ? 'block' : 'none'; });
                  if (hasFullData) {
                      document.getElementById('narrative-summary-container').innerHTML = generateNarrativeSummary(cigarInfo, data.config, data.ratings, { ...finalGrade, name: gradeName }, selectedFlavors);
                      renderSummary(document.getElementById('summary-container'), data.config, data.ratings);
                  }
-                 populateShareCard(data);
+                 populateShareCard(data); // Populate share card with potentially incomplete grade
             }
 
+             // Show/hide save button based on draft status and login
              const saveButtonContainer = document.getElementById('save-button-container');
              saveButtonContainer.style.display = (currentAuthUser && isDraft) ? 'block' : 'none';
         }
 
         // --- Initialization on page load ---
         window.onload = async function() {
+            // ... existing setup ...
             const errorContainer = document.getElementById('error-container');
             const mainContent = document.getElementById('main-content');
             const loadingIndicator = document.getElementById('loading-indicator');
 
             try {
+                // ... i18n init, auth handling ...
                  await initI18n();
                  updateContent();
 
                  const urlParams = new URLSearchParams(window.location.search);
                  const code = urlParams.get('code');
-                 ratingId = urlParams.get('ratingId');
+                 ratingId = urlParams.get('ratingId'); // Might be null
 
                  let user = code ? await handleOidcCallback(code) : await validateSessionAndGetUser();
                  currentAuthUser = user;
@@ -848,35 +863,52 @@
 
                  loadingIndicator.classList.remove('hidden');
 
+                 // Determine data source (API or SessionStorage)
                  if (ratingId) {
+                     // ... existing API fetch logic ...
                      const token = sessionStorage.getItem('accessToken');
                      const apiUrl = new URL(`/api/ratings?id=${ratingId}`, window.location.origin);
                      const fetchOptions = token ? { headers: { 'Authorization': `Bearer ${token}` } } : {};
                      const response = await fetch(apiUrl, fetchOptions);
                      if (!response.ok) throw new Error(i18next.t('errors.loadRatingFailed', { status: response.status }));
                      resultsData = await response.json();
-                     resultsData.isDraft = false;
+                     resultsData.isDraft = false; // Data from API is never a draft
                  } else {
+                     // Get data from sessionStorage (coming from rate.html)
                      const storedData = sessionStorage.getItem('cigarRatingResults');
                      if (!storedData) throw new Error(i18next.t('errors.noRatingDataFound'));
-                     try { resultsData = JSON.parse(storedData); resultsData.isDraft = true; ratingId = resultsData.ratingId; }
-                     catch(parseError) { console.error("Error parsing sessionStorage data:", parseError); throw new Error(i18next.t('errors.invalidSessionData')); }
+                     try {
+                         resultsData = JSON.parse(storedData);
+                         resultsData.isDraft = true; // Mark as draft
+                         // --- ADDED LOG ---
+                         console.log("[results.html onload] Parsed data from sessionStorage:", JSON.stringify(resultsData).substring(0, 500) + '...');
+                         // Assign ratingId (might be null/undefined for new drafts, that's okay)
+                         ratingId = resultsData.ratingId;
+                     } catch(parseError) {
+                         console.error("Error parsing sessionStorage data:", parseError);
+                         throw new Error(i18next.t('errors.invalidSessionData'));
+                     }
                  }
 
+                 // Check essential data *after* loading/parsing
                  if (!resultsData || resultsData.normalizedScore === undefined || !resultsData.cigarInfo) {
                      throw new Error(i18next.t('errors.missingEssentialData'));
                  }
 
+                 // Render content
                  initSwipers(resultsData.imageUrls || []);
-                 renderPageContent(resultsData);
+                 renderPageContent(resultsData); // Call the potentially error-prone function
 
+                 // Generate QR and Share Image (should happen even if rendering failed partially)
                  await generateQRCode();
                  tryAutoGenerateShareImage();
 
+                 // Hide loading, show content
                  loadingIndicator.classList.add('hidden');
                  mainContent.classList.remove('opacity-0');
 
             } catch (e) {
+                 // ... existing error handling ...
                  loadingIndicator.classList.add('hidden');
                  const errorTitle = i18next.t('errors.pageLoadError');
                  const backLinkText = i18next.t('common.backToCommunity');
@@ -900,15 +932,17 @@
                 (category.criteriaList || []).forEach(criterion => {
                     let id = null;
                     if (category.categoryKey && criterion.nameKey) { id = `${category.categoryKey}-${criterion.nameKey}`; }
-                    else if (category.category && criterion.name) { id = `${category.category}-${criterion.name}`; }
+                    else if (category.category && criterion.name) { id = `${category.category}-${criterion.name}`; } // Fallback for older data format
                     if (id) {
                         const idx = ratings[id];
                         if (idx !== undefined && criterion.options?.[idx]) {
                             const opt = criterion.options[idx];
-                            const critTxt = i18next.t(criterion.nameKey || criterion.name || '?');
-                            const optTxt = i18next.t(opt.descriptionKey || opt.description || '?');
-                            const finalCrit = (critTxt === criterion.nameKey || critTxt === criterion.name || critTxt === '?') ? (criterion.name || '?') : critTxt;
-                            const finalOpt = (optTxt === opt.descriptionKey || optTxt === opt.description || optTxt === '?') ? (opt.description || '?') : optTxt;
+                            const critTxt = i18next.t(criterion.nameKey || criterion.name || '?'); // Translate criterion name
+                            const optTxt = i18next.t(opt.descriptionKey || opt.description || '?'); // Translate option description
+                            // Fallback if translation fails
+                            const finalCrit = (critTxt === (criterion.nameKey || criterion.name) || critTxt === '?') ? (criterion.name || '?') : critTxt;
+                            const finalOpt = (optTxt === (opt.descriptionKey || opt.description) || optTxt === '?') ? (opt.description || '?') : optTxt;
+
                             observations.push(i18next.t('resultsPage.narrative.observation', { criterion: finalCrit, option: finalOpt }));
                         }
                     } else { console.warn("Could not determine ID for criterion in generateNarrativeSummary:", {category, criterion}); }
@@ -917,6 +951,7 @@
             if (observations.length > 0) { summary += ` ${i18next.t('resultsPage.narrative.part2', { observations: observations.join('；') })}`; }
             else { summary += ` ${i18next.t('resultsPage.narrative.noObservations')}`; }
             if (selectedFlavors.length > 0) { const translated = selectedFlavors.map(k => i18next.t(k) || k).join(', '); summary += ` ${i18next.t('resultsPage.narrative.part3', { flavors: translated })}`; }
+            // Ensure finalGrade exists before accessing properties
             const gradeName = finalGrade?.name ?? i18next.t('common.unrated');
             const gradeLetter = finalGrade?.grade ?? '?';
             const hierarchy = GRADING_SCALE.map(g => `${g.grade}(${i18next.t(g.nameKey)})`).join(', ');
@@ -925,6 +960,7 @@
             return summary;
         }
 
+
         // Renders the detailed rating summary section
         function renderSummary(container, config, ratings) {
             if (!container || !config || !ratings) { container.innerHTML = `<p class="text-gray-500 italic">${i18next.t('errors.noSummaryData')}</p>`; return; }
@@ -932,15 +968,15 @@
                 const criteriaHtml = (category.criteriaList || []).map(criterion => {
                     let id = null;
                     if (category.categoryKey && criterion.nameKey) { id = `${category.categoryKey}-${criterion.nameKey}`; }
-                    else if (category.category && criterion.name) { id = `${category.category}-${criterion.name}`; }
+                    else if (category.category && criterion.name) { id = `${category.category}-${criterion.name}`; } // Fallback
                     if (id) {
                         const idx = ratings[id];
                         if (idx !== undefined && criterion.options?.[idx]) {
                             const opt = criterion.options[idx];
                             const critTxt = i18next.t(criterion.nameKey || criterion.name || '?');
                             const optTxt = i18next.t(opt.descriptionKey || opt.description || '?');
-                            const finalCrit = (critTxt === criterion.nameKey || critTxt === criterion.name || critTxt === '?') ? (criterion.name || '?') : critTxt;
-                            const finalOpt = (optTxt === opt.descriptionKey || optTxt === opt.description || optTxt === '?') ? (opt.description || '?') : optTxt;
+                            const finalCrit = (critTxt === (criterion.nameKey || criterion.name) || critTxt === '?') ? (criterion.name || '?') : critTxt;
+                            const finalOpt = (optTxt === (opt.descriptionKey || opt.description) || optTxt === '?') ? (opt.description || '?') : optTxt;
                             return `<li><strong>${finalCrit}:</strong> ${finalOpt}</li>`;
                         }
                     } else { console.warn("Could not determine ID for criterion in renderSummary:", {category, criterion}); }
@@ -948,7 +984,7 @@
                 }).join('');
                 if (criteriaHtml.trim()) {
                     const catTitle = i18next.t(category.categoryKey || category.category || '?');
-                    const finalCat = (catTitle === category.categoryKey || catTitle === category.category || catTitle === '?') ? (category.category || '?') : catTitle;
+                    const finalCat = (catTitle === (category.categoryKey || category.category) || catTitle === '?') ? (category.category || '?') : catTitle;
                     return `<h4 class="font-semibold mt-4 mb-1 text-gray-700">${finalCat}</h4><ul class="list-disc list-inside space-y-1 text-sm">${criteriaHtml}</ul>`;
                 } return '';
             }).join('');
@@ -975,9 +1011,17 @@
 
          // Renders the score section
          function renderScoreSection(container, score, grade) {
-             if (!container || !grade || !i18next.isInitialized) return;
+             // Ensure container, grade, and i18n are ready
+             if (!container || !grade || !grade.color || !grade.nameKey || !i18next.isInitialized) {
+                console.error("renderScoreSection: Missing container, grade info, or i18n not ready.", {container, grade, i18nReady: i18next.isInitialized});
+                // Display error directly in the container if possible
+                if(container) container.innerHTML = `<p class="text-red-500">${i18next.t('resultsPage.scoreCalculationFailed')}</p>`;
+                return;
+             }
              const styles = getGradeStyles(grade.color);
-             const scoreHtml = `<div> <p class="text-xl font-bold text-yellow-500 mb-1">${i18next.t('resultsPage.scoreSectionTitle')}</p> <p class="text-7xl font-black ${styles.textColor}">${score?.toFixed(2) ?? '?.??'}</p> <div class="mt-2 text-3xl font-black ${styles.textColor}">${grade.name ?? i18next.t('common.unrated')}</div> </div>`;
+             // Ensure grade.name is populated (it's passed in from renderPageContent)
+             const gradeNameDisplay = grade.name ?? i18next.t(grade.nameKey) ?? i18next.t('common.unrated');
+             const scoreHtml = `<div> <p class="text-xl font-bold text-yellow-500 mb-1">${i18next.t('resultsPage.scoreSectionTitle')}</p> <p class="text-7xl font-black ${styles.textColor}">${score?.toFixed(2) ?? '?.??'}</p> <div class="mt-2 text-3xl font-black ${styles.textColor}">${gradeNameDisplay}</div> </div>`;
              const scaleHtml = GRADING_SCALE.map(g => { const gs = getGradeStyles(g.color); const cur = g.grade === grade.grade; return `<div class="flex items-center p-1 rounded ${cur ? 'bg-gray-100' : ''}"> <div class="w-5 h-5 rounded-full flex items-center justify-center font-bold text-xs ${gs.bgColor} ${gs.textColor} mr-2">${g.grade}</div> <div class="flex-grow ${cur ? 'font-semibold' : ''} ${gs.textColor}">${i18next.t(g.nameKey)}</div> <div class="font-mono text-xs text-gray-500 ml-2">${getScoreRange(g.grade)}</div> </div>`; }).join('');
              container.innerHTML = `<div class="w-full md:w-1/3">${scoreHtml}</div> <div class="w-full md:w-2/3 border-t md:border-t-0 md:border-l border-gray-200 pt-4 md:pt-0 md:pl-6"> <div class="space-y-1">${scaleHtml}</div> </div>`;
          }
