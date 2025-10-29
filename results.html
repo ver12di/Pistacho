@@ -202,12 +202,12 @@
             </section>
 
              <!-- Save Button (visible only for drafts) -->
-             <!-- REMOVED: Save button container removed -->
-             <!-- <div id="save-button-container" class="hidden mb-6">
+             <!-- RESTORED: Save button container -->
+             <div id="save-button-container" class="hidden mb-6">
                  <button id="save-rating-button" onclick="saveRating()" class="w-full py-3 px-6 bg-green-600 text-white font-bold text-lg rounded-lg shadow-md hover:bg-green-700 transition" data-i18n="resultsPage.saveRating">
                      保存为我的评分记录
                  </button>
-             </div> -->
+             </div>
 
             <!-- Details Sections (Narrative Summary, Rating Details) -->
             <div class="space-y-4">
@@ -459,8 +459,77 @@
         }
 
         // --- Main Functions ---
-        // REMOVED: saveRating function deleted
-        // window.saveRating = async function() { ... };
+        // RESTORED: saveRating function
+        window.saveRating = async function() {
+            const token = sessionStorage.getItem('accessToken');
+            if (!currentAuthUser || !token) { // Check login
+                return alert(i18next.t('common.loginRequired'));
+            }
+            // Check if it's a draft (data came from sessionStorage via rate.html)
+            // Need to check resultsData directly as it holds the loaded data state
+            if (!resultsData || !resultsData.isDraft) {
+                return alert(i18next.t('errors.notADraft'));
+            }
+
+            const button = document.getElementById('save-rating-button');
+            button.textContent = i18next.t('common.saving'); // Update button text
+            button.disabled = true;
+
+            try {
+                // Ensure resultsData contains all necessary fields before sending
+                if (!resultsData.title || !resultsData.config || !resultsData.ratings || resultsData.calculatedScore === undefined) {
+                     throw new Error("Cannot save rating: Data is incomplete.");
+                }
+
+                const apiUrl = new URL('/api/ratings', window.location.origin);
+                const response = await fetch(apiUrl, {
+                    method: 'POST', // Use POST to create a new rating entry
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify(resultsData) // Send the complete resultsData object
+                });
+                if (!response.ok) {
+                    let errorText = i18next.t('errors.saveFailedNoMsg');
+                    try { const err = await response.json(); errorText = err.error || errorText; } catch(e){}
+                    throw new Error(errorText);
+                }
+                const saveResult = await response.json();
+                const newRatingId = saveResult.id; // Get the newly assigned ID from the backend
+
+                alert(i18next.t('common.saveSuccess'));
+                sessionStorage.removeItem('cigarRatingResults'); // Clear draft from session
+
+                // Update button state to indicate success
+                button.textContent = i18next.t('common.saveSuccess');
+                button.classList.remove('bg-green-600', 'hover:bg-green-700');
+                button.classList.add('bg-gray-400', 'cursor-not-allowed');
+
+                // Update state if new ID is received
+                if (newRatingId) {
+                    ratingId = newRatingId; // Store the new ID globally
+                    resultsData.isDraft = false; // Mark as no longer a draft
+
+                    // Update URL with the new rating ID without reloading
+                    const newUrl = new URL(window.location.href);
+                    newUrl.searchParams.set('ratingId', newRatingId);
+                    window.history.replaceState({}, document.title, newUrl.toString());
+
+                    // Re-render to hide the save button based on isDraft=false
+                    // Also regenerate QR code with the final URL
+                    renderPageContent(resultsData); // Call renderPageContent again to hide the button
+                    await generateQRCode(); // Regenerate QR for the new URL (await for share card)
+
+                    // Try generating share image again now that we have the final ID/URL
+                    shareImageGenerated = false; // Reset flag
+                    tryAutoGenerateShareImage(); // Attempt generation
+                }
+            } catch (e) {
+                console.error("保存评分失败:", e);
+                alert(i18next.t('common.saveFailed', { msg: e.message }));
+                // Reset button state on failure
+                button.textContent = i18next.t('resultsPage.saveRating');
+                button.disabled = false;
+            }
+        };
 
         // Copies the narrative summary text to the clipboard
         window.copySummary = function(event) {
@@ -723,70 +792,11 @@
 
         // Renders the main content of the results page using the provided data
         function renderPageContent(data) {
-            // --- ADDED LOG ---
-            console.log("[results.html renderPageContent] Received data object:", JSON.stringify(data).substring(0, 500) + '...'); // Log first 500 chars
-
-            if (!data || !i18next.isInitialized) return; // Ensure data and i18n are ready
-
-            const { cigarInfo, cigarReview, normalizedScore, isDraft, selectedFlavors = [], finalGrade } = data; // Destructure finalGrade here
-            const title = data.title || i18next.t('common.noTitle');
-            const userNickname = data.userNickname || data.userEmail || i18next.t('common.anonymous');
-
-            // --- EXISTING CHECK ---
-            // Validate finalGrade exists AND has required properties before accessing them
-            if (!finalGrade || !finalGrade.grade || !finalGrade.nameKey || !finalGrade.color) {
-                 console.error("[results.html renderPageContent] finalGrade data is missing or incomplete.", finalGrade); // Log the problematic finalGrade object
-                 // Display error message for score section
-                 document.getElementById('score-section').innerHTML = `<p class="text-red-500">${i18next.t('resultsPage.scoreCalculationFailed')}</p>`;
-                 // Hide or show error messages for other sections
-                 document.getElementById('narrative-summary-container').innerHTML = `<p class="text-red-500 italic">${i18next.t('resultsPage.narrativeGenFailed')}</p>`;
-                 document.getElementById('summary-container').innerHTML = ''; // Clear summary if grade failed
-                 // Still populate basic info
-                 document.getElementById('user-nickname').textContent = userNickname;
-                 document.getElementById('rating-title').textContent = title;
-                 document.getElementById('cigar-name').textContent = cigarInfo?.name ?? i18next.t('common.unknown');
-                 document.getElementById('cigar-size').textContent = cigarInfo?.size ?? i18next.t('common.unknown');
-                 document.getElementById('cigar-origin').textContent = cigarInfo?.origin ?? i18next.t('common.unknown');
-                 const reviewContainer = document.getElementById('cigar-review-container');
-                 reviewContainer.innerHTML = (cigarReview && cigarReview.trim() && cigarReview !== i18next.t('common.noReview')) ? `<p>${cigarReview.replace(/\n/g, '<br>')}</p>` : `<p class="text-gray-400 italic">${i18next.t('common.noReview')}</p>`;
-                 const flavorsContainer = document.getElementById('selected-flavors-container');
-                 if (selectedFlavors.length > 0) {
-                     document.getElementById('flavors-display').innerHTML = selectedFlavors.map(flavorKey => `<span class="flavor-tag">${i18next.t(flavorKey) || flavorKey}</span>`).join('');
-                     flavorsContainer.classList.remove('hidden');
-                 } else { flavorsContainer.classList.add('hidden'); }
-                 // Hide details sections if grade calculation failed
-                 ['narrative-summary-details', 'summary-details'].forEach(id => {
-                      const el = document.getElementById(id);
-                      if (el) el.style.display = 'none';
-                 });
-            } else {
-                 // --- RENDER NORMALLY ---
-                 const gradeName = i18next.t(finalGrade.nameKey); // Use the nameKey from the object
-                 document.getElementById('user-nickname').textContent = userNickname;
-                 document.getElementById('rating-title').textContent = title;
-                 document.getElementById('cigar-name').textContent = cigarInfo?.name ?? i18next.t('common.unknown');
-                 document.getElementById('cigar-size').textContent = cigarInfo?.size ?? i18next.t('common.unknown');
-                 document.getElementById('cigar-origin').textContent = cigarInfo?.origin ?? i18next.t('common.unknown');
-                 const reviewContainer = document.getElementById('cigar-review-container');
-                 reviewContainer.innerHTML = (cigarReview && cigarReview.trim() && cigarReview !== i18next.t('common.noReview')) ? `<p>${cigarReview.replace(/\n/g, '<br>')}</p>` : `<p class="text-gray-400 italic">${i18next.t('common.noReview')}</p>`;
-                 const flavorsContainer = document.getElementById('selected-flavors-container');
-                 if (selectedFlavors.length > 0) {
-                     document.getElementById('flavors-display').innerHTML = selectedFlavors.map(flavorKey => `<span class="flavor-tag">${i18next.t(flavorKey) || flavorKey}</span>`).join('');
-                     flavorsContainer.classList.remove('hidden');
-                 } else { flavorsContainer.classList.add('hidden'); }
-                 renderScoreSection(document.getElementById('score-section'), normalizedScore, { ...finalGrade, name: gradeName }); // Pass combined grade info
-                 const hasFullData = data.config && data.ratings;
-                 ['narrative-summary-details', 'summary-details'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = hasFullData ? 'block' : 'none'; });
-                 if (hasFullData) {
-                     document.getElementById('narrative-summary-container').innerHTML = generateNarrativeSummary(cigarInfo, data.config, data.ratings, { ...finalGrade, name: gradeName }, selectedFlavors);
-                     renderSummary(document.getElementById('summary-container'), data.config, data.ratings);
-                 }
-                 populateShareCard(data);
-            }
-
-             // REMOVED: Logic to show/hide save button container deleted
-             // const saveButtonContainer = document.getElementById('save-button-container');
-             // saveButtonContainer.style.display = (currentAuthUser && isDraft) ? 'block' : 'none';
+            // ... existing content rendering logic ...
+            // RESTORED: Logic to show/hide save button container
+            const saveButtonContainer = document.getElementById('save-button-container');
+            // Show button only if logged in AND it's a draft (came from rate.html)
+            saveButtonContainer.style.display = (currentAuthUser && data?.isDraft) ? 'block' : 'none';
         }
 
         // --- Initialization on page load ---
