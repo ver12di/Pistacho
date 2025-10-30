@@ -1,0 +1,491 @@
+{
+  "common": {
+    "loading": "正在加载...",
+    "save": "保存",
+    "edit": "修改",
+    "delete": "删除",
+    "cancel": "取消",
+    "confirm": "确认",
+    "apply": "应用",
+    "opSuccess": "操作成功！",
+    "opFailed": "操作失败: {{msg}}",
+    "saveSuccess": "保存成功！",
+    "saveFailed": "保存失败: {{msg}}",
+    "deleteSuccess": "删除成功。",
+    "deleteFailed": "删除失败: {{msg}}",
+    "loadDetailFailed": "无法加载详情：未找到评分数据。",
+    "sessionStoreFailed": "无法保存会话数据以查看详情。",
+    "confirmDeletion": "确定要永久删除这条点评记录吗？",
+    "loginRequired": "请先登录。",
+    "sessionExpired": "会话已过期，请重新登录。",
+    "authFailed": "无法验证身份，请重新登录。",
+    "anonymous": "匿名用户",
+    "noData": "（无数据）",
+    "adminActions": "管理操作",
+    "certify": "认证",
+    "uncertify": "取消认证",
+    "pin": "置顶",
+    "unpin": "取消置顶",
+    "image": "图片",
+    "cover": "封面",
+    "loadingDetails": "正在加载评分详情...",
+    "noImage": "无图片",
+    "cigarImageAlt": "雪茄图片",
+    "copied": "已复制!",
+    "copyFailed": "复制失败",
+    "saving": "保存中...",
+    "loadingOptions": "正在加载选项...",
+    "backToHome": "返回主页",
+    "backToHomeAndLogin": "返回主页并登录",
+    "waitingInit": "正在等待初始化...",
+    "querying": "查询中...",
+    "assigningRole": "正在分配角色...",
+    "deleting": "删除中...",
+    "processing": "处理中...",
+    "backToCommunity": "返回社区",
+    "unknown": "未知",
+    "noTitle": "无标题",
+    "noReview": "未填写文字评价。",
+    "invalidDate": "无效日期",
+    "unknownDate": "未知日期",
+    "by": "由",
+    "noPublicRatings": "还没有公开的评分。",
+    "noMatch": "没有找到匹配项。",
+    "deleteCategory": "删除类别",
+    "description": "描述",
+    "name": "名称",
+    "deleteOption": "删除选项",
+    "unrated": "未评级",
+    "unnamedCigar": "未命名雪茄"
+  },
+  "nav": {
+    "title": "Pistacho评分",
+    "community": "社区动态",
+    "rate": "去评分",
+    "myRatings": "我的评分",
+    "certified": "认证评分",
+    "login": "登录/注册",
+    "logout": "退出",
+    "configAdmin": "评分配置",
+    "userAdmin": "用户管理",
+    "loggedIn": "已登录"
+  },
+  "indexPage": {
+    "searchPlaceholder": "搜索雪茄名称, 产地, 尺寸, 点评, 用户...",
+    "sortLatest": "最新发布",
+    "sortHighest": "评分最高",
+    "sortLowest": "评分最低",
+    "loadingRatings": "正在加载点评...",
+    "loadFailed": "加载点评失败: {{msg}}",
+    "noMatches": "没有找到匹配的点评。",
+    "uncertify": "取消认证"
+  },
+  "ratePage": {
+    "title": "发布雪茄点评",
+    "editTitle": "修改雪茄点评",
+    "loginPrompt": "请先登录才能进行评分。",
+    "configSyncing": "正在同步配置...",
+    "configFailed": "配置加载失败",
+    "configSynced": "配置已同步",
+    "currentScore": "当前得分",
+    "itemsRated": "已评项目",
+    "ratingTitle": "点评标题",
+    "ratingTitlePlaceholder": "填写标题会被更多人看到 (最多22字)",
+    "uploadImages": "上传图片 (最多{{max}}张, 可拖拽排序)",
+    "uploadImagesDesc": "第一张图片将作为封面图显示。点击图片左下角按钮更换封面。",
+    "selectImages": "选择图片",
+    "imageSupport": "支持 JPG, PNG, WEBP。单张最大 5MB。",
+    "reviewAndFlavors": "文字评价与风味选择",
+    "selectFlavors": "选择您感受到的主要风味 (可选):",
+    "detailedReview": "详细文字评价:",
+    "reviewPlaceholder": "在此处输入您的详细品吸感受...",
+    "cigarInfo": "雪茄信息",
+    "cigarName": "名称",
+    "cigarNameRequired": "名称 *",
+    "cigarNamePlaceholder": "例如：帕特加斯D4",
+    "cigarSize": "尺寸",
+    "cigarSizePlaceholder": "例如：Robusto",
+    "cigarOrigin": "产地",
+    "cigarOriginPlaceholder": "例如：古巴",
+    "reset": "重置",
+    "viewReport": "查看报告",
+    "saveChanges": "保存更改",
+    "cropImage": "裁切图片",
+    "cropAndUpload": "确认并上传",
+    "loginToUpload": "请先登录再上传图片。",
+    "maxImages": "最多只能上传 {{max}} 张图片。",
+    "imageTooLarge": "图片 \"{{name}}\" 太大 (超过5MB)，已跳过。",
+    "imageTypeNotSupported": "文件 \"{{name}}\" 类型不受支持，已跳过。",
+    "processingImage": "正在处理第 {{current}} / {{total}} 张图片。请调整裁切框。",
+    "croppingAndUploading": "正在裁切并上传第 {{current}} 张...",
+    "cropFailed": "裁切失败，请重试。",
+    "uploadFailed": "上传失败: {{msg}}",
+    "confirmReset": "确定要重置所有评分选择和图片吗？",
+    "loginToSubmit": "请登录后才能提交点评。",
+    "selectOneOption": "请至少选择一个评分项后再操作。",
+    "titleRequired": "请填写点评标题。",
+    "imageRequired": "请至少上传一张图片。",
+    "nameRequired": "请填写雪茄名称。",
+    "loadingEdit": "正在加载点评 {{id}}...",
+    "editLoadFailed": "加载点评失败: {{msg}}",
+    "editLoaded": "已加载点评 {{id}} (编辑模式)",
+    "setCover": "设为封面"
+  },
+  "historyPage": {
+    "title": "我的评分",
+    "allRatingsTitle": "所有用户的评分",
+    "loginPrompt": "请先登录才能查看您的评分记录。",
+    "loginExpired": "您的会话已过期，请重新登录。",
+    "loadingHistory": "正在加载历史记录...",
+    "loadFailed": "加载评分记录失败: {{msg}}",
+    "noRatings": "还没有任何评分记录。",
+    "unknownDate": "未知日期",
+    "unknownUser": "未知用户",
+    "unrated": "未评级",
+    "userLabel": "用户:"
+  },
+  "certifiedPage": {
+    "title": "Pistacho 认证评分",
+    "subtitle": "由我们的超级管理员精选的优秀品鉴记录。",
+    "loading": "正在加载认证评分...",
+    "loadFailed": "加载认证评分失败: {{msg}}",
+    "noRatings": "还没有任何认证评分。",
+    "uncertify": "取消认证",
+    "unnamedCigar": "未命名雪茄",
+    "noTitle": "无标题点评",
+    "noImage": "无图",
+    "loadDetailFailed": "无法加载该评分的详细信息 (数据未找到)。",
+    "sessionStoreFailed": "无法保存会话数据以查看详情。"
+  },
+  "resultsPage": {
+    "pageTitle": "雪茄品鉴 - 点评报告",
+    "by": "点评来自:",
+    "loading": "加载中...",
+    "size": "尺寸",
+    "origin": "产地",
+    "review": "文字评价",
+    "noReview": "未填写文字评价。",
+    "flavors": "主要风味:",
+    "scoreSectionTitle": "Pistacho 评分",
+    "narrativeTitle": "综合评价",
+    "copy": "复制",
+    "detailsTitle": "评分详情汇总",
+    "saveRating": "保存为我的评分记录",
+    "backToRate": "返回重新评分",
+    "loadErrorTitle": "页面加载出错！",
+    "backToCommunity": "返回社区",
+    "goToRate": "去评分",
+    "loadErrorMsg": "没有找到评分数据！请返回重试。",
+    "loadErrorMissing": "存储的点评数据缺少基本信息 (分数, 评级, 雪茄信息)。请尝试重新评分。",
+    "grade": {
+      "P": "顶峰 / 登峰造极",
+      "I": "无暇 / 完美无瑕",
+      "S": "卓越 / 出众",
+      "T": "极好 / 绝佳",
+      "A": "可圈可点 / 值得欣赏",
+      "C": "平庸 / 普通",
+      "H": "犹豫 / 瑕瑜互见",
+      "O": "令人反感 / 极差"
+    },
+    "narrative": {
+      "part1": "本次品鉴的雪茄是来自<strong class=\"font-semibold\">{{origin}}</strong>的<strong class=\"font-semibold\">{{name}}</strong>，尺寸为<strong class=\"font-semibold\">{{size}}</strong>。",
+      "part2": "品鉴过程中，我们观察到：{{observations}}。",
+      "part3": "感受到的主要风味包括：<strong class=\"font-semibold\">{{flavors}}</strong>。",
+      "part4": "综合来看，本次基于Pistacho Cigar Rating System（Pistacho雪茄评分）的最终评级为<strong class=\"font-semibold text-indigo-600\">“{{grade}} - {{gradeName}}”</strong>。Pistacho品分等级从高到低为{{hierarchy}}。",
+      "noObservations": "(未记录详细评分选项)",
+      "observation": "{{criterion}}: {{option}}",
+      "noNarrativeData": "无法生成综合评价 (缺少数据)。"
+    },
+    "summary": {
+      "noSummaryData": "无法生成评分详情汇总 (缺少数据)。",
+      "noItems": "(无评分项)"
+    },
+    "shareCard": {
+      "userRatingOn": "评分于 Pistacho评分系统",
+      "noCover": "无封面图",
+      "qrError": "QR Code 容器或库未找到, 或 ratingId 丢失。",
+      "generating": "开始自动生成分享图...",
+      "generateFailed": "自动生成或添加分享图片失败:",
+      "shareImageAlt": "分享图片",
+      "shareThumb": "分享缩略图"
+    },
+    "scoreCalculationFailed": "分数计算失败，无法显示。",
+    "narrativeGenFailed": "无法生成综合评价 (分数计算失败)。"
+  },
+  "errors": {
+    "initFailed": "页面加载初始化出错: {{msg}}",
+    "loginFailed": "登录失败: {{message}}",
+    "authCallbackFailed": "认证回调失败 (状态 {{status}})",
+    "loadRatingFailed": "加载评分失败 (状态 {{status}})",
+    "noRatingDataFound": "在 Session Storage 中未找到评分数据。",
+    "missingEssentialData": "评分数据不完整，无法显示报告。",
+    "pageLoadError": "页面加载出错",
+    "loadProfileListFailed": "加载配置列表失败: {{msg}}",
+    "loadProfileFailed": "加载配置 '{{id}}' 失败: {{msg}}",
+    "saveFailedNoMsg": "保存失败",
+    "notADraft": "该评分已保存，无法重复保存。",
+    "emptyConfig": "无法保存空的配置。",
+    "operationFailed": "操作失败: {{msg}}",
+    "cannotNameLatest": "不能将配置命名为 'latest'。",
+    "confirmDeleteProfile": "确定要删除配置方案 '{{id}}' 吗？",
+    "deleting": "删除中...",
+    "deleteSuccess": "配置方案 '{{id}}' 已删除。",
+    "deleteFailed": "删除失败: {{msg}}",
+    "emptyConfigDownload": "无法下载空的配置。",
+    "invalidJSONFormat": "上传的文件不是有效的配置 JSON。",
+    "fileParseFailed": "解析上传的文件失败: {{msg}}",
+    "invalidSessionData": "存储的评分数据格式无效。",
+    "permissionDenied": "权限不足。",
+    "permissionInsufficientSuperAdmin": "需要 Super Admin 权限才能访问此页面。您当前的权限是 {{role}}。",
+    "emailRequired": "请输入用户邮箱。",
+    "queryFailed": "查询失败",
+    "assignFailed": "分配角色失败。",
+    "notLoggedIn": "未登录",
+    "sessionExpiredGeneric": "会话已过期或无效。",
+    "requestFailed": "请求失败 (状态 {{status}})",
+    "sessionExpiredWrite": "会话已过期或无效，无法执行写入操作。",
+    "sessionExpiredRead": "会话已过期或无效 (状态 {{status}})，无法读取数据。",
+    "loginRequiredForPage": "需要登录才能访问此页面。",
+    "permissionDeniedAdmin": "权限不足，需要 Admin 或 Super Admin 权限。",
+    "permissionInsufficient": "权限不足。您当前的权限是 {{role}}。",
+    "noNarrativeData": "无法生成综合评价 (缺少数据)。",
+    "noSummaryData": "无法生成评分详情汇总 (缺少数据)。",
+    "scoreCalculationFailed": "分数计算失败，无法显示。",
+    "narrativeGenFailed": "无法生成综合评价 (分数计算失败)。"
+  },
+  "configPage": {
+    "pageTitle": "雪茄品鉴配置管理",
+    "description": "管理评分标准，所有更改在发布后将实时同步到主应用。",
+    "checkingAuth": "正在检查权限...",
+    "profileManagement": "配置方案管理",
+    "currentProfile": "当前加载:",
+    "selectProfile": "选择方案:",
+    "liveProfile": "Live (latest)",
+    "saveAs": "另存为",
+    "importExport": "导入 / 导出",
+    "uploadJSON": "从文件上传 (JSON):",
+    "uploadAndSave": "上传并另存为",
+    "downloadJSON": "下载当前配置 (JSON):",
+    "downloadEditorContent": "下载编辑器内容",
+    "appInfo": "应用基本信息",
+    "appTitle": "应用标题",
+    "appDescription": "应用描述",
+    "category": "类别",
+    "categoryName": "类别名称",
+    "criteria": "标准",
+    "addCriterion": "添加标准",
+    "weight": "权重",
+    "options": "选项",
+    "addOption": "添加选项",
+    "scorePct": "得分百分比",
+    "addCategory": "添加类别",
+    "saveChanges": "保存更改到方案",
+    "publishToLive": "发布到 Live (latest)",
+    "promptNewName": "请输入新配置方案的名称:",
+    "confirmDeleteProfile": "确定要删除配置方案 '{{id}}' 吗？",
+    "saveSuccess": "配置方案 '{{id}}' 保存成功。",
+    "deleteSuccess": "配置方案 '{{id}}' 已删除。",
+    "currentRole": "当前角色: {{role}}",
+    "jsonLoaded": "JSON 文件已加载到编辑器。请记得保存或发布。"
+  },
+  "rolePage": {
+    "pageTitle": "用户角色管理 - Super Admin",
+    "loadingAuth": "正在加载和验证身份...",
+    "title": "用户角色管理 (Super Admin)",
+    "currentUser": "当前用户: {{email}} ({{role}})",
+    "queryAndSet": "查询与设置用户角色",
+    "userEmail": "用户 Email:",
+    "emailPlaceholder": "输入要查询或修改的用户的邮箱地址",
+    "queryRole": "查询角色",
+    "promptQuery": "输入邮箱并点击查询以查看或修改用户角色。",
+    "currentRoleLabel": "当前角色",
+    "setNewRole": "设置新角色",
+    "confirmAssign": "确认分配",
+    "assignSuccess": "角色分配成功！",
+    "assignSuccessDetail": "用户 {{userId}} 的新角色为 {{role}}。"
+  },
+  "roles": {
+    "general": "普通用户",
+    "admin": "管理员",
+    "super_admin": "超级管理员"
+  },
+  "config": {
+    "description": {
+      "v1_1": "V1.1"
+    }
+  },
+  "criteria": {
+    "appearanceAndConstruction": {
+      "title": "1. 外观与卷工",
+      "detail": "雪茄的物理制造质量。",
+      "bandAesthetics": "茄标美感",
+      "wrapperAppearance": "茄衣呈现",
+      "rollVisual": "卷工目测"
+    },
+    "burnAndDraw": {
+      "title": "2. 燃烧与气道",
+      "detail": "决定品鉴过程是否顺畅愉快的核心要素。",
+      "drawResistance": "吸阻",
+      "ashColor": "烟灰颜色",
+      "ashStructure": "烟灰形态",
+      "burnLine": "燃烧线",
+      "burnConsistency": "燃烧持续"
+    },
+    "flavorAndFeel": {
+      "title": "味觉和感受",
+      "detail": "香气，变化，尼古丁等味觉感受",
+      "firstImpressions": "前三口感受",
+      "secondaryAromaIntensity": "宜人的第二香气强度（不算咖啡、皮革、辛辣。主要为花香、香料、奶香、甜香等）",
+      "secondaryAromaUniqueness": "第二香气在其他雪茄中获得难度或高级度",
+      "secondaryAromaDuration": "第二香气持续度",
+      "tertiaryAromaPresence": "多重（第三）香气",
+      "tertiaryAromaDuration": "多重（第三）香气持续度",
+      "transitions": "三段变化",
+      "smokeVolume": "烟雾量",
+      "nicotineStrength": "尼古丁浓度",
+      "retrohaleSmoothness": "过鼻顺畅度"
+    },
+    "willingnessAndImpression": {
+      "title": "意愿与感受",
+      "detail": "",
+      "finishDesire": "抽完烟屁股意愿",
+      "rebuyIntention": "复购意愿",
+      "memorability": "记忆度",
+      "smokingTime": "抽吸时间",
+      "recommendation": "推荐指数"
+    },
+    "newCategory": {
+      "title": "新类别",
+      "detail": "新类别的描述",
+      "newItem": "新评分项"
+    },
+    "newCriterion": {
+      "name": "新标准"
+    }
+  },
+  "options": {
+    "common": {
+      "average": "中规中矩",
+      "perfect": "完美",
+      "normal": "正常",
+      "new": "新选项"
+    },
+    "appearance": {
+      "shoddy": "简陋",
+      "beautiful": "漂亮"
+    },
+    "construction": {
+      "fail": "不合格"
+    },
+    "draw": {
+      "loose": "松",
+      "tight": "偏紧",
+      "plugged": "堵塞"
+    },
+    "ashColor": {
+      "white": "白",
+      "gray": "灰",
+      "black": "黑"
+    },
+    "ashStructure": {
+      "perfectHold": "完美到可以尝试持灰",
+      "needsTapping": "需要主动弹灰",
+      "fallsOff": "自动脱落"
+    },
+    "burnLine": {
+      "even": "均匀",
+      "correctsItself": "略有斜烧但是可以自己回正",
+      "needsCorrection": "有斜烧需要补几次火",
+      "constantCorrection": "需要不断修正"
+    },
+    "burnConsistency": {
+      "perfect": "一根到底",
+      "occasionalRelight": "偶尔补火",
+      "frequentRelight": "不断补火",
+      "gaveUp": "补到放弃"
+    },
+    "impression": {
+      "excellent": "眼前一亮",
+      "promising": "有期待",
+      "poor": "估计不怎么样"
+    },
+    "aroma": {
+      "none": "没有",
+      "light": "一点点香",
+      "medium": "香",
+      "strong": "很香",
+      "veryStrong": "极香"
+    },
+    "uniqueness": {
+      "common": "容易在其他雪茄获得",
+      "uncommon": "不容易但偶有获得",
+      "rare": "独特风味很少获得",
+      "none": "没有第二香气"
+    },
+    "duration": {
+      "oneThird": "三段中仅一段有",
+      "twoThirds": "三段中有二段有",
+      "full": "三段都有",
+      "none": "三段都没有"
+    },
+    "presence": {
+      "yes": "有"
+    },
+    "tertiaryDuration": {
+      "oneThird": "三段仅一段有",
+      "twoThirds": "三段有二段有"
+    },
+    "transition": {
+      "obvious": "变化明显",
+      "subtle": "似乎有变化",
+      "consistent": "始终如一"
+    },
+    "smoke": {
+      "low": "少",
+      "medium": "多",
+      "high": "烟囱"
+    },
+    "nicotine": {
+      "normal": "普通",
+      "strong": "噩梦",
+      "veryStrong": "地狱"
+    },
+    "retrohale": {
+      "smooth": "柔顺",
+      "slightIrritation": "略有刺激",
+      "harsh": "辛辣不能过鼻"
+    },
+    "finish": {
+      "early": "尽早掐灭",
+      "normal": "抽到本人日常处",
+      "nubbed": "抽到烧手",
+      "toothpick": "插牙签抽完"
+    },
+    "rebuy": {
+      "tooExpensive": "买不起",
+      "no": "不愿复购",
+      "yes": "愿意复购",
+      "notWorthIt": "不值得"
+    },
+    "memory": {
+      "forgettable": "芸芸众生",
+      "slightImpression": "略有印象",
+      "memorable": "念念不忘",
+      "unforgettable": "梦里寻他千百度"
+    },
+    "time": {
+      "under30": "30min以内",
+      "30to60": "30-60min",
+      "60to90": "60-90min",
+      "90to120": "90-120min",
+      "over120": "120min以上"
+    },
+    "recommend": {
+      "notListed": "不在list",
+      "mention": "偶尔提提",
+      "consider": "可以有",
+      "strong": "强推",
+      "mustHave": "必须有"
+    }
+  }
+}

@@ -4,374 +4,1125 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>雪茄品鉴 - 点评报告</title>
+
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/Swiper/11.0.5/swiper-bundle.min.css"/>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Swiper/11.0.5/swiper-bundle.min.js" defer></script>
+
+    <script src="https://unpkg.com/i18next/i18next.min.js"></script>
+    <script src="https://unpkg.com/i18next-http-backend/i18nextHttpBackend.min.js"></script>
+    <script src="https://unpkg.com/i18next-browser-languagedetector/i18nextBrowserLanguageDetector.min.js"></script>
+
     <script>
-        if (typeof tailwind !== 'undefined') { /* Tailwind config */ } else { console.warn('Tailwind object not found.'); }
+        // Tailwind config
+        if (typeof tailwind !== 'undefined') {
+             tailwind.config = {
+                 theme: { extend: { fontFamily: { sans: ['Inter', 'Noto Sans SC', 'system-ui', 'sans-serif'], }, } }
+             }
+         } else { console.warn('Tailwind object not found.'); }
     </script>
     <style>
-        .tooltip { /* ... */ } .tooltip .tooltiptext { /* ... */ } .tooltip .tooltiptext::after { /* ... */ } .tooltip:hover .tooltiptext { /* ... */ }
+        /* Tooltip style */
+        .tooltip { position: relative; display: inline-block; }
+        .tooltip .tooltiptext { visibility: hidden; width: 60px; background-color: #555; color: #fff; text-align: center; border-radius: 6px; padding: 5px 0; position: absolute; z-index: 1; bottom: 125%; left: 50%; margin-left: -30px; opacity: 0; transition: opacity 0.3s; font-size: 10px; }
+        .tooltip .tooltiptext::after { content: ""; position: absolute; top: 100%; left: 50%; margin-left: -5px; border-width: 5px; border-style: solid; border-color: #555 transparent transparent transparent; }
+        .tooltip:hover .tooltiptext { visibility: visible; opacity: 1; }
+        /* Swiper styles */
         .swiper-container.main-swiper { width: 100%; position: relative; }
-        .swiper-slide { height: auto; display: flex; flex-direction: column; }
+        .swiper-slide { height: auto; display: flex; flex-direction: column; align-items: center; /* Center content */ justify-content: center; /* Center content */ }
+        /* --- Ensure slides adapt height --- */
+        .swiper-wrapper { align-items: flex-start; /* Prevent vertical stretching */ }
         .swiper-slide img { display: block; width: 100%; height: auto; object-fit: contain; max-height: 80vh; }
         .swiper-slide.share-image-slide img { max-height: none; object-fit: contain; }
         .swiper-button-next, .swiper-button-prev { color: #fff; background-color: rgba(0,0,0,0.3); padding: 10px; border-radius: 50%; width: 40px; height: 40px; } .swiper-button-next::after, .swiper-button-prev::after { font-size: 1.2rem; }
-        .swiper-pagination { position: absolute; bottom: 20px !important; left: 50%; transform: translateX(-50%); width: auto; z-index: 10; }
-        .swiper-pagination-bullet { background-color: rgba(128, 128, 128, 0.7); opacity: 1; width: 8px; height: 8px; }
+        /* --- MODIFIED: Adjust Swiper Pagination Position --- */
+        .swiper-pagination {
+            position: absolute;
+            bottom: 10px !important; /* Move higher from the absolute bottom edge */
+            left: 50%;
+            transform: translateX(-50%);
+            width: auto;
+            z-index: 10;
+             /* Add a semi-transparent background for better visibility on images */
+             background-color: rgba(0, 0, 0, 0.2);
+             padding: 2px 5px;
+             border-radius: 10px;
+        }
+        .swiper-pagination-bullet { background-color: rgba(255, 255, 255, 0.5); opacity: 1; width: 6px; height: 6px; margin: 0 3px !important; } /* Smaller bullets */
         .swiper-pagination-bullet-active { background: #FFFFFF; }
+        /* --- End Modified Swiper Pagination --- */
         .thumbnail-swiper .swiper-slide { width: 60px !important; height: 80px; opacity: 0.6; cursor: pointer; border: 2px solid transparent; transition: opacity 0.3s, border-color 0.3s; }
-        .thumbnail-swiper .swiper-slide img { object-fit: cover; }
+        .thumbnail-swiper .swiper-slide img { object-fit: cover; width: 100%; height: 100%;}
         .thumbnail-swiper .swiper-slide-thumb-active { opacity: 1; border-color: #4f46e5; } .thumbnail-swiper { margin-top: 0.5rem; padding: 5px 0; }
+        /* Content container width */
         #narrative-summary-container, #cigar-review-container, #selected-flavors-container { max-width: 100%; }
+        /* Flavor tag style */
         .flavor-tag { display: inline-block; background-color: #e5e7eb; color: #374151; font-size: 0.75rem; font-weight: 600; margin-right: 0.5rem; margin-bottom: 0.5rem; padding: 0.125rem 0.625rem; border-radius: 9999px; }
 
-        /* **MODIFIED**: Share Card Styles based on latest user provided CSS */
-        #share-card-container { position: absolute; left: -9999px; top: 0; width: 350px; background-color: white; border-radius: 0.5rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); overflow: hidden; border: 1px solid #e5e7eb; visibility: hidden; z-index: -1; }
-        #share-card-image-wrapper { background-color: #e5e7eb; display: flex; align-items: center; justify-content: center; aspect-ratio: 1179 / 1572; }
+        /* --- MODIFIED: Share Card Styles --- */
+        #share-card-container {
+            position: absolute; left: -9999px; top: 0; width: 350px; /* Fixed width */
+            background-color: white; border-radius: 0.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            overflow: hidden; border: 1px solid #e5e7eb; visibility: hidden; z-index: -1;
+        }
+        #share-card-image-wrapper {
+            background-color: #e5e7eb; display: flex; align-items: center; justify-content: center;
+            aspect-ratio: 1179 / 1572; /* Keep aspect ratio */
+        }
         #share-card-image { width: 100%; height: 100%; object-fit: cover; }
-        #share-card-content { padding: 0.25rem; position: relative; }
-        #share-card-score-grade { display: flex; flex-direction: column; align-items: flex-start; margin-bottom: 0.1rem; }
-        #share-card-score { font-size: 2.75rem; font-weight: 900; line-height: 1; margin-bottom: 0.3rem; /* Increased margin */ }
-        #share-card-grade-badge { display: inline-block; padding: 0.1rem 0.4rem; border-radius: 9999px; font-size: 0.6rem; /* Slightly smaller */ font-weight: 600; margin-bottom: 0.2rem; /* Added margin */ }
-        .share-card-footer { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 0; /* Removed margin */ }
-        #share-card-watermark { font-size: 0.55rem; /* Smaller */ color: #9ca3af; width: 65%; /* Reduced width */ line-height: 1.1; margin: 0; }
-        #share-card-qrcode { width: 32%; /* Increased width */ height: auto; background-color: white; padding: 0; /* Removed padding */ border: 1px solid #eee; box-shadow: 0 0 2px rgba(0,0,0,0.1); }
-        #share-card-qrcode img { display: block; width: 100%; height: 100%; }
+        #share-card-content {
+            padding: 8px; /* Adjust padding if needed */
+            display: flex; /* Use flexbox for layout */
+            justify-content: space-between; /* Space between left (score/text) and right (QR) */
+            align-items: flex-end; /* Align items to the bottom */
+            min-height: 75px; /* Adjust min-height as needed, but try to keep it compact */
+        }
+        #share-card-left {
+            display: flex;
+            flex-direction: column; /* Stack score, grade, watermark */
+            justify-content: flex-end; /* Align items to bottom */
+            flex-grow: 1; /* Allow left side to take available space */
+            margin-right: 8px; /* Add space between left and QR */
+        }
+        #share-card-score {
+            font-size: 2.5rem; /* Slightly smaller score */ font-weight: 900; line-height: 0.9; /* Tighter line height */
+            margin-bottom: 0px; /* --- MODIFIED: Reduced space below score --- */
+        }
+        #share-card-grade-badge {
+             /* Grade badge styles */
+             display: inline-block; /* Allow it to sit below score */
+             padding: 1px 6px; /* Adjust padding */
+             border-radius: 9999px;
+             font-size: 0.7rem; /* --- MODIFIED: Increased font size --- */ font-weight: 600;
+             margin-bottom: 3px; /* --- MODIFIED: Adjusted space below grade --- */
+             /* Color applied dynamically */
+        }
+        #share-card-watermark {
+            font-size: 0.55rem; color: #9ca3af; line-height: 1.1; margin: 0; /* Remove default margin */
+            /* Removed width constraint, let flexbox handle it */
+        }
+        #share-card-qrcode {
+            width: 65px; /* Fixed width for QR code */ height: 65px; /* Fixed height */
+            flex-shrink: 0; /* Prevent QR code from shrinking */
+            background-color: white; padding: 2px; /* Small padding around QR */
+            border: 1px solid #eee; box-shadow: 0 0 2px rgba(0,0,0,0.1);
+            display: flex; /* Center the img tag if needed */
+            align-items: center;
+            justify-content: center;
+        }
+        #share-card-qrcode img {
+            display: block; width: 100%; height: 100%; object-fit: contain; /* Ensure QR fits */
+        }
+        /* --- End Modified Share Card Styles --- */
     </style>
 </head>
 <body class="bg-gray-100 font-sans antialiased text-gray-800">
     <div class="max-w-6xl mx-auto p-4 md:p-8 relative">
+        <!-- Error Container -->
         <div id="error-container" class="hidden bg-red-100 p-6 rounded-lg shadow-lg text-red-700 font-medium"></div>
-        <div id="loading-indicator" class="hidden text-center py-10 text-gray-500">正在加载评分详情...</div>
+        <!-- Loading Indicator -->
+        <div id="loading-indicator" class="hidden text-center py-10 text-gray-500" data-i18n="common.loadingDetails">正在加载评分详情...</div>
+
+        <!-- Main Content (hidden initially) -->
         <div id="main-content" class="opacity-0">
+            <!-- Navigation Bar -->
             <nav class="mb-6 flex flex-wrap justify-between items-center bg-white p-3 rounded-lg shadow-sm gap-4">
-                 <a href="index.html" class="text-xl font-bold text-indigo-600">Pistacho评分</a>
-                 <div class="flex items-center space-x-4 flex-grow justify-center md:justify-start md:flex-grow-0 order-3 md:order-2 w-full md:w-auto"> <a href="index.html" class="text-gray-600 hover:text-indigo-600">社区动态</a> <a href="rate.html" class="text-gray-600 hover:text-indigo-600">去评分</a> <a href="history.html" class="text-gray-600 hover:text-indigo-600">我的评分</a> <a href="certified.html" class="text-gray-600 hover:text-indigo-600">认证评分</a> </div>
-                 <div id="login-status-container" class="flex items-center order-2 md:order-3"></div>
+                 <a href="index.html" class="text-xl font-bold text-indigo-600" data-i18n="nav.title">Pistacho评分</a>
+                 <!-- Nav Links -->
+                 <div class="flex items-center space-x-4 flex-grow justify-center md:justify-start md:flex-grow-0 order-3 md:order-2 w-full md:w-auto">
+                     <a href="index.html" class="text-gray-600 hover:text-indigo-600" data-i18n="nav.community">社区动态</a>
+                     <a href="rate.html" class="text-gray-600 hover:text-indigo-600" data-i18n="nav.rate">去评分</a>
+                     <a href="history.html" class="text-gray-600 hover:text-indigo-600" data-i18n="nav.myRatings">我的评分</a>
+                     <a href="certified.html" class="text-gray-600 hover:text-indigo-600" data-i18n="nav.certified">认证评分</a>
+                 </div>
+                 <!-- Language Switcher & Login Status -->
+                 <div class="flex items-center order-2 md:order-3">
+                    <select id="language-switcher" class="text-xs p-1 rounded border border-gray-300 mr-2" style="height: 30px; line-height: 1.5;">
+                        <option value="zh">简体中文</option>
+                        <option value="en">English</option>
+                        <option value="es">Español</option>
+                    </select>
+                    <div id="login-status-container" class="flex items-center"></div>
+                 </div>
             </nav>
 
+            <!-- Main Layout: Image Gallery + Details -->
             <div class="flex flex-col md:flex-row gap-6 md:gap-8 mb-8">
+                <!-- Image Gallery -->
                 <div class="w-full md:w-2/5 flex-shrink-0">
                      <div id="image-gallery-container" class="bg-white rounded-lg shadow-md overflow-hidden">
+                         <!-- Main Swiper -->
                          <div class="swiper-container main-swiper bg-gray-200 relative">
                               <div class="swiper-wrapper" id="main-swiper-wrapper">
-                                  <div class="swiper-slide flex items-center justify-center text-gray-400 aspect-[1179/1572]">加载中...</div>
+                                  <div class="swiper-slide flex items-center justify-center text-gray-400 aspect-[1179/1572]" data-i18n="common.loading">加载中...</div>
                               </div>
                               <div class="swiper-pagination"></div>
                               <div class="swiper-button-next"></div>
                               <div class="swiper-button-prev"></div>
                          </div>
+                         <!-- Thumbnail Swiper (hidden if only one image or share image present) -->
                          <div class="swiper-container thumbnail-swiper hidden"> <div class="swiper-wrapper" id="thumbnail-swiper-wrapper"> </div> </div>
                      </div>
                 </div>
+                 <!-- Rating Details -->
                  <div class="w-full md:flex-grow bg-white rounded-lg shadow-md p-6">
-                     <p class="text-sm text-gray-500 mb-1">点评来自: <span id="user-nickname" class="font-medium text-gray-700">加载中...</span></p>
-                     <h1 id="rating-title" class="text-3xl font-bold mb-3">加载中...</h1>
-                     <h2 id="cigar-name" class="text-xl font-semibold mb-1">加载中...</h2>
-                     <div class="mb-4 text-sm text-gray-600 flex space-x-4"> <span>尺寸: <strong id="cigar-size">...</strong></span> <span>产地: <strong id="cigar-origin">...</strong></span> </div>
-                     <div id="cigar-review-container" class="prose prose-sm max-w-none text-gray-700 border-t pt-4"> <p>加载中...</p> </div>
-                     <div id="selected-flavors-container" class="hidden pt-2"> <h4 class="text-sm font-semibold text-gray-600 mb-2">主要风味:</h4> <div id="flavors-display" class="flex flex-wrap"></div> </div>
+                     <!-- Author -->
+                     <p class="text-sm text-gray-500 mb-1">
+                         <span data-i18n="resultsPage.by">点评来自:</span>
+                         <span id="user-nickname" class="font-medium text-gray-700"></span>
+                     </p>
+                     <!-- Rating Title -->
+                     <h1 id="rating-title" class="text-3xl font-bold mb-3"></h1>
+                     <!-- Cigar Info -->
+                     <h2 id="cigar-name" class="text-xl font-semibold mb-1"></h2>
+                     <div class="mb-4 text-sm text-gray-600 flex space-x-4">
+                         <span><span data-i18n="resultsPage.size">尺寸</span>: <strong id="cigar-size"></strong></span>
+                         <span><span data-i18n="resultsPage.origin">产地</span>: <strong id="cigar-origin"></strong></span>
+                     </div>
+                     <!-- Written Review -->
+                     <div id="cigar-review-container" class="prose prose-sm max-w-none text-gray-700 border-t pt-4">
+                         <!-- Review content inserted by JS -->
+                     </div>
+                     <!-- Selected Flavors -->
+                     <div id="selected-flavors-container" class="hidden pt-2">
+                         <h4 class="text-sm font-semibold text-gray-600 mb-2" data-i18n="resultsPage.flavors">主要风味:</h4>
+                         <div id="flavors-display" class="flex flex-wrap">
+                             <!-- Flavor tags inserted by JS -->
+                         </div>
+                     </div>
                  </div>
             </div>
 
+            <!-- Score Section -->
             <section id="score-section" class="bg-white rounded-xl shadow-lg p-6 mb-8 flex flex-col md:flex-row gap-6 items-center">
-                 <div id="score-display" class="w-full md:w-1/3 flex-shrink-0"></div>
-                 <div id="grading-scale-explanation" class="w-full md:w-2/3 flex-grow border-t md:border-t-0 md:border-l border-gray-200 pt-4 md:pt-0 md:pl-6"></div>
+                <!-- Score and grade details inserted by JS -->
             </section>
 
-             <div id="save-button-container" class="hidden mb-6"> <button id="save-rating-button" onclick="saveRating()" class="w-full py-3 px-6 bg-green-600 text-white font-bold text-lg rounded-lg shadow-md hover:bg-green-700 transition"> 保存为我的评分记录 </button> </div>
+             <!-- Save Button (visible only for drafts) -->
+             <div id="save-button-container" class="hidden mb-6">
+                 <button id="save-rating-button" onclick="saveRating()" class="w-full py-3 px-6 bg-green-600 text-white font-bold text-lg rounded-lg shadow-md hover:bg-green-700 transition" data-i18n="resultsPage.saveRating">
+                     保存为我的评分记录
+                 </button>
+             </div>
 
+            <!-- Details Sections (Narrative Summary, Rating Details) -->
             <div class="space-y-4">
-                 <details id="narrative-summary-details" class="group bg-white rounded-xl shadow-lg p-6 transition-all duration-300" open> <summary class="flex justify-between items-center cursor-pointer font-bold text-lg text-gray-800"> <span> 综合评价 <svg class="inline w-5 h-5 transform group-open:rotate-180 transition-transform ml-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg> </span> <div class="tooltip"> <button id="copy-summary-button" onclick="copySummary(event)" class="ml-4 p-1.5 bg-gray-100 text-gray-600 rounded-full hover:bg-gray-200 transition text-xs"> <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"> <path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /> </svg> </button> <span id="copy-tooltip" class="tooltiptext">复制</span> </div> </summary> <div id="narrative-summary-container" class="mt-4 prose max-w-none"></div> </details>
-                 <details id="summary-details" class="group bg-white rounded-xl shadow-lg p-6"> <summary class="flex justify-between items-center cursor-pointer font-bold text-lg text-gray-800"> 评分详情汇总 <svg class="w-5 h-5 transform group-open:rotate-180 transition-transform" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg> </summary> <div id="summary-container" class="mt-4"></div> </details>
+                 <!-- Narrative Summary -->
+                 <details id="narrative-summary-details" class="group bg-white rounded-xl shadow-lg p-6 transition-all duration-300" open>
+                     <summary class="flex justify-between items-center cursor-pointer font-bold text-lg text-gray-800">
+                         <span>
+                             <span data-i18n="resultsPage.narrativeTitle">综合评价</span>
+                             <!-- Arrow icon -->
+                             <svg class="inline w-5 h-5 transform group-open:rotate-180 transition-transform ml-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+                         </span>
+                         <!-- Copy Button with Tooltip -->
+                         <div class="tooltip">
+                             <button id="copy-summary-button" onclick="copySummary(event)" class="ml-4 p-1.5 bg-gray-100 text-gray-600 rounded-full hover:bg-gray-200 transition text-xs">
+                                 <!-- Copy icon -->
+                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"> <path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /> </svg>
+                             </button>
+                             <span id="copy-tooltip" class="tooltiptext" data-i18n="resultsPage.copy">复制</span>
+                         </div>
+                     </summary>
+                     <div id="narrative-summary-container" class="mt-4 prose max-w-none">
+                         <!-- Narrative summary inserted by JS -->
+                     </div>
+                 </details>
+                 <!-- Rating Details Summary -->
+                 <details id="summary-details" class="group bg-white rounded-xl shadow-lg p-6">
+                     <summary class="flex justify-between items-center cursor-pointer font-bold text-lg text-gray-800">
+                         <span data-i18n="resultsPage.detailsTitle">评分详情汇总</span>
+                         <!-- Arrow icon -->
+                         <svg class="w-5 h-5 transform group-open:rotate-180 transition-transform" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+                     </summary>
+                     <div id="summary-container" class="mt-4">
+                         <!-- Rating details summary inserted by JS -->
+                     </div>
+                 </details>
             </div>
 
+            <!-- Footer Navigation -->
             <footer class="mt-8 flex flex-col sm:flex-row justify-center items-center gap-4">
-                 <a href="rate.html" class="py-3 px-6 bg-indigo-600 text-white font-bold rounded-lg shadow-md hover:bg-indigo-700 transition"> &larr; 返回重新评分 </a>
+                 <a href="rate.html" class="py-3 px-6 bg-indigo-600 text-white font-bold rounded-lg shadow-md hover:bg-indigo-700 transition" data-i18n="resultsPage.backToRate">
+                     &larr; 返回重新评分
+                 </a>
             </footer>
         </div>
 
-        <!-- Share Card Structure -->
+        <!-- Hidden Share Card Container (for image generation) -->
         <div id="share-card-container">
             <div id="share-card-image-wrapper">
                 <img id="share-card-image" src="" alt="Cigar Cover Image" crossorigin="anonymous">
             </div>
+            <!-- --- MODIFIED: Share Card Content Structure --- -->
             <div id="share-card-content">
-                <div id="share-card-score-grade">
+                <div id="share-card-left">
                     <span id="share-card-score">0.00</span>
                     <span id="share-card-grade-badge">? - ???</span>
+                    <p id="share-card-watermark">
+                        <span id="share-card-username">用户</span>
+                        <!-- Placeholder for 'rating on...' text -->
+                    </p>
                 </div>
-                <div class="share-card-footer">
-                     <p id="share-card-watermark">
-                         <span id="share-card-username">用户</span> 评分于 Pistacho评分系统 www.pista-cho.com
-                     </p>
-                     <div id="share-card-qrcode"></div>
+                <div id="share-card-qrcode">
+                    <!-- QR code img will be added here -->
                 </div>
             </div>
+            <!-- --- End Modified Share Card Content --- -->
         </div>
     </div>
 
     <script type="module">
         // --- Constants and Global Vars ---
-        const GRADING_SCALE = [ { "grade": "P", "name_en": "Pinnacle", "name_cn": "顶峰 / 登峰造极", "min_score": 95, "color": "gold" }, { "grade": "I", "name_en": "Impeccable", "name_cn": "无暇 / 完美无瑕", "min_score": 90, "color": "indigo" }, { "grade": "S", "name_en": "Superior", "name_cn": "卓越 / 出众", "min_score": 80, "color": "purple" }, { "grade": "T", "name_en": "Terrific", "name_cn": "极好 / 绝佳", "min_score": 70, "color": "blue" }, { "grade": "A", "name_en": "Appreciable", "name_cn": "可圈可点 / 值得欣赏", "min_score": 60, "color": "green" }, { "grade": "C", "name_en": "Commonplace", "name_cn": "平庸 / 普通", "min_score": 50, "color": "gray" }, { "grade": "H", "name_en": "Hesitant", "name_cn": "犹豫 / 瑕瑜互见", "min_score": 30, "color": "orange" }, { "grade": "O", "name_en": "Objectionable", "name_cn": "令人反感 / 极差", "min_score": 0, "color": "red" } ];
-        let currentAuthUser = null; let resultsData = null; let normalizedScore = 0; let finalGrade = null; let ratingId = null;
-        const AUTHING_APP_ID = '68f5b0b6875017c02b3bfdb3'; const AUTHING_HOST = 'https://xfvu647mcdbk-demo.authing.cn';
-        let mainSwiper = null; let thumbnailSwiper = null;
+        const GRADING_SCALE = [ // Defines grades, score ranges, and i18n keys
+            { "grade": "P", "nameKey": "resultsPage.grade.P", "min_score": 95, "color": "gold" },
+            { "grade": "I", "nameKey": "resultsPage.grade.I", "min_score": 90, "color": "indigo" },
+            { "grade": "S", "nameKey": "resultsPage.grade.S", "min_score": 80, "color": "purple" },
+            { "grade": "T", "nameKey": "resultsPage.grade.T", "min_score": 70, "color": "blue" },
+            { "grade": "A", "nameKey": "resultsPage.grade.A", "min_score": 60, "color": "green" },
+            { "grade": "C", "nameKey": "resultsPage.grade.C", "min_score": 50, "color": "gray" },
+            { "grade": "H", "nameKey": "resultsPage.grade.H", "min_score": 30, "color": "orange" },
+            { "grade": "O", "nameKey": "resultsPage.grade.O", "min_score": 0, "color": "red" }
+        ];
+
+        let currentAuthUser = null; // Stores logged-in user info
+        let resultsData = null;     // Stores the rating data being displayed
+        let ratingId = null;        // ID of the rating (if saved)
+        const AUTHING_APP_ID = '68f5b0b6875017c02b3bfdb3'; // Authing App ID
+        const AUTHING_HOST = 'https://xfvu647mcdbk-demo.authing.cn'; // Authing Host
+        let mainSwiper = null;      // Swiper instance for main images
+        let thumbnailSwiper = null; // Swiper instance for thumbnails
+        let shareImageGenerated = false; // Flag to prevent multiple generations
+
+        // --- i18n Initialization Functions ---
+        async function initI18n() {
+            // Initialize i18next
+            await i18next
+                .use(i18nextHttpBackend)
+                .use(i18nextBrowserLanguageDetector)
+                .init({
+                    fallbackLng: 'zh',
+                    debug: false, // Turn off for production
+                    ns: ['translation'],
+                    defaultNS: 'translation',
+                    backend: {
+                        loadPath: '/locales/{{lng}}.json?v=1' // Cache busting
+                    },
+                    detection: {
+                        order: ['localStorage', 'navigator'],
+                        caches: ['localStorage']
+                    }
+                });
+            // Update static text after init
+            // Note: Document title is set in updateContent after language detection
+        }
+
+        function updateContent() {
+            // Update elements with data-i18n attribute
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                let value = '';
+                try {
+                    value = i18next.t(key);
+                    if (value === key && key !== '') console.warn(`Translation missing for key: ${key}`);
+                } catch (e) { console.error(`Error translating key "${key}":`, e); value = `[Error: ${key}]`; }
+
+                if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+                    if (el.hasAttribute('placeholder')) el.placeholder = value;
+                } else if (el.tagName === 'OPTION') {
+                    el.textContent = value;
+                } else {
+                    // Handle specific elements like tooltip
+                    if (el.id === 'copy-tooltip') {
+                         el.textContent = value;
+                    } else {
+                         el.innerHTML = value; // Use innerHTML for others
+                    }
+                }
+            });
+            // Update page title
+            document.title = i18next.t('resultsPage.pageTitle');
+        }
+
+
+        function setupLanguageSwitcher() {
+            // Setup language dropdown
+            const switcher = document.getElementById('language-switcher');
+            if (!switcher) return;
+            const currentLang = i18next.language ? i18next.language.split('-')[0] : 'zh';
+            switcher.value = ['zh', 'en', 'es'].includes(currentLang) ? currentLang : 'zh';
+            switcher.addEventListener('change', async (e) => {
+                const newLang = e.target.value;
+                await i18next.changeLanguage(newLang);
+                updateContent(); // Update static text
+                // Re-render dynamic content that depends on language
+                renderLoginStatus(currentAuthUser);
+                if (resultsData) {
+                    renderPageContent(resultsData); // Re-render main content with new language
+                    // Re-populate share card and QR before potential regeneration
+                    populateShareCard(resultsData);
+                    generateQRCode();
+                    // Optionally regenerate share image on language change if needed
+                    // shareImageGenerated = false; // Reset flag to allow regeneration
+                    // tryAutoGenerateShareImage(); // Try generating again
+                }
+            });
+        }
 
         // --- Authentication ---
-        window.login = function() { /* ... */ const redirectUri = window.location.origin; const authorizeUrl = new URL('/oidc/auth', AUTHING_HOST); authorizeUrl.search = new URLSearchParams({ client_id: AUTHING_APP_ID, redirect_uri: redirectUri, response_type: 'code', scope: 'openid profile email phone', state: Math.random().toString(36).substring(2) }).toString(); window.location.href = authorizeUrl.toString(); }
-        window.logout = function() { /* ... */ const logoutUrl = new URL('/oidc/session/end', AUTHING_HOST); logoutUrl.search = new URLSearchParams({ post_logout_redirect_uri: window.location.origin }).toString(); sessionStorage.removeItem('userInfo'); sessionStorage.removeItem('accessToken'); window.location.href = logoutUrl.toString(); }
-        function renderLoginStatus(user) { /* ... */ const container = document.getElementById('login-status-container'); if (!container) return; if (user) { const displayName = user.nickname || user.name || user.preferred_username || user.email || '已登录'; container.innerHTML = `<span class="text-sm font-medium text-gray-700 mr-2 hidden sm:inline">${displayName}</span><button onclick="logout()" class="px-3 py-1 text-xs font-medium rounded-full bg-red-500 text-white hover:bg-red-600">退出</button>`; } else { container.innerHTML = `<button onclick="login()" class="px-3 py-1 text-xs font-medium rounded-full bg-green-500 text-white hover:bg-green-600">登录/注册</button>`; } }
-        async function handleOidcCallback(code) { try { const redirectUri = window.location.origin; const apiUrl = new URL('/api/authing/callback', window.location.origin); const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: code, redirect_uri: redirectUri }) }); if (!response.ok) { let errorText = `认证回调失败: ${response.status}`; try { const err = await response.json(); errorText = err.error || errorText; } catch(e){} throw new Error(errorText); } const fullUserProfile = await response.json(); sessionStorage.setItem('userInfo', JSON.stringify(fullUserProfile)); sessionStorage.setItem('accessToken', fullUserProfile.accessToken); return fullUserProfile; } catch (e) { console.error('认证回调处理失败:', e); alert(`登录失败: ${e.message}`); sessionStorage.removeItem('userInfo'); sessionStorage.removeItem('accessToken'); return null; } finally { window.history.replaceState({}, document.title, window.location.pathname + window.location.search.replace(/&?code=[^&]*/, '').replace(/&?state=[^&]*/, '')); } }
-        async function validateSessionAndGetUser() { const token = sessionStorage.getItem('accessToken'); if (!token) return null; try { const apiUrl = new URL('/api/me', window.location.origin); const response = await fetch(apiUrl, { headers: { 'Authorization': `Bearer ${token}` } }); if (!response.ok) { sessionStorage.removeItem('userInfo'); sessionStorage.removeItem('accessToken'); return null; } const fullUserProfile = await response.json(); sessionStorage.setItem('userInfo', JSON.stringify(fullUserProfile)); return fullUserProfile; } catch (e) { console.error("Session validation failed:", e); return null; } }
+        // Redirects to Authing for login
+        window.login = function() {
+            const redirectUri = window.location.origin; // Use base origin
+            const authorizeUrl = new URL('/oidc/auth', AUTHING_HOST);
+            authorizeUrl.search = new URLSearchParams({
+                client_id: AUTHING_APP_ID,
+                redirect_uri: redirectUri,
+                response_type: 'code',
+                scope: 'openid profile email phone',
+                state: Math.random().toString(36).substring(2)
+            }).toString();
+            window.location.href = authorizeUrl.toString();
+        }
+
+        // Redirects to Authing for logout
+        window.logout = function() {
+            const logoutUrl = new URL('/oidc/session/end', AUTHING_HOST);
+            logoutUrl.search = new URLSearchParams({ post_logout_redirect_uri: window.location.origin }).toString();
+            sessionStorage.removeItem('userInfo');
+            sessionStorage.removeItem('accessToken');
+            window.location.href = logoutUrl.toString();
+        }
+
+        // Updates UI based on login status
+        function renderLoginStatus(user) {
+            const container = document.getElementById('login-status-container');
+            if (!container || !i18next.isInitialized) return;
+            if (user) {
+                const displayName = user.nickname || user.name || user.preferred_username || user.email || i18next.t('nav.loggedIn');
+                container.innerHTML = `<span class="text-sm font-medium text-gray-700 mr-2 hidden sm:inline">${displayName}</span><button onclick="logout()" class="px-3 py-1 text-xs font-medium rounded-full bg-red-500 text-white hover:bg-red-600">${i18next.t('nav.logout')}</button>`;
+            } else {
+                container.innerHTML = `<button onclick="login()" class="px-3 py-1 text-xs font-medium rounded-full bg-green-500 text-white hover:bg-green-600">${i18next.t('nav.login')}</button>`;
+            }
+        }
+
+        // Handles the OIDC callback after login
+        async function handleOidcCallback(code) {
+            try {
+                const redirectUri = window.location.origin; // Use base origin
+                const apiUrl = new URL('/api/authing/callback', window.location.origin);
+                const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: code, redirect_uri: redirectUri }) });
+                if (!response.ok) {
+                    let errorText = i18next.t('errors.authCallbackFailed', { status: response.status });
+                    try { const err = await response.json(); errorText = err.error || errorText; } catch(e){}
+                    throw new Error(errorText);
+                }
+                const fullUserProfile = await response.json();
+                sessionStorage.setItem('userInfo', JSON.stringify(fullUserProfile));
+                sessionStorage.setItem('accessToken', fullUserProfile.accessToken);
+                return fullUserProfile;
+            } catch (e) {
+                console.error('Authentication callback handling failed:', e);
+                alert(i18next.t('errors.loginFailed', { message: e.message }));
+                sessionStorage.removeItem('userInfo');
+                sessionStorage.removeItem('accessToken');
+                return null;
+            } finally {
+                // Clean URL
+                // Keep search params like ?ratingId=... but remove code/state
+                const cleanSearch = window.location.search
+                    .replace(/&?code=[^&]*/, '')
+                    .replace(/&?state=[^&]*/, '')
+                    .replace(/^\?&/, '?') // Handle case where ? is followed by &
+                    .replace(/&$/, '');   // Remove trailing &
+                const cleanUrl = window.location.pathname + (cleanSearch !== '?' ? cleanSearch : ''); // Avoid leaving just '?'
+                window.history.replaceState({}, document.title, cleanUrl);
+            }
+        }
+        // Validates session token with backend
+        async function validateSessionAndGetUser() {
+            const token = sessionStorage.getItem('accessToken');
+            if (!token) return null;
+            try {
+                const apiUrl = new URL('/api/me', window.location.origin);
+                const response = await fetch(apiUrl, { headers: { 'Authorization': `Bearer ${token}` } });
+                if (!response.ok) {
+                    sessionStorage.removeItem('userInfo'); sessionStorage.removeItem('accessToken'); return null;
+                }
+                const fullUserProfile = await response.json();
+                sessionStorage.setItem('userInfo', JSON.stringify(fullUserProfile));
+                return fullUserProfile;
+            } catch (e) { console.error("Session validation failed:", e); return null; }
+        }
+
+        // --- Main Functions ---
+        // Handles saving the rating (only if it's a draft)
+        window.saveRating = async function() {
+            const token = sessionStorage.getItem('accessToken');
+            if (!currentAuthUser || !token) { // Check login
+                return alert(i18next.t('common.loginRequired'));
+            }
+            // Check if it's a draft (data came from sessionStorage via rate.html)
+            // Need to check resultsData directly as it holds the loaded data state
+            if (!resultsData || !resultsData.isDraft) {
+                return alert(i18next.t('errors.notADraft'));
+            }
+
+            const button = document.getElementById('save-rating-button');
+            button.textContent = i18next.t('common.saving'); // Update button text
+            button.disabled = true;
+
+            try {
+                // Ensure resultsData contains all necessary fields before sending
+                if (!resultsData.title || !resultsData.config || !resultsData.ratings || resultsData.calculatedScore === undefined) {
+                     throw new Error("Cannot save rating: Data is incomplete.");
+                }
+
+                const apiUrl = new URL('/api/ratings', window.location.origin);
+                const response = await fetch(apiUrl, {
+                    method: 'POST', // Use POST to create a new rating entry
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify(resultsData) // Send the complete resultsData object
+                });
+                if (!response.ok) {
+                    let errorText = i18next.t('errors.saveFailedNoMsg');
+                    try { const err = await response.json(); errorText = err.error || errorText; } catch(e){}
+                    throw new Error(errorText);
+                }
+                const saveResult = await response.json();
+                const newRatingId = saveResult.id; // Get the newly assigned ID from the backend
+
+                alert(i18next.t('common.saveSuccess'));
+                sessionStorage.removeItem('cigarRatingResults'); // Clear draft from session
+
+                // Update button state to indicate success
+                button.textContent = i18next.t('common.saveSuccess');
+                button.classList.remove('bg-green-600', 'hover:bg-green-700');
+                button.classList.add('bg-gray-400', 'cursor-not-allowed');
+
+                // Update state if new ID is received
+                if (newRatingId) {
+                    ratingId = newRatingId; // Store the new ID globally
+                    resultsData.isDraft = false; // Mark as no longer a draft
+
+                    // Update URL with the new rating ID without reloading
+                    const newUrl = new URL(window.location.href);
+                    newUrl.searchParams.set('ratingId', newRatingId);
+                    window.history.replaceState({}, document.title, newUrl.toString());
+
+                    // Re-render to hide the save button based on isDraft=false
+                    // Also regenerate QR code with the final URL
+                    renderPageContent(resultsData); // Call renderPageContent again to hide the button
+                    await generateQRCode(); // Regenerate QR for the new URL (await for share card)
+
+                    // Try generating share image again now that we have the final ID/URL
+                    shareImageGenerated = false; // Reset flag
+                    tryAutoGenerateShareImage(); // Attempt generation
+                }
+            } catch (e) {
+                console.error("保存评分失败:", e);
+                alert(i18next.t('common.saveFailed', { msg: e.message }));
+                // Reset button state on failure
+                button.textContent = i18next.t('resultsPage.saveRating');
+                button.disabled = false;
+            }
+        };
 
 
-        // --- Save Rating (Drafts only) ---
-        window.saveRating = async function() { /* Placeholder */ };
+        // Copies the narrative summary text to the clipboard
+        window.copySummary = function(event) {
+            event.preventDefault(); // Prevent details section from toggling
+            event.stopPropagation(); // Stop event bubbling
+            const summaryContainer = document.getElementById('narrative-summary-container');
+            const summaryText = summaryContainer ? summaryContainer.innerText || summaryContainer.textContent : ''; // Get text content
+            const tooltip = document.getElementById('copy-tooltip');
+            navigator.clipboard.writeText(summaryText.trim()).then(() => {
+                tooltip.textContent = i18next.t('common.copied'); // Show 'Copied!'
+                setTimeout(() => { tooltip.textContent = i18next.t('resultsPage.copy'); }, 2000); // Reset after 2s
+            }, (err) => {
+                console.error('Could not copy text: ', err);
+                tooltip.textContent = i18next.t('common.copyFailed'); // Show 'Copy failed'
+                setTimeout(() => { tooltip.textContent = i18next.t('resultsPage.copy'); }, 2000); // Reset after 2s
+            });
+        };
 
-        // --- Copy Summary Function ---
-        window.copySummary = function(event) { /* Placeholder */ };
-
-        // --- Initialize Swiper ---
+        // Initializes the Swiper image galleries (main and thumbnails)
         function initSwipers(imageUrls = []) {
-             const mainWrapper = document.getElementById('main-swiper-wrapper'); const thumbWrapper = document.getElementById('thumbnail-swiper-wrapper'); const thumbContainer = document.querySelector('.thumbnail-swiper');
-             mainWrapper.innerHTML = ''; thumbWrapper.innerHTML = '';
-             if (!imageUrls || imageUrls.length === 0) { mainWrapper.innerHTML = '<div class="swiper-slide flex items-center justify-center text-gray-400 aspect-[1179/1572]">无图</div>'; thumbContainer.classList.add('hidden'); if(mainSwiper) mainSwiper.destroy(true, true); if(thumbnailSwiper) thumbnailSwiper.destroy(true, true); mainSwiper = null; thumbnailSwiper = null; return; }
+             const mainWrapper = document.getElementById('main-swiper-wrapper');
+             const thumbWrapper = document.getElementById('thumbnail-swiper-wrapper');
+             const thumbContainer = document.querySelector('.thumbnail-swiper');
+             mainWrapper.innerHTML = ''; // Clear existing slides
+             thumbWrapper.innerHTML = '';
 
+             // Handle case with no images
+             if (!imageUrls || imageUrls.length === 0) {
+                 mainWrapper.innerHTML = `<div class="swiper-slide flex items-center justify-center text-gray-400 aspect-[1179/1572]">${i18next.t('common.noImage')}</div>`;
+                 thumbContainer.classList.add('hidden');
+                 // Destroy existing Swiper instances if they exist
+                 if(mainSwiper) mainSwiper.destroy(true, true);
+                 if(thumbnailSwiper) thumbnailSwiper.destroy(true, true);
+                 mainSwiper = null; thumbnailSwiper = null;
+                 return;
+             }
+
+             // Populate sliders with image elements
              imageUrls.forEach(key => {
                  const imageUrl = `/api/image/${key}`;
-                 const imgElement = `<img src="${imageUrl}" alt="雪茄图片" crossorigin="anonymous" onerror="this.src='https://placehold.co/600x800/gray/white?text=Loading+Failed'; this.onerror=null;">`;
+                 // Added crossorigin="anonymous" for html2canvas
+                 const imgElement = `<img src="${imageUrl}" alt="${i18next.t('common.cigarImageAlt')}" crossorigin="anonymous" onerror="this.src='https://placehold.co/600x800/gray/white?text=Loading+Failed'; this.onerror=null;">`;
                  mainWrapper.innerHTML += `<div class="swiper-slide">${imgElement}</div>`;
                  thumbWrapper.innerHTML += `<div class="swiper-slide thumbnail-slide">${imgElement}</div>`;
              });
 
-             if(mainSwiper) mainSwiper.destroy(true, true); if(thumbnailSwiper) thumbnailSwiper.destroy(true, true);
+             // Destroy previous instances before re-initializing
+             if(mainSwiper) mainSwiper.destroy(true, true);
+             if(thumbnailSwiper) thumbnailSwiper.destroy(true, true);
 
-             const slidesInMain = mainWrapper.querySelectorAll('.swiper-slide');
-             const hasMultipleItems = slidesInMain.length > 1;
+             // Adjust based on whether share image will be added
+             const hasMultipleItems = imageUrls.length > 1;
+             const thumbDisplayClass = hasMultipleItems && !shareImageGenerated ? '' : 'hidden';
 
-             if (hasMultipleItems) {
+             // Initialize thumbnails only if initially needed
+             if (hasMultipleItems && !shareImageGenerated) {
                  thumbContainer.classList.remove('hidden');
-                 thumbnailSwiper = new Swiper('.thumbnail-swiper', { spaceBetween: 10, slidesPerView: 'auto', freeMode: true, watchSlidesProgress: true, });
-                 mainSwiper = new Swiper('.main-swiper', {
-                     spaceBetween: 10, autoHeight: true,
-                     navigation: { nextEl: '.swiper-button-next', prevEl: '.swiper-button-prev', },
-                     pagination: { el: '.main-swiper .swiper-pagination', clickable: true, },
-                     thumbs: { swiper: thumbnailSwiper, },
-                     simulateTouch: true, touchRatio: 1, touchAngle: 45, grabCursor: true,
+                 thumbnailSwiper = new Swiper('.thumbnail-swiper', {
+                     spaceBetween: 10, slidesPerView: 'auto', freeMode: true, watchSlidesProgress: true,
                  });
              } else {
                  thumbContainer.classList.add('hidden');
-                 mainSwiper = new Swiper('.main-swiper', {
-                      autoHeight: true,
-                      pagination: { el: '.main-swiper .swiper-pagination', clickable: true, },
-                      allowTouchMove: false
-                 });
+                 thumbnailSwiper = null;
+             }
+
+             // Initialize main swiper
+             mainSwiper = new Swiper('.main-swiper', {
+                 spaceBetween: 10,
+                 autoHeight: true, // Set autoHeight to true
+                 navigation: { nextEl: '.swiper-button-next', prevEl: '.swiper-button-prev', },
+                 pagination: { el: '.main-swiper .swiper-pagination', clickable: true, },
+                 thumbs: { swiper: thumbnailSwiper, },
+                 allowTouchMove: !(imageUrls.length === 1 && !shareImageGenerated),
+             });
+        }
+
+        // Function to check if image is loaded
+        function isImageLoaded(imgElement) {
+            return imgElement && imgElement.complete && imgElement.naturalWidth !== 0;
+        }
+
+        // Waits for images, generates share card, adds to main AND thumb swiper
+        async function autoGenerateShareImage() {
+            if (shareImageGenerated) return;
+
+            const shareCardElement = document.getElementById('share-card-container');
+            const coverImageElement = document.getElementById('share-card-image');
+            const qrCodeContainer = document.getElementById('share-card-qrcode');
+            const mainSwiperWrapper = document.getElementById('main-swiper-wrapper');
+            const thumbSwiperWrapper = document.getElementById('thumbnail-swiper-wrapper');
+            const thumbContainer = document.querySelector('.thumbnail-swiper');
+
+            if (!shareCardElement || !coverImageElement || !qrCodeContainer || !thumbSwiperWrapper || !thumbContainer || typeof html2canvas === 'undefined' || !resultsData || !mainSwiperWrapper) {
+                console.warn("Cannot auto-generate share image: Missing required elements or libraries."); return;
+            }
+
+            const coverImagePromise = new Promise((resolve, reject) => {
+                if (isImageLoaded(coverImageElement)) { resolve(); }
+                else if (!coverImageElement.src || coverImageElement.src.includes('placehold.co')) { resolve('no-cover'); }
+                else { coverImageElement.onload = resolve; coverImageElement.onerror = () => reject(new Error('Cover image failed to load for share card.')); }
+            });
+            const qrCodeImagePromise = new Promise((resolve, reject) => {
+                 const qrImg = qrCodeContainer.querySelector('img');
+                 if (isImageLoaded(qrImg)) { resolve(); }
+                 else if (qrImg) { qrImg.onload = resolve; qrImg.onerror = () => reject(new Error('QR code image failed to load for share card.')); }
+                 else { resolve('no-qr-img'); }
+            });
+
+            const statusElement = document.getElementById('loading-indicator');
+            try {
+                 statusElement.textContent = i18next.t('resultsPage.shareCard.generating');
+                 statusElement.classList.remove('hidden');
+
+                 console.log("Waiting for share card images (cover & QR)...");
+                 const [coverStatus] = await Promise.all([coverImagePromise, qrCodeImagePromise]);
+                 console.log("Share card images ready.");
+
+                 if (coverStatus === 'no-cover') {
+                      console.warn("Skipping share image generation because cover image is missing or invalid.");
+                      statusElement.classList.add('hidden');
+                      return;
+                 }
+
+                 shareCardElement.style.visibility = 'visible';
+                 await new Promise(resolve => setTimeout(resolve, 300));
+
+                 const canvas = await html2canvas(shareCardElement, { useCORS: true, allowTaint: true, scale: 2 });
+                 const dataUrl = canvas.toDataURL('image/png');
+
+                 // Create and add slides
+                 const newMainSlide = document.createElement('div');
+                 newMainSlide.className = 'swiper-slide share-image-slide';
+                 newMainSlide.innerHTML = `<img src="${dataUrl}" alt="${i18next.t('resultsPage.shareImageAlt')}">`;
+                 mainSwiperWrapper.appendChild(newMainSlide);
+
+                 const newThumbSlide = document.createElement('div');
+                 newThumbSlide.className = 'swiper-slide thumbnail-slide share-thumb-slide';
+                 newThumbSlide.innerHTML = `<img src="${dataUrl}" alt="${i18next.t('resultsPage.shareThumb')}">`;
+                 thumbSwiperWrapper.appendChild(newThumbSlide);
+
+                 // Update Swipers
+                 if (mainSwiper) mainSwiper.update();
+                 if (thumbnailSwiper) {
+                      thumbnailSwiper.update();
+                      thumbContainer.classList.remove('hidden');
+                 } else if (resultsData.imageUrls && resultsData.imageUrls.length >= 0) { // Update condition to >= 0
+                      thumbContainer.classList.remove('hidden');
+                      thumbnailSwiper = new Swiper('.thumbnail-swiper', {
+                           spaceBetween: 10, slidesPerView: 'auto', freeMode: true, watchSlidesProgress: true,
+                      });
+                      if (mainSwiper) {
+                          // Ensure thumbs object exists before assigning
+                          if (!mainSwiper.thumbs) mainSwiper.thumbs = {};
+                          mainSwiper.thumbs.swiper = thumbnailSwiper;
+                          mainSwiper.thumbs.init(); // Re-initialize thumbs connection
+                          mainSwiper.thumbs.update(true); // Force update
+                      }
+                 }
+                 if (mainSwiper && !mainSwiper.params.allowTouchMove) {
+                     mainSwiper.params.allowTouchMove = true;
+                     mainSwiper.allowTouchMove = true;
+                 }
+
+                 shareImageGenerated = true;
+                 console.log("Share image generated and added to sliders.");
+
+            } catch (error) {
+                 console.error(i18next.t('resultsPage.shareCard.generateFailed'), error);
+                 statusElement.textContent = `${i18next.t('resultsPage.shareCard.generateFailed')} ${error.message}`;
+            } finally {
+                 shareCardElement.style.visibility = 'hidden';
+                 setTimeout(() => { statusElement.classList.add('hidden'); }, 3000);
+            }
+        }
+
+
+        // Helper to attempt share image generation safely
+        function tryAutoGenerateShareImage() {
+            if (!shareImageGenerated && resultsData) {
+                const shareImg = document.getElementById('share-card-image');
+                if (shareImg && shareImg.src && !shareImg.src.includes('placehold.co')) {
+                     autoGenerateShareImage();
+                } else {
+                     console.log("Skipping auto-generation: No valid cover image set for share card yet.");
+                }
+            }
+        }
+
+        // Populates the hidden share card elements
+        function populateShareCard(data) {
+             if (!data || !i18next.isInitialized) return;
+             const { normalizedScore, finalGrade, userNickname, userEmail, imageUrls = [] } = data;
+             const nickname = userNickname || userEmail || i18next.t('common.anonymous');
+
+             // Robust check for finalGrade
+             if (!finalGrade || typeof finalGrade !== 'object' || !finalGrade.grade || !finalGrade.nameKey || !finalGrade.color) {
+                  console.warn("populateShareCard: finalGrade data missing or incomplete. Cannot populate share card grade.", finalGrade);
+                  document.getElementById('share-card-score').textContent = normalizedScore?.toFixed(2) ?? '?.??';
+                  document.getElementById('share-card-grade-badge').textContent = i18next.t('common.unrated');
+                  document.getElementById('share-card-grade-badge').className = 'inline-block px-1 py-0.5 rounded-full text-xs font-semibold bg-gray-300 text-gray-800 bg-opacity-20';
+             } else {
+                  const gradeName = i18next.t(finalGrade.nameKey);
+                  const gradeStyles = getGradeStyles(finalGrade.color);
+                  const scoreEl = document.getElementById('share-card-score');
+                  const gradeEl = document.getElementById('share-card-grade-badge');
+                  scoreEl.className = `font-black ${gradeStyles.textColor}`; // Apply color class
+                  scoreEl.textContent = normalizedScore.toFixed(2);
+                  gradeEl.className = `inline-block px-1 py-0.5 rounded-full text-xs font-semibold ${gradeStyles.bgColor} ${gradeStyles.textColor} bg-opacity-20`;
+                  gradeEl.textContent = gradeName;
+             }
+
+             const watermarkEl = document.getElementById('share-card-watermark');
+             watermarkEl.innerHTML = i18next.t('resultsPage.shareCard.userRatingOn', { user: `<span id="share-card-username">${nickname}</span>` });
+
+             const shareCardImage = document.getElementById('share-card-image');
+             const shareCardImageWrapper = document.getElementById('share-card-image-wrapper');
+             if (imageUrls.length > 0) {
+                 shareCardImage.src = `/api/image/${imageUrls[0]}`;
+                 shareCardImage.style.display = 'block';
+                 const placeholder = shareCardImageWrapper.querySelector('span');
+                 if(placeholder) placeholder.remove();
+             } else {
+                 shareCardImage.src = '';
+                 shareCardImage.style.display = 'none';
+                 if(!shareCardImageWrapper.querySelector('span')) {
+                     shareCardImageWrapper.innerHTML = `<span class="text-gray-400 text-sm">${i18next.t('resultsPage.shareCard.noCover')}</span>`;
+                 }
              }
         }
 
+        // Generates QR code and resolves promise on image load/error
+        function generateQRCode() {
+            return new Promise((resolve, reject) => {
+                 const qrCodeContainer = document.getElementById('share-card-qrcode');
+                 if (qrCodeContainer && typeof QRCode !== 'undefined') {
+                    qrCodeContainer.innerHTML = ''; // Clear previous
+                    // Use ratingId if available (after save or loaded), otherwise use current page URL (for draft)
+                    const uniqueUrl = ratingId ? `${window.location.origin}/results.html?ratingId=${ratingId}` : window.location.href;
+                    console.log("[results.html generateQRCode] Generating QR for URL:", uniqueUrl); // Log the URL
+                    try {
+                         new QRCode(qrCodeContainer, {
+                             text: uniqueUrl, width: 60, height: 60, // Smaller QR code for new layout
+                             colorDark : "#000000", colorLight : "#ffffff",
+                             correctLevel : QRCode.CorrectLevel.H
+                         });
+                         const qrImg = qrCodeContainer.querySelector('img');
+                         if (qrImg) {
+                             if (isImageLoaded(qrImg)) { console.log("QR Code image already loaded."); resolve(); }
+                             else { console.log("Waiting for QR Code image to load..."); qrImg.onload = () => { console.log("QR Code image loaded."); resolve(); }; qrImg.onerror = () => { console.error("QR Code image failed to load."); reject(new Error('QR Code image load failed')); }; }
+                         } else { console.warn("QR Code generated, but no img tag found immediately."); resolve('no-qr-img'); }
+                    } catch (qrError) {
+                         console.error("QR Code generation failed:", qrError);
+                         qrCodeContainer.innerHTML = `<p class="text-2xs text-red-500">QR Error</p>`;
+                         reject(qrError);
+                    }
+                 } else {
+                     console.warn(i18next.t('resultsPage.shareCard.qrError'));
+                     reject(new Error('QR Code container or library not found.'));
+                 }
+            });
+        }
 
-        // --- Function to Auto-Generate Share Image ---
-        async function autoGenerateShareImage() {
-            const shareCardElement = document.getElementById('share-card-container');
-            const coverImageElement = document.getElementById('share-card-image');
-            const mainSwiperWrapper = document.getElementById('main-swiper-wrapper');
-            const thumbSwiperWrapper = document.getElementById('thumbnail-swiper-wrapper');
 
-            if (!shareCardElement || !coverImageElement || !html2canvas || !resultsData || !mainSwiperWrapper || !ratingId) {
-                console.warn("无法自动生成分享图：缺少必要组件或 ratingId。"); return;
+        // Renders the main content of the results page using the provided data
+        function renderPageContent(data) {
+             console.log("[results.html renderPageContent] Received data:", JSON.stringify(data).substring(0, 300) + '...'); // Log received data start
+            if (!data || !i18next.isInitialized) {
+                 console.error("[results.html renderPageContent] No data received or i18n not ready.");
+                 return; // Exit if no data or i18n not ready
             }
-            const coverImageUrl = coverImageElement.src;
-            if (!coverImageUrl || coverImageUrl.includes('placehold.co') || !coverImageElement.complete || coverImageElement.naturalWidth === 0) {
-                 console.warn("封面图片未加载或无效，无法自动生成分享图。"); return;
-            }
 
-            console.log("开始自动生成分享图...");
-            shareCardElement.style.visibility = 'visible';
-            shareCardElement.style.left = '-9999px';
-            shareCardElement.style.zIndex = '-1';
+            // Destructure with defaults
+            const { cigarInfo = {}, cigarReview, normalizedScore, isDraft, selectedFlavors = [], finalGrade } = data;
+            const title = data.title || i18next.t('common.noTitle');
+            const userNickname = data.userNickname || data.userEmail || i18next.t('common.anonymous');
 
-            try {
-                await new Promise(resolve => setTimeout(resolve, 300));
+            // --- ADDED LOGS ---
+            console.log("[results.html renderPageContent] Trying to render:");
+            console.log("  > Title:", title);
+            console.log("  > User Nickname:", userNickname);
+            console.log("  > Cigar Info:", JSON.stringify(cigarInfo));
+            console.log("  > Cigar Review (start):", (cigarReview || '').substring(0, 50) + '...');
+            console.log("  > Selected Flavors:", JSON.stringify(selectedFlavors));
+            console.log("  > Normalized Score:", normalizedScore);
+            console.log("  > Final Grade:", JSON.stringify(finalGrade));
+            console.log("  > Is Draft:", isDraft);
+            // --- END ADDED LOGS ---
 
-                const canvas = await html2canvas(shareCardElement, {
-                    useCORS: true, allowTaint: true, scale: 2
-                });
-                const dataUrl = canvas.toDataURL('image/png');
+            // --- ADDED: Get references to DOM elements ---
+             const userNicknameEl = document.getElementById('user-nickname');
+             const ratingTitleEl = document.getElementById('rating-title');
+             const cigarNameEl = document.getElementById('cigar-name');
+             const cigarSizeEl = document.getElementById('cigar-size');
+             const cigarOriginEl = document.getElementById('cigar-origin');
+             const reviewContainerEl = document.getElementById('cigar-review-container');
+             const flavorsContainerEl = document.getElementById('selected-flavors-container');
+             const flavorsDisplayEl = document.getElementById('flavors-display');
+             const scoreSectionEl = document.getElementById('score-section');
+             const narrativeSummaryContainerEl = document.getElementById('narrative-summary-container');
+             const summaryContainerEl = document.getElementById('summary-container');
+             const narrativeDetailsEl = document.getElementById('narrative-summary-details');
+             const summaryDetailsEl = document.getElementById('summary-details');
+             const saveButtonContainerEl = document.getElementById('save-button-container');
+             // --- END ADDED ---
 
-                const newSlide = document.createElement('div');
-                newSlide.className = 'swiper-slide share-image-slide';
-                const newImg = document.createElement('img');
-                newImg.src = dataUrl;
-                newImg.alt = '分享图片';
-                newSlide.appendChild(newImg);
+            // --- Robust check for essential data before proceeding ---
+             if (normalizedScore === undefined || !cigarInfo) {
+                 console.error("[results.html renderPageContent] Essential data missing: score or cigarInfo.", {normalizedScore, cigarInfo});
+                 if (scoreSectionEl) scoreSectionEl.innerHTML = `<p class="text-red-500">${i18next.t('errors.missingEssentialData')}</p>`;
+                 // Hide other sections that depend on this data
+                 if (narrativeDetailsEl) narrativeDetailsEl.style.display = 'none';
+                 if (summaryDetailsEl) summaryDetailsEl.style.display = 'none';
+                 // Try to populate basic info anyway
+                 if (userNicknameEl) userNicknameEl.textContent = userNickname;
+                 if (ratingTitleEl) ratingTitleEl.textContent = title;
+                 if (cigarNameEl) cigarNameEl.textContent = cigarInfo?.name ?? i18next.t('common.unknown');
+                 if (cigarSizeEl) cigarSizeEl.textContent = cigarInfo?.size ?? i18next.t('common.unknown');
+                 if (cigarOriginEl) cigarOriginEl.textContent = cigarInfo?.origin ?? i18next.t('common.unknown');
+                 if (reviewContainerEl) reviewContainerEl.innerHTML = `<p class="text-gray-400 italic">${i18next.t('common.noReview')}</p>`;
+                 if (flavorsContainerEl) flavorsContainerEl.classList.add('hidden');
+                 if (saveButtonContainerEl) saveButtonContainerEl.style.display = 'none'; // Don't show save if data is bad
+                 return; // Stop rendering here
+             }
 
-                mainSwiperWrapper.appendChild(newSlide);
 
-                if (thumbnailSwiper && thumbSwiperWrapper) {
-                     const newThumbSlide = document.createElement('div');
-                     newThumbSlide.className = 'swiper-slide thumbnail-slide';
-                     const newThumbImg = document.createElement('img');
-                     newThumbImg.src = dataUrl;
-                     newThumbImg.alt = '分享缩略图';
-                     newThumbSlide.onclick = () => { if(mainSwiper) mainSwiper.slideTo(mainSwiper.slides.length - 1); };
-                     newThumbSlide.appendChild(newThumbImg);
-                     thumbSwiperWrapper.appendChild(newThumbSlide);
-                }
+            // --- Check finalGrade specifically ---
+            if (!finalGrade || typeof finalGrade !== 'object' || !finalGrade.grade || !finalGrade.nameKey || !finalGrade.color) {
+                 console.error("[results.html renderPageContent] finalGrade data is missing or incomplete.", finalGrade);
+                 if (scoreSectionEl) scoreSectionEl.innerHTML = `<p class="text-red-500">${i18next.t('resultsPage.scoreCalculationFailed')}</p>`;
+                 if (narrativeSummaryContainerEl) narrativeSummaryContainerEl.innerHTML = `<p class="text-red-500 italic">${i18next.t('resultsPage.narrativeGenFailed')}</p>`;
+                 if (summaryContainerEl) summaryContainerEl.innerHTML = '';
+                 // Hide details sections
+                 if (narrativeDetailsEl) narrativeDetailsEl.style.display = 'none';
+                 if (summaryDetailsEl) summaryDetailsEl.style.display = 'none';
+                 // Populate basic info
+                 if (userNicknameEl) userNicknameEl.textContent = userNickname;
+                 if (ratingTitleEl) ratingTitleEl.textContent = title;
+                 if (cigarNameEl) cigarNameEl.textContent = cigarInfo?.name ?? i18next.t('common.unknown');
+                 if (cigarSizeEl) cigarSizeEl.textContent = cigarInfo?.size ?? i18next.t('common.unknown');
+                 if (cigarOriginEl) cigarOriginEl.textContent = cigarInfo?.origin ?? i18next.t('common.unknown');
+                 if (reviewContainerEl) reviewContainerEl.innerHTML = (cigarReview && cigarReview.trim() && cigarReview !== i18next.t('common.noReview')) ? `<p>${cigarReview.replace(/\n/g, '<br>')}</p>` : `<p class="text-gray-400 italic">${i18next.t('common.noReview')}</p>`;
+                 if (flavorsContainerEl) {
+                     if (selectedFlavors.length > 0) {
+                        if (flavorsDisplayEl) flavorsDisplayEl.innerHTML = selectedFlavors.map(flavorKey => `<span class="flavor-tag">${i18next.t(flavorKey) || flavorKey}</span>`).join('');
+                        flavorsContainerEl.classList.remove('hidden');
+                     } else { flavorsContainerEl.classList.add('hidden'); }
+                 }
+                 // Save button logic remains
+                 if (saveButtonContainerEl) saveButtonContainerEl.style.display = (currentAuthUser && isDraft) ? 'block' : 'none';
+            } else { // Grade data IS valid, proceed normally
+                 const gradeName = i18next.t(finalGrade.nameKey);
+                 if (userNicknameEl) userNicknameEl.textContent = userNickname;
+                 if (ratingTitleEl) ratingTitleEl.textContent = title;
+                 if (cigarNameEl) cigarNameEl.textContent = cigarInfo?.name ?? i18next.t('common.unknown');
+                 if (cigarSizeEl) cigarSizeEl.textContent = cigarInfo?.size ?? i18next.t('common.unknown');
+                 if (cigarOriginEl) cigarOriginEl.textContent = cigarInfo?.origin ?? i18next.t('common.unknown');
+                 if (reviewContainerEl) reviewContainerEl.innerHTML = (cigarReview && cigarReview.trim() && cigarReview !== i18next.t('common.noReview')) ? `<p>${cigarReview.replace(/\n/g, '<br>')}</p>` : `<p class="text-gray-400 italic">${i18next.t('common.noReview')}</p>`;
+                 if (flavorsContainerEl) {
+                     if (selectedFlavors.length > 0) {
+                         if(flavorsDisplayEl) flavorsDisplayEl.innerHTML = selectedFlavors.map(flavorKey => `<span class="flavor-tag">${i18next.t(flavorKey) || flavorKey}</span>`).join('');
+                         flavorsContainerEl.classList.remove('hidden');
+                     } else { flavorsContainerEl.classList.add('hidden'); }
+                 }
+                 if (scoreSectionEl) renderScoreSection(scoreSectionEl, normalizedScore, { ...finalGrade, name: gradeName });
 
-                 console.log("分享图已添加到 DOM。");
+                 // Check if config and ratings exist for detailed summaries
+                 const hasFullData = data.config && data.ratings;
+                 [narrativeDetailsEl, summaryDetailsEl].forEach(el => { if (el) el.style.display = hasFullData ? 'block' : 'none'; });
 
-                 if (mainSwiper) mainSwiper.update();
-                 if (thumbnailSwiper) thumbnailSwiper.update();
-
-                 console.log("Swipers updated.");
-
-            } catch (error) {
-                console.error("自动生成或添加分享图片失败:", error);
-            } finally {
-                 shareCardElement.style.left = '-9999px';
-                 shareCardElement.style.visibility = 'hidden';
-                 shareCardElement.style.zIndex = '-1';
+                 if (hasFullData) {
+                    if (narrativeSummaryContainerEl) narrativeSummaryContainerEl.innerHTML = generateNarrativeSummary(cigarInfo, data.config, data.ratings, { ...finalGrade, name: gradeName }, selectedFlavors);
+                    if (summaryContainerEl) renderSummary(summaryContainerEl, data.config, data.ratings);
+                 } else {
+                     console.warn("[results.html renderPageContent] Missing full data (config/ratings), hiding narrative and summary sections.");
+                 }
+                 // Populate share card (only if grade data was valid)
+                 populateShareCard(data);
+                 // Save button logic remains
+                 if (saveButtonContainerEl) saveButtonContainerEl.style.display = (currentAuthUser && isDraft) ? 'block' : 'none';
             }
         }
 
-        // --- Page Load Logic ---
+        // --- Initialization on page load ---
         window.onload = async function() {
             const errorContainer = document.getElementById('error-container');
             const mainContent = document.getElementById('main-content');
             const loadingIndicator = document.getElementById('loading-indicator');
 
-            const urlParams = new URLSearchParams(window.location.search);
-            const code = urlParams.get('code');
-            const ratingIdFromUrl = urlParams.get('ratingId');
-            let user = null;
-
-            if (code) { user = await handleOidcCallback(code); }
-            else { user = await validateSessionAndGetUser(); }
-            currentAuthUser = user;
-            renderLoginStatus(currentAuthUser);
-
-            loadingIndicator.classList.remove('hidden');
-            mainContent.classList.add('opacity-0');
-            mainContent.style.display = 'none';
-            errorContainer.classList.add('hidden');
-
             try {
-                if (ratingIdFromUrl) {
-                    console.log(`Loading data via ratingId from URL: ${ratingIdFromUrl}`);
-                    ratingId = ratingIdFromUrl;
-                    const token = sessionStorage.getItem('accessToken');
-                    const apiUrl = new URL(`/api/ratings?id=${ratingId}`, window.location.origin);
-                    const fetchOptions = token ? { headers: { 'Authorization': `Bearer ${token}` } } : {};
-                    const response = await fetch(apiUrl, fetchOptions);
-                    if (!response.ok) { let errorText = `加载评分失败: ${response.status}`; try { const err = await response.json(); errorText = err.error || errorText; } catch(e){} throw new Error(errorText); }
-                    resultsData = await response.json();
-                    if (!resultsData) throw new Error("未找到指定的评分记录。");
-                    sessionStorage.removeItem('cigarRatingResults');
+                 await initI18n();
+                 updateContent();
 
-                } else {
-                    console.log("Loading data from sessionStorage.");
-                    const storedData = sessionStorage.getItem('cigarRatingResults');
-                    if (!storedData) throw new Error("没有找到评分数据！请返回重试。");
-                    resultsData = JSON.parse(storedData);
-                    ratingId = resultsData.ratingId;
-                    if (!ratingId) { console.warn("Rating ID not found in sessionStorage data."); ratingId = null; }
-                }
+                 const urlParams = new URLSearchParams(window.location.search);
+                 const code = urlParams.get('code');
+                 ratingId = urlParams.get('ratingId'); // Check if loading saved rating by ID
 
-                console.log("Final resultsData loaded:", resultsData);
-                console.log("Using ratingId:", ratingId);
+                 let user = code ? await handleOidcCallback(code) : await validateSessionAndGetUser();
+                 currentAuthUser = user;
+                 renderLoginStatus(currentAuthUser);
+                 setupLanguageSwitcher();
 
-                // --- Validation and Data Extraction ---
-                if (!resultsData || resultsData.normalizedScore === undefined || !resultsData.finalGrade || !resultsData.cigarInfo) { console.error("Loaded data is missing essential fields:", resultsData); throw new Error("存储的点评数据缺少基本信息 (分数, 评级, 雪茄信息)。请尝试重新评分。"); }
-                const title = resultsData.title || '无标题点评';
-                const { cigarInfo, cigarReview, normalizedScore: score, isDraft } = resultsData;
-                const imageUrlsData = resultsData.imageUrls || resultsData.imageUrl || [];
-                const selectedFlavors = Array.isArray(resultsData.selectedFlavors) ? resultsData.selectedFlavors : [];
-                normalizedScore = score;
-                finalGrade = resultsData.finalGrade;
-                if (!finalGrade || !finalGrade.grade || !finalGrade.color) { const foundGrade = GRADING_SCALE.find(g => normalizedScore >= g.min_score) || GRADING_SCALE[GRADING_SCALE.length - 1]; finalGrade = foundGrade ? { grade: foundGrade.grade, name_cn: foundGrade.name_cn, name_en: foundGrade.name_en, color: foundGrade.color } : null; }
-                if (!finalGrade) { throw new Error("无法确定评级信息。"); }
-                const userNickname = resultsData.userNickname || resultsData.userEmail || '匿名用户';
+                 loadingIndicator.classList.remove('hidden');
 
-                // --- Render Page Content ---
-                 document.getElementById('user-nickname').textContent = userNickname;
-                 document.getElementById('rating-title').textContent = title;
-                 document.getElementById('cigar-name').textContent = cigarInfo.name;
-                 document.getElementById('cigar-size').textContent = cigarInfo.size;
-                 document.getElementById('cigar-origin').textContent = cigarInfo.origin;
-                 const reviewContainer = document.getElementById('cigar-review-container'); if (cigarReview && cigarReview !== '无') { reviewContainer.innerHTML = `<p>${cigarReview}</p>`; } else { reviewContainer.innerHTML = `<p class="text-gray-400 italic">未填写文字评价。</p>`; }
-                 const flavorsContainer = document.getElementById('selected-flavors-container'); const flavorsDisplay = document.getElementById('flavors-display'); if (selectedFlavors.length > 0) { flavorsDisplay.innerHTML = selectedFlavors.map(f => `<span class="flavor-tag">${f}</span>`).join(''); flavorsContainer.classList.remove('hidden'); } else { flavorsContainer.classList.add('hidden'); }
+                 // Determine if loading from ID or sessionStorage
+                 if (ratingId) { // Load saved rating from API
+                     console.log("[results.html onload] Loading rating from API with ID:", ratingId);
+                     const token = sessionStorage.getItem('accessToken');
+                     const apiUrl = new URL(`/api/ratings?id=${ratingId}`, window.location.origin);
+                     // Allow anonymous fetch if no token (API handles public read)
+                     const fetchOptions = token ? { headers: { 'Authorization': `Bearer ${token}` } } : {};
+                     const response = await fetch(apiUrl, fetchOptions);
+                     if (!response.ok) {
+                         let errorText = i18next.t('errors.loadRatingFailed', { status: response.status });
+                         try { const err = await response.json(); errorText = err.error || errorText; } catch(e){}
+                         throw new Error(errorText);
+                     }
+                     resultsData = await response.json();
+                     resultsData.isDraft = false; // Data from API is never a draft
+                     console.log("[results.html onload] Loaded data from API:", JSON.stringify(resultsData).substring(0, 300) + '...');
+                 } else { // Load draft from sessionStorage
+                     console.log("[results.html onload] Loading rating from sessionStorage");
+                     const storedData = sessionStorage.getItem('cigarRatingResults');
+                     if (!storedData) throw new Error(i18next.t('errors.noRatingDataFound'));
+                     try {
+                         resultsData = JSON.parse(storedData);
+                         // *** FIX: REMOVED resultsData.isDraft = true; ***
+                         // The 'isDraft' flag (true from rate.html, false from history.html/index.html)
+                         // is now correctly loaded from the stored data.
+                         ratingId = resultsData.ratingId; // Might be null if not saved yet
+                         console.log("[results.html onload] Parsed data from sessionStorage:", JSON.stringify(resultsData).substring(0, 300) + '...');
+                     } catch(parseError) {
+                         console.error("[results.html onload] Error parsing sessionStorage data:", parseError);
+                         throw new Error(i18next.t('errors.invalidSessionData'));
+                     }
+                 }
 
-                let images = [];
-                if(Array.isArray(imageUrlsData)) { images = imageUrlsData; }
-                else if (typeof imageUrlsData === 'string' && imageUrlsData) { try { images = JSON.parse(imageUrlsData); if (!Array.isArray(images)) images = [imageUrlsData]; } catch(e){ images = [imageUrlsData]; } }
+                 // Basic validation after loading data
+                 if (!resultsData || resultsData.normalizedScore === undefined || !resultsData.cigarInfo) {
+                     console.error("[results.html onload] Essential data missing after loading!", resultsData);
+                     throw new Error(i18next.t('errors.missingEssentialData'));
+                 }
 
-                initSwipers(images);
+                 // Render UI elements
+                 initSwipers(resultsData.imageUrls || []); // Initialize image slider
+                 renderPageContent(resultsData); // Render main content sections
 
-                renderScoreSection(document.getElementById('score-section'), normalizedScore, finalGrade);
-                const saveButtonContainer = document.getElementById('save-button-container'); if (currentAuthUser && isDraft) { saveButtonContainer?.classList.remove('hidden'); }
-                const narrativeDetails = document.getElementById('narrative-summary-details'); const summaryDetails = document.getElementById('summary-details'); const hasFullData = resultsData.config && resultsData.ratings && resultsData.calculatedScore !== undefined; if (hasFullData) { const { config, ratings } = resultsData; const narrativeSummary = generateNarrativeSummary(cigarInfo, config, ratings, finalGrade, selectedFlavors); document.getElementById('narrative-summary-container').innerHTML = narrativeSummary; narrativeDetails.classList.remove('hidden'); renderSummary(document.getElementById('summary-container'), config, ratings); summaryDetails.classList.remove('hidden'); } else { narrativeDetails.classList.add('hidden'); summaryDetails.classList.add('hidden'); const limitedDataMessage = document.createElement('p'); limitedDataMessage.className = 'text-center text-sm text-gray-500 my-4 p-4 bg-yellow-100 rounded'; limitedDataMessage.textContent = '提示：此为旧版评分记录，部分详细信息无法显示。'; mainContent.insertBefore(limitedDataMessage, mainContent.querySelector('footer').previousSibling); }
+                 // Generate QR and attempt share image AFTER main content is rendered
+                 await generateQRCode();
+                 tryAutoGenerateShareImage();
 
+                 loadingIndicator.classList.add('hidden'); // Hide loading indicator
+                 mainContent.classList.remove('opacity-0'); // Show main content
 
-                // --- Populate Hidden Share Card ---
-                const shareCardImage = document.getElementById('share-card-image');
-                const shareCardScore = document.getElementById('share-card-score');
-                const shareCardGradeBadge = document.getElementById('share-card-grade-badge');
-                const shareCardUsername = document.getElementById('share-card-username');
-                const shareCardQrCode = document.getElementById('share-card-qrcode');
-                const gradeStyles = getGradeStyles(finalGrade.color);
-
-                // Apply styles immediately
-                if (shareCardScore) shareCardScore.className = `text-5xl font-black ${gradeStyles.textColor}`;
-                if (shareCardGradeBadge) shareCardGradeBadge.className = `inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${gradeStyles.bgColor} ${gradeStyles.textColor} bg-opacity-20`;
-
-
-                if (shareCardScore) shareCardScore.textContent = normalizedScore.toFixed(2);
-                if (shareCardGradeBadge) { shareCardGradeBadge.textContent = `${finalGrade.name_en} - ${finalGrade.name_cn}`; }
-                if (shareCardUsername) { shareCardUsername.textContent = userNickname; }
-
-                if (shareCardQrCode && typeof QRCode !== 'undefined') {
-                    shareCardQrCode.innerHTML = '';
-                    const uniqueUrl = ratingId ? `${window.location.origin}/results.html?ratingId=${ratingId}` : window.location.href;
-                    console.log("Generating QR Code for URL:", uniqueUrl);
-                    new QRCode(shareCardQrCode, { text: uniqueUrl, width: 90, height: 90, colorDark : "#000000", colorLight : "#ffffff", correctLevel : QRCode.CorrectLevel.H });
-                } else { console.error("QR Code container or library not found, or ratingId missing."); }
-
-                // Set image source and trigger generation
-                if (images.length > 0 && shareCardImage) {
-                     shareCardImage.src = `/api/image/${images[0]}`;
-                     shareCardImage.onload = () => { autoGenerateShareImage(); };
-                     shareCardImage.onerror = () => { console.error("Share card cover image failed to load."); };
-                } else {
-                     document.getElementById('share-card-image-wrapper').innerHTML = '<span class="text-gray-400 text-sm">无封面图</span>';
-                     console.warn("No cover image, cannot generate share image.");
-                }
-
-                // --- Show Content ---
-                loadingIndicator.classList.add('hidden');
-                mainContent.style.display = 'block';
-                await new Promise(resolve => setTimeout(resolve, 50));
-                mainContent.classList.remove('opacity-0');
-                mainContent.classList.add('animate-fadeInUp');
-
-            } catch (e) {
-                loadingIndicator.classList.add('hidden');
-                errorContainer.innerHTML = `<p class="font-bold text-center">页面加载出错！<a href="index.html" class="text-indigo-600 underline">返回社区</a> 或 <a href="rate.html" class="text-indigo-600 underline">去评分</a></p><p class="text-sm text-gray-600">${e.message}</p>`;
-                errorContainer.classList.remove('hidden');
-                console.error("Results page error:", e);
+            } catch (e) { // Catch any error during initialization
+                 loadingIndicator.classList.add('hidden');
+                 const errorTitle = i18next.t('errors.pageLoadError');
+                 const backLinkText = i18next.t('common.backToCommunity');
+                 const rateLinkText = i18next.t('nav.rate');
+                 errorContainer.innerHTML = `<p class="font-bold text-center">${errorTitle}: ${e.message}</p> <div class="mt-4 text-center space-x-4"> <a href="index.html" class="text-indigo-600 underline">${backLinkText}</a> <a href="rate.html" class="text-green-600 underline">${rateLinkText}</a> </div>`;
+                 errorContainer.classList.remove('hidden');
+                 mainContent.classList.add('opacity-0'); // Keep main content hidden on error
+                 console.error("[results.html onload] Initialization error:", e);
             }
         };
 
         // --- Rendering Utilities ---
-        function generateNarrativeSummary(cigarInfo, config, ratings, finalGrade, selectedFlavors) { /* ... */ if (!config || !ratings) { return '<p class="text-gray-500 italic">无法生成综合评价 (缺少原始评分数据)。</p>'; } let summary = `<p class="text-base text-gray-700 leading-relaxed">`; summary += `本次品鉴的雪茄是来自<strong class="font-semibold">${cigarInfo?.origin || '未知'}</strong>的<strong class="font-semibold">${cigarInfo?.name || '未知'}</strong>，尺寸为<strong class="font-semibold">${cigarInfo?.size || '未知'}</strong>。`; let observations = []; (config?.ratingCriteria || []).forEach(category => { (category.criteriaList || []).forEach(criterion => { const id = getRatingId(category.category, criterion.name); const selectedOptionIndex = ratings[id]; if (selectedOptionIndex !== undefined && criterion.options?.[selectedOptionIndex]) { const option = criterion.options[selectedOptionIndex]; observations.push(`在<strong class="font-semibold">${criterion.name}</strong>方面，其表现为“${option.description}”`); } }); }); if (observations.length > 0) { summary += ` 品鉴过程中，我们观察到：${observations.join('；')}。`; } else { summary += ` (未记录详细评分选项)。`; } if (selectedFlavors && selectedFlavors.length > 0) { summary += ` 感受到的主要风味包括：<strong class="font-semibold">${selectedFlavors.join(', ')}</strong>。`; } const gradeHierarchy = GRADING_SCALE.map(g => g.name_en).join('-'); summary += ` 综合来看，本次基于Pistacho Cigar Rating System（Pistacho雪茄评分）的最终评级为<strong class="font-semibold text-indigo-600">“${finalGrade.grade} - ${finalGrade.name_cn}”</strong>。Pistacho品分等级从高到低为${gradeHierarchy}`; summary += `</p>`; return summary; }
-        function getRatingId(category, criterion) { /* ... */ const catStr = String(category || '').trim(); const critStr = String(criterion || '').trim(); return `${catStr}-${critStr}`; }
-        function renderSummary(container, config, ratings) { /* ... */ if (!container) return; if (!config || !ratings) { container.innerHTML = '<p class="text-gray-500 italic">无法生成评分详情汇总 (缺少原始评分数据)。</p>'; return; } let summaryHtml = ''; (config?.ratingCriteria || []).forEach((category) => { summaryHtml += `<div class="mb-4"><h4 class="text-md font-semibold text-gray-600 mb-2 border-b pb-1">${category.category}</h4><ul class="list-none space-y-1 text-sm">`; let hasCriteria = false; (category.criteriaList || []).forEach((criterion) => { const id = getRatingId(category.category, criterion.name); const selectedOptionIndex = ratings[id]; if (selectedOptionIndex !== undefined && criterion.options?.[selectedOptionIndex]) { const option = criterion.options[selectedOptionIndex]; summaryHtml += `<li class="flex justify-between items-center p-1"><div><span class="font-medium text-gray-700">${criterion.name}:</span><span class="text-gray-500 ml-2">${option.description}</span></div></li>`; hasCriteria = true; } }); if (!hasCriteria) { summaryHtml += `<li class="text-gray-400 italic text-xs">(无评分项)</li>`; } summaryHtml += `</ul></div>`; }); container.innerHTML = summaryHtml || '<p class="text-gray-500 italic">(无评分详情)</p>'; }
-        function getScoreRange(gradeCode) { /* ... */ const index = GRADING_SCALE.findIndex(g => g.grade === gradeCode); if (index === -1) return ''; const min = GRADING_SCALE[index].min_score; if (index === 0) return `${min}-100`; const gradeAbove = GRADING_SCALE[index - 1]; if (!gradeAbove) return `< ${min}`; const max = gradeAbove.min_score - 0.01; if (gradeCode === 'O') return `0-${max.toFixed(2)}`; return `${min.toFixed(0)}-${max.toFixed(2)}`; }
-        function getGradeStyles(color) { /* ... */ const stylesMap = { 'gold': { bgColor: 'bg-yellow-400', textColor: 'text-yellow-800', bgGradient: 'bg-gradient-to-br from-yellow-400 to-amber-500', shadowColor: 'shadow-yellow-500/50' }, 'indigo': { bgColor: 'bg-indigo-300', textColor: 'text-indigo-800', bgGradient: 'bg-gradient-to-br from-indigo-500 to-purple-600', shadowColor: 'shadow-indigo-500/50' }, 'purple': { bgColor: 'bg-purple-300', textColor: 'text-purple-800', bgGradient: 'bg-gradient-to-br from-purple-500 to-violet-600', shadowColor: 'shadow-purple-500/50' }, 'blue': { bgColor: 'bg-blue-300', textColor: 'text-blue-800', bgGradient: 'bg-gradient-to-br from-blue-500 to-cyan-600', shadowColor: 'shadow-blue-500/50' }, 'green': { bgColor: 'bg-green-300', textColor: 'text-green-800', bgGradient: 'bg-gradient-to-br from-green-500 to-lime-600', shadowColor: 'shadow-green-500/50' }, 'gray': { bgColor: 'bg-gray-300', textColor: 'text-gray-800', bgGradient: 'bg-gradient-to-br from-gray-500 to-slate-600', shadowColor: 'shadow-gray-500/50' }, 'orange': { bgColor: 'bg-orange-300', textColor: 'text-orange-800', bgGradient: 'bg-gradient-to-br from-orange-500 to-amber-600', shadowColor: 'shadow-orange-500/50' }, 'red': { bgColor: 'bg-red-300', textColor: 'text-red-800', bgGradient: 'bg-gradient-to-br from-red-500 to-rose-600', shadowColor: 'shadow-red-500/50' } }; return stylesMap[color] || stylesMap['gray']; }
-         function renderScoreSection(container, score, grade) { /* ... */ if (!container || !grade) return; const styles = getGradeStyles(grade.color); const scoreHtml = ` <div class="text-center md:text-left"> <p class="text-xl font-bold text-yellow-500 mb-1">Pistacho 评分</p> <p class="text-7xl font-black ${styles.textColor}">${score.toFixed(2)}</p> <div class="mt-2 text-3xl lg:text-4xl font-black ${styles.textColor} leading-tight"> ${grade.name_en} - ${grade.name_cn} </div> </div> `; let scaleHtml = '<div class="space-y-1 text-sm">'; GRADING_SCALE.forEach(g => { const gStyles = getGradeStyles(g.color); const isCurrent = g.grade === grade.grade; scaleHtml += ` <div class="flex items-center p-1 rounded ${isCurrent ? 'bg-gray-100' : ''}"> <div class="w-5 h-5 flex-shrink-0 rounded-full flex items-center justify-center font-bold text-xs ${gStyles.bgColor} ${gStyles.textColor} mr-2">${g.grade}</div> <div class="flex-grow ${isCurrent ? 'font-semibold' : ''} ${gStyles.textColor}">${g.name_cn}</div> <div class="font-mono text-xs text-gray-500 ml-2">${getScoreRange(g.grade)}</div> </div> `; }); scaleHtml += '</div>'; container.innerHTML = ` <div id="score-display" class="w-full md:w-1/3 flex-shrink-0"> ${scoreHtml} </div> <div id="grading-scale-explanation" class="w-full md:w-2/3 flex-grow border-t md:border-t-0 md:border-l border-gray-200 pt-4 md:pt-0 md:pl-6"> ${scaleHtml} </div> `; }
+
+        // Generates the narrative summary text
+        function generateNarrativeSummary(cigarInfo, config, ratings, finalGrade, selectedFlavors) {
+            if (!config || !ratings) return `<p class="text-gray-500 italic">${i18next.t('errors.noNarrativeData')}</p>`;
+            const { origin = i18next.t('common.unknown'), name = i18next.t('common.unknown'), size = i18next.t('common.unknown') } = cigarInfo || {};
+            let summary = `<p>${i18next.t('resultsPage.narrative.part1', { origin, name, size })}`;
+            let observations = [];
+            (config.ratingCriteria || []).forEach(category => {
+                (category.criteriaList || []).forEach(criterion => {
+                    let id = null;
+                    if (category.categoryKey && criterion.nameKey) { id = `${category.categoryKey}-${criterion.nameKey}`; }
+                    else if (category.category && criterion.name) { id = `${category.category}-${criterion.name}`; } // Fallback for older data?
+                    if (id) {
+                        const idx = ratings[id];
+                        if (idx !== undefined && criterion.options?.[idx]) {
+                            const opt = criterion.options[idx];
+                            // Translate keys, fallback to original text if translation missing
+                            const critTxt = i18next.t(criterion.nameKey || criterion.name, criterion.name || '?');
+                            const optTxt = i18next.t(opt.descriptionKey || opt.description, opt.description || '?');
+                            observations.push(i18next.t('resultsPage.narrative.observation', { criterion: critTxt, option: optTxt }));
+                        }
+                    } else { console.warn("Could not determine ID for criterion in generateNarrativeSummary:", {category, criterion}); }
+                });
+            });
+            if (observations.length > 0) { summary += ` ${i18next.t('resultsPage.narrative.part2', { observations: observations.join('；') })}`; }
+            else { summary += ` ${i18next.t('resultsPage.narrative.noObservations')}`; }
+            if (selectedFlavors.length > 0) { const translated = selectedFlavors.map(k => i18next.t(k) || k).join(', '); summary += ` ${i18next.t('resultsPage.narrative.part3', { flavors: translated })}`; }
+            // Use finalGrade object passed to the function
+            const gradeName = (finalGrade && finalGrade.name) ? finalGrade.name : i18next.t('common.unrated');
+            const gradeLetter = (finalGrade && finalGrade.grade) ? finalGrade.grade : '?';
+            const hierarchy = GRADING_SCALE.map(g => `${g.grade}(${i18next.t(g.nameKey)})`).join(', ');
+            summary += ` ${i18next.t('resultsPage.narrative.part4', { grade: gradeLetter, gradeName: gradeName, hierarchy: hierarchy })}`;
+            summary += `</p>`;
+            return summary;
+        }
+
+        // Renders the detailed rating summary section
+        function renderSummary(container, config, ratings) {
+            if (!container || !config || !ratings) { container.innerHTML = `<p class="text-gray-500 italic">${i18next.t('errors.noSummaryData')}</p>`; return; }
+            let summaryHtml = (config.ratingCriteria || []).map(category => {
+                const criteriaHtml = (category.criteriaList || []).map(criterion => {
+                    let id = null;
+                    if (category.categoryKey && criterion.nameKey) { id = `${category.categoryKey}-${criterion.nameKey}`; }
+                    else if (category.category && criterion.name) { id = `${category.category}-${criterion.name}`; } // Fallback
+                    if (id) {
+                        const idx = ratings[id];
+                        if (idx !== undefined && criterion.options?.[idx]) {
+                            const opt = criterion.options[idx];
+                            // Translate keys, fallback to original text
+                            const critTxt = i18next.t(criterion.nameKey || criterion.name, criterion.name || '?');
+                            const optTxt = i18next.t(opt.descriptionKey || opt.description, opt.description || '?');
+                            return `<li><strong>${critTxt}:</strong> ${optTxt}</li>`;
+                        }
+                    } else { console.warn("Could not determine ID for criterion in renderSummary:", {category, criterion}); }
+                    return '';
+                }).join('');
+                if (criteriaHtml.trim()) {
+                    // Translate category key, fallback to original text
+                    const catTitle = i18next.t(category.categoryKey || category.category, category.category || '?');
+                    return `<h4 class="font-semibold mt-4 mb-1 text-gray-700">${catTitle}</h4><ul class="list-disc list-inside space-y-1 text-sm">${criteriaHtml}</ul>`;
+                } return '';
+            }).join('');
+            container.innerHTML = summaryHtml || `<p>${i18next.t('resultsPage.summary.noItems')}</p>`;
+        }
+        // --- End Rendering Utilities ---
+        // --- Rendering Utilities (Continued) ---
+
+        // Generates the score range string
+        function getScoreRange(gradeCode) {
+            const index = GRADING_SCALE.findIndex(g => g.grade === gradeCode);
+            if (index === -1) return '';
+            const min = GRADING_SCALE[index].min_score;
+            if (index === 0) return `${min}-100`; // Highest grade range
+            const max = GRADING_SCALE[index - 1].min_score - 0.01; // Max is just below the next higher grade's min
+            return `${min.toFixed(0)}-${max.toFixed(2)}`;
+        }
+
+        // Returns Tailwind CSS classes for a grade color
+        function getGradeStyles(color) {
+            const stylesMap = {
+                'gold': { textColor: 'text-yellow-800', bgColor: 'bg-yellow-400' },
+                'indigo': { textColor: 'text-indigo-800', bgColor: 'bg-indigo-300' },
+                'purple': { textColor: 'text-purple-800', bgColor: 'bg-purple-300' },
+                'blue': { textColor: 'text-blue-800', bgColor: 'bg-blue-300' },
+                'green': { textColor: 'text-green-800', bgColor: 'bg-green-300' },
+                'gray': { textColor: 'text-gray-800', bgColor: 'bg-gray-300' },
+                'orange': { textColor: 'text-orange-800', bgColor: 'bg-orange-300' },
+                'red': { textColor: 'text-red-800', bgColor: 'bg-red-300' }
+            };
+            return stylesMap[color] || stylesMap['gray']; // Default to gray if color not found
+        }
+
+         // Renders the score section
+         function renderScoreSection(container, score, grade) {
+             // Robust check: Ensure grade object is valid and has expected properties
+             if (!container || !grade || typeof grade !== 'object' || !grade.grade || !grade.name || !grade.color || !i18next.isInitialized) {
+                 console.error("[results.html renderScoreSection] Invalid grade object received or i18n not ready:", grade);
+                 container.innerHTML = `<p class="text-red-500">${i18next.t('resultsPage.scoreCalculationFailed')}</p>`;
+                 return;
+             }
+             const styles = getGradeStyles(grade.color);
+             // Main score and grade name display
+             const scoreHtml = `
+                <div>
+                    <p class="text-xl font-bold text-yellow-500 mb-1">${i18next.t('resultsPage.scoreSectionTitle')}</p>
+                    <p class="text-7xl font-black ${styles.textColor}">${score?.toFixed(2) ?? '?.??'}</p>
+                    <div class="mt-2 text-3xl font-black ${styles.textColor}">${grade.name ?? i18next.t('common.unrated')}</div>
+                </div>`;
+             // Grading scale legend
+             const scaleHtml = GRADING_SCALE.map(g => {
+                 const gs = getGradeStyles(g.color);
+                 const isCurrentGrade = g.grade === grade.grade;
+                 return `
+                 <div class="flex items-center p-1 rounded ${isCurrentGrade ? 'bg-gray-100' : ''}">
+                     <div class="w-5 h-5 rounded-full flex items-center justify-center font-bold text-xs ${gs.bgColor} ${gs.textColor} mr-2">${g.grade}</div>
+                     <div class="flex-grow ${isCurrentGrade ? 'font-semibold' : ''} ${gs.textColor}">${i18next.t(g.nameKey)}</div>
+                     <div class="font-mono text-xs text-gray-500 ml-2">${getScoreRange(g.grade)}</div>
+                 </div>`;
+             }).join('');
+             // Combine into the container
+             container.innerHTML = `
+                 <div class="w-full md:w-1/3">${scoreHtml}</div>
+                 <div class="w-full md:w-2/3 border-t md:border-t-0 md:border-l border-gray-200 pt-4 md:pt-0 md:pl-6">
+                     <div class="space-y-1">${scaleHtml}</div>
+                 </div>`;
+         }
+        // --- End Rendering Utilities ---
 
     </script>
 </body>

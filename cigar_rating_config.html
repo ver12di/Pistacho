@@ -6,8 +6,12 @@
     <title>雪茄品鉴配置管理</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
+
+    <script src="https://unpkg.com/i18next/i18next.min.js"></script>
+    <script src="https://unpkg.com/i18next-http-backend/i18nextHttpBackend.min.js"></script>
+    <script src="https://unpkg.com/i18next-browser-languagedetector/i18nextBrowserLanguageDetector.min.js"></script>
+    
     <script>
-        // Check if tailwind exists before configuring, add onerror handler
         if (typeof tailwind !== 'undefined') {
             tailwind.config = {
                 theme: {
@@ -22,81 +26,108 @@
              console.warn('Tailwind object not found. Skipping config.');
         }
     </script>
-    <!-- Removed Authing SDK script -->
-    
+    <style>
+        /* Style for language buttons */
+        .lang-button {
+            padding: 2px 6px;
+            margin: 0 2px;
+            border: 1px solid transparent;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.75rem; /* text-xs */
+            transition: background-color 0.2s, border-color 0.2s;
+            background-color: #f3f4f6; /* bg-gray-100 */
+            color: #374151; /* text-gray-700 */
+        }
+        .lang-button:hover {
+            background-color: #e5e7eb; /* bg-gray-200 */
+        }
+        .lang-button.active {
+            font-weight: bold;
+            background-color: #e0e7ff; /* bg-indigo-100 */
+            border-color: #a5b4fc; /* border-indigo-300 */
+            color: #3730a3; /* text-indigo-800 */
+            cursor: default;
+        }
+    </style>
 </head>
 <body class="bg-gray-100 font-sans antialiased text-gray-800">
 
     <div id="main-container" class="max-w-4xl mx-auto p-4 md:p-8">
 
         <header class="mb-8 p-6 bg-indigo-700 text-white rounded-xl shadow-2xl relative">
-            <h1 class="text-3xl font-extrabold mb-1">雪茄品鉴配置管理</h1>
-            <p class="text-indigo-200 text-sm mb-2">管理评分标准，所有更改在发布后将实时同步到主应用。</p>
-            <div id="role-display" class="text-xs text-yellow-300">正在检查权限...</div>
-            <a href="index.html" class="absolute top-4 right-4 text-indigo-200 hover:text-white transition">← 返回主页</a>
+            <h1 class="text-3xl font-extrabold mb-1" data-i18n="configPage.title">雪茄品鉴配置管理</h1>
+            <p class="text-indigo-200 text-sm mb-2" data-i18n="configPage.description">管理评分标准，所有更改在发布后将实时同步到主应用。</p>
+            <div id="role-display" class="text-xs text-yellow-300" data-i18n="configPage.checkingAuth">正在检查权限...</div>
+            
+            <div class="absolute top-4 right-4 flex items-center space-x-3">
+                <!-- **MODIFIED**: Replaced select with div for buttons -->
+                <div id="language-buttons-container" class="flex items-center space-x-1 mr-2">
+                    <!-- Language buttons will be inserted here by JS -->
+                </div>
+                <a href="index.html" class="text-indigo-200 hover:text-white transition" data-i18n="common.backToHome">← 返回主页</a>
+            </div>
         </header>
         
         <div id="error-container"></div>
 
-        <!-- Admin content area - initially hidden -->
         <section id="admin-content" class="hidden"> 
             <section class="mb-8 p-6 bg-white rounded-xl shadow-lg">
-                 <h2 class="text-xl font-bold text-indigo-700 mb-4">配置方案管理</h2>
+                 <h2 class="text-xl font-bold text-indigo-700 mb-4" data-i18n="configPage.profileManagement">配置方案管理</h2>
                  <p class="text-sm text-gray-600 mb-2">
-                     当前加载: <strong id="current-profile-name" class="text-indigo-800">...</strong>
+                     <span data-i18n="configPage.currentProfile">当前加载:</span> <strong id="current-profile-name" class="text-indigo-800">...</strong>
                  </p>
                  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                      <div>
-                        <label for="profile-selector" class="block text-sm font-medium text-gray-700 mb-1">选择方案:</label>
+                        <label for="profile-selector" class="block text-sm font-medium text-gray-700 mb-1" data-i18n="configPage.selectProfile">选择方案:</label>
                         <select id="profile-selector" class="admin-feature w-full p-2 border border-gray-300 rounded-md">
-                            <option>正在加载...</option>
+                            <option data-i18n="common.loadingOptions">正在加载...</option>
                         </select>
                      </div>
                      <div class="flex items-end space-x-2">
-                        <button onclick="loadSelectedProfile()" class="admin-feature flex-1 py-2 px-3 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition text-sm">加载</button>
-                        <button onclick="saveAsNewProfile()" class="admin-feature flex-1 py-2 px-3 bg-green-500 text-white rounded-md hover:bg-green-600 transition text-sm">另存为</button>
-                        <button id="delete-profile-button" onclick="deleteSelectedProfile()" class="admin-feature flex-1 py-2 px-3 bg-red-500 text-white rounded-md hover:bg-red-600 transition text-sm" disabled>删除</button>
+                        <button onclick="loadSelectedProfile()" class="admin-feature flex-1 py-2 px-3 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition text-sm" data-i18n="common.load">加载</button>
+                        <button onclick="saveAsNewProfile()" class="admin-feature flex-1 py-2 px-3 bg-green-500 text-white rounded-md hover:bg-green-600 transition text-sm" data-i18n="common.saveAs">另存为</button>
+                        <button id="delete-profile-button" onclick="deleteSelectedProfile()" class="admin-feature flex-1 py-2 px-3 bg-red-500 text-white rounded-md hover:bg-red-600 transition text-sm" data-i18n="common.delete" disabled>删除</button>
                      </div>
                  </div>
             </section>
 
             <section class="mb-8 p-6 bg-gray-50 rounded-xl shadow-lg border">
-                 <h2 class="text-xl font-bold text-gray-700 mb-4">导入 / 导出</h2>
+                 <h2 class="text-xl font-bold text-gray-700 mb-4" data-i18n="configPage.importExport">导入 / 导出</h2>
                  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">从文件上传 (JSON):</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="configPage.uploadJSON">从文件上传 (JSON):</label>
                         <input type="file" id="json-upload-input" accept=".json" class="admin-feature w-full text-sm">
-                        <button onclick="uploadConfigJSON()" class="admin-feature w-full mt-2 py-2 px-3 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition text-sm">上传并另存为</button>
+                        <button onclick="uploadConfigJSON()" class="admin-feature w-full mt-2 py-2 px-3 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition text-sm" data-i18n="configPage.uploadAndSave">上传并另存为</button>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">下载当前配置 (JSON):</label>
-                         <button onclick="downloadConfigJSON()" class="admin-feature w-full mt-2 py-2 px-3 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition text-sm">下载编辑器内容</button>
+                        <label class="block text-sm font-medium text-gray-700 mb-1" data-i18n="configPage.downloadJSON">下载当前配置 (JSON):</label>
+                         <button onclick="downloadConfigJSON()" class="admin-feature w-full mt-2 py-2 px-3 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition text-sm" data-i18n="configPage.downloadEditorContent">下载编辑器内容</button>
                     </div>
                  </div>
             </section>
 
             <section class="mb-8 p-6 bg-white rounded-xl shadow-lg">
-                 <h2 class="text-xl font-bold text-indigo-700 mb-4">应用基本信息</h2>
+                 <h2 class="text-xl font-bold text-indigo-700 mb-4" data-i18n="configPage.appInfo">应用基本信息</h2>
                  <label class="block mb-4">
-                     <span class="text-gray-700 font-medium">应用标题</span>
+                     <span class="text-gray-700 font-medium" data-i18n="configPage.appTitle">应用标题</span>
                      <input type="text" id="app-title-input" class="w-full p-2 border rounded-md mt-1 admin-feature" oninput="handleInputChange(this)" data-field="appTitle">
                  </label>
                  <label class="block mb-4">
-                     <span class="text-gray-700 font-medium">应用描述</span>
+                     <span class="text-gray-700 font-medium" data-i18n="configPage.appDescription">应用描述</span>
                      <textarea id="app-description-input" class="w-full p-2 border rounded-md mt-1 admin-feature" rows="3" oninput="handleInputChange(this)" data-field="description"></textarea>
                  </label>
             </section>
 
             <form id="config-form">
                 <section id="config-form-container" class="space-y-6">
-                    <!-- JS will render criteria here -->
-                </section>
+                    </section>
             
                 <div class="mt-8 pt-4 border-t border-gray-300 grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <button type="button" id="save-profile-button" onclick="saveProfileChanges()" class="w-full py-3 font-semibold rounded-lg cursor-not-allowed bg-gray-400 text-gray-700 admin-feature" disabled>
+                    <button type="button" id="save-profile-button" onclick="saveProfileChanges()" class="w-full py-3 font-semibold rounded-lg cursor-not-allowed bg-gray-400 text-gray-700 admin-feature" data-i18n="configPage.saveChanges" disabled>
                         保存更改到方案
                     </button>
-                    <button type="button" id="publish-button" onclick="publishConfig()" class="w-full py-3 font-semibold rounded-lg cursor-not-allowed bg-gray-400 text-gray-700 admin-feature">
+                    <button type="button" id="publish-button" onclick="publishConfig()" class="w-full py-3 font-semibold rounded-lg cursor-not-allowed bg-gray-400 text-gray-700 admin-feature" data-i18n="configPage.publishToLive">
                         发布到 Live (latest)
                     </button>
                 </div>
@@ -105,6 +136,82 @@
     </div>
 
     <script type="module">
+        // --- **NEW**: i18n Initialization Functions ---
+        
+        async function initI18n() {
+            await i18next
+                .use(i18nextHttpBackend)
+                .use(i18nextBrowserLanguageDetector)
+                .init({
+                    fallbackLng: 'zh',
+                    debug: true,
+                    ns: ['translation'],
+                    defaultNS: 'translation',
+                    backend: {
+                        loadPath: '/locales/{{lng}}.json'
+                    },
+                    detection: {
+                        order: ['localStorage', 'navigator'],
+                        caches: ['localStorage']
+                    }
+                });
+            document.title = i18next.t('configPage.pageTitle');
+            updateContent(); // Initial content update
+        }
+
+        function updateContent() {
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                // **MODIFIED**: Exclude language buttons
+                if (el.classList.contains('lang-button')) return;
+
+                const key = el.getAttribute('data-i18n');
+                const value = i18next.t(key);
+                if (el.tagName === 'OPTION' || el.tagName === 'BUTTON') {
+                    el.textContent = value;
+                } else if (el.tagName === 'INPUT' && el.type === 'file') {
+                    // Don't change input file
+                }
+                 else {
+                    el.innerHTML = value;
+                }
+            });
+        }
+
+        // --- **MODIFIED**: Replaced setupLanguageSwitcher with renderLanguageSwitcher ---
+        function renderLanguageSwitcher() {
+            const container = document.getElementById('language-buttons-container');
+            if (!container) return;
+            container.innerHTML = '';
+            const languages = ['zh', 'en', 'es'];
+            // Ensure i18next is initialized before accessing language
+            const currentLang = i18next.language ? i18next.language.split('-')[0] : 'zh';
+
+            languages.forEach(lang => {
+                const button = document.createElement('button');
+                button.textContent = lang.toUpperCase();
+                button.className = `lang-button ${lang === currentLang ? 'active' : ''}`;
+                button.dataset.lang = lang;
+                button.onclick = async (e) => {
+                    const newLang = e.target.dataset.lang;
+                    const oldLang = i18next.language ? i18next.language.split('-')[0] : 'zh';
+                    if (newLang === oldLang) return;
+
+                    console.log(`Changing language to: ${newLang}`);
+                    try {
+                        await i18next.changeLanguage(newLang);
+                        console.log("Language changed, running updates...");
+                        updateContent();
+                        renderLanguageSwitcher(); // Re-render buttons
+                        renderConfigView();     // Re-render config view
+                        console.log("UI updates after language change finished.");
+                    } catch (langErr) {
+                        console.error(`Failed to change language to ${newLang}:`, langErr);
+                    }
+                };
+                container.appendChild(button);
+            });
+        }
+        
         // --- 全局状态 ---
         let ratingConfig = {};
         let currentAuthUser = null;
@@ -118,70 +225,60 @@
         }
 
         function renderError(message, isFatal = false, showLoginLink = false) {
+            // **MODIFIED**: Use i18n key for fatal error
             const container = isFatal ? document.getElementById('main-container') : document.getElementById('error-container');
-            let html = `<div class="p-4 text-red-700 bg-red-100 border border-red-300 rounded-lg max-w-2xl mx-auto mt-4 shadow-sm"><p class="font-bold text-sm mb-1">${isFatal ? '严重错误' : '错误'}</p><p class="text-sm">${message}</p></div>`;
+            const title = isFatal ? i18next.t('errors.fatalError') : i18next.t('errors.error');
+            let html = `<div class="p-4 text-red-700 bg-red-100 border border-red-300 rounded-lg max-w-2xl mx-auto mt-4 shadow-sm"><p class="font-bold text-sm mb-1">${title}</p><p class="text-sm">${message}</p></div>`;
             if (isFatal) {
-                 html += `<div class="mt-4 text-center"><a href="index.html" class="text-indigo-600 hover:text-indigo-800 underline">返回主页${showLoginLink ? '并重新登录' : ''}</a></div>`;
+                 const linkText = i18next.t(showLoginLink ? 'common.backToHomeAndLogin' : 'common.backToHome');
+                 html += `<div class="mt-4 text-center"><a href="index.html" class="text-indigo-600 hover:text-indigo-800 underline">${linkText}</a></div>`;
                  document.getElementById('main-container').innerHTML = html; 
             } else {
                  document.getElementById('error-container').innerHTML = html; 
             }
         }
         
-        function deepCleanObject(obj) {
-             const partiallyCleaned = JSON.parse(JSON.stringify(obj));
-             function recursiveClean(current) {
-                 if (Array.isArray(current)) {
-                     const cleanedArray = current.filter(item => item !== null).map(item => recursiveClean(item));
-                     return cleanedArray.length > 0 ? cleanedArray : undefined;
-                 }
-                 if (typeof current === 'object' && current !== null) {
-                     const newObj = {};
-                     let keyCount = 0;
-                     for (const key in current) {
-                         const value = recursiveClean(current[key]);
-                         if (value !== undefined) {
-                             newObj[key] = value;
-                             keyCount++;
-                         }
-                     }
-                     return keyCount > 0 ? newObj : undefined;
-                 }
-                 return current;
-             }
-             return recursiveClean(partiallyCleaned);
+        function deepCleanObject(obj) { 
+            if (obj === null || obj === undefined) return null;
+            if (typeof obj !== 'object') return obj;
+            if (Array.isArray(obj)) {
+                return obj.map(deepCleanObject).filter(v => v !== null);
+            }
+            const newObj = {};
+            for (const key in obj) {
+                if (key.startsWith('__')) continue; 
+                const value = deepCleanObject(obj[key]);
+                if (value !== null && value !== undefined) {
+                    newObj[key] = value;
+                }
+            }
+            return newObj;
         }
 
         // --- API 调用封装 ---
         async function apiFetch(endpoint, options = {}) {
+            // **MODIFIED**: Use i18n key for error
             const headers = { 'Content-Type': 'application/json', ...options.headers };
             if (!accessToken && options.method !== 'GET') { 
-                 throw new Error("用户未认证或会话已过期，无法执行写操作。"); 
+                 throw new Error(i18next.t('errors.sessionExpiredWrite')); 
             }
             if (accessToken) {
                  headers['Authorization'] = `Bearer ${accessToken}`;
             }
-            
             const apiUrl = new URL(endpoint, window.location.origin);
-
             const response = await fetch(apiUrl, { ...options, headers });
-            
             if (!response.ok) {
-                let errorData = { error: `请求失败 (${response.status})` };
-                 let errorMessage = errorData.error;
+                let errorData = { error: i18next.t('errors.requestFailed', { status: response.status }) };
+                let errorMessage = errorData.error;
                 try {
                     errorData = await response.json();
-                     errorMessage = errorData.error || errorMessage;
+                    errorMessage = errorData.error || errorMessage;
                 } catch(e) { /* Ignore */ }
-                 
-                 // Throw specific error for 401/403
                  if (response.status === 401 || response.status === 403) {
-                     throw new Error(`会话已过期或无效 (${response.status})`); // More specific
+                     throw new Error(i18next.t('errors.sessionExpiredRead', { status: response.status }));
                  }
-                 
                 throw new Error(errorMessage);
             }
-
             if (response.headers.get('Content-Type')?.includes('application/json')) {
                 return response.json();
             }
@@ -194,7 +291,7 @@
         // --- 配置方案加载逻辑 ---
         window.loadProfileList = async function() {
             const selector = document.getElementById('profile-selector');
-            selector.innerHTML = '<option value="latest">--- 实时配置 (latest) ---</option>';
+            selector.innerHTML = `<option value="latest">${i18next.t('configPage.liveProfile')}</option>`;
             try {
                 const profileIds = await apiFetch('/api/config-profiles'); 
                 profileIds.forEach(id => {
@@ -203,7 +300,7 @@
                     }
                 });
             } catch (e) {
-                renderError("加载配置方案列表失败: " + e.message); 
+                renderError(i18next.t('errors.loadProfileListFailed', { msg: e.message })); 
             }
         }
 
@@ -221,102 +318,141 @@
                 document.getElementById('profile-selector').value = profileId;
                 renderConfigView();
             } catch(e) {
-                renderError(`加载配置方案 "${profileId}" 失败: ${e.message}`);
+                renderError(i18next.t('errors.loadProfileFailed', { id: profileId, msg: e.message }));
                 ratingConfig = { appTitle: "加载失败", description: "", ratingCriteria: [] };
                 renderConfigView();
             }
         }
 
         // --- UI 渲染 ---
+        // **MODIFIED**: renderConfigView and sub-functions now use i18next.t()
+        // This is crucial for Step 4 (dynamic keys)
+        // --- **BUGFIX**: Added element definitions and button logic ---
         function renderConfigView() {
             const isAdmin = hasAdminAccess();
+            
+            // --- FIX: Define element getters ---
+            const container = document.getElementById('config-form-container');
             const titleInput = document.getElementById('app-title-input');
             const descInput = document.getElementById('app-description-input');
-            const container = document.getElementById('config-form-container');
-            const publishButton = document.getElementById('publish-button');
             const saveProfileButton = document.getElementById('save-profile-button');
+            const publishButton = document.getElementById('publish-button');
             const deleteProfileButton = document.getElementById('delete-profile-button');
-
-            if (!titleInput || !descInput || !container || !publishButton || !saveProfileButton || !deleteProfileButton) {
-                console.error("One or more essential UI elements are missing.");
-                return;
-            }
-
-            document.querySelectorAll('.admin-feature').forEach(el => el.disabled = !isAdmin);
-
-            publishButton.className = isAdmin 
-                ? 'w-full py-3 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition' 
-                : 'w-full py-3 font-semibold rounded-lg cursor-not-allowed bg-gray-400 text-gray-700';
-            publishButton.disabled = !isAdmin; 
-
-            if (isAdmin && currentProfileId !== 'latest') {
-                saveProfileButton.disabled = false;
-                saveProfileButton.className = 'w-full py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition';
-                deleteProfileButton.disabled = false;
-                deleteProfileButton.className = 'w-full py-3 bg-red-500 text-white font-semibold rounded-lg hover:bg-red-600 transition text-sm';
-            } else {
-                saveProfileButton.disabled = true;
-                saveProfileButton.className = 'w-full py-3 font-semibold rounded-lg cursor-not-allowed bg-gray-400 text-gray-700';
-                deleteProfileButton.disabled = true;
-                deleteProfileButton.className = 'w-full py-3 bg-red-500 text-white font-semibold rounded-lg text-sm cursor-not-allowed opacity-50';
-            }
-
-            titleInput.value = ratingConfig?.appTitle || ''; 
-            descInput.value = ratingConfig?.description || ''; 
+            // --- END FIX ---
             
-            container.innerHTML = (ratingConfig?.ratingCriteria || []).map((category, catIndex) => `
+            // --- FIX: Add button state logic ---
+            if (isAdmin) {
+                // Reset styles
+                [saveProfileButton, publishButton, deleteProfileButton].forEach(btn => {
+                    btn.disabled = false;
+                    btn.classList.remove('bg-gray-400', 'text-gray-700', 'cursor-not-allowed', 'bg-blue-600', 'hover:bg-blue-700', 'bg-red-600', 'hover:bg-red-700', 'bg-yellow-500', 'hover:bg-yellow-600');
+                });
+                
+                // Apply specific styles
+                saveProfileButton.disabled = currentProfileId === 'latest';
+                publishButton.classList.add('bg-yellow-500', 'text-white', 'hover:bg-yellow-600'); // Publish is always active
+                deleteProfileButton.disabled = currentProfileId === 'latest';
+
+                if (currentProfileId === 'latest') {
+                    saveProfileButton.classList.add('bg-gray-400', 'text-gray-700', 'cursor-not-allowed');
+                    deleteProfileButton.classList.add('bg-gray-400', 'text-gray-700', 'cursor-not-allowed');
+                } else {
+                    saveProfileButton.classList.add('bg-blue-600', 'text-white', 'hover:bg-blue-700');
+                    deleteProfileButton.classList.add('bg-red-600', 'text-white', 'hover:bg-red-700');
+                }
+            } else {
+                document.querySelectorAll('.admin-feature').forEach(el => el.disabled = true);
+            }
+            // --- END FIX ---
+            
+            // Render basic info (this is for Step 4)
+            // ** APPLYING FIX AGAIN **: Translate the keys for display in input fields.
+            titleInput.value = i18next.t(ratingConfig?.appTitle || '') || ratingConfig?.appTitle || ''; // Translate, fallback to key if untranslated
+            descInput.value = i18next.t(ratingConfig?.description || '') || ratingConfig?.description || ''; // Translate, fallback to key if untranslated
+            
+            container.innerHTML = (ratingConfig?.ratingCriteria || []).map((category, catIndex) => {
+                // **MODIFIED for Step 4**: Use categoryKey
+                const categoryName = i18next.t(category.categoryKey || category.category); // Fallback to old 'category'
+                const categoryDetail = i18next.t(category.detailKey || category.detail); // Fallback to old 'detail'
+                
+                // --- **APPLYING FIX AGAIN** ---
+                // Translate the keys for display in the input/textarea value
+                const categoryKeyValueTranslated = i18next.t(category.categoryKey || category.category || '') || category.categoryKey || category.category || '';
+                const detailKeyValueTranslated = i18next.t(category.detailKey || category.detail || '') || category.detailKey || category.detail || '';
+                // Store the original key in a data attribute for saving
+                const categoryKeyValueOriginal = category.categoryKey || category.category || '';
+                const detailKeyValueOriginal = category.detailKey || category.detail || '';
+                // --- **END FIX** ---
+
+                return `
                 <div class="bg-white p-6 rounded-xl shadow-lg mb-6 border-l-4 border-indigo-500">
                     <div class="flex justify-between items-start mb-4">
-                        <h3 class="text-xl font-bold text-indigo-700">评分类别 #${catIndex + 1}</h3>
-                        <button type="button" onclick="removeCategory(${catIndex})" class="text-red-500 hover:text-red-700 transition admin-feature">删除类别</button>
+                        <h3 class="text-xl font-bold text-indigo-700">${i18next.t('configPage.category')} #${catIndex + 1}</h3>
+                        <button type="button" onclick="removeCategory(${catIndex})" class="text-red-500 hover:text-red-700 transition admin-feature">${i18next.t('common.deleteCategory')}</button>
                     </div>
-                    <label class="block mb-2">类别名称:</label>
-                    <input type="text" data-type="category" data-index="${catIndex}" data-field="category" value="${category.category || ''}" class="config-input w-full p-2 border rounded-md mb-3 admin-feature" oninput="handleInputChange(this)">
-                    <label class="block mb-4">描述:</label>
-                    <textarea data-type="category" data-index="${catIndex}" data-field="detail" class="config-input w-full p-2 border rounded-md mb-3 admin-feature" oninput="handleInputChange(this)">${category.detail || ''}</textarea>
-                    <h4 class="text-lg font-semibold mt-6 mb-3 border-t pt-4">评分项:</h4>
+                    <label class="block mb-2">${i18next.t('configPage.categoryName')}:</label>
+                    <input type="text" data-type="category" data-index="${catIndex}" data-field="categoryKey" value="${categoryKeyValueTranslated}" data-original-key="${categoryKeyValueOriginal}" class="config-input w-full p-2 border rounded-md mb-3 admin-feature" oninput="handleInputChange(this)">
+                    <label class="block mb-4">${i18next.t('common.description')}:</label>
+                    <textarea data-type="category" data-index="${catIndex}" data-field="detailKey" data-original-key="${detailKeyValueOriginal}" class="config-input w-full p-2 border rounded-md mb-3 admin-feature" oninput="handleInputChange(this)">${detailKeyValueTranslated}</textarea>
+                    <h4 class="text-lg font-semibold mt-6 mb-3 border-t pt-4">${i18next.t('configPage.criteria')}:</h4>
                     <div class="space-y-4">
                         ${(category.criteriaList || []).map((criterion, critIndex) => renderCriterion(catIndex, critIndex, criterion)).join('')}
                     </div>
-                    <button type="button" onclick="addCriterion(${catIndex})" class="mt-4 w-full py-2 border border-dashed border-indigo-300 text-indigo-500 hover:bg-indigo-50 rounded-md transition admin-feature">+ 添加评分项</button>
+                    <button type="button" onclick="addCriterion(${catIndex})" class="mt-4 w-full py-2 border border-dashed border-indigo-300 text-indigo-500 hover:bg-indigo-50 rounded-md transition admin-feature">+ ${i18next.t('configPage.addCriterion')}</button>
                 </div>
-            `).join('');
-             container.innerHTML += `<button type="button" onclick="addCategory()" class="mt-6 w-full py-3 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 transition duration-150 shadow-md admin-feature">+ 添加新类别</button>`;
+            `}).join('');
+             container.innerHTML += `<button type="button" onclick="addCategory()" class="mt-6 w-full py-3 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 transition duration-150 shadow-md admin-feature">+ ${i18next.t('configPage.addCategory')}</button>`;
              if (!isAdmin) document.querySelectorAll('.admin-feature').forEach(el => el.disabled = true);
         }
 
         function renderCriterion(catIndex, critIndex, criterion) {
+             // **MODIFIED for Step 4**: Use nameKey
+             const criterionName = i18next.t(criterion.nameKey || criterion.name);
+             
+             // --- **APPLYING FIX AGAIN** ---
+             const criterionNameValueTranslated = i18next.t(criterion.nameKey || criterion.name || '') || criterion.nameKey || criterion.name || '';
+             const criterionNameValueOriginal = criterion.nameKey || criterion.name || '';
+             // --- **END FIX** ---
+
              return `
                  <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
                      <div class="flex justify-between items-center mb-3">
-                         <h5 class="font-medium text-gray-800">评分项 #${critIndex + 1}</h5>
-                         <button type="button" onclick="removeCriterion(${catIndex}, ${critIndex})" class="text-red-400 hover:text-red-600 transition text-sm admin-feature">删除</button>
+                         <h5 class="font-medium text-gray-800">${i18next.t('configPage.criterion')} #${critIndex + 1}</h5>
+                         <button type="button" onclick="removeCriterion(${catIndex}, ${critIndex})" class="text-red-400 hover:text-red-600 transition text-sm admin-feature">${i18next.t('common.delete')}</button>
                      </div>
-                     <label class="block text-sm">名称:</label>
-                     <input type="text" data-type="criterion" data-cat-index="${catIndex}" data-index="${critIndex}" data-field="name" value="${criterion.name || ''}" class="config-input w-full p-1 border rounded-md mb-2 text-sm admin-feature" oninput="handleInputChange(this)">
-                     <label class="block text-sm">权重 (分数):</label>
+                     <label class="block text-sm">${i18next.t('common.name')}:</label>
+                     <input type="text" data-type="criterion" data-cat-index="${catIndex}" data-index="${critIndex}" data-field="nameKey" value="${criterionNameValueTranslated}" data-original-key="${criterionNameValueOriginal}" class="config-input w-full p-1 border rounded-md mb-2 text-sm admin-feature" oninput="handleInputChange(this)">
+                     <label class="block text-sm">${i18next.t('configPage.weight')}:</label>
                      <input type="number" data-type="criterion" data-cat-index="${catIndex}" data-index="${critIndex}" data-field="weight" value="${criterion.weight || 0}" class="config-input w-full p-1 border rounded-md mb-3 text-sm admin-feature" oninput="handleInputChange(this)">
-                     <h6 class="text-sm font-semibold mb-2 mt-3">选项:</h6>
+                     <h6 class="text-sm font-semibold mb-2 mt-3">${i18next.t('configPage.options')}:</h6>
                      <div class="space-y-2">
                          ${(criterion.options || []).map((option, optIndex) => renderOption(catIndex, critIndex, optIndex, option)).join('')}
                      </div>
-                     <button type="button" onclick="addOption(${catIndex}, ${critIndex})" class="mt-3 w-full py-1 border border-dashed text-gray-500 hover:bg-gray-100 rounded-md transition text-sm admin-feature">+ 添加选项</button>
+                     <button type="button" onclick="addOption(${catIndex}, ${critIndex})" class="mt-3 w-full py-1 border border-dashed text-gray-500 hover:bg-gray-100 rounded-md transition text-sm admin-feature">+ ${i18next.t('configPage.addOption')}</button>
                  </div>
              `;
         }
 
         function renderOption(catIndex, critIndex, optIndex, option) {
+             // **MODIFIED for Step 4**: Use descriptionKey
+             const optionDesc = i18next.t(option.descriptionKey || option.description);
+
+             // --- **APPLYING FIX AGAIN** ---
+             const optionDescValueTranslated = i18next.t(option.descriptionKey || option.description || '') || option.descriptionKey || option.description || '';
+             const optionDescValueOriginal = option.descriptionKey || option.description || '';
+             // --- **END FIX** ---
+
              return `
                  <div class="flex space-x-2 items-center bg-white p-2 rounded-md border text-sm">
                      <div class="flex-1">
-                         <label class="block text-xs">描述:</label>
-                         <input type="text" data-type="option" data-cat-index="${catIndex}" data-crit-index="${critIndex}" data-index="${optIndex}" data-field="description" value="${option.description || ''}" class="config-input w-full p-1 border rounded-md text-xs admin-feature" oninput="handleInputChange(this)">
+                         <label class="block text-xs">${i18next.t('common.description')}:</label>
+                         <input type="text" data-type="option" data-cat-index="${catIndex}" data-crit-index="${critIndex}" data-index="${optIndex}" data-field="descriptionKey" value="${optionDescValueTranslated}" data-original-key="${optionDescValueOriginal}" class="config-input w-full p-1 border rounded-md text-xs admin-feature" oninput="handleInputChange(this)">
                      </div>
                      <div class="w-1/4">
-                         <label class="block text-xs">得分率 (0-1):</label>
+                         <label class="block text-xs">${i18next.t('configPage.scorePct')}:</label>
                          <input type="number" step="0.01" data-type="option" data-cat-index="${catIndex}" data-crit-index="${critIndex}" data-index="${optIndex}" data-field="scorePct" value="${option.scorePct || 0}" class="config-input w-full p-1 border rounded-md text-xs admin-feature" oninput="handleInputChange(this)">
                      </div>
-                     <button type="button" onclick="removeOption(${catIndex}, ${critIndex}, ${optIndex})" class="text-red-400 hover:text-red-600 transition text-sm flex-shrink-0 admin-feature">
+                     <button type="button" onclick="removeOption(${catIndex}, ${critIndex}, ${optIndex})" class="text-red-400 hover:text-red-600 transition text-sm flex-shrink-0 admin-feature" title="${i18next.t('common.deleteOption')}">
                          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 10-2 0v6a1 1 0 102 0V8z" clip-rule="evenodd" /></svg>
                      </button>
                  </div>
@@ -324,77 +460,143 @@
         }
 
         // --- 数据操作 (增删改) ---
-        window.handleInputChange = function(element) {
-            let value = (element.type === 'number') ? (parseFloat(element.value) || 0) : element.value;
-            const { type, field, index, catIndex, critIndex } = element.dataset;
+        // **MODIFIED**: handleInputChange now saves the ORIGINAL KEY
+        window.handleInputChange = function(element) { 
+            const { type, index, catIndex, critIndex, field } = element.dataset;
+            let value;
+            if (element.type === 'number') {
+                value = parseFloat(element.value);
+                if (isNaN(value)) value = 0;
+            } else {
+                 // Get the ORIGINAL key from the data-original-key attribute if it exists
+                 // Otherwise, assume the input value *is* the key (e.g., for weight, scorePct)
+                 value = element.dataset.originalKey !== undefined ? element.dataset.originalKey : element.value;
+                 // Update the data-original-key in case the user types a new key
+                 if (element.dataset.originalKey !== undefined) {
+                     element.dataset.originalKey = element.value; // Store the *new* value as the potential key
+                 }
+            }
+
             try {
-                if (!type && ratingConfig) { ratingConfig[field] = value; }
-                else if (type === 'category' && ratingConfig?.ratingCriteria?.[index]) { ratingConfig.ratingCriteria[index][field] = value; }
-                else if (type === 'criterion' && ratingConfig?.ratingCriteria?.[catIndex]?.criteriaList?.[index]) { ratingConfig.ratingCriteria[catIndex].criteriaList[index][field] = value; }
-                else if (type === 'option' && ratingConfig?.ratingCriteria?.[catIndex]?.criteriaList?.[critIndex]?.options?.[index]) { ratingConfig.ratingCriteria[catIndex].criteriaList[critIndex].options[index][field] = value; }
-            } catch (e) { console.error("Error handling input change:", e, element.dataset); }
+                if (type === 'category') {
+                    // Special handling for top-level appTitle and description
+                    if (element.id === 'app-title-input') {
+                        ratingConfig.appTitle = value;
+                        element.dataset.originalKey = value; // Update original key
+                        return;
+                    }
+                    if (element.id === 'app-description-input') {
+                        ratingConfig.description = value;
+                        element.dataset.originalKey = value; // Update original key
+                        return;
+                    }
+                    // Handle category fields
+                    ratingConfig.ratingCriteria[index][field] = value;
+
+                } else if (type === 'criterion') {
+                    ratingConfig.ratingCriteria[catIndex].criteriaList[index][field] = value;
+                } else if (type === 'option') {
+                    ratingConfig.ratingCriteria[catIndex].criteriaList[critIndex].options[index][field] = value;
+                }
+            } catch (e) {
+                console.error("Error handling input change:", e, {type, index, catIndex, critIndex, field, value});
+            }
+             console.log("Updated ratingConfig:", ratingConfig); // Add log to see changes
         };
+
+        // **MODIFIED**: Add functions now create objects with *Key fields
         window.addCategory = function() {
             if (!ratingConfig.ratingCriteria) ratingConfig.ratingCriteria = [];
-            ratingConfig.ratingCriteria.push({ category: "新类别", detail: "", criteriaList: [{ name: "新评分项", weight: 10, options: [{ description: "一般", scorePct: 0.5 }] }] });
+            ratingConfig.ratingCriteria.push({ 
+                categoryKey: "criteria.newCategory.title", 
+                detailKey: "criteria.newCategory.detail", 
+                criteriaList: [{ 
+                    nameKey: "criteria.newCategory.newItem", 
+                    weight: 10, 
+                    options: [{ descriptionKey: "options.common.average", scorePct: 0.5 }] 
+                }] 
+            });
             renderConfigView();
         };
         window.removeCategory = (i) => { if (ratingConfig?.ratingCriteria) { ratingConfig.ratingCriteria.splice(i, 1); renderConfigView(); } };
         window.addCriterion = (i) => {
             if (!ratingConfig?.ratingCriteria?.[i]) return;
             if (!ratingConfig.ratingCriteria[i].criteriaList) ratingConfig.ratingCriteria[i].criteriaList = [];
-            ratingConfig.ratingCriteria[i].criteriaList.push({ name: "新评分项", weight: 10, options: [{ description: "一般", scorePct: 0.5 }] });
+            ratingConfig.ratingCriteria[i].criteriaList.push({ 
+                nameKey: "criteria.newCriterion.name", 
+                weight: 10, 
+                options: [{ descriptionKey: "options.common.average", scorePct: 0.5 }] 
+            });
             renderConfigView();
         };
         window.removeCriterion = (i, j) => { if (ratingConfig?.ratingCriteria?.[i]?.criteriaList) { ratingConfig.ratingCriteria[i].criteriaList.splice(j, 1); renderConfigView(); } };
         window.addOption = (i, j) => {
             if (!ratingConfig?.ratingCriteria?.[i]?.criteriaList?.[j]) return;
             if (!ratingConfig.ratingCriteria[i].criteriaList[j].options) ratingConfig.ratingCriteria[i].criteriaList[j].options = [];
-            ratingConfig.ratingCriteria[i].criteriaList[j].options.push({ description: "新选项", scorePct: 0.5 });
+            ratingConfig.ratingCriteria[i].criteriaList[j].options.push({ 
+                descriptionKey: "options.common.new", 
+                scorePct: 0.5 
+            });
             renderConfigView();
         };
         window.removeOption = (i, j, k) => { if (ratingConfig?.ratingCriteria?.[i]?.criteriaList?.[j]?.options) { ratingConfig.ratingCriteria[i].criteriaList[j].options.splice(k, 1); renderConfigView(); }};
 
         // --- 保存与发布逻辑 ---
+        // **MODIFIED**: saveConfig now needs to get the ORIGINAL KEY from the inputs
         async function saveConfig(profileId, button) {
             if (!hasAdminAccess()) return;
             const originalText = button.textContent;
-            button.textContent = '正在操作...'; button.disabled = true;
+            button.textContent = i18next.t('common.processing'); 
+            button.disabled = true;
             
-            ratingConfig.appTitle = document.getElementById('app-title-input').value;
-            ratingConfig.description = document.getElementById('app-description-input').value;
+            // --- **START OF MODIFICATION** ---
+            // Before cleaning, update the ratingConfig object with the ORIGINAL keys
+            // stored in the data-original-key attributes
+            document.querySelectorAll('.config-input[data-original-key]').forEach(element => {
+                const { type, index, catIndex, critIndex, field } = element.dataset;
+                const originalKey = element.dataset.originalKey; // Get the stored key
+                try {
+                    if (type === 'category') {
+                         if (element.id === 'app-title-input') ratingConfig.appTitle = originalKey;
+                         else if (element.id === 'app-description-input') ratingConfig.description = originalKey;
+                         else ratingConfig.ratingCriteria[index][field] = originalKey;
+                    } else if (type === 'criterion') {
+                        ratingConfig.ratingCriteria[catIndex].criteriaList[index][field] = originalKey;
+                    } else if (type === 'option') {
+                        ratingConfig.ratingCriteria[catIndex].criteriaList[critIndex].options[index][field] = originalKey;
+                    }
+                } catch (e) {
+                    console.error("Error collecting original keys before save:", e, {element, originalKey});
+                }
+            });
+            // --- **END OF MODIFICATION** ---
+
+            // Now clean the object which should contain the keys
             const cleanConfig = deepCleanObject(ratingConfig);
+             console.log("Saving cleanConfig:", cleanConfig); // Log the object being saved
 
             try {
-                if (!cleanConfig) throw new Error("净化后的配置为空，无法保存。");
+                if (!cleanConfig) throw new Error(i18next.t('errors.emptyConfig'));
                 await apiFetch(`/api/config/${profileId}`, { method: 'POST', body: JSON.stringify(cleanConfig) });
-                alert(`配置方案 "${profileId}" 操作成功！`);
+                alert(i18next.t('configPage.saveSuccess', { id: profileId }));
                 return true;
             } catch (error) {
-                 // **FIX**: Use renderError for better feedback
-                 renderError(`操作失败！错误: ${error.message}`); 
+                 renderError(i18next.t('errors.operationFailed', { msg: error.message })); 
                 return false;
             } finally {
                 button.textContent = originalText; 
-                 // Re-enable logic needs careful check
-                 button.disabled = !hasAdminAccess() || (button.id === 'save-profile-button' && currentProfileId === 'latest');
-                 // Ensure delete button state is also correct
-                 const deleteBtn = document.getElementById('delete-profile-button');
-                 if(deleteBtn) {
-                     deleteBtn.disabled = !hasAdminAccess() || currentProfileId === 'latest';
-                     if(deleteBtn.disabled) deleteBtn.classList.add('cursor-not-allowed', 'opacity-50');
-                     else deleteBtn.classList.remove('cursor-not-allowed', 'opacity-50');
-                 }
+                 // Re-enable buttons based on logic
+                 renderConfigView(); // Re-render to show updated keys (translated)
             }
         }
         window.publishConfig = () => saveConfig('latest', document.getElementById('publish-button'));
         window.saveProfileChanges = () => saveConfig(currentProfileId, document.getElementById('save-profile-button'));
         window.saveAsNewProfile = async function(event) {
-            const profileName = prompt("请输入新配置方案的名称:");
+            const profileName = prompt(i18next.t('configPage.promptNewName'));
             if (!profileName || profileName.trim() === '') return;
             const trimmedName = profileName.trim();
             if (trimmedName === 'latest') {
-                 alert("不能将方案命名为 'latest'。");
+                 alert(i18next.t('errors.cannotNameLatest'));
                  return;
             }
             const success = await saveConfig(trimmedName, event.target);
@@ -404,28 +606,47 @@
             }
         };
         window.deleteSelectedProfile = async function() {
-            if (!hasAdminAccess() || currentProfileId === 'latest' || !confirm(`确定要永久删除方案 "${currentProfileId}" 吗？`)) return;
+            if (!hasAdminAccess() || currentProfileId === 'latest' || !confirm(i18next.t('configPage.confirmDeleteProfile', { id: currentProfileId }))) return;
              const button = document.getElementById('delete-profile-button');
-             button.textContent = '删除中...'; button.disabled = true;
+             button.textContent = i18next.t('common.deleting'); 
+             button.disabled = true;
             try {
                 await apiFetch(`/api/config/${currentProfileId}`, { method: 'DELETE' });
-                alert(`方案 "${currentProfileId}" 已删除。`);
+                alert(i18next.t('configPage.deleteSuccess', { id: currentProfileId }));
                 await loadProfileList();
                 await loadConfigById('latest'); 
             } catch (error) {
-                 renderError(`删除方案失败！错误: ${error.message}`); 
-                 button.textContent = '删除'; 
+                 renderError(i18next.t('errors.deleteFailed', { msg: error.message })); 
+                 button.textContent = i18next.t('common.delete'); 
                  button.disabled = !hasAdminAccess() || currentProfileId === 'latest';
             }
         };
 
         // --- 导入 / 导出功能 ---
+        // **MODIFIED**: downloadConfigJSON needs to collect original keys first
         window.downloadConfigJSON = function() {
-            ratingConfig.appTitle = document.getElementById('app-title-input').value;
-            ratingConfig.description = document.getElementById('app-description-input').value;
+            // Collect original keys before downloading
+             document.querySelectorAll('.config-input[data-original-key]').forEach(element => {
+                const { type, index, catIndex, critIndex, field } = element.dataset;
+                const originalKey = element.dataset.originalKey; // Get the stored key
+                try {
+                     if (type === 'category') {
+                         if (element.id === 'app-title-input') ratingConfig.appTitle = originalKey;
+                         else if (element.id === 'app-description-input') ratingConfig.description = originalKey;
+                         else ratingConfig.ratingCriteria[index][field] = originalKey;
+                    } else if (type === 'criterion') {
+                        ratingConfig.ratingCriteria[catIndex].criteriaList[index][field] = originalKey;
+                    } else if (type === 'option') {
+                        ratingConfig.ratingCriteria[catIndex].criteriaList[critIndex].options[index][field] = originalKey;
+                    }
+                } catch (e) {
+                     console.error("Error collecting original keys before download:", e, {element, originalKey});
+                }
+             });
+
             const cleanConfig = deepCleanObject(ratingConfig);
             if (!cleanConfig) {
-                 alert("当前配置为空或无效，无法下载。");
+                 alert(i18next.t('errors.emptyConfigDownload'));
                  return;
             }
             const jsonString = JSON.stringify(cleanConfig, null, 2);
@@ -446,66 +667,67 @@
                 try {
                     uploadedConfig = JSON.parse(e.target.result);
                     if (!uploadedConfig || typeof uploadedConfig !== 'object' || !uploadedConfig.ratingCriteria) {
-                         throw new Error("JSON 文件格式无效或缺少 'ratingCriteria'。");
+                         throw new Error(i18next.t('errors.invalidJSONFormat'));
                     }
                 } catch (err) { 
                     fileInput.value = null; 
-                    return alert(`文件解析失败！\n错误: ${err.message}`); 
+                    return alert(i18next.t('errors.fileParseFailed', { msg: err.message })); 
                 }
                 
                 ratingConfig = uploadedConfig; 
                 renderConfigView(); 
-                alert('JSON 文件已加载到编辑器中，请检查内容并点击 "另存为新方案" 来保存它。');
+                alert(i18next.t('configPage.jsonLoaded'));
                 fileInput.value = null; 
             };
             reader.readAsText(file);
         };
 
         // --- 初始化流程 ---
+        // **MODIFIED**: `window.onload` now uses i18n
         window.onload = async function() {
+             // **NEW**: 1. Initialize i18n
+             await initI18n();
+
              accessToken = sessionStorage.getItem('accessToken');
              if (!accessToken) {
-                 // **FIX**: Added showLoginLink = true
-                 renderError("您需要登录才能访问此页面。请返回主页登录。", true, true); 
-                 document.getElementById('role-display').textContent = '未登录';
+                 renderError(i18next.t('errors.loginRequiredForPage'), true, true); 
+                 document.getElementById('role-display').textContent = i18next.t('common.notLoggedIn');
                  return; 
              }
 
              try {
-                  console.log("Token found in sessionStorage:", accessToken ? accessToken.substring(0, 10) + '...' : 'null'); // Log token existence
+                  console.log("Token found...");
                   const response = await fetch('/api/me', {
                      headers: { 'Authorization': `Bearer ${accessToken}` }
                  });
-                 console.log("/api/me response status:", response.status); // Log response status
 
                  if (!response.ok) {
-                      let errorBody = await response.text(); // Get potential error body
-                      console.error("/api/me failed:", response.status, errorBody);
-                      // **FIX**: Throw specific error based on status
-                      throw new Error(`会话已过期或无效 (${response.status})，请重新登录。`); 
+                      throw new Error(i18next.t('errors.sessionExpiredRead', { status: response.status })); 
                  }
                  currentAuthUser = await response.json();
-                 console.log("User info received from /api/me:", currentAuthUser); // Log received user info
+                 console.log("User info received:", currentAuthUser);
 
                  if (!hasAdminAccess()) {
-                     renderError("权限不足。需要 ADMIN 或 SUPER_ADMIN 权限才能访问此页面。", true);
-                     document.getElementById('role-display').textContent = `权限不足 (当前: ${ (currentAuthUser.db_role || 'USER').toUpperCase() })`;
+                     renderError(i18next.t('errors.permissionDeniedAdmin'), true);
+                     document.getElementById('role-display').textContent = i18next.t('errors.permissionInsufficient', { role: (currentAuthUser.db_role || 'USER').toUpperCase() });
                      return; 
                  }
                  
-                 document.getElementById('role-display').textContent = `当前用户角色: ${currentAuthUser.db_role.toUpperCase()}`;
+                 document.getElementById('role-display').textContent = i18next.t('configPage.currentRole', { role: currentAuthUser.db_role.toUpperCase() });
                  document.getElementById('admin-content').classList.remove('hidden'); 
                  
                  await loadProfileList();
                  await loadConfigById('latest');
 
+                 // **NEW**: 2. Setup switcher at the end
+                 renderLanguageSwitcher(); // **MODIFIED**: Call new function
+
              } catch(e) {
-                 console.error("Initialization failed:", e); // Log the actual error
-                 // **FIX**: Catch the specific session error and show login link
+                 console.error("Initialization failed:", e);
                  if (e.message.includes('会话已过期')) {
                       renderError(e.message, true, true); 
                  } else {
-                      renderError(`初始化失败: ${e.message}`, true); 
+                      renderError(i18next.t('errors.initFailed', { msg: e.message }), true); 
                  }
              }
         };

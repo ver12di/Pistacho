@@ -2,6 +2,7 @@
 // 文件: /functions/api/authing/callback.js
 // 作用: 接收 authorization_code, 换取 token,
 //       获取 Authing 用户信息, 并合并 D1 数据库中的角色信息
+// **MODIFIED**: Correctly uses the redirect_uri passed from frontend for token exchange
 // ---------------------------------------------------
 
 /**
@@ -15,6 +16,7 @@
  * @returns {Promise<string>} - 用户的角色
  */
 async function getRoleFromDatabase(db, userInfo) {
+    // ... (函数内容保持不变) ...
     const userId = userInfo.sub;
     const email = userInfo.email;
     const nickname = userInfo.name || userInfo.nickname || userInfo.preferred_username || userInfo.email;
@@ -96,31 +98,42 @@ export async function onRequestPost(context) {
     const { request, env } = context;
 
     try {
-        const { code, redirect_uri } = await request.json(); // 接收前端传来的 redirect_uri
+        const { code, redirect_uri } = await request.json(); // **接收前端传来的 redirect_uri**
         if (!code) {
             return new Response(JSON.stringify({ error: 'Authorization code is missing.' }), { status: 400 });
+        }
+        // **新增**: 校验前端传来的 redirect_uri 是否有效
+        if (!redirect_uri || !redirect_uri.startsWith(new URL(request.url).origin)) {
+             console.warn(`[Auth Callback] Invalid or missing redirect_uri from frontend: ${redirect_uri}`);
+             return new Response(JSON.stringify({ error: 'Invalid redirect URI provided by client.' }), { status: 400 });
         }
 
         // --- Step 1: Exchange code for access_token ---
         const tokenUrl = new URL('/oidc/token', env.AUTHING_ISSUER);
 
-        // **FIX**: 使用请求的 origin 作为 redirectUri
-        const requestUrl = new URL(request.url);
-        const finalRedirectUri = requestUrl.origin; 
-        
-        // (调试日志) 检查前端传来的 URI 和我们使用的是否一致
-        console.log(`[Auth Callback] Using redirect_uri: ${finalRedirectUri}. (Frontend sent: ${redirect_uri})`);
+        // **FIX**: 使用前端明确传递过来的 redirect_uri
+        const finalRedirectUri = redirect_uri;
+        console.log(`[Auth Callback] Using redirect_uri from frontend for token exchange: ${finalRedirectUri}`);
+
+
+        // (调试日志) 检查环境变量是否存在
+        if (!env.AUTHING_APP_ID || !env.AUTHING_APP_SECRET) {
+            console.error('[Auth Callback] 严重错误: 环境变量 AUTHING_APP_ID 或 AUTHING_APP_SECRET 未设置!');
+            return new Response(JSON.stringify({ error: 'Server configuration error: Missing authentication credentials.' }), { status: 500 });
+        }
+        console.log(`[Auth Callback] Found App ID: ${env.AUTHING_APP_ID.substring(0, 4)}...`);
 
 
         const tokenResponse = await fetch(tokenUrl.toString(), {
             method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'Authorization': `Basic ${btoa(`${env.AUTHING_APP_ID}:${env.AUTHING_APP_SECRET}`)}`
+            },
             body: new URLSearchParams({
-                client_id: env.AUTHING_APP_ID,
-                client_secret: env.AUTHING_APP_SECRET,
                 grant_type: 'authorization_code',
                 code: code,
-                redirect_uri: finalRedirectUri // **FIX**
+                redirect_uri: finalRedirectUri // **使用正确的 redirect_uri**
             })
         });
 
@@ -169,4 +182,3 @@ export async function onRequestPost(context) {
         });
     }
 }
-
