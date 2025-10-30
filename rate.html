@@ -138,7 +138,7 @@
                     <label for="image-upload-input" id="image-upload-label" class="w-full md:w-auto text-center py-2 px-6 bg-blue-600 text-white font-bold rounded-lg shadow-md hover:bg-blue-700 cursor-pointer inline-block" data-i18n="ratePage.selectImages">
                         选择图片
                     </label>
-                    <input type="file" id="image-upload-input" class="hidden" accept="image/png, image/jpeg, image/webp" multiple onchange="handleFileSelect(event)">
+                    <input type="file" id="image-upload-input" class="sr-only" accept="image/png, image/jpeg, image/webp" multiple onchange="handleFileSelect(event)">
                     <p class="text-sm text-gray-500 mt-2 inline-block md:ml-4" data-i18n="ratePage.imageSupport">支持 JPG, PNG, WEBP。单张最大 5MB。</p>
                     <p id="image-upload-status" class="text-sm font-medium text-indigo-600 mt-2"></p>
                 </div>
