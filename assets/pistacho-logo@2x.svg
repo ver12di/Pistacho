@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 512 512">
+  <defs>
+    <radialGradient id="goldGradient2" cx="50%" cy="45%" r="60%">
+      <stop offset="0%" stop-color="#fbe7b9" />
+      <stop offset="55%" stop-color="#e9c46a" />
+      <stop offset="100%" stop-color="#c6862b" />
+    </radialGradient>
+    <linearGradient id="ringHighlight2" x1="0%" x2="100%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#fceac4" stop-opacity="0.96" />
+      <stop offset="45%" stop-color="#f0c372" stop-opacity="0.9" />
+      <stop offset="100%" stop-color="#b67621" stop-opacity="0.94" />
+    </linearGradient>
+    <path id="outerCircle2" d="M256,40a216,216 0 1,1 0,432a216,216 0 1,1 0,-432" fill="none" />
+  </defs>
+  <circle cx="256" cy="256" r="230" fill="url(#ringHighlight2)" />
+  <circle cx="256" cy="256" r="205" fill="none" stroke="#714812" stroke-width="22" />
+  <circle cx="256" cy="256" r="172" fill="url(#goldGradient2)" />
+  <circle cx="256" cy="256" r="138" fill="#fdebc2" stroke="#a56d1f" stroke-width="15" />
+  <text fill="#6b4010" font-family="'Cinzel', 'Times New Roman', serif" font-size="54" font-weight="700" letter-spacing="6">
+    <textPath href="#outerCircle2" startOffset="11%">PISTACHO CIGAR RATING SYSTEM</textPath>
+  </text>
+  <text x="256" y="274" text-anchor="middle" font-family="'Cinzel', 'Times New Roman', serif" font-size="188" font-weight="700" fill="#6b4010">P</text>
+  <rect x="172" y="328" width="168" height="70" rx="34" fill="#d9a043" opacity="0.2" />
+  <text x="256" y="372" text-anchor="middle" font-family="'Cinzel', 'Times New Roman', serif" font-size="48" font-weight="600" fill="#7f511a">CERTIFIED</text>
+  <text x="256" y="416" text-anchor="middle" font-family="'Cinzel', 'Times New Roman', serif" font-size="38" font-weight="600" fill="#7f511a">RATING</text>
+</svg>

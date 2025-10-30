@@ -79,7 +79,18 @@ function setupMobileToggle(nav) {
         return;
     }
 
-    const mobileClasses = ['flex', 'flex-col', 'space-y-1'];
+    const mobileClasses = [
+        'flex',
+        'flex-col',
+        'gap-3',
+        'mt-4',
+        'rounded-2xl',
+        'border',
+        'border-amber-100/80',
+        'bg-amber-50/70',
+        'p-3',
+        'shadow-inner'
+    ];
 
     toggle.addEventListener('click', () => {
         const isHidden = linksContainer.classList.toggle('hidden');
