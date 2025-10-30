@@ -21,6 +21,8 @@
     "authFailed": "No se pudo verificar la identidad, por favor inicia sesión de nuevo.",
     "anonymous": "Anónimo",
     "noData": "(Sin datos)",
+    "points": "puntos",
+    "score": "Puntaje",
     "adminActions": "Acciones de Admin",
     "certify": "Certificar",
     "uncertify": "Quitar Certif.",

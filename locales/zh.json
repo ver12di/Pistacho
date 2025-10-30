@@ -21,6 +21,8 @@
     "authFailed": "无法验证身份，请重新登录。",
     "anonymous": "匿名用户",
     "noData": "（无数据）",
+    "score": "得分",
+    "points": "分",
     "adminActions": "管理操作",
     "certify": "认证",
     "uncertify": "取消认证",
@@ -487,5 +489,23 @@
       "strong": "强推",
       "mustHave": "必须有"
     }
+  },
+  "flavors": {
+    "coffee": "咖啡",
+    "chocolate": "巧克力",
+    "cedar": "雪松",
+    "earth": "泥土",
+    "hay": "干草",
+    "leather": "皮革",
+    "nuts": "坚果",
+    "spice": "香料",
+    "wood": "木质",
+    "sweetness": "甜味",
+    "cream": "奶油",
+    "floral": "花香",
+    "fruit": "果香",
+    "caramel": "焦糖",
+    "vanilla": "香草",
+    "citrus": "柑橘"
   }
 }
