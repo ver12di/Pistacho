@@ -176,6 +176,29 @@
                              <!-- Flavor tags inserted by JS -->
                          </div>
                      </div>
+
+                     <!-- Comments Section (positioned within details card) -->
+                     <section id="comments-section" class="mt-6 border-t pt-6 hidden">
+                         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                             <h3 class="text-xl font-bold text-gray-800" data-i18n="resultsPage.comments.title">其他用户评论区</h3>
+                             <span id="comments-count" class="text-sm text-gray-500"></span>
+                         </div>
+                         <div id="comment-login-prompt" class="hidden mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-yellow-100 border border-yellow-200 text-yellow-800 rounded-lg px-4 py-3">
+                             <span data-i18n="resultsPage.comments.loginPrompt">请先登录后再发表评论。</span>
+                             <button onclick="login()" class="self-start sm:self-center px-3 py-1.5 text-xs font-semibold rounded bg-green-500 text-white hover:bg-green-600 transition" data-i18n="nav.login">登录/注册</button>
+                         </div>
+                         <div id="comment-muted-message" class="hidden mb-4 bg-red-50 border border-red-200 text-red-600 rounded-lg px-4 py-3 text-sm" data-i18n="resultsPage.comments.muted">您已被禁言，暂时无法发表评论。</div>
+                         <div id="comment-form-container" class="mb-6 space-y-2">
+                             <textarea id="comment-input" class="w-full border border-gray-200 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent min-h-[100px] resize-y" data-i18n="resultsPage.comments.placeholder" placeholder="写下你的看法吧..."></textarea>
+                             <div class="flex items-center justify-between">
+                                 <p id="comment-status-message" class="hidden text-xs"></p>
+                                 <button id="comment-submit-button" class="ml-auto px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg shadow hover:bg-indigo-700 transition" data-i18n="resultsPage.comments.submit">发布评论</button>
+                             </div>
+                         </div>
+                         <div id="comments-list" class="space-y-4">
+                             <p id="comments-empty" class="text-sm text-gray-500" data-i18n="resultsPage.comments.empty">暂时还没有评论，快来抢沙发吧！</p>
+                         </div>
+                     </section>
                  </div>
             </div>
 
@@ -226,30 +249,6 @@
                      </div>
                  </details>
             </div>
-
-            <!-- Comments Section -->
-            <section id="comments-section" class="bg-white rounded-xl shadow-lg p-6 mb-8 hidden">
-                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-                     <h3 class="text-xl font-bold text-gray-800" data-i18n="resultsPage.comments.title">其他用户评论区</h3>
-                     <span id="comments-count" class="text-sm text-gray-500"></span>
-                 </div>
-                 <div id="comment-login-prompt" class="hidden mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-yellow-100 border border-yellow-200 text-yellow-800 rounded-lg px-4 py-3">
-                     <span data-i18n="resultsPage.comments.loginPrompt">请先登录后再发表评论。</span>
-                     <button onclick="login()" class="self-start sm:self-center px-3 py-1.5 text-xs font-semibold rounded bg-green-500 text-white hover:bg-green-600 transition" data-i18n="nav.login">登录/注册</button>
-                 </div>
-                 <div id="comment-muted-message" class="hidden mb-4 bg-red-50 border border-red-200 text-red-600 rounded-lg px-4 py-3 text-sm" data-i18n="resultsPage.comments.muted">您已被禁言，暂时无法发表评论。</div>
-                 <div id="comment-form-container" class="mb-6 space-y-2">
-                     <textarea id="comment-input" class="w-full border border-gray-200 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent min-h-[100px] resize-y" data-i18n="resultsPage.comments.placeholder" placeholder="写下你的看法吧..."></textarea>
-                     <div class="flex items-center justify-between">
-                         <p id="comment-status-message" class="hidden text-xs"></p>
-                         <button id="comment-submit-button" class="ml-auto px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg shadow hover:bg-indigo-700 transition" data-i18n="resultsPage.comments.submit">发布评论</button>
-                     </div>
-                 </div>
-                 <div id="comments-list" class="space-y-4">
-                     <p id="comments-empty" class="text-sm text-gray-500" data-i18n="resultsPage.comments.empty">暂时还没有评论，快来抢沙发吧！</p>
-                 </div>
-            </section>
-
             <!-- Footer Navigation -->
             <footer class="mt-8 flex flex-col sm:flex-row justify-center items-center gap-4">
                  <a href="rate.html" class="py-3 px-6 bg-indigo-600 text-white font-bold rounded-lg shadow-md hover:bg-indigo-700 transition" data-i18n="resultsPage.backToRate">
