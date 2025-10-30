@@ -75,6 +75,11 @@
             <p id="loading-message" class="text-center text-gray-500 py-10" data-i18n="common.loading">正在加载...</p>
         </div>
 
+        <section id="comment-participation-section" class="hidden mt-10">
+            <h2 class="text-2xl font-bold text-gray-800" data-i18n="historyPage.commentHistoryTitle">我参与的其他点评</h2>
+            <div id="comment-participation-container" class="mt-4 space-y-4"></div>
+        </section>
+
          <footer class="mt-8 text-center">
             <a href="index.html" class="py-2 px-4 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700" data-i18n="nav.community">&larr; 返回社区首页</a>
         </footer>
@@ -118,6 +123,7 @@
             const isAdmin = currentAuthUser && (currentAuthUser.db_role === 'admin' || currentAuthUser.db_role === 'super_admin');
             document.title = i18next.t(isAdmin ? 'historyPage.allRatingsTitle' : 'historyPage.title');
             historyTitle.textContent = i18next.t(isAdmin ? 'historyPage.allRatingsTitle' : 'historyPage.title');
+            renderCommentParticipation(commentParticipationData);
         }
 
         function setupLanguageSwitcher() {
@@ -150,6 +156,8 @@
         const historyContainer = document.getElementById('history-container');
         const historyTitle = document.getElementById('history-title');
         const loginPrompt = document.getElementById('login-prompt');
+        const commentParticipationSection = document.getElementById('comment-participation-section');
+        const commentParticipationContainer = document.getElementById('comment-participation-container');
 
         const AUTHING_APP_ID = '68f5b0b6875017c02b3bfdb3';
         const AUTHING_HOST = 'https://xfvu647mcdbk-demo.authing.cn';
@@ -166,6 +174,8 @@
             { "grade": "O", "nameKey": "resultsPage.grade.O", "min_score": 0, "color": "red" }
         ];
         // --- End Global Variables ---
+
+        let commentParticipationData = [];
 
 
         // --- Authentication ---
@@ -420,6 +430,8 @@
                 historyContainer.style.display = 'none';
                 loginPrompt.classList.remove('hidden');
                 loadingMessage.style.display = 'none';
+                if (commentParticipationSection) commentParticipationSection.classList.add('hidden');
+                commentParticipationData = [];
                 return;
             } else {
                  historyContainer.style.display = 'block';
@@ -433,6 +445,8 @@
                  loginPrompt.classList.remove('hidden');
                  loginPrompt.querySelector('p').textContent = i18next.t('historyPage.loginExpired');
                  loadingMessage.style.display = 'none';
+                 if (commentParticipationSection) commentParticipationSection.classList.add('hidden');
+                 commentParticipationData = [];
                  return;
             }
 
@@ -470,6 +484,7 @@
                     historyContainer.innerHTML = historyHtml;
                 }
                  loadingMessage.style.display = 'none'; // Hide loading indicator
+                await fetchCommentParticipation(user);
             } catch (error) {
                 console.error("获取历史记录失败:", error);
                 // updateContent(); // Update title even on error
@@ -547,6 +562,147 @@
                 </div>
             `;
         }
+        
+        function formatParticipationDate(isoString) {
+            if (!isoString) return '';
+            try {
+                const locale = i18next.language || 'zh';
+                const date = new Date(isoString);
+                if (Number.isNaN(date.getTime())) return isoString;
+                return date.toLocaleString(locale, { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+            } catch (e) {
+                return isoString;
+            }
+        }
+
+        function renderCommentParticipation(items = []) {
+            if (!commentParticipationSection || !commentParticipationContainer) return;
+            if (!currentAuthUser) {
+                commentParticipationSection.classList.add('hidden');
+                return;
+            }
+
+            commentParticipationContainer.innerHTML = '';
+
+            if (!items.length) {
+                commentParticipationSection.classList.remove('hidden');
+                const emptyMessage = document.createElement('p');
+                emptyMessage.className = 'text-sm text-gray-500';
+                emptyMessage.textContent = i18next.t('historyPage.noCommentHistory');
+                commentParticipationContainer.appendChild(emptyMessage);
+                return;
+            }
+
+            commentParticipationSection.classList.remove('hidden');
+
+            items.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'bg-white rounded-lg border border-gray-200 shadow-sm p-4';
+
+                const titleEl = document.createElement('h3');
+                titleEl.className = 'text-lg font-semibold text-gray-800';
+                titleEl.textContent = item.title || i18next.t('common.noTitle');
+                card.appendChild(titleEl);
+
+                const cigarInfoEl = document.createElement('p');
+                cigarInfoEl.className = 'text-sm text-gray-500 mt-1';
+                const cigarName = item.cigarName || i18next.t('certifiedPage.unnamedCigar');
+                const cigarSize = item.cigarSize || i18next.t('common.unknown');
+                const cigarOrigin = item.cigarOrigin || i18next.t('common.unknown');
+                cigarInfoEl.textContent = `${cigarName} • ${cigarSize} • ${cigarOrigin}`;
+                card.appendChild(cigarInfoEl);
+
+                const metaEl = document.createElement('p');
+                metaEl.className = 'text-xs text-gray-500 mt-1';
+                const authorName = item.ratingUserNickname || i18next.t('historyPage.unknownUser');
+                metaEl.textContent = `${authorName} · ${formatParticipationDate(item.createdAt)}`;
+                card.appendChild(metaEl);
+
+                if (item.content) {
+                    const commentBlock = document.createElement('div');
+                    commentBlock.className = 'mt-3 text-sm text-gray-700 whitespace-pre-wrap break-words bg-gray-50 border border-gray-100 rounded-md p-3';
+                    const label = document.createElement('span');
+                    label.className = 'font-semibold text-gray-600 mr-2';
+                    label.textContent = i18next.t('historyPage.commentPreviewLabel');
+                    const text = document.createElement('span');
+                    text.textContent = item.content;
+                    commentBlock.appendChild(label);
+                    commentBlock.appendChild(text);
+                    card.appendChild(commentBlock);
+                }
+
+                const footer = document.createElement('div');
+                footer.className = 'mt-3 flex items-center justify-between text-xs text-gray-500';
+
+                const scoreParts = [];
+                if (typeof item.normalizedScore === 'number') {
+                    scoreParts.push(`${i18next.t('common.score')}: ${item.normalizedScore.toFixed(2)}`);
+                }
+                if (item.finalGrade_grade) {
+                    scoreParts.push(`${i18next.t('historyPage.gradeShortLabel')}: ${item.finalGrade_grade}`);
+                }
+                if (scoreParts.length > 0) {
+                    const scoreLabel = document.createElement('span');
+                    scoreLabel.textContent = scoreParts.join(' · ');
+                    footer.appendChild(scoreLabel);
+                }
+
+                const viewLink = document.createElement('a');
+                viewLink.href = `results.html?ratingId=${item.ratingId}`;
+                viewLink.className = 'inline-flex items-center font-semibold text-indigo-600 hover:text-indigo-700';
+                viewLink.textContent = i18next.t('historyPage.viewRating');
+                footer.appendChild(viewLink);
+
+                card.appendChild(footer);
+                commentParticipationContainer.appendChild(card);
+            });
+        }
+
+        async function fetchCommentParticipation(user) {
+            if (!commentParticipationSection || !user) {
+                if (commentParticipationSection) commentParticipationSection.classList.add('hidden');
+                commentParticipationData = [];
+                return;
+            }
+
+            const token = sessionStorage.getItem('accessToken');
+            if (!token) {
+                commentParticipationSection.classList.add('hidden');
+                commentParticipationData = [];
+                return;
+            }
+
+            try {
+                const apiUrl = new URL('/api/comments', window.location.origin);
+                apiUrl.searchParams.set('mine', 'true');
+                const response = await fetch(apiUrl, { headers: { 'Authorization': `Bearer ${token}` } });
+                if (!response.ok) {
+                    let errorText = `HTTP ${response.status}`;
+                    try {
+                        const err = await response.json();
+                        errorText = err.error || errorText;
+                    } catch (e) { /* ignore */ }
+                    throw new Error(errorText);
+                }
+                const data = await response.json();
+                const participation = Array.isArray(data.participation) ? data.participation : [];
+                const deduped = [];
+                const seen = new Set();
+                participation.forEach(item => {
+                    if (!item.ratingId || seen.has(item.ratingId)) return;
+                    if (item.ratingUserId && item.ratingUserId === user.sub) return; // Skip own ratings
+                    seen.add(item.ratingId);
+                    deduped.push(item);
+                });
+                commentParticipationData = deduped;
+                renderCommentParticipation(commentParticipationData);
+            } catch (error) {
+                console.error('Failed to load comment participation:', error);
+                commentParticipationSection.classList.remove('hidden');
+                commentParticipationContainer.innerHTML = `<div class="bg-red-100 text-red-700 rounded-lg p-4 text-sm">${i18next.t('historyPage.commentHistoryError', { msg: error.message })}</div>`;
+            }
+        }
+
         // --- End Data Fetching and Rendering ---
 
         // --- Initialization ---
