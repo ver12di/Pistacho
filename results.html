@@ -955,7 +955,9 @@
                      if (!storedData) throw new Error(i18next.t('errors.noRatingDataFound'));
                      try {
                          resultsData = JSON.parse(storedData);
-                         resultsData.isDraft = true; // Data from sessionStorage is always a draft
+                         // *** FIX: REMOVED resultsData.isDraft = true; ***
+                         // The 'isDraft' flag (true from rate.html, false from history.html/index.html)
+                         // is now correctly loaded from the stored data.
                          ratingId = resultsData.ratingId; // Might be null if not saved yet
                          console.log("[results.html onload] Parsed data from sessionStorage:", JSON.stringify(resultsData).substring(0, 300) + '...');
                      } catch(parseError) {
