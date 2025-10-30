@@ -777,9 +777,36 @@
                          });
                          const qrImg = qrCodeContainer.querySelector('img');
                          if (qrImg) {
-                             if (isImageLoaded(qrImg)) { console.log("QR Code image already loaded."); resolve(); }
-                             else { console.log("Waiting for QR Code image to load..."); qrImg.onload = () => { console.log("QR Code image loaded."); resolve(); }; qrImg.onerror = () => { console.error("QR Code image failed to load."); reject(new Error('QR Code image load failed')); }; }
-                         } else { console.warn("QR Code generated, but no img tag found immediately."); resolve('no-qr-img'); }
+                             const finish = (value, asError = false) => {
+                                 if (finish.handled) return;
+                                 finish.handled = true;
+                                 if (finish.fallback) clearTimeout(finish.fallback);
+                                 if (asError) reject(value); else resolve(value);
+                             };
+                             finish.handled = false;
+                             finish.fallback = setTimeout(() => {
+                                 console.warn('QR Code image load timed out, continuing without confirmation.');
+                                 finish('timeout');
+                             }, 3000);
+
+                             if (isImageLoaded(qrImg)) {
+                                 console.log("QR Code image already loaded.");
+                                 finish();
+                             } else {
+                                 console.log("Waiting for QR Code image to load...");
+                                 qrImg.addEventListener('load', () => {
+                                     console.log("QR Code image loaded.");
+                                     finish();
+                                 }, { once: true });
+                                 qrImg.addEventListener('error', () => {
+                                     console.error("QR Code image failed to load.");
+                                     finish(new Error('QR Code image load failed'), true);
+                                 }, { once: true });
+                             }
+                         } else {
+                             console.warn("QR Code generated, but no img tag found immediately.");
+                             resolve('no-qr-img');
+                         }
                     } catch (qrError) {
                          console.error("QR Code generation failed:", qrError);
                          qrCodeContainer.innerHTML = `<p class="text-2xs text-red-500">QR Error</p>`;
