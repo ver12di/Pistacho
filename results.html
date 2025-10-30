@@ -311,6 +311,44 @@
         let commentStatusTimer = null;
         let commentSubmitBound = false;
 
+        function resolveFinalGrade(rawFinalGrade, normalizedScore) {
+            const existing = rawFinalGrade ? { ...rawFinalGrade } : null;
+            let gradeCode = existing?.grade;
+            let matchedGrade = null;
+
+            if (gradeCode) {
+                matchedGrade = GRADING_SCALE.find(g => g.grade === gradeCode) || null;
+            }
+
+            if (!matchedGrade && typeof normalizedScore === 'number') {
+                matchedGrade = GRADING_SCALE.find(g => normalizedScore >= g.min_score) || GRADING_SCALE[GRADING_SCALE.length - 1];
+                if (!gradeCode && matchedGrade) {
+                    gradeCode = matchedGrade.grade;
+                }
+            }
+
+            if (!matchedGrade) {
+                return existing;
+            }
+
+            const resolved = {
+                ...existing,
+                grade: gradeCode || matchedGrade.grade,
+                nameKey: existing?.nameKey || matchedGrade.nameKey,
+                color: existing?.color || matchedGrade.color
+            };
+
+            if (existing?.name_cn && !resolved.name_cn) {
+                resolved.name_cn = existing.name_cn;
+            }
+
+            if (!resolved.name && resolved.name_cn) {
+                resolved.name = resolved.name_cn;
+            }
+
+            return resolved;
+        }
+
         // --- i18n Initialization Functions ---
         async function initI18n() {
             // Initialize i18next
@@ -744,7 +782,10 @@
         // Populates the hidden share card elements
         function populateShareCard(data) {
              if (!data || !i18next.isInitialized) return;
-             const { normalizedScore, finalGrade, userNickname, userEmail, imageUrls = [] } = data;
+             const { normalizedScore, userNickname, userEmail, imageUrls = [] } = data;
+             const rawFinalGrade = data.finalGrade ?? (data.finalGrade_grade ? { grade: data.finalGrade_grade, name_cn: data.finalGrade_name_cn } : null);
+             const finalGrade = resolveFinalGrade(rawFinalGrade, normalizedScore);
+             data.finalGrade = finalGrade;
              const nickname = userNickname || userEmail || i18next.t('common.anonymous');
 
              // Robust check for finalGrade
@@ -1192,7 +1233,10 @@
             }
 
             // Destructure with defaults
-            const { cigarInfo = {}, cigarReview, normalizedScore, isDraft, selectedFlavors = [], finalGrade } = data;
+            const { cigarInfo = {}, cigarReview, normalizedScore, isDraft, selectedFlavors = [] } = data;
+            const rawFinalGrade = data.finalGrade ?? (data.finalGrade_grade ? { grade: data.finalGrade_grade, name_cn: data.finalGrade_name_cn } : null);
+            const resolvedFinalGrade = resolveFinalGrade(rawFinalGrade, normalizedScore);
+            data.finalGrade = resolvedFinalGrade;
             const title = data.title || i18next.t('common.noTitle');
             const userNickname = data.userNickname || data.userEmail || i18next.t('common.anonymous');
 
@@ -1204,7 +1248,7 @@
             console.log("  > Cigar Review (start):", (cigarReview || '').substring(0, 50) + '...');
             console.log("  > Selected Flavors:", JSON.stringify(selectedFlavors));
             console.log("  > Normalized Score:", normalizedScore);
-            console.log("  > Final Grade:", JSON.stringify(finalGrade));
+            console.log("  > Final Grade:", JSON.stringify(resolvedFinalGrade));
             console.log("  > Is Draft:", isDraft);
             // --- END ADDED LOGS ---
 
@@ -1246,8 +1290,8 @@
 
 
             // --- Check finalGrade specifically ---
-            if (!finalGrade || typeof finalGrade !== 'object' || !finalGrade.grade || !finalGrade.nameKey || !finalGrade.color) {
-                 console.error("[results.html renderPageContent] finalGrade data is missing or incomplete.", finalGrade);
+            if (!resolvedFinalGrade || typeof resolvedFinalGrade !== 'object' || !resolvedFinalGrade.grade || !resolvedFinalGrade.nameKey || !resolvedFinalGrade.color) {
+                console.error("[results.html renderPageContent] finalGrade data is missing or incomplete.", resolvedFinalGrade);
                  if (scoreSectionEl) scoreSectionEl.innerHTML = `<p class="text-red-500">${i18next.t('resultsPage.scoreCalculationFailed')}</p>`;
                  if (narrativeSummaryContainerEl) narrativeSummaryContainerEl.innerHTML = `<p class="text-red-500 italic">${i18next.t('resultsPage.narrativeGenFailed')}</p>`;
                  if (summaryContainerEl) summaryContainerEl.innerHTML = '';
@@ -1270,7 +1314,7 @@
                  // Save button logic remains
                  if (saveButtonContainerEl) saveButtonContainerEl.style.display = (currentAuthUser && isDraft) ? 'block' : 'none';
             } else { // Grade data IS valid, proceed normally
-                 const gradeName = i18next.t(finalGrade.nameKey);
+                 const gradeName = i18next.t(resolvedFinalGrade.nameKey);
                  if (userNicknameEl) userNicknameEl.textContent = userNickname;
                  if (ratingTitleEl) ratingTitleEl.textContent = title;
                  if (cigarNameEl) cigarNameEl.textContent = cigarInfo?.name ?? i18next.t('common.unknown');
@@ -1283,14 +1327,14 @@
                          flavorsContainerEl.classList.remove('hidden');
                      } else { flavorsContainerEl.classList.add('hidden'); }
                  }
-                 if (scoreSectionEl) renderScoreSection(scoreSectionEl, normalizedScore, { ...finalGrade, name: gradeName });
+                 if (scoreSectionEl) renderScoreSection(scoreSectionEl, normalizedScore, { ...resolvedFinalGrade, name: gradeName });
 
                  // Check if config and ratings exist for detailed summaries
                  const hasFullData = data.config && data.ratings;
                  [narrativeDetailsEl, summaryDetailsEl].forEach(el => { if (el) el.style.display = hasFullData ? 'block' : 'none'; });
 
                  if (hasFullData) {
-                    if (narrativeSummaryContainerEl) narrativeSummaryContainerEl.innerHTML = generateNarrativeSummary(cigarInfo, data.config, data.ratings, { ...finalGrade, name: gradeName }, selectedFlavors);
+                    if (narrativeSummaryContainerEl) narrativeSummaryContainerEl.innerHTML = generateNarrativeSummary(cigarInfo, data.config, data.ratings, { ...resolvedFinalGrade, name: gradeName }, selectedFlavors);
                     if (summaryContainerEl) renderSummary(summaryContainerEl, data.config, data.ratings);
                  } else {
                      console.warn("[results.html renderPageContent] Missing full data (config/ratings), hiding narrative and summary sections.");
