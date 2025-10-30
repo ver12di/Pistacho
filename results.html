@@ -227,6 +227,29 @@
                  </details>
             </div>
 
+            <!-- Comments Section -->
+            <section id="comments-section" class="bg-white rounded-xl shadow-lg p-6 mb-8 hidden">
+                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                     <h3 class="text-xl font-bold text-gray-800" data-i18n="resultsPage.comments.title">其他用户评论区</h3>
+                     <span id="comments-count" class="text-sm text-gray-500"></span>
+                 </div>
+                 <div id="comment-login-prompt" class="hidden mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-yellow-100 border border-yellow-200 text-yellow-800 rounded-lg px-4 py-3">
+                     <span data-i18n="resultsPage.comments.loginPrompt">请先登录后再发表评论。</span>
+                     <button onclick="login()" class="self-start sm:self-center px-3 py-1.5 text-xs font-semibold rounded bg-green-500 text-white hover:bg-green-600 transition" data-i18n="nav.login">登录/注册</button>
+                 </div>
+                 <div id="comment-muted-message" class="hidden mb-4 bg-red-50 border border-red-200 text-red-600 rounded-lg px-4 py-3 text-sm" data-i18n="resultsPage.comments.muted">您已被禁言，暂时无法发表评论。</div>
+                 <div id="comment-form-container" class="mb-6 space-y-2">
+                     <textarea id="comment-input" class="w-full border border-gray-200 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent min-h-[100px] resize-y" data-i18n="resultsPage.comments.placeholder" placeholder="写下你的看法吧..."></textarea>
+                     <div class="flex items-center justify-between">
+                         <p id="comment-status-message" class="hidden text-xs"></p>
+                         <button id="comment-submit-button" class="ml-auto px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg shadow hover:bg-indigo-700 transition" data-i18n="resultsPage.comments.submit">发布评论</button>
+                     </div>
+                 </div>
+                 <div id="comments-list" class="space-y-4">
+                     <p id="comments-empty" class="text-sm text-gray-500" data-i18n="resultsPage.comments.empty">暂时还没有评论，快来抢沙发吧！</p>
+                 </div>
+            </section>
+
             <!-- Footer Navigation -->
             <footer class="mt-8 flex flex-col sm:flex-row justify-center items-center gap-4">
                  <a href="rate.html" class="py-3 px-6 bg-indigo-600 text-white font-bold rounded-lg shadow-md hover:bg-indigo-700 transition" data-i18n="resultsPage.backToRate">
@@ -279,6 +302,15 @@
         let mainSwiper = null;      // Swiper instance for main images
         let thumbnailSwiper = null; // Swiper instance for thumbnails
         let shareImageGenerated = false; // Flag to prevent multiple generations
+        const commentState = {
+            comments: [],
+            mutedUserIds: new Set(),
+            currentUserMuted: false,
+            currentUserId: null,
+            currentUserRole: 'guest'
+        };
+        let commentStatusTimer = null;
+        let commentSubmitBound = false;
 
         // --- i18n Initialization Functions ---
         async function initI18n() {
@@ -328,6 +360,8 @@
             });
             // Update page title
             document.title = i18next.t('resultsPage.pageTitle');
+            renderCommentsSection();
+            updateCommentFormState();
         }
 
 
@@ -348,6 +382,8 @@
                     // Re-populate share card and QR before potential regeneration
                     populateShareCard(resultsData);
                     generateQRCode();
+                    renderCommentsSection();
+                    updateCommentFormState();
                     // Optionally regenerate share image on language change if needed
                     // shareImageGenerated = false; // Reset flag to allow regeneration
                     // tryAutoGenerateShareImage(); // Try generating again
@@ -803,8 +839,348 @@
                  } else {
                      console.warn(i18next.t('resultsPage.shareCard.qrError'));
                      reject(new Error('QR Code container or library not found.'));
-                 }
+                }
             });
+        }
+
+
+        function bindCommentFormEvents() {
+            if (commentSubmitBound) return;
+            const submitButton = document.getElementById('comment-submit-button');
+            if (submitButton) {
+                submitButton.addEventListener('click', handleCommentSubmit);
+                commentSubmitBound = true;
+            }
+        }
+
+        function clearCommentStatus() {
+            const statusEl = document.getElementById('comment-status-message');
+            if (!statusEl) return;
+            statusEl.classList.add('hidden');
+            statusEl.textContent = '';
+            statusEl.classList.remove('text-green-600', 'text-red-600');
+            if (commentStatusTimer) {
+                clearTimeout(commentStatusTimer);
+                commentStatusTimer = null;
+            }
+        }
+
+        function showCommentStatus(message, isError = false) {
+            const statusEl = document.getElementById('comment-status-message');
+            if (!statusEl) return;
+            if (commentStatusTimer) {
+                clearTimeout(commentStatusTimer);
+                commentStatusTimer = null;
+            }
+            if (!message) {
+                clearCommentStatus();
+                return;
+            }
+            statusEl.textContent = message;
+            statusEl.classList.remove('hidden', 'text-green-600', 'text-red-600');
+            statusEl.classList.add(isError ? 'text-red-600' : 'text-green-600');
+            commentStatusTimer = setTimeout(() => {
+                statusEl.classList.add('hidden');
+                statusEl.textContent = '';
+                statusEl.classList.remove('text-green-600', 'text-red-600');
+                commentStatusTimer = null;
+            }, 4000);
+        }
+
+        function isAdminUser() {
+            const role = currentAuthUser?.db_role || commentState.currentUserRole;
+            return role === 'admin' || role === 'super_admin';
+        }
+
+        function updateCommentFormState() {
+            const sectionEl = document.getElementById('comments-section');
+            if (!sectionEl) return;
+            if (!ratingId) {
+                sectionEl.classList.add('hidden');
+                return;
+            }
+            sectionEl.classList.remove('hidden');
+
+            const loginPrompt = document.getElementById('comment-login-prompt');
+            const mutedMessage = document.getElementById('comment-muted-message');
+            const formContainer = document.getElementById('comment-form-container');
+            const textarea = document.getElementById('comment-input');
+            const submitButton = document.getElementById('comment-submit-button');
+
+            if (!currentAuthUser) {
+                if (loginPrompt) loginPrompt.classList.remove('hidden');
+                if (mutedMessage) mutedMessage.classList.add('hidden');
+                if (formContainer) formContainer.classList.add('hidden');
+                if (textarea) {
+                    textarea.disabled = true;
+                    textarea.value = '';
+                }
+                if (submitButton) submitButton.disabled = true;
+                return;
+            }
+
+            if (loginPrompt) loginPrompt.classList.add('hidden');
+            if (formContainer) {
+                formContainer.classList.remove('hidden');
+                formContainer.classList.toggle('opacity-60', commentState.currentUserMuted);
+            }
+            const isMuted = !!commentState.currentUserMuted;
+            if (textarea) textarea.disabled = isMuted;
+            if (submitButton) submitButton.disabled = isMuted;
+            if (mutedMessage) mutedMessage.classList.toggle('hidden', !isMuted);
+        }
+
+        function renderCommentsSection() {
+            const sectionEl = document.getElementById('comments-section');
+            if (!sectionEl) return;
+            if (!ratingId) {
+                sectionEl.classList.add('hidden');
+                return;
+            }
+
+            const listEl = document.getElementById('comments-list');
+            const emptyEl = document.getElementById('comments-empty');
+            const countEl = document.getElementById('comments-count');
+
+            if (countEl) {
+                const count = commentState.comments?.length || 0;
+                countEl.textContent = i18next.t('resultsPage.comments.count', { count });
+            }
+
+            if (!listEl) return;
+            listEl.innerHTML = '';
+
+            if (!commentState.comments || commentState.comments.length === 0) {
+                if (emptyEl) emptyEl.classList.remove('hidden');
+                return;
+            }
+
+            if (emptyEl) emptyEl.classList.add('hidden');
+
+            const adminCanMute = isAdminUser();
+
+            commentState.comments.forEach(comment => {
+                const item = document.createElement('div');
+                item.className = 'border border-gray-200 rounded-lg p-4 bg-gray-50';
+
+                const header = document.createElement('div');
+                header.className = 'flex flex-wrap items-center justify-between gap-2';
+
+                const meta = document.createElement('div');
+                meta.className = 'flex flex-wrap items-center gap-2 text-sm text-gray-600';
+
+                const authorSpan = document.createElement('span');
+                authorSpan.className = 'font-semibold text-gray-700';
+                const authorDisplay = comment.userNickname || comment.userEmail || comment.userId || i18next.t('common.anonymous');
+                authorSpan.textContent = authorDisplay;
+                meta.appendChild(authorSpan);
+
+                const dotSpan = document.createElement('span');
+                dotSpan.className = 'text-gray-300';
+                dotSpan.textContent = '•';
+                meta.appendChild(dotSpan);
+
+                const timeSpan = document.createElement('span');
+                timeSpan.className = 'text-xs text-gray-500';
+                timeSpan.textContent = formatCommentTimestamp(comment.createdAt);
+                meta.appendChild(timeSpan);
+
+                const isMuted = commentState.mutedUserIds.has(comment.userId);
+                if (isMuted) {
+                    const mutedBadge = document.createElement('span');
+                    mutedBadge.className = 'px-2 py-0.5 text-xs font-medium rounded-full bg-red-100 text-red-600';
+                    mutedBadge.textContent = i18next.t('resultsPage.comments.mutedBadge');
+                    meta.appendChild(mutedBadge);
+                }
+
+                header.appendChild(meta);
+
+                if (adminCanMute && comment.userId) {
+                    const actions = document.createElement('div');
+                    actions.className = 'flex items-center gap-2';
+                    const muteButton = document.createElement('button');
+                    muteButton.className = `px-2 py-1 text-xs font-semibold rounded text-white transition ${isMuted ? 'bg-green-500 hover:bg-green-600' : 'bg-red-500 hover:bg-red-600'}`;
+                    muteButton.textContent = i18next.t(isMuted ? 'resultsPage.comments.unmute' : 'resultsPage.comments.mute');
+                    muteButton.addEventListener('click', (event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        toggleMuteUser(comment.userId, !isMuted, authorDisplay);
+                    });
+                    actions.appendChild(muteButton);
+                    header.appendChild(actions);
+                }
+
+                item.appendChild(header);
+
+                const contentParagraph = document.createElement('p');
+                contentParagraph.className = 'mt-3 text-sm text-gray-700 whitespace-pre-wrap break-words';
+                contentParagraph.textContent = comment.content || '';
+                item.appendChild(contentParagraph);
+
+                listEl.appendChild(item);
+            });
+        }
+
+        function formatCommentTimestamp(isoString) {
+            if (!isoString) return '';
+            try {
+                const locale = i18next.language || 'zh';
+                const date = new Date(isoString);
+                if (Number.isNaN(date.getTime())) return isoString;
+                return date.toLocaleString(locale, {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            } catch (e) {
+                return isoString;
+            }
+        }
+
+        async function loadCommentsSection() {
+            const sectionEl = document.getElementById('comments-section');
+            if (!sectionEl) return;
+            if (!ratingId) {
+                sectionEl.classList.add('hidden');
+                return;
+            }
+
+            bindCommentFormEvents();
+
+            try {
+                const apiUrl = new URL('/api/comments', window.location.origin);
+                apiUrl.searchParams.set('ratingId', ratingId);
+                const headers = {};
+                const token = sessionStorage.getItem('accessToken');
+                if (token) headers['Authorization'] = `Bearer ${token}`;
+
+                const response = await fetch(apiUrl, { headers });
+                if (!response.ok) {
+                    let errorText = `Load failed: ${response.status}`;
+                    try {
+                        const err = await response.json();
+                        errorText = err.error || errorText;
+                    } catch (e) { /* ignore */ }
+                    throw new Error(errorText);
+                }
+
+                const data = await response.json();
+                commentState.comments = Array.isArray(data.comments) ? data.comments : [];
+                commentState.mutedUserIds = new Set((data.mutedUserIds || []).filter(Boolean));
+                commentState.currentUserMuted = data.currentUser?.muted ?? false;
+                commentState.currentUserId = data.currentUser?.id ?? (currentAuthUser?.sub ?? null);
+                commentState.currentUserRole = data.currentUser?.role ?? (currentAuthUser?.db_role ?? 'general');
+                renderCommentsSection();
+                updateCommentFormState();
+            } catch (error) {
+                console.error('[results.html] Failed to load comments:', error);
+                showCommentStatus(i18next.t('resultsPage.comments.loadFailed', { msg: error.message }), true);
+            }
+        }
+
+        async function handleCommentSubmit(event) {
+            event.preventDefault();
+            if (!ratingId) return;
+            if (!currentAuthUser) {
+                showCommentStatus(i18next.t('common.loginRequired'), true);
+                updateCommentFormState();
+                return;
+            }
+            if (commentState.currentUserMuted) {
+                showCommentStatus(i18next.t('resultsPage.comments.muted'), true);
+                return;
+            }
+
+            const textarea = document.getElementById('comment-input');
+            const submitButton = document.getElementById('comment-submit-button');
+            if (!textarea || !submitButton) return;
+
+            const content = (textarea.value || '').trim();
+            if (!content) {
+                showCommentStatus(i18next.t('resultsPage.comments.validation'), true);
+                return;
+            }
+
+            const token = sessionStorage.getItem('accessToken');
+            if (!token) {
+                showCommentStatus(i18next.t('common.loginRequired'), true);
+                updateCommentFormState();
+                return;
+            }
+
+            submitButton.disabled = true;
+            submitButton.classList.add('cursor-not-allowed', 'opacity-70');
+
+            try {
+                const response = await fetch('/api/comments', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ ratingId, content })
+                });
+                if (!response.ok) {
+                    let errorText = `Submit failed: ${response.status}`;
+                    try {
+                        const err = await response.json();
+                        errorText = err.error || errorText;
+                    } catch (e) { /* ignore */ }
+                    throw new Error(errorText);
+                }
+
+                textarea.value = '';
+                await loadCommentsSection();
+                updateCommentFormState();
+                showCommentStatus(i18next.t('resultsPage.comments.postSuccess'), false);
+            } catch (error) {
+                console.error('[results.html] Failed to submit comment:', error);
+                showCommentStatus(i18next.t('resultsPage.comments.postFailed', { msg: error.message }), true);
+            } finally {
+                submitButton.disabled = commentState.currentUserMuted;
+                submitButton.classList.remove('cursor-not-allowed', 'opacity-70');
+            }
+        }
+
+        async function toggleMuteUser(targetUserId, shouldMute, displayName = '') {
+            if (!targetUserId) return;
+            const token = sessionStorage.getItem('accessToken');
+            if (!token) {
+                showCommentStatus(i18next.t('common.loginRequired'), true);
+                return;
+            }
+
+            const confirmKey = shouldMute ? 'resultsPage.comments.muteConfirm' : 'resultsPage.comments.unmuteConfirm';
+            const confirmMessage = i18next.t(confirmKey, { user: displayName || '' });
+            if (confirmMessage && !confirm(confirmMessage)) return;
+
+            try {
+                const response = await fetch('/api/comments', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ action: shouldMute ? 'mute' : 'unmute', targetUserId })
+                });
+                if (!response.ok) {
+                    let errorText = `Update failed: ${response.status}`;
+                    try {
+                        const err = await response.json();
+                        errorText = err.error || errorText;
+                    } catch (e) { /* ignore */ }
+                    throw new Error(errorText);
+                }
+
+                await loadCommentsSection();
+                updateCommentFormState();
+                showCommentStatus(i18next.t(shouldMute ? 'resultsPage.comments.muteSuccess' : 'resultsPage.comments.unmuteSuccess'), false);
+            } catch (error) {
+                console.error('[results.html] Failed to update mute status:', error);
+                showCommentStatus(i18next.t('resultsPage.comments.muteFailed', { msg: error.message }), true);
+            }
         }
 
 
@@ -945,6 +1321,8 @@
                  currentAuthUser = user;
                  renderLoginStatus(currentAuthUser);
                  setupLanguageSwitcher();
+                 bindCommentFormEvents();
+                 updateCommentFormState();
 
                  loadingIndicator.classList.remove('hidden');
 
@@ -987,6 +1365,10 @@
                      throw new Error(i18next.t('errors.missingEssentialData'));
                  }
 
+                 if (!ratingId && resultsData?.id) {
+                     ratingId = resultsData.id;
+                 }
+
                  // Render UI elements
                  initSwipers(resultsData.imageUrls || []); // Initialize image slider
                  renderPageContent(resultsData); // Render main content sections
@@ -994,6 +1376,7 @@
                  // Generate QR and attempt share image AFTER main content is rendered
                  await generateQRCode();
                  tryAutoGenerateShareImage();
+                 await loadCommentsSection();
 
                  loadingIndicator.classList.add('hidden'); // Hide loading indicator
                  mainContent.classList.remove('opacity-0'); // Show main content
@@ -1006,6 +1389,8 @@
                  errorContainer.innerHTML = `<p class="font-bold text-center">${errorTitle}: ${e.message}</p> <div class="mt-4 text-center space-x-4"> <a href="index.html" class="text-indigo-600 underline">${backLinkText}</a> <a href="rate.html" class="text-green-600 underline">${rateLinkText}</a> </div>`;
                  errorContainer.classList.remove('hidden');
                  mainContent.classList.add('opacity-0'); // Keep main content hidden on error
+                 const commentsSection = document.getElementById('comments-section');
+                 if (commentsSection) commentsSection.classList.add('hidden');
                  console.error("[results.html onload] Initialization error:", e);
             }
         };
