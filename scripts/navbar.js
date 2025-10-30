@@ -79,7 +79,7 @@ function setupMobileToggle(nav) {
         return;
     }
 
-    const mobileClasses = ['flex', 'flex-col', 'space-y-1'];
+    const mobileClasses = ['flex', 'flex-col', 'gap-2', 'mt-4'];
 
     toggle.addEventListener('click', () => {
         const isHidden = linksContainer.classList.toggle('hidden');
