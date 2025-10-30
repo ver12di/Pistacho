@@ -574,7 +574,7 @@
             filtered.sort((a, b) => {
                 const pinDiff = (b.isPinned || 0) - (a.isPinned || 0);
                 if (sortBy === 'latest' && pinDiff !== 0) return pinDiff;
-                if (sortBy === 'highest') return (b.normalizedScore ?? 0) - (a.normalizedScore ?? 0);
+                if (sortBy === 'highest') return (b.normalizedScore ?? 0) - (b.normalizedScore ?? 0);
                 if (sortBy === 'lowest') return (a.normalizedScore ?? 0) - (b.normalizedScore ?? 0);
                 return pinDiff !== 0 ? pinDiff : (new Date(b.timestamp) - new Date(a.timestamp));
              });
@@ -681,7 +681,7 @@
                      </div>
                      <div class="flex justify-between items-end mt-auto pt-0.5">
                          <span class="text-2xs sm:text-xs text-gray-500 line-clamp-1 flex items-center" title="${author}"> ${author} </span>
-                         <div class="text-right flex-shrink-0"> <p class="font-bold text-indigo-600 text-sm sm:text-base leading-none">${score}</p> </div>
+                         <!-- Score removed as requested -->
                      </div>
                      ${adminActionsHtml}
                 </div>
@@ -754,7 +754,7 @@
                  timestamp: ratingData.timestamp,
                  userNickname: ratingData.userNickname,
                  userEmail: ratingData.userEmail,
-                 isDraft: false
+                 isDraft: false // Data from index/history is NEVER a draft
             };
 
             if (hasCompleteFullData) {
@@ -833,3 +833,4 @@
     </script>
 </body>
 </html>
+
