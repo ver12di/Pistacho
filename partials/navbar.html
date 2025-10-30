@@ -1,0 +1,35 @@
+<nav class="relative mb-6 overflow-hidden rounded-2xl border border-indigo-100/70 bg-white/95 shadow-lg backdrop-blur">
+    <div class="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-indigo-500 via-sky-500 to-emerald-500"></div>
+    <div class="px-4 py-3 sm:px-6">
+        <div class="flex items-center gap-3">
+            <a href="/index.html" class="flex items-center gap-3 text-slate-800" aria-label="Pistacho">
+                <img src="/Certifiedstamp.png" alt="Pistacho logo" class="h-10 w-10 rounded-full border border-slate-200 bg-white object-cover shadow-sm" />
+                <span class="flex flex-col leading-tight">
+                    <span class="text-base font-semibold sm:text-lg" data-i18n="nav.title">Pistacho评分</span>
+                    <span class="hidden text-xs text-slate-500 sm:block" data-i18n="nav.subtitle">雪茄爱好者的全球评分社区</span>
+                </span>
+            </a>
+            <div class="ml-auto flex items-center gap-2">
+                <div id="language-flags" class="hidden items-center gap-1 rounded-full bg-slate-100/80 px-2 py-1 text-xs font-medium text-slate-600 shadow-inner"></div>
+                <select id="language-switcher" class="hidden h-8 rounded-full border border-slate-200 bg-white px-3 text-xs font-medium text-slate-600 shadow-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200">
+                    <option value="zh">简体中文</option>
+                    <option value="en">English</option>
+                    <option value="es">Español</option>
+                </select>
+                <div id="login-status-container" class="flex items-center gap-2 text-sm font-medium text-slate-600"></div>
+                <button id="menu-toggle" class="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:border-indigo-200 hover:text-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-400 md:hidden" aria-label="Toggle navigation" aria-expanded="false">
+                    <svg class="h-5 w-5" stroke="currentColor" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-8 6h8" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+        <div id="nav-links" class="hidden w-full flex-col gap-1 border-t border-indigo-100/60 pt-4 transition-all duration-200 ease-out md:mt-4 md:flex md:w-auto md:flex-row md:items-center md:gap-2 md:border-0 md:pt-0">
+            <a href="/index.html" data-nav-target="index" data-i18n="nav.community" data-active-classes="text-indigo-700 bg-indigo-100/80 shadow-inner" data-inactive-classes="text-slate-600 hover:bg-slate-100 hover:text-indigo-600" class="block rounded-xl px-3 py-2 text-sm font-medium transition-all duration-200 ease-out md:inline-flex md:items-center md:justify-center">社区动态</a>
+            <a href="/rate.html" data-nav-target="rate" data-i18n="nav.rate" data-active-classes="bg-emerald-600 shadow-lg shadow-emerald-200/70" data-inactive-classes="bg-emerald-500 hover:bg-emerald-600" class="inline-flex items-center justify-center rounded-full px-4 py-2 text-sm font-semibold text-white shadow-md transition md:px-5">去评分</a>
+            <a href="/history.html" data-nav-target="history" data-i18n="nav.myRatings" data-active-classes="text-indigo-700 bg-indigo-100/80 shadow-inner" data-inactive-classes="text-slate-600 hover:bg-slate-100 hover:text-indigo-600" class="block rounded-xl px-3 py-2 text-sm font-medium transition-all duration-200 ease-out md:inline-flex md:items-center md:justify-center">我的评分</a>
+            <a href="/certified.html" data-nav-target="certified" data-i18n="nav.certified" data-active-classes="text-indigo-700 bg-indigo-100/80 shadow-inner" data-inactive-classes="text-slate-600 hover:bg-slate-100 hover:text-indigo-600" class="block rounded-xl px-3 py-2 text-sm font-medium transition-all duration-200 ease-out md:inline-flex md:items-center md:justify-center">认证评分</a>
+            <a href="/cigar_rating_config.html" id="config-admin-link" data-nav-target="config" data-i18n="nav.configAdmin" data-active-classes="text-indigo-700 bg-indigo-100/80 shadow-inner" data-inactive-classes="text-slate-600 hover:bg-slate-100 hover:text-indigo-600" class="hidden rounded-xl px-3 py-2 text-sm font-medium transition-all duration-200 ease-out md:inline-flex md:items-center md:justify-center">评分配置</a>
+        </div>
+    </div>
+</nav>

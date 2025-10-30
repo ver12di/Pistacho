@@ -10,6 +10,7 @@
     <script src="https://unpkg.com/i18next/i18next.min.js"></script>
     <script src="https://unpkg.com/i18next-http-backend/i18nextHttpBackend.min.js"></script>
     <script src="https://unpkg.com/i18next-browser-languagedetector/i18nextBrowserLanguageDetector.min.js"></script>
+    <script type="module" src="../../scripts/navbar.js"></script>
 
     <script>
         if (typeof tailwind !== 'undefined') {
@@ -39,19 +40,7 @@
 
     <div id="app-container" class="max-w-7xl mx-auto p-4 md:p-8">
 
-        <nav class="mb-4 flex flex-wrap justify-between items-center bg-white p-3 rounded-lg shadow-sm">
-             <a href="index.html" class="text-xl font-bold text-indigo-600" data-i18n="nav.title">Pistacho评分</a>
-             <div class="flex items-center space-x-4">
-                 <a href="community.html" class="text-indigo-600 font-bold underline" data-i18n="nav.community">社区动态</a>
-                 <a href="history.html" class="text-gray-600 hover:text-indigo-600" data-i18n="nav.myRatings">历史记录</a>
-                 <a href="certified.html" class="text-gray-600 hover:text-indigo-600" data-i18n="nav.certified">认证评分</a>
-                 <select id="language-switcher" class="text-xs p-1 rounded border border-gray-300 mr-2" style="height: 30px; line-height: 1.5;">
-                    <option value="zh">简体中文</option>
-                    <option value="en">English</option>
-                    <option value="es">Español</option>
-                </select>
-             </div>
-        </nav>
+        <div data-include-nav data-active="index" data-language="switcher"></div>
 
         <header class="mb-6">
             <h1 class="text-4xl font-extrabold text-gray-800" data-i18n="communityPage.headerTitle">社区动态</h1>
@@ -134,6 +123,10 @@
                 filterAndRender();
             });
         }
+        document.addEventListener('navbar:loaded', () => {
+            setupLanguageSwitcher();
+            renderLoginStatus(currentAuthUser);
+        });
         // --- End i18n Functions ---
 
         // --- 全局变量 ---
