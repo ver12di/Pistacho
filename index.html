@@ -8,6 +8,7 @@
     <script src="https://unpkg.com/i18next/i18next.min.js"></script>
     <script src="https://unpkg.com/i18next-http-backend/i18nextHttpBackend.min.js"></script>
     <script src="https://unpkg.com/i18next-browser-languagedetector/i18nextBrowserLanguageDetector.min.js"></script>
+    <script type="module" src="scripts/navbar.js"></script>
 
     <script>
         if (typeof tailwind !== 'undefined') {
@@ -104,31 +105,7 @@
 </head>
 <body class="bg-gray-100 font-sans">
     <div class="main-container max-w-7xl">
-        <nav class="mb-6 bg-white p-3 rounded-lg shadow-sm">
-             <div class="flex flex-wrap justify-between items-center">
-                 <a href="index.html" class="text-base sm:text-lg font-bold text-indigo-600 whitespace-nowrap" data-i18n="nav.title">Pistacho评分</a>
-
-                 <button id="menu-toggle" class="md:hidden p-2 rounded-md text-gray-500 hover:text-indigo-600 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500">
-                     <svg class="h-6 w-6" stroke="currentColor" fill="none" viewBox="0 0 24 24">
-                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-8 6h8" />
-                     </svg>
-                 </button>
-
-                 <div id="nav-links" class="hidden md:flex md:items-center md:space-x-1 w-full md:w-auto mt-4 md:mt-0">
-                     <a href="index.html" class="nav-link-active" data-i18n="nav.community">社区动态</a>
-                     <a href="rate.html" class="py-1.5 px-3 sm:py-2 sm:px-4 bg-green-500 text-white text-xs sm:text-sm font-semibold rounded-lg hover:bg-green-600 transition mx-2" data-i18n="nav.rate">去评分</a>
-                     <a href="history.html" class="nav-link" data-i18n="nav.myRatings">我的评分</a>
-                     <a href="certified.html" class="nav-link" data-i18n="nav.certified">认证评分</a>
-                     <a id="config-admin-link" href="cigar_rating_config.html" class="nav-link hidden" data-i18n="nav.configAdmin">评分配置</a>
-                 </div>
-
-                 <div class="flex items-center ml-auto md:ml-0">
-                    <div id="language-flags" class="flex items-center space-x-1 mr-2">
-                        </div>
-                    <div id="login-status-container" class="flex items-center"></div>
-                 </div>
-             </div>
-        </nav>
+        <div data-include-nav data-active="index" data-language="flags"></div>
 
         <div class="mb-6 bg-white p-4 rounded-lg shadow-sm flex flex-col md:flex-row gap-3 items-stretch md:items-center">
             <input type="text" id="search-input" data-i18n="indexPage.searchPlaceholder" placeholder="搜索雪茄名称, 产地, 尺寸, 点评, 用户..." class="flex-grow p-3 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 text-sm md:text-base">
@@ -275,8 +252,6 @@
         const loadingMessage = document.getElementById('loading-message');
         const searchInput = document.getElementById('search-input');
         const sortSelect = document.getElementById('sort-select');
-        const menuToggle = document.getElementById('menu-toggle');
-        const navLinks = document.getElementById('nav-links');
         // --- End Element References ---
 
 
@@ -343,6 +318,14 @@
                 configLink.textContent = i18next.t('nav.configAdmin');
             }
         }
+
+        document.addEventListener('navbar:loaded', () => {
+            if (i18next.isInitialized) {
+                renderLanguageSwitcher();
+                renderAdminLinks();
+            }
+            renderLoginStatus(currentAuthUser);
+        });
 
         async function handleOidcCallback(code) {
             try {
@@ -806,11 +789,6 @@
                  console.log("Adding event listeners...");
                  if (searchInput) searchInput.addEventListener('keypress', function (e) { if (e.key === 'Enter') { applyFilters(); } });
                  if (sortSelect) sortSelect.addEventListener('change', applyFilters);
-                 if (menuToggle && navLinks) {
-                     menuToggle.addEventListener('click', () => {
-                         navLinks.classList.toggle('hidden');
-                     });
-                 }
                  console.log("Event listeners added.");
                  console.log("window.onload finished successfully.");
 

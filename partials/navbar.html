@@ -1,0 +1,26 @@
+<nav class="mb-6 bg-white p-3 rounded-lg shadow-sm">
+    <div class="flex flex-wrap items-center">
+        <a href="/index.html" class="text-base sm:text-lg font-bold text-indigo-600 whitespace-nowrap" data-i18n="nav.title">Pistacho评分</a>
+        <button id="menu-toggle" class="md:hidden ml-auto p-2 rounded-md text-gray-500 hover:text-indigo-600 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500" aria-label="Toggle navigation" aria-expanded="false">
+            <svg class="h-6 w-6" stroke="currentColor" fill="none" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-8 6h8" />
+            </svg>
+        </button>
+        <div id="nav-links" class="hidden w-full md:w-auto md:flex md:items-center md:space-x-1 mt-4 md:mt-0">
+            <a href="/index.html" data-nav-target="index" data-active-classes="text-indigo-600 bg-indigo-50 font-semibold" data-inactive-classes="text-gray-600 hover:bg-gray-100 hover:text-indigo-600" class="block px-3 py-2 rounded-md text-base font-medium transition-colors md:text-sm md:inline-block">社区动态</a>
+            <a href="/rate.html" data-nav-target="rate" data-active-classes="bg-green-600" data-inactive-classes="bg-green-500 hover:bg-green-600" class="inline-flex items-center justify-center rounded-lg text-xs sm:text-sm font-semibold text-white transition px-3 py-1.5 sm:px-4 sm:py-2 mx-0 sm:mx-2">去评分</a>
+            <a href="/history.html" data-nav-target="history" data-active-classes="text-indigo-600 bg-indigo-50 font-semibold" data-inactive-classes="text-gray-600 hover:bg-gray-100 hover:text-indigo-600" class="block px-3 py-2 rounded-md text-base font-medium transition-colors md:text-sm md:inline-block">我的评分</a>
+            <a href="/certified.html" data-nav-target="certified" data-active-classes="text-indigo-600 bg-indigo-50 font-semibold" data-inactive-classes="text-gray-600 hover:bg-gray-100 hover:text-indigo-600" class="block px-3 py-2 rounded-md text-base font-medium transition-colors md:text-sm md:inline-block">认证评分</a>
+            <a href="/cigar_rating_config.html" id="config-admin-link" data-nav-target="config" data-active-classes="text-indigo-600 bg-indigo-50 font-semibold" data-inactive-classes="text-gray-600 hover:bg-gray-100 hover:text-indigo-600" class="hidden block px-3 py-2 rounded-md text-base font-medium transition-colors md:text-sm md:inline-block">评分配置</a>
+        </div>
+        <div class="flex items-center ml-auto md:ml-0 mt-3 md:mt-0 space-x-2">
+            <div id="language-flags" class="flex items-center space-x-1"></div>
+            <select id="language-switcher" class="text-xs p-1 rounded border border-gray-300 h-7 hidden">
+                <option value="zh">简体中文</option>
+                <option value="en">English</option>
+                <option value="es">Español</option>
+            </select>
+            <div id="login-status-container" class="flex items-center"></div>
+        </div>
+    </div>
+</nav>
