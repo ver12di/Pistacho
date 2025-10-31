@@ -121,19 +121,20 @@
             padding: 8px; /* Adjust padding if needed */
             display: flex; /* Use flexbox for layout */
             justify-content: space-between; /* Space between left (score/text) and right (QR) */
-            align-items: flex-end; /* Align items to the bottom */
+            align-items: flex-start; /* Lift content to align with enlarged QR code */
             min-height: 75px; /* Adjust min-height as needed, but try to keep it compact */
+            gap: 6px; /* Maintain breathing room between sections */
         }
         #share-card-left {
             display: flex;
             flex-direction: column; /* Stack score, grade, watermark */
-            justify-content: flex-end; /* Align items to bottom */
+            justify-content: flex-start; /* Keep score block higher in the card */
             flex-grow: 1; /* Allow left side to take available space */
             margin-right: 8px; /* Add space between left and QR */
+            gap: 4px; /* Consistent spacing between text elements */
         }
         #share-card-score {
             font-size: 2.5rem; /* Slightly smaller score */ font-weight: 900; line-height: 0.9; /* Tighter line height */
-            margin-bottom: 6px; /* Increased space below score */
         }
         #share-card-grade-badge {
              /* Grade badge styles */
@@ -145,7 +146,9 @@
              /* Color applied dynamically */
         }
         #share-card-watermark {
-            font-size: 0.55rem; color: #9ca3af; line-height: 1.1; margin: 0; /* Remove default margin */
+            font-size: 0.7rem; color: #4b5563; line-height: 1.2; margin: 0; /* Remove default margin */
+            font-weight: 600; /* Improve readability of the URL */
+            letter-spacing: 0.02em; /* Slightly wider spacing for clarity */
             /* Removed width constraint, let flexbox handle it */
         }
         #share-card-qrcode {
