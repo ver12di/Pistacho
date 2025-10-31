@@ -72,8 +72,24 @@
         #share-card-image-wrapper {
             background-color: #e5e7eb; display: flex; align-items: center; justify-content: center;
             aspect-ratio: 1179 / 1572; /* Keep aspect ratio */
+            position: relative;
         }
+        #share-card-image-wrapper.no-image #share-card-pagination { display: none; }
         #share-card-image { width: 100%; height: 100%; object-fit: cover; }
+        #share-card-pagination {
+            position: absolute;
+            bottom: 12px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 4px;
+        }
+        #share-card-pagination span {
+            width: 6px;
+            height: 6px;
+            border-radius: 9999px;
+            background-color: rgba(156, 163, 175, 0.8); /* Gray-400 with slight transparency */
+        }
         #share-card-content {
             padding: 8px; /* Adjust padding if needed */
             display: flex; /* Use flexbox for layout */
@@ -90,14 +106,14 @@
         }
         #share-card-score {
             font-size: 2.5rem; /* Slightly smaller score */ font-weight: 900; line-height: 0.9; /* Tighter line height */
-            margin-bottom: 0px; /* --- MODIFIED: Reduced space below score --- */
+            margin-bottom: 6px; /* Increased space below score */
         }
         #share-card-grade-badge {
              /* Grade badge styles */
              display: inline-block; /* Allow it to sit below score */
              padding: 1px 6px; /* Adjust padding */
              border-radius: 9999px;
-             font-size: 0.7rem; /* --- MODIFIED: Increased font size --- */ font-weight: 600;
+             font-size: 0.9rem; /* Larger grade label */ font-weight: 600;
              margin-bottom: 3px; /* --- MODIFIED: Adjusted space below grade --- */
              /* Color applied dynamically */
         }
@@ -261,16 +277,20 @@
         <div id="share-card-container">
             <div id="share-card-image-wrapper">
                 <img id="share-card-image" src="" alt="Cigar Cover Image" crossorigin="anonymous">
+                <div id="share-card-pagination" aria-hidden="true">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
             </div>
             <!-- --- MODIFIED: Share Card Content Structure --- -->
             <div id="share-card-content">
                 <div id="share-card-left">
                     <span id="share-card-score">0.00</span>
                     <span id="share-card-grade-badge">? - ???</span>
-                    <p id="share-card-watermark">
-                        <span id="share-card-username">用户</span>
-                        <!-- Placeholder for 'rating on...' text -->
-                    </p>
+                    <p id="share-card-watermark">Rating on www.pista-cho.com</p>
                 </div>
                 <div id="share-card-qrcode">
                     <!-- QR code img will be added here -->
@@ -864,8 +884,6 @@
              const rawFinalGrade = data.finalGrade ?? (data.finalGrade_grade ? { grade: data.finalGrade_grade, name_cn: data.finalGrade_name_cn } : null);
              const finalGrade = resolveFinalGrade(rawFinalGrade, normalizedScore);
              data.finalGrade = finalGrade;
-             const nickname = userNickname || userEmail || i18next.t('common.anonymous');
-
              // Robust check for finalGrade
              if (!finalGrade || typeof finalGrade !== 'object' || !finalGrade.grade || !finalGrade.nameKey || !finalGrade.color) {
                   console.warn("populateShareCard: finalGrade data missing or incomplete. Cannot populate share card grade.", finalGrade);
@@ -883,23 +901,30 @@
                   gradeEl.textContent = gradeName;
              }
 
-             const watermarkEl = document.getElementById('share-card-watermark');
-             watermarkEl.innerHTML = i18next.t('resultsPage.shareCard.userRatingOn', { user: `<span id="share-card-username">${nickname}</span>` });
+            const watermarkEl = document.getElementById('share-card-watermark');
+            if (watermarkEl) {
+                 watermarkEl.textContent = 'Rating on www.pista-cho.com';
+            }
 
-             const shareCardImage = document.getElementById('share-card-image');
-             const shareCardImageWrapper = document.getElementById('share-card-image-wrapper');
-             if (imageUrls.length > 0) {
-                 shareCardImage.src = `/api/image/${imageUrls[0]}`;
-                 shareCardImage.style.display = 'block';
-                 const placeholder = shareCardImageWrapper.querySelector('span');
-                 if(placeholder) placeholder.remove();
-             } else {
-                 shareCardImage.src = '';
-                 shareCardImage.style.display = 'none';
-                 if(!shareCardImageWrapper.querySelector('span')) {
-                     shareCardImageWrapper.innerHTML = `<span class="text-gray-400 text-sm">${i18next.t('resultsPage.shareCard.noCover')}</span>`;
-                 }
-             }
+            const shareCardImage = document.getElementById('share-card-image');
+            const shareCardImageWrapper = document.getElementById('share-card-image-wrapper');
+            if (imageUrls.length > 0) {
+                  shareCardImage.src = `/api/image/${imageUrls[0]}`;
+                  shareCardImage.style.display = 'block';
+                  shareCardImageWrapper.classList.remove('no-image');
+                  const placeholder = shareCardImageWrapper.querySelector('.share-card-placeholder');
+                  if (placeholder) placeholder.remove();
+            } else {
+                  shareCardImage.src = '';
+                  shareCardImage.style.display = 'none';
+                  shareCardImageWrapper.classList.add('no-image');
+                  if (!shareCardImageWrapper.querySelector('.share-card-placeholder')) {
+                      const placeholder = document.createElement('span');
+                      placeholder.className = 'share-card-placeholder text-gray-400 text-sm';
+                      placeholder.textContent = i18next.t('resultsPage.shareCard.noCover');
+                      shareCardImageWrapper.appendChild(placeholder);
+                  }
+            }
         }
 
         // Generates QR code and resolves promise on image load/error
