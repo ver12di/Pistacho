@@ -65,6 +65,13 @@
     "sessionExpiredRead": "Sesión expirada o inválida (estado {{status}}), no se pueden leer datos.",
     "unrated": "Sin Calificar"
   },
+  "seo": {
+    "description": "La comunidad de valoraciones de Pistacho ofrece reseñas, puntuaciones y certificaciones seleccionadas para que los aficionados compartan y descubran experiencias excepcionales.",
+    "keywords": "Pistacho, calificaciones de cigarros, comunidad de cigarros, certificación de cigarros, reseñas de cigarros",
+    "ogTitle": "Comunidad de Valoraciones Pistacho",
+    "ogDescription": "Únete a la comunidad de valoraciones de cigarros Pistacho para descubrir reseñas seleccionadas y registros de certificación para tu próximo cigarro imprescindible.",
+    "locale": "es_ES"
+  },
   "nav": {
     "title": "Pistacho Calificación",
     "subtitle": "La comunidad global para amantes del puro",

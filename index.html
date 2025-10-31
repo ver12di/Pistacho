@@ -3,15 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Pistacho 雪茄评分社区提供精选的雪茄点评、评分与认证内容，帮助雪茄爱好者分享与发现卓越体验。">
-    <meta name="keywords" content="Pistacho, 雪茄评分, 雪茄社区, 雪茄认证, 雪茄点评">
+    <meta name="description" data-i18n="seo.description" data-i18n-attr="content"
+          content="Pistacho 雪茄评分社区提供精选的雪茄点评、评分与认证内容，帮助雪茄爱好者分享与发现卓越体验。">
+    <meta name="keywords" data-i18n="seo.keywords" data-i18n-attr="content"
+          content="Pistacho, 雪茄评分, 雪茄社区, 雪茄认证, 雪茄点评">
     <meta name="robots" content="index, follow">
-    <meta property="og:title" content="Pistacho 评分社区">
-    <meta property="og:description" content="加入 Pistacho 雪茄评分社区，获取精选雪茄点评与认证记录，发现下一支必试雪茄。">
+    <meta property="og:title" data-i18n="seo.ogTitle" data-i18n-attr="content" content="Pistacho 评分社区">
+    <meta property="og:description" data-i18n="seo.ogDescription" data-i18n-attr="content"
+          content="加入 Pistacho 雪茄评分社区，获取精选雪茄点评与认证记录，发现下一支必试雪茄。">
     <meta property="og:type" content="website">
     <meta property="og:image" content="Certifiedstamp.png">
-    <meta property="og:locale" content="zh_CN">
+    <meta property="og:locale" data-i18n="seo.locale" data-i18n-attr="content" content="zh_CN">
+    <meta property="og:locale:alternate" content="en_US">
+    <meta property="og:locale:alternate" content="es_ES">
     <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" data-i18n="seo.ogTitle" data-i18n-attr="content" content="Pistacho 评分社区">
+    <meta name="twitter:description" data-i18n="seo.ogDescription" data-i18n-attr="content"
+          content="加入 Pistacho 雪茄评分社区，获取精选雪茄点评与认证记录，发现下一支必试雪茄。">
+    <link rel="canonical" id="canonical-link" href="/">
     <title>Pistacho 评分社区</title>
     <link rel="icon" type="image/png" href="Certifiedstamp.png">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -185,6 +194,48 @@
             });
         }
 
+        function getBaseLanguage(language) {
+            return language ? language.split('-')[0] : 'zh';
+        }
+
+        function updateSeoMetadata() {
+            if (!i18next || typeof i18next.t !== 'function') return;
+
+            const baseLang = getBaseLanguage(i18next.language);
+            const htmlLangMap = { zh: 'zh-Hans', en: 'en', es: 'es' };
+            const resolvedHtmlLang = htmlLangMap[baseLang] || baseLang;
+            document.documentElement.setAttribute('lang', resolvedHtmlLang);
+
+            const metaMappings = [
+                { selector: 'meta[name="description"]', key: 'seo.description' },
+                { selector: 'meta[name="keywords"]', key: 'seo.keywords' },
+                { selector: 'meta[property="og:title"]', key: 'seo.ogTitle' },
+                { selector: 'meta[name="twitter:title"]', key: 'seo.ogTitle' },
+                { selector: 'meta[property="og:description"]', key: 'seo.ogDescription' },
+                { selector: 'meta[name="twitter:description"]', key: 'seo.ogDescription' },
+                { selector: 'meta[property="og:locale"]', key: 'seo.locale' }
+            ];
+
+            metaMappings.forEach(({ selector, key }) => {
+                const element = document.querySelector(selector);
+                if (!element) return;
+                try {
+                    const translatedValue = i18next.t(key);
+                    if (typeof translatedValue === 'string') {
+                        element.setAttribute('content', translatedValue);
+                    }
+                } catch (error) {
+                    console.error(`Failed to translate SEO key ${key}:`, error);
+                }
+            });
+
+            const canonicalLink = document.getElementById('canonical-link');
+            if (canonicalLink && typeof window !== 'undefined' && window.location) {
+                const canonicalUrl = `${window.location.origin}${window.location.pathname}`;
+                canonicalLink.setAttribute('href', canonicalUrl);
+            }
+        }
+
         function updateContent() {
             console.log("Running updateContent...");
             document.querySelectorAll('[data-i18n]').forEach(el => {
@@ -199,6 +250,16 @@
                     console.error(`Error translating key "${key}":`, e);
                 }
 
+                const attrListRaw = el.getAttribute('data-i18n-attr');
+                const targetAttributes = attrListRaw ? attrListRaw.split(',').map(attr => attr.trim()).filter(Boolean) : [];
+                if (targetAttributes.length) {
+                    targetAttributes.forEach(attrName => {
+                        if (!attrName) return;
+                        el.setAttribute(attrName, value);
+                    });
+                    return;
+                }
+
                 if (el.classList.contains('lang-button')) return;
 
                 if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
@@ -210,6 +271,7 @@
                     el.innerHTML = (typeof value === 'string' || typeof value === 'number') ? value : '';
                 }
             });
+            updateSeoMetadata();
             console.log("updateContent finished.");
         }
 
