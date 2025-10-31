@@ -19,24 +19,27 @@
     <title>雪茄品鉴 - 点评报告</title>
     <link rel="icon" type="image/png" href="Certifiedstamp.png">
 
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/Swiper/11.0.5/swiper-bundle.min.css"/>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Swiper/11.0.5/swiper-bundle.min.js" defer></script>
+    <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="preconnect" href="https://unpkg.com" crossorigin>
+    <script src="https://cdn.tailwindcss.com" defer></script>
 
-    <script src="https://unpkg.com/i18next/i18next.min.js"></script>
-    <script src="https://unpkg.com/i18next-http-backend/i18nextHttpBackend.min.js"></script>
-    <script src="https://unpkg.com/i18next-browser-languagedetector/i18nextBrowserLanguageDetector.min.js"></script>
+    <script src="https://unpkg.com/i18next/i18next.min.js" defer></script>
+    <script src="https://unpkg.com/i18next-http-backend/i18nextHttpBackend.min.js" defer></script>
+    <script src="https://unpkg.com/i18next-browser-languagedetector/i18nextBrowserLanguageDetector.min.js" defer></script>
     <script type="module" src="scripts/navbar.js"></script>
 
     <script>
-        // Tailwind config
-        if (typeof tailwind !== 'undefined') {
-             tailwind.config = {
-                 theme: { extend: { fontFamily: { sans: ['Inter', 'Noto Sans SC', 'system-ui', 'sans-serif'], }, } }
-             }
-         } else { console.warn('Tailwind object not found.'); }
+        window.tailwind = window.tailwind || {};
+        window.tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'Noto Sans SC', 'system-ui', 'sans-serif'],
+                    },
+                }
+            }
+        };
     </script>
     <style>
         /* Language switcher buttons */
@@ -302,7 +305,7 @@
         <!-- Hidden Share Card Container (for image generation) -->
         <div id="share-card-container">
             <div id="share-card-image-wrapper">
-                <img id="share-card-image" src="" alt="Cigar Cover Image" crossorigin="anonymous">
+                <img id="share-card-image" src="" alt="Cigar Cover Image" crossorigin="anonymous" loading="lazy">
                 <div id="share-card-pagination" aria-hidden="true">
                     <span></span>
                     <span></span>
@@ -362,6 +365,125 @@
         };
         let commentStatusTimer = null;
         let commentSubmitBound = false;
+
+        const RESOURCE_PROMISES = new Map();
+        const SWIPER_STYLE_URL = 'https://cdnjs.cloudflare.com/ajax/libs/Swiper/11.0.5/swiper-bundle.min.css';
+        const SWIPER_SCRIPT_URL = 'https://cdnjs.cloudflare.com/ajax/libs/Swiper/11.0.5/swiper-bundle.min.js';
+        const HTML2CANVAS_SCRIPT_URL = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+        const QRCODE_SCRIPT_URL = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
+
+        function toAbsoluteUrl(url) {
+            try {
+                return new URL(url, document.baseURI).href;
+            } catch (error) {
+                return url;
+            }
+        }
+
+        function loadScriptOnce(src, { async = true, defer = true, crossOrigin = 'anonymous' } = {}) {
+            if (!src) {
+                return Promise.reject(new Error('Script source is required'));
+            }
+
+            const normalizedSrc = toAbsoluteUrl(src);
+            if (RESOURCE_PROMISES.has(normalizedSrc)) {
+                return RESOURCE_PROMISES.get(normalizedSrc);
+            }
+
+            const existing = document.querySelector(`script[src="${normalizedSrc}"]`);
+            if (existing && existing.dataset.loaded === 'true') {
+                return Promise.resolve();
+            }
+
+            const promise = new Promise((resolve, reject) => {
+                const script = existing || document.createElement('script');
+                script.src = normalizedSrc;
+                script.async = async;
+                script.defer = defer;
+                if (crossOrigin) {
+                    script.crossOrigin = crossOrigin;
+                }
+                script.onload = () => {
+                    script.dataset.loaded = 'true';
+                    resolve();
+                };
+                script.onerror = () => reject(new Error(`Failed to load script: ${src}`));
+                if (!existing) {
+                    document.head.appendChild(script);
+                }
+            });
+
+            RESOURCE_PROMISES.set(normalizedSrc, promise);
+            return promise;
+        }
+
+        function loadStylesheetOnce(href) {
+            if (!href) {
+                return Promise.reject(new Error('Stylesheet href is required'));
+            }
+
+            const normalizedHref = toAbsoluteUrl(href);
+            if (RESOURCE_PROMISES.has(normalizedHref)) {
+                return RESOURCE_PROMISES.get(normalizedHref);
+            }
+
+            const existing = Array.from(document.querySelectorAll('link[rel="stylesheet"], link[data-lazy-stylesheet="true"]'))
+                .find(link => link.href === normalizedHref);
+            if (existing && existing.dataset.loaded === 'true') {
+                return Promise.resolve();
+            }
+
+            const promise = new Promise((resolve, reject) => {
+                const link = existing || document.createElement('link');
+                link.rel = 'stylesheet';
+                link.href = normalizedHref;
+                link.onload = () => {
+                    link.dataset.loaded = 'true';
+                    resolve();
+                };
+                link.onerror = () => reject(new Error(`Failed to load stylesheet: ${href}`));
+                if (!existing) {
+                    link.setAttribute('data-lazy-stylesheet', 'true');
+                    document.head.appendChild(link);
+                }
+            });
+
+            RESOURCE_PROMISES.set(normalizedHref, promise);
+            return promise;
+        }
+
+        async function ensureSwiper() {
+            if (typeof Swiper !== 'undefined') {
+                return Swiper;
+            }
+            await Promise.all([loadStylesheetOnce(SWIPER_STYLE_URL), loadScriptOnce(SWIPER_SCRIPT_URL)]);
+            if (typeof Swiper === 'undefined') {
+                throw new Error('Swiper failed to load');
+            }
+            return Swiper;
+        }
+
+        async function ensureHtml2Canvas() {
+            if (typeof html2canvas !== 'undefined') {
+                return html2canvas;
+            }
+            await loadScriptOnce(HTML2CANVAS_SCRIPT_URL);
+            if (typeof html2canvas === 'undefined') {
+                throw new Error('html2canvas failed to load');
+            }
+            return html2canvas;
+        }
+
+        async function ensureQRCode() {
+            if (typeof QRCode !== 'undefined') {
+                return QRCode;
+            }
+            await loadScriptOnce(QRCODE_SCRIPT_URL);
+            if (typeof QRCode === 'undefined') {
+                throw new Error('QRCode library failed to load');
+            }
+            return QRCode;
+        }
 
         function resolveFinalGrade(rawFinalGrade, normalizedScore) {
             const existing = rawFinalGrade ? { ...rawFinalGrade } : null;
@@ -556,7 +678,7 @@
                         if (resultsData) {
                             renderPageContent(resultsData);
                             populateShareCard(resultsData);
-                            generateQRCode();
+                            await generateQRCode();
                             renderCommentsSection();
                             updateCommentFormState();
                         }
@@ -750,60 +872,76 @@
         };
 
         // Initializes the Swiper image galleries (main and thumbnails)
-        function initSwipers(imageUrls = []) {
+        async function initSwipers(imageUrls = []) {
              const mainWrapper = document.getElementById('main-swiper-wrapper');
              const thumbWrapper = document.getElementById('thumbnail-swiper-wrapper');
              const thumbContainer = document.querySelector('.thumbnail-swiper');
-             mainWrapper.innerHTML = ''; // Clear existing slides
-             thumbWrapper.innerHTML = '';
-
-             // Handle case with no images
-             if (!imageUrls || imageUrls.length === 0) {
-                 mainWrapper.innerHTML = `<div class="swiper-slide flex items-center justify-center text-gray-400 aspect-[1179/1572]">${i18next.t('common.noImage')}</div>`;
-                 thumbContainer.classList.add('hidden');
-                 // Destroy existing Swiper instances if they exist
-                 if(mainSwiper) mainSwiper.destroy(true, true);
-                 if(thumbnailSwiper) thumbnailSwiper.destroy(true, true);
-                 mainSwiper = null; thumbnailSwiper = null;
+             if (!mainWrapper || !thumbWrapper || !thumbContainer) {
+                 console.warn('[results.html initSwipers] Missing swiper containers.');
                  return;
              }
 
-             // Populate sliders with image elements
-             imageUrls.forEach(key => {
+             const normalizedImages = Array.isArray(imageUrls) ? imageUrls : [];
+
+             mainWrapper.innerHTML = '';
+             thumbWrapper.innerHTML = '';
+
+             if (normalizedImages.length === 0) {
+                 mainWrapper.innerHTML = `<div class="swiper-slide flex items-center justify-center text-gray-400 aspect-[1179/1572]">${i18next.t('common.noImage')}</div>`;
+                 thumbContainer.classList.add('hidden');
+                 if (mainSwiper) mainSwiper.destroy(true, true);
+                 if (thumbnailSwiper) thumbnailSwiper.destroy(true, true);
+                 mainSwiper = null;
+                 thumbnailSwiper = null;
+                 return;
+             }
+
+             normalizedImages.forEach(key => {
                  const imageUrl = `/api/image/${key}`;
-                 // Added crossorigin="anonymous" for html2canvas
-                 const imgElement = `<img src="${imageUrl}" alt="${i18next.t('common.cigarImageAlt')}" crossorigin="anonymous" onerror="this.src='https://placehold.co/600x800/gray/white?text=Loading+Failed'; this.onerror=null;">`;
+                 const imgElement = `<img src="${imageUrl}" alt="${i18next.t('common.cigarImageAlt')}" crossorigin="anonymous" loading="lazy" onerror="this.src='https://placehold.co/600x800/gray/white?text=Loading+Failed'; this.onerror=null;">`;
                  mainWrapper.innerHTML += `<div class="swiper-slide">${imgElement}</div>`;
                  thumbWrapper.innerHTML += `<div class="swiper-slide thumbnail-slide">${imgElement}</div>`;
              });
 
-             // Destroy previous instances before re-initializing
-             if(mainSwiper) mainSwiper.destroy(true, true);
-             if(thumbnailSwiper) thumbnailSwiper.destroy(true, true);
+             if (mainSwiper) mainSwiper.destroy(true, true);
+             if (thumbnailSwiper) thumbnailSwiper.destroy(true, true);
 
-             // Adjust based on whether share image will be added
-             const hasMultipleItems = imageUrls.length > 1;
-             const thumbDisplayClass = hasMultipleItems && !shareImageGenerated ? '' : 'hidden';
+             let swiperReady = typeof Swiper !== 'undefined';
+             if (!swiperReady) {
+                 try {
+                     await ensureSwiper();
+                     swiperReady = typeof Swiper !== 'undefined';
+                 } catch (error) {
+                     console.error('[results.html initSwipers] Failed to load Swiper library:', error);
+                     thumbContainer.classList.add('hidden');
+                     mainSwiper = null;
+                     thumbnailSwiper = null;
+                     return;
+                 }
+             }
 
-             // Initialize thumbnails only if initially needed
+             const hasMultipleItems = normalizedImages.length > 1;
+
              if (hasMultipleItems && !shareImageGenerated) {
                  thumbContainer.classList.remove('hidden');
                  thumbnailSwiper = new Swiper('.thumbnail-swiper', {
-                     spaceBetween: 10, slidesPerView: 'auto', freeMode: true, watchSlidesProgress: true,
+                     spaceBetween: 10,
+                     slidesPerView: 'auto',
+                     freeMode: true,
+                     watchSlidesProgress: true,
                  });
              } else {
                  thumbContainer.classList.add('hidden');
                  thumbnailSwiper = null;
              }
 
-             // Initialize main swiper
              mainSwiper = new Swiper('.main-swiper', {
                  spaceBetween: 10,
-                 autoHeight: true, // Set autoHeight to true
-                 navigation: { nextEl: '.swiper-button-next', prevEl: '.swiper-button-prev', },
-                 pagination: { el: '.main-swiper .swiper-pagination', clickable: true, },
-                 thumbs: { swiper: thumbnailSwiper, },
-                 allowTouchMove: !(imageUrls.length === 1 && !shareImageGenerated),
+                 autoHeight: true,
+                 navigation: { nextEl: '.swiper-button-next', prevEl: '.swiper-button-prev' },
+                 pagination: { el: '.main-swiper .swiper-pagination', clickable: true },
+                 thumbs: { swiper: thumbnailSwiper },
+                 allowTouchMove: !(normalizedImages.length === 1 && !shareImageGenerated),
              });
         }
 
@@ -823,9 +961,28 @@
             const thumbSwiperWrapper = document.getElementById('thumbnail-swiper-wrapper');
             const thumbContainer = document.querySelector('.thumbnail-swiper');
 
-            if (!shareCardElement || !coverImageElement || !qrCodeContainer || !thumbSwiperWrapper || !thumbContainer || typeof html2canvas === 'undefined' || !resultsData || !mainSwiperWrapper) {
+            if (!shareCardElement || !coverImageElement || !qrCodeContainer || !thumbSwiperWrapper || !thumbContainer || !resultsData || !mainSwiperWrapper) {
                 console.warn("Cannot auto-generate share image: Missing required elements or libraries.");
                 return false;
+            }
+
+            let html2canvasInstance;
+            try {
+                html2canvasInstance = await ensureHtml2Canvas();
+            } catch (error) {
+                console.error('Failed to load html2canvas for share image generation.', error);
+                return false;
+            }
+
+            let swiperAvailable = typeof Swiper !== 'undefined';
+            if (!swiperAvailable) {
+                try {
+                    await ensureSwiper();
+                    swiperAvailable = typeof Swiper !== 'undefined';
+                } catch (error) {
+                    console.warn('[results.html autoGenerateShareImage] Swiper not available, proceeding without slider updates.', error);
+                    swiperAvailable = false;
+                }
             }
 
             const coverImagePromise = new Promise((resolve, reject) => {
@@ -860,7 +1017,7 @@
                  shareCardElement.style.visibility = 'visible';
                  await new Promise(resolve => setTimeout(resolve, 300));
 
-                 const canvas = await html2canvas(shareCardElement, { useCORS: true, allowTaint: true, scale: 2 });
+                 const canvas = await html2canvasInstance(shareCardElement, { useCORS: true, allowTaint: true, scale: 2 });
 
                  let imageSrc = null;
                  if (typeof canvas.toBlob === 'function') {
@@ -885,7 +1042,6 @@
                      imageSrc = canvas.toDataURL('image/png');
                  }
 
-                 // Create and add slides
                  const newMainSlide = document.createElement('div');
                  newMainSlide.className = 'swiper-slide share-image-slide';
                  newMainSlide.innerHTML = `<img src="${imageSrc}" alt="${i18next.t('resultsPage.shareImageAlt')}">`;
@@ -896,27 +1052,32 @@
                  newThumbSlide.innerHTML = `<img src="${imageSrc}" alt="${i18next.t('resultsPage.shareThumb')}">`;
                  thumbSwiperWrapper.appendChild(newThumbSlide);
 
-                 // Update Swipers
-                 if (mainSwiper) mainSwiper.update();
-                 if (thumbnailSwiper) {
-                      thumbnailSwiper.update();
-                      thumbContainer.classList.remove('hidden');
-                 } else if (resultsData.imageUrls && resultsData.imageUrls.length >= 0) { // Update condition to >= 0
-                      thumbContainer.classList.remove('hidden');
-                      thumbnailSwiper = new Swiper('.thumbnail-swiper', {
-                           spaceBetween: 10, slidesPerView: 'auto', freeMode: true, watchSlidesProgress: true,
-                      });
-                      if (mainSwiper) {
-                          // Ensure thumbs object exists before assigning
-                          if (!mainSwiper.thumbs) mainSwiper.thumbs = {};
-                          mainSwiper.thumbs.swiper = thumbnailSwiper;
-                          mainSwiper.thumbs.init(); // Re-initialize thumbs connection
-                          mainSwiper.thumbs.update(true); // Force update
-                      }
-                 }
-                 if (mainSwiper && !mainSwiper.params.allowTouchMove) {
-                     mainSwiper.params.allowTouchMove = true;
-                     mainSwiper.allowTouchMove = true;
+                 if (swiperAvailable) {
+                     if (mainSwiper) mainSwiper.update();
+                     if (thumbnailSwiper) {
+                          thumbnailSwiper.update();
+                          thumbContainer.classList.remove('hidden');
+                     } else if (resultsData.imageUrls && resultsData.imageUrls.length >= 0) {
+                          thumbContainer.classList.remove('hidden');
+                          thumbnailSwiper = new Swiper('.thumbnail-swiper', {
+                               spaceBetween: 10,
+                               slidesPerView: 'auto',
+                               freeMode: true,
+                               watchSlidesProgress: true,
+                          });
+                          if (mainSwiper) {
+                              if (!mainSwiper.thumbs) mainSwiper.thumbs = {};
+                              mainSwiper.thumbs.swiper = thumbnailSwiper;
+                              mainSwiper.thumbs.init();
+                              mainSwiper.thumbs.update(true);
+                          }
+                     }
+                     if (mainSwiper && !mainSwiper.params.allowTouchMove) {
+                         mainSwiper.params.allowTouchMove = true;
+                         mainSwiper.allowTouchMove = true;
+                     }
+                 } else {
+                     thumbContainer.classList.remove('hidden');
                  }
 
                  shareImageGenerated = true;
@@ -952,8 +1113,10 @@
                 return;
             }
 
-            if (typeof html2canvas === 'undefined') {
-                console.log("html2canvas not ready, will retry share image generation.");
+            try {
+                await ensureHtml2Canvas();
+            } catch (error) {
+                console.log("html2canvas not ready, will retry share image generation.", error);
                 if (retryCount < SHARE_IMAGE_MAX_RETRIES) {
                     if (shareImageRetryTimer) clearTimeout(shareImageRetryTimer);
                     shareImageRetryTimer = setTimeout(() => tryAutoGenerateShareImage(retryCount + 1), SHARE_IMAGE_RETRY_DELAY);
@@ -1159,21 +1322,34 @@
         }
 
         // Generates QR code and resolves promise on image load/error
-        function generateQRCode() {
+        async function generateQRCode() {
+            const qrCodeContainer = document.getElementById('share-card-qrcode');
+            if (!qrCodeContainer) {
+                return;
+            }
+
+            try {
+                await ensureQRCode();
+            } catch (error) {
+                console.error('[results.html generateQRCode] Failed to load QRCode library:', error);
+                qrCodeContainer.innerHTML = `<p class="text-2xs text-red-500">QR Error</p>`;
+                throw error;
+            }
+
             return new Promise((resolve, reject) => {
-                 const qrCodeContainer = document.getElementById('share-card-qrcode');
-                 if (qrCodeContainer && typeof QRCode !== 'undefined') {
-                    qrCodeContainer.innerHTML = ''; // Clear previous
+                 const qrCodeContainerInner = document.getElementById('share-card-qrcode');
+                 if (qrCodeContainerInner && typeof QRCode !== 'undefined') {
+                    qrCodeContainerInner.innerHTML = '';
                     // Use ratingId if available (after save or loaded), otherwise use current page URL (for draft)
                     const uniqueUrl = buildShareUrl();
                     console.log("[results.html generateQRCode] Generating QR for URL:", uniqueUrl); // Log the URL
                     try {
-                         new QRCode(qrCodeContainer, {
+                         new QRCode(qrCodeContainerInner, {
                              text: uniqueUrl, width: 100, height: 100, // Larger QR code for easier scanning
                              colorDark : "#000000", colorLight : "#ffffff",
                              correctLevel : QRCode.CorrectLevel.H
                          });
-                         const qrImg = qrCodeContainer.querySelector('img');
+                         const qrImg = qrCodeContainerInner.querySelector('img');
                          if (qrImg) {
                              const finish = (value, asError = false) => {
                                  if (finish.handled) return;
@@ -1760,7 +1936,7 @@
                  }
 
                  // Render UI elements
-                 initSwipers(resultsData.imageUrls || []); // Initialize image slider
+                 await initSwipers(resultsData.imageUrls || []); // Initialize image slider
                  renderPageContent(resultsData); // Render main content sections
 
                  // Generate QR and attempt share image AFTER main content is rendered
