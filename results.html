@@ -344,6 +344,9 @@
         let thumbnailSwiper = null; // Swiper instance for thumbnails
         let shareImageGenerated = false; // Flag to prevent multiple generations
         let shareImageObjectUrl = null;  // Blob URL for generated share image (better mobile support)
+        let shareImageRetryTimer = null; // Timer reference for retry attempts
+        const SHARE_IMAGE_MAX_RETRIES = 5; // Limit retries to avoid infinite loops
+        const SHARE_IMAGE_RETRY_DELAY = 800; // Base delay (ms) between retries
         const PRODUCTION_ORIGIN = 'https://www.pista-cho.com'; // Canonical domain used for share links
         const commentState = {
             comments: [],
@@ -806,7 +809,7 @@
 
         // Waits for images, generates share card, adds to main AND thumb swiper
         async function autoGenerateShareImage() {
-            if (shareImageGenerated) return;
+            if (shareImageGenerated) return true;
 
             const shareCardElement = document.getElementById('share-card-container');
             const coverImageElement = document.getElementById('share-card-image');
@@ -816,7 +819,8 @@
             const thumbContainer = document.querySelector('.thumbnail-swiper');
 
             if (!shareCardElement || !coverImageElement || !qrCodeContainer || !thumbSwiperWrapper || !thumbContainer || typeof html2canvas === 'undefined' || !resultsData || !mainSwiperWrapper) {
-                console.warn("Cannot auto-generate share image: Missing required elements or libraries."); return;
+                console.warn("Cannot auto-generate share image: Missing required elements or libraries.");
+                return false;
             }
 
             const coverImagePromise = new Promise((resolve, reject) => {
@@ -833,8 +837,10 @@
 
             const statusElement = document.getElementById('loading-indicator');
             try {
-                 statusElement.textContent = i18next.t('resultsPage.shareCard.generating');
-                 statusElement.classList.remove('hidden');
+                 if (statusElement) {
+                     statusElement.textContent = i18next.t('resultsPage.shareCard.generating');
+                     statusElement.classList.remove('hidden');
+                 }
 
                  console.log("Waiting for share card images (cover & QR)...");
                  const [coverStatus] = await Promise.all([coverImagePromise, qrCodeImagePromise]);
@@ -842,8 +848,8 @@
 
                  if (coverStatus === 'no-cover') {
                       console.warn("Skipping share image generation because cover image is missing or invalid.");
-                      statusElement.classList.add('hidden');
-                      return;
+                      if (statusElement) statusElement.classList.add('hidden');
+                      return false;
                  }
 
                  shareCardElement.style.visibility = 'visible';
@@ -910,26 +916,56 @@
 
                  shareImageGenerated = true;
                  console.log("Share image generated and added to sliders.");
+                 return true;
 
             } catch (error) {
                  console.error(i18next.t('resultsPage.shareCard.generateFailed'), error);
-                 statusElement.textContent = `${i18next.t('resultsPage.shareCard.generateFailed')} ${error.message}`;
+                 if (statusElement) {
+                     statusElement.textContent = `${i18next.t('resultsPage.shareCard.generateFailed')} ${error.message}`;
+                 }
+                 return false;
             } finally {
                  shareCardElement.style.visibility = 'hidden';
-                 setTimeout(() => { statusElement.classList.add('hidden'); }, 3000);
+                 if (statusElement) {
+                     setTimeout(() => { statusElement.classList.add('hidden'); }, 3000);
+                 }
             }
         }
 
 
         // Helper to attempt share image generation safely
-        function tryAutoGenerateShareImage() {
-            if (!shareImageGenerated && resultsData) {
-                const shareImg = document.getElementById('share-card-image');
-                if (shareImg && shareImg.src && !shareImg.src.includes('placehold.co')) {
-                     autoGenerateShareImage();
-                } else {
-                     console.log("Skipping auto-generation: No valid cover image set for share card yet.");
+        async function tryAutoGenerateShareImage(retryCount = 0) {
+            if (shareImageGenerated || !resultsData) return;
+
+            const shareImg = document.getElementById('share-card-image');
+            if (!shareImg || !shareImg.src || shareImg.src.includes('placehold.co')) {
+                console.log("Skipping auto-generation: No valid cover image set for share card yet.");
+                if (retryCount < SHARE_IMAGE_MAX_RETRIES) {
+                    if (shareImageRetryTimer) clearTimeout(shareImageRetryTimer);
+                    shareImageRetryTimer = setTimeout(() => tryAutoGenerateShareImage(retryCount + 1), SHARE_IMAGE_RETRY_DELAY);
                 }
+                return;
+            }
+
+            if (typeof html2canvas === 'undefined') {
+                console.log("html2canvas not ready, will retry share image generation.");
+                if (retryCount < SHARE_IMAGE_MAX_RETRIES) {
+                    if (shareImageRetryTimer) clearTimeout(shareImageRetryTimer);
+                    shareImageRetryTimer = setTimeout(() => tryAutoGenerateShareImage(retryCount + 1), SHARE_IMAGE_RETRY_DELAY);
+                }
+                return;
+            }
+
+            const success = await autoGenerateShareImage();
+            if (success) {
+                if (shareImageRetryTimer) {
+                    clearTimeout(shareImageRetryTimer);
+                    shareImageRetryTimer = null;
+                }
+            } else if (retryCount < SHARE_IMAGE_MAX_RETRIES) {
+                const backoffDelay = SHARE_IMAGE_RETRY_DELAY * Math.max(1, retryCount + 1);
+                if (shareImageRetryTimer) clearTimeout(shareImageRetryTimer);
+                shareImageRetryTimer = setTimeout(() => tryAutoGenerateShareImage(retryCount + 1), backoffDelay);
             }
         }
 
@@ -1629,6 +1665,10 @@
             if (shareImageObjectUrl) {
                 URL.revokeObjectURL(shareImageObjectUrl);
                 shareImageObjectUrl = null;
+            }
+            if (shareImageRetryTimer) {
+                clearTimeout(shareImageRetryTimer);
+                shareImageRetryTimer = null;
             }
         });
 
