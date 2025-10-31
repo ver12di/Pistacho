@@ -142,7 +142,7 @@
             /* Removed width constraint, let flexbox handle it */
         }
         #share-card-qrcode {
-            width: 65px; /* Fixed width for QR code */ height: 65px; /* Fixed height */
+            width: 110px; /* Increased width for better scanability */ height: 110px; /* Increased height */
             flex-shrink: 0; /* Prevent QR code from shrinking */
             background-color: white; padding: 2px; /* Small padding around QR */
             border: 1px solid #eee; box-shadow: 0 0 2px rgba(0,0,0,0.1);
@@ -1020,7 +1020,7 @@
                     console.log("[results.html generateQRCode] Generating QR for URL:", uniqueUrl); // Log the URL
                     try {
                          new QRCode(qrCodeContainer, {
-                             text: uniqueUrl, width: 60, height: 60, // Smaller QR code for new layout
+                             text: uniqueUrl, width: 100, height: 100, // Larger QR code for easier scanning
                              colorDark : "#000000", colorLight : "#ffffff",
                              correctLevel : QRCode.CorrectLevel.H
                          });
