@@ -94,7 +94,8 @@
     "loadingRatings": "Cargando reseñas...",
     "loadFailed": "Error al cargar reseñas: {{msg}}",
     "noMatches": "No se encontraron reseñas coincidentes.",
-    "uncertify": "Quitar Certif."
+    "uncertify": "Quitar Certif.",
+    "smokingWarning": "Fumar y el consumo excesivo de alcohol son perjudiciales para la salud. Este sitio contiene contenido de tabaco y alcohol; los menores deben abstenerse."
   },
   "ratePage": {
     "title": "Publicar Reseña de Puro",
