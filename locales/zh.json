@@ -60,6 +60,13 @@
     "unrated": "未评级",
     "unnamedCigar": "未命名雪茄"
   },
+  "seo": {
+    "description": "Pistacho 雪茄评分社区提供精选的雪茄点评、评分与认证内容，帮助雪茄爱好者分享与发现卓越体验。",
+    "keywords": "Pistacho, 雪茄评分, 雪茄社区, 雪茄认证, 雪茄点评",
+    "ogTitle": "Pistacho 评分社区",
+    "ogDescription": "加入 Pistacho 雪茄评分社区，获取精选雪茄点评与认证记录，发现下一支必试雪茄。",
+    "locale": "zh_CN"
+  },
   "nav": {
     "title": "Pistacho评分",
     "subtitle": "雪茄爱好者的全球评分社区",
@@ -145,7 +152,13 @@
     "unknownDate": "未知日期",
     "unknownUser": "未知用户",
     "unrated": "未评级",
-    "userLabel": "用户:"
+    "userLabel": "用户:",
+    "commentHistoryTitle": "我参与的其他点评",
+    "noCommentHistory": "暂时没有参与其他用户的点评。",
+    "commentHistoryError": "无法加载评论参与记录：{{msg}}",
+    "commentPreviewLabel": "我的留言",
+    "viewRating": "查看该点评",
+    "gradeShortLabel": "评级"
   },
   "certifiedPage": {
     "title": "Pistacho 认证评分",
@@ -180,6 +193,27 @@
     "goToRate": "去评分",
     "loadErrorMsg": "没有找到评分数据！请返回重试。",
     "loadErrorMissing": "存储的点评数据缺少基本信息 (分数, 评级, 雪茄信息)。请尝试重新评分。",
+    "comments": {
+      "title": "其他用户评论区",
+      "loginPrompt": "请先登录后再发表评论。",
+      "muted": "您已被禁言，暂时无法发表评论。",
+      "placeholder": "写下你的看法吧...",
+      "submit": "发布评论",
+      "empty": "暂时还没有评论，快来抢沙发吧！",
+      "count": "{{count}} 条评论",
+      "mutedBadge": "已禁言",
+      "mute": "禁言",
+      "unmute": "解除禁言",
+      "validation": "评论内容不能为空。",
+      "loadFailed": "评论加载失败：{{msg}}",
+      "postSuccess": "评论已发布。",
+      "postFailed": "发表评论失败：{{msg}}",
+      "muteConfirm": "确定要禁言 {{user}} 吗？",
+      "unmuteConfirm": "确定要解除对 {{user}} 的禁言吗？",
+      "muteSuccess": "禁言设置已更新。",
+      "unmuteSuccess": "已解除禁言。",
+      "muteFailed": "更新禁言状态失败：{{msg}}"
+    },
     "grade": {
       "P": "顶峰 / 登峰造极",
       "I": "无暇 / 完美无瑕",

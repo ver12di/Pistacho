@@ -65,6 +65,13 @@
     "points": "pts",
     "score": "Score"
   },
+  "seo": {
+    "description": "The Pistacho cigar rating community curates standout cigar reviews, ratings, and certifications so aficionados can share and discover exceptional experiences.",
+    "keywords": "Pistacho, cigar ratings, cigar community, cigar certification, cigar reviews",
+    "ogTitle": "Pistacho Rating Community",
+    "ogDescription": "Join the Pistacho cigar rating community to discover curated reviews and certification records for your next must-try cigar.",
+    "locale": "en_US"
+  },
   "nav": {
     "title": "Pistacho Rating",
     "subtitle": "The global cigar lovers community",
@@ -150,7 +157,13 @@
     "unknownDate": "Unknown Date",
     "unknownUser": "Unknown User",
     "unrated": "Unrated",
-    "userLabel": "User:"
+    "userLabel": "User:",
+    "commentHistoryTitle": "Reviews I've Commented On",
+    "noCommentHistory": "You haven't commented on other reviews yet.",
+    "commentHistoryError": "Failed to load your comment activity: {{msg}}",
+    "commentPreviewLabel": "My comment",
+    "viewRating": "View Review",
+    "gradeShortLabel": "Grade"
   },
   "certifiedPage": {
     "title": "Pistacho Certified Ratings",
@@ -185,6 +198,27 @@
     "goToRate": "Go to Rating",
     "loadErrorMsg": "No rating data found! Please try again.",
     "loadErrorMissing": "Stored review data is missing essential info (score, grade, cigar info). Please try rating again.",
+    "comments": {
+      "title": "Community Comments",
+      "loginPrompt": "Please sign in before posting a comment.",
+      "muted": "You have been muted and cannot post comments.",
+      "placeholder": "Share your thoughts...",
+      "submit": "Post Comment",
+      "empty": "No comments yet—be the first to share your thoughts!",
+      "count": "{{count}} comment(s)",
+      "mutedBadge": "Muted",
+      "mute": "Mute",
+      "unmute": "Unmute",
+      "validation": "Comment content cannot be empty.",
+      "loadFailed": "Failed to load comments: {{msg}}",
+      "postSuccess": "Comment posted.",
+      "postFailed": "Failed to submit comment: {{msg}}",
+      "muteConfirm": "Mute {{user}}?",
+      "unmuteConfirm": "Unmute {{user}}?",
+      "muteSuccess": "Mute status updated.",
+      "unmuteSuccess": "Mute removed.",
+      "muteFailed": "Failed to update mute status: {{msg}}"
+    },
     "grade": {
       "P": "Pinnacle",
       "I": "Impeccable",

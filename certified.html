@@ -3,7 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="浏览 Pistacho 认证评分专区，了解由超级管理员精选的优质雪茄品鉴记录与专业评价。">
+    <meta name="keywords" content="Pistacho, 认证评分, 雪茄认证, 精品雪茄, 雪茄评测">
+    <meta name="robots" content="index, follow">
+    <meta property="og:title" content="Pistacho 认证评分">
+    <meta property="og:description" content="深入 Pistacho 认证专区，查看精选雪茄点评与高分记录，获得值得信赖的专业建议。">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="Certifiedstamp.png">
+    <meta property="og:locale" content="zh_CN">
+    <meta name="twitter:card" content="summary_large_image">
     <title data-i18n="certifiedPage.title">Pistacho 认证评分</title>
+    <link rel="icon" type="image/png" href="Certifiedstamp.png">
     <script src="https://cdn.tailwindcss.com"></script>
     
     <script src="https://unpkg.com/i18next/i18next.min.js"></script>
@@ -29,6 +39,39 @@
         }
     </script>
     <style>
+        .main-container {
+            padding-left: 0.75rem;
+            padding-right: 0.75rem;
+            padding-top: 1rem;
+            padding-bottom: 2rem;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        @media (min-width: 640px) { .main-container { padding-left: 1.5rem; padding-right: 1.5rem; } }
+        @media (min-width: 768px) { .main-container { padding-left: 2rem; padding-right: 2rem; } }
+
+        .lang-button {
+            padding: 2px 8px;
+            margin: 0 2px;
+            border: 1px solid transparent;
+            border-radius: 9999px;
+            cursor: pointer;
+            font-size: 0.75rem;
+            font-weight: 600;
+            background-color: #f3f4f6;
+            color: #374151;
+            transition: all 0.2s ease;
+        }
+        .lang-button:hover {
+            background-color: #e5e7eb;
+        }
+        .lang-button.active {
+            background-color: #e0e7ff;
+            border-color: #a5b4fc;
+            color: #3730a3;
+            cursor: default;
+        }
+
         /* ... (all styles remain the same) ... */
         .rating-card:hover {
             transform: translateY(-2px);
@@ -51,23 +94,26 @@
     </style>
 </head>
 <body class="bg-gray-100 font-sans">
-    <div class="max-w-4xl mx-auto p-4 md:p-8">
-        <div data-include-nav data-active="certified" data-language="switcher"></div>
+    <div class="main-container max-w-7xl">
+        <div data-include-nav data-active="certified" data-language="flags"></div>
 
-        <header class="mb-6">
-            <h1 class="text-4xl font-extrabold text-gray-800" data-i18n="certifiedPage.title">Pistacho 认证评分</h1>
-            <p class="mt-2 text-lg text-gray-600" data-i18n="certifiedPage.subtitle">由我们的超级管理员精选的优秀品鉴记录。</p>
-        </header>
+        <section class="mt-4">
+            <header class="mb-6">
+                <h1 class="text-4xl font-extrabold text-gray-800" data-i18n="certifiedPage.title">Pistacho 认证评分</h1>
+                <p class="mt-2 text-lg text-gray-600" data-i18n="certifiedPage.subtitle">由我们的超级管理员精选的优秀品鉴记录。</p>
+            </header>
 
-        <div id="loading-indicator" class="text-center p-10 text-gray-500">
-            <p data-i18n="certifiedPage.loading">正在加载认证评分...</p>
-        </div>
-
-        <div id="certified-container" class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+            <div id="loading-indicator" class="text-center p-10 text-gray-500">
+                <p data-i18n="certifiedPage.loading">正在加载认证评分...</p>
             </div>
-         <footer class="mt-8 text-center">
-            <a href="index.html" class="py-2 px-4 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700" data-i18n="nav.community">&larr; 返回主页</a>
-        </footer>
+
+            <div id="certified-container" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-4">
+            </div>
+
+            <footer class="mt-8 text-center">
+                <a href="index.html" class="inline-flex items-center justify-center py-2 px-4 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700" data-i18n="nav.community">&larr; 返回主页</a>
+            </footer>
+        </section>
     </div>
 
     <script type="module">
@@ -107,23 +153,37 @@
             document.title = i18next.t('certifiedPage.title');
         }
 
-        function setupLanguageSwitcher() {
-            const switcher = document.getElementById('language-switcher');
-            if (!switcher) return;
-            const currentLang = i18next.language.split('-')[0];
-            switcher.value = ['zh', 'en', 'es'].includes(currentLang) ? currentLang : 'zh';
+        function renderLanguageSwitcher() {
+            const container = document.getElementById('language-flags');
+            if (!container || !i18next.isInitialized) return;
+            container.innerHTML = '';
+            const languages = ['zh', 'en', 'es'];
+            const currentLang = i18next.language ? i18next.language.split('-')[0] : 'zh';
 
-            switcher.addEventListener('change', async (e) => {
-                const newLang = e.target.value;
-                await i18next.changeLanguage(newLang);
-                updateContent();
-                // 重新渲染动态内容
-                await fetchAndRenderCertified(); // 重载数据和UI
-                renderLoginStatus(currentAuthUser);
+            languages.forEach(lang => {
+                const button = document.createElement('button');
+                button.textContent = lang.toUpperCase();
+                button.className = `lang-button ${lang === currentLang ? 'active' : ''}`;
+                button.dataset.lang = lang;
+                button.onclick = async (e) => {
+                    const newLang = e.target.dataset.lang;
+                    const oldLang = i18next.language ? i18next.language.split('-')[0] : 'zh';
+                    if (newLang === oldLang) return;
+                    try {
+                        await i18next.changeLanguage(newLang);
+                        updateContent();
+                        renderLanguageSwitcher();
+                        await fetchAndRenderCertified();
+                        renderLoginStatus(currentAuthUser);
+                    } catch (langErr) {
+                        console.error(`Failed to change language to ${newLang}:`, langErr);
+                    }
+                };
+                container.appendChild(button);
             });
         }
         document.addEventListener('navbar:loaded', () => {
-            setupLanguageSwitcher();
+            renderLanguageSwitcher();
             renderLoginStatus(currentAuthUser);
         });
         // --- End i18n Functions ---
@@ -379,7 +439,7 @@
              userRole = currentAuthUser?.db_role ?? 'guest';
              
              renderLoginStatus(currentAuthUser); // Render login *after* i18n
-             setupLanguageSwitcher(); // Setup switcher
+             renderLanguageSwitcher(); // Setup switcher
              
              await fetchAndRenderCertified();
              

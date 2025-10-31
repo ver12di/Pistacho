@@ -65,6 +65,13 @@
     "sessionExpiredRead": "Sesión expirada o inválida (estado {{status}}), no se pueden leer datos.",
     "unrated": "Sin Calificar"
   },
+  "seo": {
+    "description": "La comunidad de valoraciones de Pistacho ofrece reseñas, puntuaciones y certificaciones seleccionadas para que los aficionados compartan y descubran experiencias excepcionales.",
+    "keywords": "Pistacho, calificaciones de cigarros, comunidad de cigarros, certificación de cigarros, reseñas de cigarros",
+    "ogTitle": "Comunidad de Valoraciones Pistacho",
+    "ogDescription": "Únete a la comunidad de valoraciones de cigarros Pistacho para descubrir reseñas seleccionadas y registros de certificación para tu próximo cigarro imprescindible.",
+    "locale": "es_ES"
+  },
   "nav": {
     "title": "Pistacho Calificación",
     "subtitle": "La comunidad global para amantes del puro",
@@ -150,7 +157,13 @@
     "unknownDate": "Fecha Desconocida",
     "unknownUser": "Usuario Desconocido",
     "unrated": "Sin Calificar",
-    "userLabel": "Usuario:"
+    "userLabel": "Usuario:",
+    "commentHistoryTitle": "Reseñas que he comentado",
+    "noCommentHistory": "Aún no has comentado en otras reseñas.",
+    "commentHistoryError": "No se pudieron cargar tus comentarios: {{msg}}",
+    "commentPreviewLabel": "Mi comentario",
+    "viewRating": "Ver reseña",
+    "gradeShortLabel": "Calificación"
   },
   "certifiedPage": {
     "title": "Reseñas Certificadas Pistacho",
@@ -185,6 +198,27 @@
     "goToRate": "Ir a Calificar",
     "loadErrorMsg": "¡No se encontraron datos de calificación! Por favor intenta de nuevo.",
     "loadErrorMissing": "Los datos de la reseña guardada carecen de información esencial (puntaje, grado, info. del puro). Por favor, intenta calificar de nuevo.",
+    "comments": {
+      "title": "Comentarios de la comunidad",
+      "loginPrompt": "Inicia sesión para publicar un comentario.",
+      "muted": "Has sido silenciado y no puedes publicar comentarios.",
+      "placeholder": "Comparte tus ideas...",
+      "submit": "Publicar comentario",
+      "empty": "Aún no hay comentarios; ¡sé el primero en compartir!",
+      "count": "{{count}} comentario(s)",
+      "mutedBadge": "Silenciado",
+      "mute": "Silenciar",
+      "unmute": "Quitar silencio",
+      "validation": "El contenido del comentario no puede estar vacío.",
+      "loadFailed": "Error al cargar los comentarios: {{msg}}",
+      "postSuccess": "Comentario publicado.",
+      "postFailed": "No se pudo enviar el comentario: {{msg}}",
+      "muteConfirm": "¿Silenciar a {{user}}?",
+      "unmuteConfirm": "¿Quitar el silencio a {{user}}?",
+      "muteSuccess": "Estado de silencio actualizado.",
+      "unmuteSuccess": "Silencio eliminado.",
+      "muteFailed": "No se pudo actualizar el estado de silencio: {{msg}}"
+    },
     "grade": {
       "P": "Pináculo",
       "I": "Impecable",

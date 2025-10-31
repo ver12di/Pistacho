@@ -3,7 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="在 Pistacho 发布雪茄点评，记录口感、评分与照片，与全球雪茄爱好者分享你的独到见解。">
+    <meta name="keywords" content="Pistacho, 发布点评, 雪茄评分, 雪茄分享, 雪茄体验">
+    <meta name="robots" content="index, follow">
+    <meta property="og:title" content="发布雪茄点评 - Pistacho">
+    <meta property="og:description" content="使用 Pistacho 雪茄评分工具发布专业点评、上传照片并管理品鉴记录。">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="Certifiedstamp.png">
+    <meta property="og:locale" content="zh_CN">
+    <meta name="twitter:card" content="summary_large_image">
     <title data-i18n="ratePage.title">发布雪茄点评</title>
+    <link rel="icon" type="image/png" href="Certifiedstamp.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
@@ -27,6 +37,29 @@
         } else { console.warn('Tailwind object not found. Skipping config.'); }
     </script>
     <style>
+        /* Language switcher buttons */
+        .lang-button {
+            padding: 2px 8px;
+            margin: 0 2px;
+            border: 1px solid transparent;
+            border-radius: 9999px;
+            cursor: pointer;
+            font-size: 0.75rem;
+            font-weight: 600;
+            background-color: #f3f4f6;
+            color: #374151;
+            transition: all 0.2s ease;
+        }
+        .lang-button:hover {
+            background-color: #e5e7eb;
+        }
+        .lang-button.active {
+            background-color: #e0e7ff;
+            border-color: #a5b4fc;
+            color: #3730a3;
+            cursor: default;
+        }
+
         /* Tooltip style (if needed, otherwise remove) */
         .tooltip { position: relative; display: inline-block; }
         .tooltip .tooltiptext { visibility: hidden; width: 60px; background-color: #555; color: #fff; text-align: center; border-radius: 6px; padding: 5px 0; position: absolute; z-index: 1; bottom: 125%; left: 50%; margin-left: -30px; opacity: 0; transition: opacity 0.3s; font-size: 10px; }
@@ -84,9 +117,12 @@
     </style>
 </head>
 <body class="bg-gray-100 font-sans antialiased text-gray-800">
+    <div class="px-4 sm:px-6 lg:px-8 pt-4">
+        <div class="mx-auto max-w-7xl">
+            <div data-include-nav data-active="rate" data-language="flags"></div>
+        </div>
+    </div>
     <div id="app-container" class="max-w-4xl mx-auto p-4 md:p-8">
-        <!-- Navigation Bar -->
-        <div data-include-nav data-active="rate" data-language="switcher"></div>
         <!-- Header with Score Display -->
         <header class="mb-8 p-6 bg-indigo-700 text-white rounded-xl shadow-2xl">
              <div class="flex justify-between items-start">
@@ -258,24 +294,35 @@
             document.title = i18next.t(titleKey);
         }
 
-        function setupLanguageSwitcher() {
-            // Setup language dropdown functionality
-            const switcher = document.getElementById('language-switcher');
-            if (!switcher) return;
-            // Set initial value based on detected language
+        function renderLanguageSwitcher() {
+            const container = document.getElementById('language-flags');
+            if (!container || !i18next.isInitialized) return;
+            container.innerHTML = '';
+            const languages = ['zh', 'en', 'es'];
             const currentLang = i18next.language ? i18next.language.split('-')[0] : 'zh';
-            switcher.value = ['zh', 'en', 'es'].includes(currentLang) ? currentLang : 'zh';
 
-            // Add event listener for language change
-            switcher.addEventListener('change', async (e) => {
-                const newLang = e.target.value;
-                await i18next.changeLanguage(newLang);
-                updateContent(); // Update all static text
-                // Re-render dynamic content that depends on translations
-                renderRatingView();
-                renderLoginStatus(currentAuthUser);
-                renderAdminLinks();
-                renderFlavorButtons(); // Re-render flavor buttons with new translations
+            languages.forEach(lang => {
+                const button = document.createElement('button');
+                button.textContent = lang.toUpperCase();
+                button.className = `lang-button ${lang === currentLang ? 'active' : ''}`;
+                button.dataset.lang = lang;
+                button.onclick = async (e) => {
+                    const newLang = e.target.dataset.lang;
+                    const oldLang = i18next.language ? i18next.language.split('-')[0] : 'zh';
+                    if (newLang === oldLang) return;
+                    try {
+                        await i18next.changeLanguage(newLang);
+                        updateContent();
+                        renderLanguageSwitcher();
+                        renderRatingView();
+                        renderLoginStatus(currentAuthUser);
+                        renderAdminLinks();
+                        renderFlavorButtons();
+                    } catch (langErr) {
+                        console.error(`Failed to change language to ${newLang}:`, langErr);
+                    }
+                };
+                container.appendChild(button);
             });
         }
         // --- End i18n Functions ---
@@ -391,7 +438,7 @@
         }
 
         document.addEventListener('navbar:loaded', () => {
-            setupLanguageSwitcher();
+            renderLanguageSwitcher();
             renderLoginStatus(currentAuthUser);
         });
 
@@ -1088,7 +1135,7 @@
                  setUser(user); // Update global user state and UI
 
                  // 3. Setup UI Elements (language switcher, char counts, sortable images)
-                 setupLanguageSwitcher();
+                 renderLanguageSwitcher();
                  titleInput?.addEventListener('input', updateCharCounts); // Add listener if element exists
                  reviewTextarea?.addEventListener('input', updateCharCounts); // Add listener if element exists
                  updateCharCounts(); // Initial count update

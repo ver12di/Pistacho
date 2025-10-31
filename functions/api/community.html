@@ -29,6 +29,28 @@
     </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/masonry/4.2.2/masonry.pkgd.min.js" integrity="sha512-NrSOvoRT3VoF8AhlXBOhDLaBFVfB/iN5xefpXkUaU/L/Y2R5jL/btbQVpabMvM1EBlEqxAcU1N0isj1XhKQr1g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <style>
+        .lang-button {
+            padding: 2px 8px;
+            margin: 0 2px;
+            border: 1px solid transparent;
+            border-radius: 9999px;
+            cursor: pointer;
+            font-size: 0.75rem;
+            font-weight: 600;
+            background-color: #f3f4f6;
+            color: #374151;
+            transition: all 0.2s ease;
+        }
+        .lang-button:hover {
+            background-color: #e5e7eb;
+        }
+        .lang-button.active {
+            background-color: #e0e7ff;
+            border-color: #a5b4fc;
+            color: #3730a3;
+            cursor: default;
+        }
+
         .grid-item { width: 48%; margin-bottom: 20px; border-radius: 8px; overflow: hidden; }
         .grid-sizer { width: 48%; }
         /* Add other styles if needed, e.g., for different screen sizes */
@@ -40,7 +62,7 @@
 
     <div id="app-container" class="max-w-7xl mx-auto p-4 md:p-8">
 
-        <div data-include-nav data-active="index" data-language="switcher"></div>
+        <div data-include-nav data-active="index" data-language="flags"></div>
 
         <header class="mb-6">
             <h1 class="text-4xl font-extrabold text-gray-800" data-i18n="communityPage.headerTitle">社区动态</h1>
@@ -109,22 +131,38 @@
             });
         }
 
-        function setupLanguageSwitcher() {
-            const switcher = document.getElementById('language-switcher');
-            if (!switcher) return;
-            const currentLang = i18next.language.split('-')[0];
-            switcher.value = ['zh', 'en', 'es'].includes(currentLang) ? currentLang : 'zh';
+        function renderLanguageSwitcher() {
+            const container = document.getElementById('language-flags');
+            if (!container || !i18next.isInitialized) return;
+            container.innerHTML = '';
+            const languages = ['zh', 'en', 'es'];
+            const currentLang = i18next.language ? i18next.language.split('-')[0] : 'zh';
 
-            switcher.addEventListener('change', async (e) => {
-                await i18next.changeLanguage(e.target.value);
-                updateContent();
-                document.title = i18next.t('communityPage.pageTitle');
-                // Re-render grid
-                filterAndRender();
+            languages.forEach(lang => {
+                const button = document.createElement('button');
+                button.textContent = lang.toUpperCase();
+                button.className = `lang-button ${lang === currentLang ? 'active' : ''}`;
+                button.dataset.lang = lang;
+                button.onclick = async (e) => {
+                    const newLang = e.target.dataset.lang;
+                    const oldLang = i18next.language ? i18next.language.split('-')[0] : 'zh';
+                    if (newLang === oldLang) return;
+                    try {
+                        await i18next.changeLanguage(newLang);
+                        updateContent();
+                        document.title = i18next.t('communityPage.pageTitle');
+                        renderLanguageSwitcher();
+                        filterAndRender();
+                        renderLoginStatus(currentAuthUser);
+                    } catch (langErr) {
+                        console.error(`Failed to change language to ${newLang}:`, langErr);
+                    }
+                };
+                container.appendChild(button);
             });
         }
         document.addEventListener('navbar:loaded', () => {
-            setupLanguageSwitcher();
+            renderLanguageSwitcher();
             renderLoginStatus(currentAuthUser);
         });
         // --- End i18n Functions ---
@@ -181,7 +219,7 @@
             }
 
             // **NEW**: 2. Setup switcher at the end
-            setupLanguageSwitcher();
+            renderLanguageSwitcher();
         };
 
         /**

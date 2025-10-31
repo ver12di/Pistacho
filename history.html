@@ -3,7 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="管理你的 Pistacho 雪茄评分历史，快速回顾所有已发布的品鉴记录。">
+    <meta name="keywords" content="Pistacho, 我的评分, 雪茄历史, 品鉴记录, 雪茄收藏">
+    <meta name="robots" content="index, follow">
+    <meta property="og:title" content="我的雪茄评分 - Pistacho">
+    <meta property="og:description" content="在 Pistacho 查看个人雪茄点评历史，掌握所有发布记录与互动情况。">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="Certifiedstamp.png">
+    <meta property="og:locale" content="zh_CN">
+    <meta name="twitter:card" content="summary_large_image">
     <title data-i18n="historyPage.title">我的评分</title>
+    <link rel="icon" type="image/png" href="Certifiedstamp.png">
     <script src="https://cdn.tailwindcss.com"></script>
 
     <script src="https://unpkg.com/i18next/i18next.min.js"></script>
@@ -27,6 +37,28 @@
         }
     </script>
     <style>
+        .lang-button {
+            padding: 2px 8px;
+            margin: 0 2px;
+            border: 1px solid transparent;
+            border-radius: 9999px;
+            cursor: pointer;
+            font-size: 0.75rem;
+            font-weight: 600;
+            background-color: #f3f4f6;
+            color: #374151;
+            transition: all 0.2s ease;
+        }
+        .lang-button:hover {
+            background-color: #e5e7eb;
+        }
+        .lang-button.active {
+            background-color: #e0e7ff;
+            border-color: #a5b4fc;
+            color: #3730a3;
+            cursor: default;
+        }
+
         .rating-card:hover {
             transform: translateY(-1px);
             box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
@@ -60,8 +92,12 @@
     </style>
 </head>
 <body class="bg-gray-100 font-sans">
+    <div class="px-4 sm:px-6 lg:px-8 pt-4">
+        <div class="mx-auto max-w-7xl">
+            <div data-include-nav data-active="history" data-language="flags"></div>
+        </div>
+    </div>
     <div class="max-w-4xl mx-auto p-4 md:p-8">
-        <div data-include-nav data-active="history" data-language="switcher"></div>
         <header class="mb-6">
             <h1 id="history-title" class="text-4xl font-extrabold text-gray-800" data-i18n="historyPage.title">我的评分</h1>
         </header>
@@ -74,6 +110,11 @@
         <div id="history-container">
             <p id="loading-message" class="text-center text-gray-500 py-10" data-i18n="common.loading">正在加载...</p>
         </div>
+
+        <section id="comment-participation-section" class="hidden mt-10">
+            <h2 class="text-2xl font-bold text-gray-800" data-i18n="historyPage.commentHistoryTitle">我参与的其他点评</h2>
+            <div id="comment-participation-container" class="mt-4 space-y-4"></div>
+        </section>
 
          <footer class="mt-8 text-center">
             <a href="index.html" class="py-2 px-4 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700" data-i18n="nav.community">&larr; 返回社区首页</a>
@@ -118,25 +159,40 @@
             const isAdmin = currentAuthUser && (currentAuthUser.db_role === 'admin' || currentAuthUser.db_role === 'super_admin');
             document.title = i18next.t(isAdmin ? 'historyPage.allRatingsTitle' : 'historyPage.title');
             historyTitle.textContent = i18next.t(isAdmin ? 'historyPage.allRatingsTitle' : 'historyPage.title');
+            renderCommentParticipation(commentParticipationData);
         }
 
-        function setupLanguageSwitcher() {
-            const switcher = document.getElementById('language-switcher');
-            if (!switcher) return;
-            const currentLang = i18next.language.split('-')[0];
-            switcher.value = ['zh', 'en', 'es'].includes(currentLang) ? currentLang : 'zh';
+        function renderLanguageSwitcher() {
+            const container = document.getElementById('language-flags');
+            if (!container || !i18next.isInitialized) return;
+            container.innerHTML = '';
+            const languages = ['zh', 'en', 'es'];
+            const currentLang = i18next.language ? i18next.language.split('-')[0] : 'zh';
 
-            switcher.addEventListener('change', async (e) => {
-                const newLang = e.target.value;
-                await i18next.changeLanguage(newLang);
-                updateContent();
-                // 重新渲染动态内容
-                await fetchAndRenderHistory(currentAuthUser); // 重载数据和UI
-                renderLoginStatus(currentAuthUser);
+            languages.forEach(lang => {
+                const button = document.createElement('button');
+                button.textContent = lang.toUpperCase();
+                button.className = `lang-button ${lang === currentLang ? 'active' : ''}`;
+                button.dataset.lang = lang;
+                button.onclick = async (e) => {
+                    const newLang = e.target.dataset.lang;
+                    const oldLang = i18next.language ? i18next.language.split('-')[0] : 'zh';
+                    if (newLang === oldLang) return;
+                    try {
+                        await i18next.changeLanguage(newLang);
+                        updateContent();
+                        renderLanguageSwitcher();
+                        await fetchAndRenderHistory(currentAuthUser);
+                        renderLoginStatus(currentAuthUser);
+                    } catch (langErr) {
+                        console.error(`Failed to change language to ${newLang}:`, langErr);
+                    }
+                };
+                container.appendChild(button);
             });
         }
         document.addEventListener('navbar:loaded', () => {
-            setupLanguageSwitcher();
+            renderLanguageSwitcher();
             renderLoginStatus(currentAuthUser);
         });
 
@@ -150,6 +206,8 @@
         const historyContainer = document.getElementById('history-container');
         const historyTitle = document.getElementById('history-title');
         const loginPrompt = document.getElementById('login-prompt');
+        const commentParticipationSection = document.getElementById('comment-participation-section');
+        const commentParticipationContainer = document.getElementById('comment-participation-container');
 
         const AUTHING_APP_ID = '68f5b0b6875017c02b3bfdb3';
         const AUTHING_HOST = 'https://xfvu647mcdbk-demo.authing.cn';
@@ -166,6 +224,8 @@
             { "grade": "O", "nameKey": "resultsPage.grade.O", "min_score": 0, "color": "red" }
         ];
         // --- End Global Variables ---
+
+        let commentParticipationData = [];
 
 
         // --- Authentication ---
@@ -420,6 +480,8 @@
                 historyContainer.style.display = 'none';
                 loginPrompt.classList.remove('hidden');
                 loadingMessage.style.display = 'none';
+                if (commentParticipationSection) commentParticipationSection.classList.add('hidden');
+                commentParticipationData = [];
                 return;
             } else {
                  historyContainer.style.display = 'block';
@@ -433,6 +495,8 @@
                  loginPrompt.classList.remove('hidden');
                  loginPrompt.querySelector('p').textContent = i18next.t('historyPage.loginExpired');
                  loadingMessage.style.display = 'none';
+                 if (commentParticipationSection) commentParticipationSection.classList.add('hidden');
+                 commentParticipationData = [];
                  return;
             }
 
@@ -470,6 +534,7 @@
                     historyContainer.innerHTML = historyHtml;
                 }
                  loadingMessage.style.display = 'none'; // Hide loading indicator
+                await fetchCommentParticipation(user);
             } catch (error) {
                 console.error("获取历史记录失败:", error);
                 // updateContent(); // Update title even on error
@@ -547,6 +612,147 @@
                 </div>
             `;
         }
+        
+        function formatParticipationDate(isoString) {
+            if (!isoString) return '';
+            try {
+                const locale = i18next.language || 'zh';
+                const date = new Date(isoString);
+                if (Number.isNaN(date.getTime())) return isoString;
+                return date.toLocaleString(locale, { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+            } catch (e) {
+                return isoString;
+            }
+        }
+
+        function renderCommentParticipation(items = []) {
+            if (!commentParticipationSection || !commentParticipationContainer) return;
+            if (!currentAuthUser) {
+                commentParticipationSection.classList.add('hidden');
+                return;
+            }
+
+            commentParticipationContainer.innerHTML = '';
+
+            if (!items.length) {
+                commentParticipationSection.classList.remove('hidden');
+                const emptyMessage = document.createElement('p');
+                emptyMessage.className = 'text-sm text-gray-500';
+                emptyMessage.textContent = i18next.t('historyPage.noCommentHistory');
+                commentParticipationContainer.appendChild(emptyMessage);
+                return;
+            }
+
+            commentParticipationSection.classList.remove('hidden');
+
+            items.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'bg-white rounded-lg border border-gray-200 shadow-sm p-4';
+
+                const titleEl = document.createElement('h3');
+                titleEl.className = 'text-lg font-semibold text-gray-800';
+                titleEl.textContent = item.title || i18next.t('common.noTitle');
+                card.appendChild(titleEl);
+
+                const cigarInfoEl = document.createElement('p');
+                cigarInfoEl.className = 'text-sm text-gray-500 mt-1';
+                const cigarName = item.cigarName || i18next.t('certifiedPage.unnamedCigar');
+                const cigarSize = item.cigarSize || i18next.t('common.unknown');
+                const cigarOrigin = item.cigarOrigin || i18next.t('common.unknown');
+                cigarInfoEl.textContent = `${cigarName} • ${cigarSize} • ${cigarOrigin}`;
+                card.appendChild(cigarInfoEl);
+
+                const metaEl = document.createElement('p');
+                metaEl.className = 'text-xs text-gray-500 mt-1';
+                const authorName = item.ratingUserNickname || i18next.t('historyPage.unknownUser');
+                metaEl.textContent = `${authorName} · ${formatParticipationDate(item.createdAt)}`;
+                card.appendChild(metaEl);
+
+                if (item.content) {
+                    const commentBlock = document.createElement('div');
+                    commentBlock.className = 'mt-3 text-sm text-gray-700 whitespace-pre-wrap break-words bg-gray-50 border border-gray-100 rounded-md p-3';
+                    const label = document.createElement('span');
+                    label.className = 'font-semibold text-gray-600 mr-2';
+                    label.textContent = i18next.t('historyPage.commentPreviewLabel');
+                    const text = document.createElement('span');
+                    text.textContent = item.content;
+                    commentBlock.appendChild(label);
+                    commentBlock.appendChild(text);
+                    card.appendChild(commentBlock);
+                }
+
+                const footer = document.createElement('div');
+                footer.className = 'mt-3 flex items-center justify-between text-xs text-gray-500';
+
+                const scoreParts = [];
+                if (typeof item.normalizedScore === 'number') {
+                    scoreParts.push(`${i18next.t('common.score')}: ${item.normalizedScore.toFixed(2)}`);
+                }
+                if (item.finalGrade_grade) {
+                    scoreParts.push(`${i18next.t('historyPage.gradeShortLabel')}: ${item.finalGrade_grade}`);
+                }
+                if (scoreParts.length > 0) {
+                    const scoreLabel = document.createElement('span');
+                    scoreLabel.textContent = scoreParts.join(' · ');
+                    footer.appendChild(scoreLabel);
+                }
+
+                const viewLink = document.createElement('a');
+                viewLink.href = `results.html?ratingId=${item.ratingId}`;
+                viewLink.className = 'inline-flex items-center font-semibold text-indigo-600 hover:text-indigo-700';
+                viewLink.textContent = i18next.t('historyPage.viewRating');
+                footer.appendChild(viewLink);
+
+                card.appendChild(footer);
+                commentParticipationContainer.appendChild(card);
+            });
+        }
+
+        async function fetchCommentParticipation(user) {
+            if (!commentParticipationSection || !user) {
+                if (commentParticipationSection) commentParticipationSection.classList.add('hidden');
+                commentParticipationData = [];
+                return;
+            }
+
+            const token = sessionStorage.getItem('accessToken');
+            if (!token) {
+                commentParticipationSection.classList.add('hidden');
+                commentParticipationData = [];
+                return;
+            }
+
+            try {
+                const apiUrl = new URL('/api/comments', window.location.origin);
+                apiUrl.searchParams.set('mine', 'true');
+                const response = await fetch(apiUrl, { headers: { 'Authorization': `Bearer ${token}` } });
+                if (!response.ok) {
+                    let errorText = `HTTP ${response.status}`;
+                    try {
+                        const err = await response.json();
+                        errorText = err.error || errorText;
+                    } catch (e) { /* ignore */ }
+                    throw new Error(errorText);
+                }
+                const data = await response.json();
+                const participation = Array.isArray(data.participation) ? data.participation : [];
+                const deduped = [];
+                const seen = new Set();
+                participation.forEach(item => {
+                    if (!item.ratingId || seen.has(item.ratingId)) return;
+                    if (item.ratingUserId && item.ratingUserId === user.sub) return; // Skip own ratings
+                    seen.add(item.ratingId);
+                    deduped.push(item);
+                });
+                commentParticipationData = deduped;
+                renderCommentParticipation(commentParticipationData);
+            } catch (error) {
+                console.error('Failed to load comment participation:', error);
+                commentParticipationSection.classList.remove('hidden');
+                commentParticipationContainer.innerHTML = `<div class="bg-red-100 text-red-700 rounded-lg p-4 text-sm">${i18next.t('historyPage.commentHistoryError', { msg: error.message })}</div>`;
+            }
+        }
+
         // --- End Data Fetching and Rendering ---
 
         // --- Initialization ---
@@ -561,7 +767,7 @@
              userRole = currentAuthUser?.db_role ?? 'guest';
 
              renderLoginStatus(currentAuthUser); // Render login *after* i18n
-             setupLanguageSwitcher(); // Setup switcher
+             renderLanguageSwitcher(); // Setup switcher
 
              await fetchAndRenderHistory(currentAuthUser); // Pass user object
 

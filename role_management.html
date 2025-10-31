@@ -3,13 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="在 Pistacho 后台管理用户角色、权限与管理员设置，保障社区运营安全。">
+    <meta name="keywords" content="Pistacho, 角色管理, 超级管理员, 权限控制, 社区运营">
+    <meta name="robots" content="noindex, nofollow">
+    <meta property="og:title" content="用户角色管理 - Pistacho">
+    <meta property="og:description" content="使用 Pistacho 后台工具配置管理员、编辑与认证人员角色，保持内容质量。">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="Certifiedstamp.png">
+    <meta property="og:locale" content="zh_CN">
+    <meta name="twitter:card" content="summary_large_image">
     <title>用户角色管理 - Super Admin</title>
+    <link rel="icon" type="image/png" href="Certifiedstamp.png">
     <script src="https://cdn.tailwindcss.com"></script>
 
     <script src="https://unpkg.com/i18next/i18next.min.js"></script>
     <script src="https://unpkg.com/i18next-http-backend/i18nextHttpBackend.min.js"></script>
     <script src="https://unpkg.com/i18next-browser-languagedetector/i18nextBrowserLanguageDetector.min.js"></script>
-    
+    <script type="module" src="scripts/navbar.js"></script>
+
     <script>
         tailwind.config = {
             theme: {
@@ -21,8 +32,37 @@
             }
         }
     </script>
+    <style>
+        .lang-button {
+            padding: 2px 8px;
+            margin: 0 2px;
+            border: 1px solid transparent;
+            border-radius: 9999px;
+            cursor: pointer;
+            font-size: 0.75rem;
+            font-weight: 600;
+            background-color: #f3f4f6;
+            color: #374151;
+            transition: all 0.2s ease;
+        }
+        .lang-button:hover {
+            background-color: #e5e7eb;
+        }
+        .lang-button.active {
+            background-color: #e0e7ff;
+            border-color: #a5b4fc;
+            color: #3730a3;
+            cursor: default;
+        }
+    </style>
 </head>
 <body class="bg-gray-100 font-sans antialiased text-gray-800">
+
+    <div class="px-4 sm:px-6 lg:px-8 pt-4">
+        <div class="mx-auto max-w-7xl">
+            <div data-include-nav data-active="config" data-language="flags"></div>
+        </div>
+    </div>
 
     <div id="app-container" class="max-w-5xl mx-auto p-4 md:p-8">
         <p class="text-center text-gray-500 mt-10" data-i18n="rolePage.loadingAuth">正在加载和验证身份...</p>
@@ -75,21 +115,33 @@
             });
         }
 
-        function setupLanguageSwitcher() {
-            const switcher = document.getElementById('language-switcher');
-            if (!switcher) return;
-            const currentLang = i18next.language.split('-')[0];
-            if ([...switcher.options].some(opt => opt.value === currentLang)) {
-                switcher.value = currentLang;
-            } else {
-                switcher.value = i18next.options.fallbackLng[0];
-            }
-            switcher.addEventListener('change', async (e) => {
-                await i18next.changeLanguage(e.target.value);
-                updateContent();
-                document.title = i18next.t('rolePage.pageTitle');
-                // Re-render dynamic parts
-                renderAdminUI(); // Re-render the form with new translations
+        function renderLanguageSwitcher() {
+            const container = document.getElementById('language-flags');
+            if (!container || !i18next.isInitialized) return;
+            container.innerHTML = '';
+            const languages = ['zh', 'en', 'es'];
+            const currentLang = i18next.language ? i18next.language.split('-')[0] : 'zh';
+
+            languages.forEach(lang => {
+                const button = document.createElement('button');
+                button.textContent = lang.toUpperCase();
+                button.className = `lang-button ${lang === currentLang ? 'active' : ''}`;
+                button.dataset.lang = lang;
+                button.onclick = async (e) => {
+                    const newLang = e.target.dataset.lang;
+                    const oldLang = i18next.language ? i18next.language.split('-')[0] : 'zh';
+                    if (newLang === oldLang) return;
+                    try {
+                        await i18next.changeLanguage(newLang);
+                        updateContent();
+                        document.title = i18next.t('rolePage.pageTitle');
+                        renderLanguageSwitcher();
+                        renderAdminUI();
+                    } catch (langErr) {
+                        console.error(`Failed to change language to ${newLang}:`, langErr);
+                    }
+                };
+                container.appendChild(button);
             });
         }
 
@@ -117,6 +169,8 @@
                 </div>
             `;
         }
+
+        document.addEventListener('navbar:loaded', renderLanguageSwitcher);
 
         // **MODIFIED**: Uses i18n
         function renderAdminUI() {
@@ -158,8 +212,8 @@
                     </div>
                 </div>
             `;
-            // **NEW**: After rendering the UI, setup the switcher *inside* it
-            setupLanguageSwitcher();
+            // **NEW**: After rendering the UI, ensure the language buttons are refreshed
+            renderLanguageSwitcher();
         }
 
         // **MODIFIED**: Uses i18n
@@ -265,8 +319,8 @@
                 }
 
                 // **NEW**: 2. Setup switcher (it's inside renderAdminUI)
-                // Note: setupLanguageSwitcher() is called *inside* renderAdminUI
-                // because the switcher element doesn't exist until then.
+                // Note: renderLanguageSwitcher() is called *inside* renderAdminUI
+                // because the buttons don't exist until then.
 
              } catch(e) {
                 renderStatus('errors.initFailed', true, { msg: e.message });
