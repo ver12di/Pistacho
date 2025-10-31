@@ -343,6 +343,7 @@
         let mainSwiper = null;      // Swiper instance for main images
         let thumbnailSwiper = null; // Swiper instance for thumbnails
         let shareImageGenerated = false; // Flag to prevent multiple generations
+        let shareImageObjectUrl = null;  // Blob URL for generated share image (better mobile support)
         const commentState = {
             comments: [],
             mutedUserIds: new Set(),
@@ -848,17 +849,39 @@
                  await new Promise(resolve => setTimeout(resolve, 300));
 
                  const canvas = await html2canvas(shareCardElement, { useCORS: true, allowTaint: true, scale: 2 });
-                 const dataUrl = canvas.toDataURL('image/png');
+
+                 let imageSrc = null;
+                 if (typeof canvas.toBlob === 'function') {
+                     try {
+                         const blob = await new Promise((resolve, reject) => {
+                             canvas.toBlob(result => {
+                                 if (result) resolve(result);
+                                 else reject(new Error('Failed to create blob from share image canvas.'));
+                             }, 'image/png');
+                         });
+                         if (shareImageObjectUrl) {
+                             URL.revokeObjectURL(shareImageObjectUrl);
+                         }
+                         shareImageObjectUrl = URL.createObjectURL(blob);
+                         imageSrc = shareImageObjectUrl;
+                     } catch (blobError) {
+                         console.warn('Failed to use Blob for share image, falling back to data URL.', blobError);
+                     }
+                 }
+
+                 if (!imageSrc) {
+                     imageSrc = canvas.toDataURL('image/png');
+                 }
 
                  // Create and add slides
                  const newMainSlide = document.createElement('div');
                  newMainSlide.className = 'swiper-slide share-image-slide';
-                 newMainSlide.innerHTML = `<img src="${dataUrl}" alt="${i18next.t('resultsPage.shareImageAlt')}">`;
+                 newMainSlide.innerHTML = `<img src="${imageSrc}" alt="${i18next.t('resultsPage.shareImageAlt')}">`;
                  mainSwiperWrapper.appendChild(newMainSlide);
 
                  const newThumbSlide = document.createElement('div');
                  newThumbSlide.className = 'swiper-slide thumbnail-slide share-thumb-slide';
-                 newThumbSlide.innerHTML = `<img src="${dataUrl}" alt="${i18next.t('resultsPage.shareThumb')}">`;
+                 newThumbSlide.innerHTML = `<img src="${imageSrc}" alt="${i18next.t('resultsPage.shareThumb')}">`;
                  thumbSwiperWrapper.appendChild(newThumbSlide);
 
                  // Update Swipers
@@ -1574,6 +1597,13 @@
                  console.error("[results.html onload] Initialization error:", e);
             }
         };
+
+        window.addEventListener('beforeunload', () => {
+            if (shareImageObjectUrl) {
+                URL.revokeObjectURL(shareImageObjectUrl);
+                shareImageObjectUrl = null;
+            }
+        });
 
         // --- Rendering Utilities ---
 
