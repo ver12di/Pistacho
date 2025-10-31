@@ -11,7 +11,11 @@
     <meta property="og:type" content="website">
     <meta property="og:image" content="Certifiedstamp.png">
     <meta property="og:locale" content="zh_CN">
+    <meta property="og:url" content="https://www.pista-cho.com/results.html">
     <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="雪茄品鉴报告 - Pistacho">
+    <meta name="twitter:description" content="查看 Pistacho 雪茄品鉴报告，回顾完整的评分细节、口感总结与分享卡片。">
+    <meta name="twitter:image" content="Certifiedstamp.png">
     <title>雪茄品鉴 - 点评报告</title>
     <link rel="icon" type="image/png" href="Certifiedstamp.png">
 
@@ -344,7 +348,11 @@
         let thumbnailSwiper = null; // Swiper instance for thumbnails
         let shareImageGenerated = false; // Flag to prevent multiple generations
         let shareImageObjectUrl = null;  // Blob URL for generated share image (better mobile support)
+        let shareImageRetryTimer = null; // Timer reference for retry attempts
+        const SHARE_IMAGE_MAX_RETRIES = 5; // Limit retries to avoid infinite loops
+        const SHARE_IMAGE_RETRY_DELAY = 800; // Base delay (ms) between retries
         const PRODUCTION_ORIGIN = 'https://www.pista-cho.com'; // Canonical domain used for share links
+        const DEFAULT_SHARE_DESCRIPTION = '查看 Pistacho 雪茄品鉴报告，回顾完整的评分细节、口感总结与分享卡片。';
         const commentState = {
             comments: [],
             mutedUserIds: new Set(),
@@ -806,7 +814,7 @@
 
         // Waits for images, generates share card, adds to main AND thumb swiper
         async function autoGenerateShareImage() {
-            if (shareImageGenerated) return;
+            if (shareImageGenerated) return true;
 
             const shareCardElement = document.getElementById('share-card-container');
             const coverImageElement = document.getElementById('share-card-image');
@@ -816,7 +824,8 @@
             const thumbContainer = document.querySelector('.thumbnail-swiper');
 
             if (!shareCardElement || !coverImageElement || !qrCodeContainer || !thumbSwiperWrapper || !thumbContainer || typeof html2canvas === 'undefined' || !resultsData || !mainSwiperWrapper) {
-                console.warn("Cannot auto-generate share image: Missing required elements or libraries."); return;
+                console.warn("Cannot auto-generate share image: Missing required elements or libraries.");
+                return false;
             }
 
             const coverImagePromise = new Promise((resolve, reject) => {
@@ -833,8 +842,10 @@
 
             const statusElement = document.getElementById('loading-indicator');
             try {
-                 statusElement.textContent = i18next.t('resultsPage.shareCard.generating');
-                 statusElement.classList.remove('hidden');
+                 if (statusElement) {
+                     statusElement.textContent = i18next.t('resultsPage.shareCard.generating');
+                     statusElement.classList.remove('hidden');
+                 }
 
                  console.log("Waiting for share card images (cover & QR)...");
                  const [coverStatus] = await Promise.all([coverImagePromise, qrCodeImagePromise]);
@@ -842,8 +853,8 @@
 
                  if (coverStatus === 'no-cover') {
                       console.warn("Skipping share image generation because cover image is missing or invalid.");
-                      statusElement.classList.add('hidden');
-                      return;
+                      if (statusElement) statusElement.classList.add('hidden');
+                      return false;
                  }
 
                  shareCardElement.style.visibility = 'visible';
@@ -910,26 +921,56 @@
 
                  shareImageGenerated = true;
                  console.log("Share image generated and added to sliders.");
+                 return true;
 
             } catch (error) {
                  console.error(i18next.t('resultsPage.shareCard.generateFailed'), error);
-                 statusElement.textContent = `${i18next.t('resultsPage.shareCard.generateFailed')} ${error.message}`;
+                 if (statusElement) {
+                     statusElement.textContent = `${i18next.t('resultsPage.shareCard.generateFailed')} ${error.message}`;
+                 }
+                 return false;
             } finally {
                  shareCardElement.style.visibility = 'hidden';
-                 setTimeout(() => { statusElement.classList.add('hidden'); }, 3000);
+                 if (statusElement) {
+                     setTimeout(() => { statusElement.classList.add('hidden'); }, 3000);
+                 }
             }
         }
 
 
         // Helper to attempt share image generation safely
-        function tryAutoGenerateShareImage() {
-            if (!shareImageGenerated && resultsData) {
-                const shareImg = document.getElementById('share-card-image');
-                if (shareImg && shareImg.src && !shareImg.src.includes('placehold.co')) {
-                     autoGenerateShareImage();
-                } else {
-                     console.log("Skipping auto-generation: No valid cover image set for share card yet.");
+        async function tryAutoGenerateShareImage(retryCount = 0) {
+            if (shareImageGenerated || !resultsData) return;
+
+            const shareImg = document.getElementById('share-card-image');
+            if (!shareImg || !shareImg.src || shareImg.src.includes('placehold.co')) {
+                console.log("Skipping auto-generation: No valid cover image set for share card yet.");
+                if (retryCount < SHARE_IMAGE_MAX_RETRIES) {
+                    if (shareImageRetryTimer) clearTimeout(shareImageRetryTimer);
+                    shareImageRetryTimer = setTimeout(() => tryAutoGenerateShareImage(retryCount + 1), SHARE_IMAGE_RETRY_DELAY);
                 }
+                return;
+            }
+
+            if (typeof html2canvas === 'undefined') {
+                console.log("html2canvas not ready, will retry share image generation.");
+                if (retryCount < SHARE_IMAGE_MAX_RETRIES) {
+                    if (shareImageRetryTimer) clearTimeout(shareImageRetryTimer);
+                    shareImageRetryTimer = setTimeout(() => tryAutoGenerateShareImage(retryCount + 1), SHARE_IMAGE_RETRY_DELAY);
+                }
+                return;
+            }
+
+            const success = await autoGenerateShareImage();
+            if (success) {
+                if (shareImageRetryTimer) {
+                    clearTimeout(shareImageRetryTimer);
+                    shareImageRetryTimer = null;
+                }
+            } else if (retryCount < SHARE_IMAGE_MAX_RETRIES) {
+                const backoffDelay = SHARE_IMAGE_RETRY_DELAY * Math.max(1, retryCount + 1);
+                if (shareImageRetryTimer) clearTimeout(shareImageRetryTimer);
+                shareImageRetryTimer = setTimeout(() => tryAutoGenerateShareImage(retryCount + 1), backoffDelay);
             }
         }
 
@@ -1006,6 +1047,114 @@
                     return `${PRODUCTION_ORIGIN}/results.html?ratingId=${encodeURIComponent(ratingId)}`;
                 }
                 return `${PRODUCTION_ORIGIN}/results.html`;
+            }
+        }
+
+        function getCanonicalOrigin() {
+            try {
+                if (window.location && window.location.origin && window.location.origin !== 'null') {
+                    return window.location.origin;
+                }
+            } catch (error) {
+                console.warn('[results.html getCanonicalOrigin] Unable to read window.location.origin, using production origin.', error);
+            }
+            return PRODUCTION_ORIGIN;
+        }
+
+        function ensureAbsoluteUrl(pathOrUrl) {
+            if (!pathOrUrl) return null;
+            try {
+                return new URL(pathOrUrl).toString();
+            } catch (error) {
+                const origin = getCanonicalOrigin();
+                if (!origin) return pathOrUrl;
+                const sanitizedPath = pathOrUrl.startsWith('/') ? pathOrUrl : `/${pathOrUrl.replace(/^\//, '')}`;
+                return `${origin.replace(/\/$/, '')}${sanitizedPath}`;
+            }
+        }
+
+        function resolveShareImageUrl(imageEntry) {
+            if (!imageEntry) {
+                return ensureAbsoluteUrl('Certifiedstamp.png');
+            }
+
+            if (typeof imageEntry !== 'string') {
+                return ensureAbsoluteUrl('Certifiedstamp.png');
+            }
+
+            if (/^https?:\/\//i.test(imageEntry)) {
+                return imageEntry;
+            }
+
+            if (imageEntry.startsWith('/')) {
+                return ensureAbsoluteUrl(imageEntry);
+            }
+
+            return ensureAbsoluteUrl(`/api/image/${imageEntry}`);
+        }
+
+        function setOrCreateMetaTag(attributeName, attributeValue, content) {
+            if (!attributeName || !attributeValue) return;
+            let selector = `meta[${attributeName}="${attributeValue}"]`;
+            let tag = document.head.querySelector(selector);
+            if (!tag) {
+                tag = document.createElement('meta');
+                tag.setAttribute(attributeName, attributeValue);
+                document.head.appendChild(tag);
+            }
+            if (content !== undefined && content !== null) {
+                tag.setAttribute('content', content);
+            }
+        }
+
+        function updatePageMetadata(metaData) {
+            if (!metaData || !i18next.isInitialized) return;
+
+            const titleText = metaData.title || i18next.t('common.noTitle');
+            const shareTitle = `${titleText} - Pistacho`;
+            document.title = shareTitle;
+
+            const normalizedScore = typeof metaData.normalizedScore === 'number'
+                ? metaData.normalizedScore.toFixed(2)
+                : null;
+            let gradeLabel = null;
+            if (metaData.finalGrade) {
+                if (metaData.finalGrade.nameKey) {
+                    gradeLabel = i18next.t(metaData.finalGrade.nameKey);
+                } else if (metaData.finalGrade.name_cn || metaData.finalGrade.name) {
+                    gradeLabel = metaData.finalGrade.name_cn || metaData.finalGrade.name;
+                }
+            }
+
+            const descriptionParts = [];
+            if (metaData.cigarInfo?.name) {
+                descriptionParts.push(metaData.cigarInfo.name);
+            }
+            if (gradeLabel && normalizedScore) {
+                descriptionParts.push(`${gradeLabel} · ${normalizedScore}`);
+            } else if (gradeLabel) {
+                descriptionParts.push(gradeLabel);
+            } else if (normalizedScore) {
+                descriptionParts.push(`评分 ${normalizedScore}`);
+            }
+            const reviewer = metaData.userNickname || metaData.userEmail;
+            if (reviewer) {
+                descriptionParts.push(`${i18next.t('resultsPage.by', { defaultValue: '点评来自:' })} ${reviewer}`);
+            }
+
+            const shareDescription = descriptionParts.join(' | ') || DEFAULT_SHARE_DESCRIPTION;
+            const shareImage = resolveShareImageUrl(Array.isArray(metaData.imageUrls) && metaData.imageUrls.length > 0 ? metaData.imageUrls[0] : null);
+            const shareUrl = buildShareUrl();
+
+            setOrCreateMetaTag('name', 'description', shareDescription);
+            setOrCreateMetaTag('property', 'og:title', shareTitle);
+            setOrCreateMetaTag('property', 'og:description', shareDescription);
+            setOrCreateMetaTag('property', 'og:image', shareImage);
+            setOrCreateMetaTag('property', 'og:url', shareUrl);
+            setOrCreateMetaTag('name', 'twitter:title', shareTitle);
+            setOrCreateMetaTag('name', 'twitter:description', shareDescription);
+            if (shareImage) {
+                setOrCreateMetaTag('name', 'twitter:image', shareImage);
             }
         }
 
@@ -1423,7 +1572,8 @@
             const resolvedFinalGrade = resolveFinalGrade(rawFinalGrade, normalizedScore);
             data.finalGrade = resolvedFinalGrade;
             const title = data.title || i18next.t('common.noTitle');
-            const userNickname = data.userNickname || data.userEmail || i18next.t('common.anonymous');
+            const reviewerName = data.userNickname || data.userEmail || null;
+            const userNickname = reviewerName || i18next.t('common.anonymous');
 
             // --- ADDED LOGS ---
             console.log("[results.html renderPageContent] Trying to render:");
@@ -1436,6 +1586,16 @@
             console.log("  > Final Grade:", JSON.stringify(resolvedFinalGrade));
             console.log("  > Is Draft:", isDraft);
             // --- END ADDED LOGS ---
+
+            updatePageMetadata({
+                title,
+                normalizedScore,
+                finalGrade: resolvedFinalGrade,
+                cigarInfo,
+                userNickname: data.userNickname,
+                userEmail: data.userEmail,
+                imageUrls: Array.isArray(data.imageUrls) ? data.imageUrls : [],
+            });
 
             // --- ADDED: Get references to DOM elements ---
              const userNicknameEl = document.getElementById('user-nickname');
@@ -1629,6 +1789,10 @@
             if (shareImageObjectUrl) {
                 URL.revokeObjectURL(shareImageObjectUrl);
                 shareImageObjectUrl = null;
+            }
+            if (shareImageRetryTimer) {
+                clearTimeout(shareImageRetryTimer);
+                shareImageRetryTimer = null;
             }
         });
 
