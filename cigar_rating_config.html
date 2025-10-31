@@ -10,6 +10,7 @@
     <script src="https://unpkg.com/i18next/i18next.min.js"></script>
     <script src="https://unpkg.com/i18next-http-backend/i18nextHttpBackend.min.js"></script>
     <script src="https://unpkg.com/i18next-browser-languagedetector/i18nextBrowserLanguageDetector.min.js"></script>
+    <script type="module" src="scripts/navbar.js"></script>
     
     <script>
         if (typeof tailwind !== 'undefined') {
@@ -25,6 +26,8 @@
         } else {
              console.warn('Tailwind object not found. Skipping config.');
         }
+
+        document.addEventListener('navbar:loaded', renderLanguageSwitcher);
     </script>
     <style>
         /* Style for language buttons */
@@ -52,6 +55,12 @@
     </style>
 </head>
 <body class="bg-gray-100 font-sans antialiased text-gray-800">
+
+    <div class="px-4 sm:px-6 lg:px-8 pt-4">
+        <div class="mx-auto max-w-7xl">
+            <div data-include-nav data-active="config" data-language="flags"></div>
+        </div>
+    </div>
 
     <div id="main-container" class="max-w-4xl mx-auto p-4 md:p-8">
 
@@ -179,36 +188,42 @@
 
         // --- **MODIFIED**: Replaced setupLanguageSwitcher with renderLanguageSwitcher ---
         function renderLanguageSwitcher() {
-            const container = document.getElementById('language-buttons-container');
-            if (!container) return;
-            container.innerHTML = '';
+            if (!i18next.isInitialized) return;
+            const containers = [
+                document.getElementById('language-buttons-container'),
+                document.getElementById('language-flags')
+            ].filter(Boolean);
+            if (!containers.length) return;
+
             const languages = ['zh', 'en', 'es'];
-            // Ensure i18next is initialized before accessing language
             const currentLang = i18next.language ? i18next.language.split('-')[0] : 'zh';
 
-            languages.forEach(lang => {
-                const button = document.createElement('button');
-                button.textContent = lang.toUpperCase();
-                button.className = `lang-button ${lang === currentLang ? 'active' : ''}`;
-                button.dataset.lang = lang;
-                button.onclick = async (e) => {
-                    const newLang = e.target.dataset.lang;
-                    const oldLang = i18next.language ? i18next.language.split('-')[0] : 'zh';
-                    if (newLang === oldLang) return;
+            containers.forEach(container => {
+                container.innerHTML = '';
+                languages.forEach(lang => {
+                    const button = document.createElement('button');
+                    button.textContent = lang.toUpperCase();
+                    button.className = `lang-button ${lang === currentLang ? 'active' : ''}`;
+                    button.dataset.lang = lang;
+                    button.onclick = async (e) => {
+                        const newLang = e.target.dataset.lang;
+                        const oldLang = i18next.language ? i18next.language.split('-')[0] : 'zh';
+                        if (newLang === oldLang) return;
 
-                    console.log(`Changing language to: ${newLang}`);
-                    try {
-                        await i18next.changeLanguage(newLang);
-                        console.log("Language changed, running updates...");
-                        updateContent();
-                        renderLanguageSwitcher(); // Re-render buttons
-                        renderConfigView();     // Re-render config view
-                        console.log("UI updates after language change finished.");
-                    } catch (langErr) {
-                        console.error(`Failed to change language to ${newLang}:`, langErr);
-                    }
-                };
-                container.appendChild(button);
+                        console.log(`Changing language to: ${newLang}`);
+                        try {
+                            await i18next.changeLanguage(newLang);
+                            console.log("Language changed, running updates...");
+                            updateContent();
+                            renderLanguageSwitcher();
+                            renderConfigView();
+                            console.log("UI updates after language change finished.");
+                        } catch (langErr) {
+                            console.error(`Failed to change language to ${newLang}:`, langErr);
+                        }
+                    };
+                    container.appendChild(button);
+                });
             });
         }
         
@@ -690,9 +705,12 @@
 
              accessToken = sessionStorage.getItem('accessToken');
              if (!accessToken) {
-                 renderError(i18next.t('errors.loginRequiredForPage'), true, true); 
-                 document.getElementById('role-display').textContent = i18next.t('common.notLoggedIn');
-                 return; 
+                 renderError(i18next.t('errors.loginRequiredForPage'), true, true);
+                 const roleDisplay = document.getElementById('role-display');
+                 if (roleDisplay) {
+                     roleDisplay.textContent = i18next.t('common.notLoggedIn');
+                 }
+                 return;
              }
 
              try {
@@ -709,12 +727,18 @@
 
                  if (!hasAdminAccess()) {
                      renderError(i18next.t('errors.permissionDeniedAdmin'), true);
-                     document.getElementById('role-display').textContent = i18next.t('errors.permissionInsufficient', { role: (currentAuthUser.db_role || 'USER').toUpperCase() });
-                     return; 
+                     const roleDisplay = document.getElementById('role-display');
+                     if (roleDisplay) {
+                         roleDisplay.textContent = i18next.t('errors.permissionInsufficient', { role: (currentAuthUser.db_role || 'USER').toUpperCase() });
+                     }
+                     return;
                  }
-                 
-                 document.getElementById('role-display').textContent = i18next.t('configPage.currentRole', { role: currentAuthUser.db_role.toUpperCase() });
-                 document.getElementById('admin-content').classList.remove('hidden'); 
+
+                 const roleDisplay = document.getElementById('role-display');
+                 if (roleDisplay) {
+                     roleDisplay.textContent = i18next.t('configPage.currentRole', { role: currentAuthUser.db_role.toUpperCase() });
+                 }
+                 document.getElementById('admin-content').classList.remove('hidden');
                  
                  await loadProfileList();
                  await loadConfigById('latest');
