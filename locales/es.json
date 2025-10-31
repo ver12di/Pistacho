@@ -79,6 +79,7 @@
     "rate": "Calificar Puro",
     "myRatings": "Mis Reseñas",
     "certified": "Certificado",
+    "contact": "Contacto",
     "login": "Iniciar Sesión/Registrarse",
     "logout": "Cerrar Sesión",
     "configAdmin": "Config. de Calificación",
@@ -93,7 +94,8 @@
     "loadingRatings": "Cargando reseñas...",
     "loadFailed": "Error al cargar reseñas: {{msg}}",
     "noMatches": "No se encontraron reseñas coincidentes.",
-    "uncertify": "Quitar Certif."
+    "uncertify": "Quitar Certif.",
+    "smokingWarning": "Fumar y el consumo excesivo de alcohol son perjudiciales para la salud. Este sitio contiene contenido de tabaco y alcohol; los menores deben abstenerse."
   },
   "ratePage": {
     "title": "Publicar Reseña de Puro",
@@ -145,6 +147,32 @@
     "editLoadFailed": "Error al cargar reseña: {{msg}}",
     "editLoaded": "Reseña {{id}} cargada (Modo Edición)",
     "setCover": "Establecer como Portada"
+  },
+  "contactPage": {
+    "pageTitle": "Contactar administradores - Pistacho",
+    "metaDescription": "Envía un mensaje a los administradores de Pistacho para informar problemas o compartir sugerencias.",
+    "title": "Contactar a los administradores",
+    "description": "Si encuentras problemas al usar Pistacho o tienes sugerencias, deja un mensaje aquí para nuestros administradores. Por favor incluye tu correo electrónico para que podamos responderte.",
+    "emailLabel": "Correo de contacto",
+    "emailPlaceholder": "name@example.com",
+    "messageLabel": "Mensaje",
+    "messagePlaceholder": "Describe tu duda o sugerencia",
+    "messageHint": "Puedes escribir hasta 1000 caracteres.",
+    "submitButton": "Enviar mensaje",
+    "submitting": "Enviando...",
+    "submitSuccess": "¡Gracias! Tu mensaje se ha enviado y te responderemos pronto.",
+    "submitError": "No se pudo enviar: {{msg}}",
+    "formInvalidEmail": "Introduce un correo electrónico válido.",
+    "formEmptyMessage": "Escribe un mensaje.",
+    "adminSectionTitle": "Bandeja de admins",
+    "adminSectionDescription": "Solo los administradores pueden ver todos los mensajes.",
+    "refreshButton": "Actualizar",
+    "adminNoMessages": "Aún no hay mensajes.",
+    "adminNeedsLogin": "Inicia sesión para ver la bandeja.",
+    "adminLoadError": "Error al cargar los mensajes. Intenta de nuevo más tarde.",
+    "adminMessageFrom": "De: {{email}}",
+    "adminMessageAt": "Enviado el: {{time}}",
+    "adminMessageUser": "Usuario: {{user}}"
   },
   "historyPage": {
     "title": "Mis Reseñas",

@@ -79,6 +79,7 @@
     "rate": "Rate a Cigar",
     "myRatings": "My Ratings",
     "certified": "Certified",
+    "contact": "Contact",
     "login": "Login/Register",
     "logout": "Logout",
     "configAdmin": "Rating Config",
@@ -93,7 +94,8 @@
     "loadingRatings": "Loading reviews...",
     "loadFailed": "Failed to load reviews: {{msg}}",
     "noMatches": "No matching reviews found.",
-    "uncertify": "Uncertify"
+    "uncertify": "Uncertify",
+    "smokingWarning": "Smoking and excessive drinking are harmful to your health. This site contains tobacco and alcohol content; minors should refrain."
   },
   "ratePage": {
     "title": "Post a Cigar Review",
@@ -145,6 +147,32 @@
     "editLoadFailed": "Failed to load review: {{msg}}",
     "editLoaded": "Loaded review {{id}} (Edit Mode)",
     "setCover": "Set as Cover"
+  },
+  "contactPage": {
+    "pageTitle": "Contact Administrators - Pistacho",
+    "metaDescription": "Leave a message for the Pistacho administrators to report issues or share feedback.",
+    "title": "Contact the Community Admins",
+    "description": "If you encounter issues while using Pistacho or have suggestions, leave a message here for our admins. Please include your email so we can reply.",
+    "emailLabel": "Contact Email",
+    "emailPlaceholder": "name@example.com",
+    "messageLabel": "Message",
+    "messagePlaceholder": "Describe your question or suggestion",
+    "messageHint": "You can enter up to 1000 characters.",
+    "submitButton": "Send Message",
+    "submitting": "Submitting...",
+    "submitSuccess": "Thanks! Your message has been sent and we'll get back to you soon.",
+    "submitError": "Submission failed: {{msg}}",
+    "formInvalidEmail": "Please enter a valid email address.",
+    "formEmptyMessage": "Please enter a message.",
+    "adminSectionTitle": "Admin Inbox",
+    "adminSectionDescription": "Only admins can see all user messages.",
+    "refreshButton": "Refresh",
+    "adminNoMessages": "No messages yet.",
+    "adminNeedsLogin": "Log in to view the inbox.",
+    "adminLoadError": "Failed to load messages. Please try again later.",
+    "adminMessageFrom": "From: {{email}}",
+    "adminMessageAt": "Submitted at: {{time}}",
+    "adminMessageUser": "User: {{user}}"
   },
   "historyPage": {
     "title": "My Ratings",
