@@ -349,6 +349,84 @@
             return resolved;
         }
 
+        function normalizeResultsData(rawData) {
+            if (!rawData || typeof rawData !== 'object') {
+                return rawData;
+            }
+
+            const data = { ...rawData };
+
+            if (!data.ratingId && data.id) {
+                data.ratingId = data.id;
+            }
+
+            if (data.fullData && typeof data.fullData === 'string') {
+                try { data.fullData = JSON.parse(data.fullData); }
+                catch (e) { console.warn('[results.html normalizeResultsData] Failed to parse fullData string:', e); data.fullData = null; }
+            }
+
+            const imageCandidates = [];
+            if (Array.isArray(data.imageUrls)) {
+                imageCandidates.push(...data.imageUrls);
+            } else if (Array.isArray(data.imageUrl)) {
+                imageCandidates.push(...data.imageUrl);
+            } else if (typeof data.imageUrl === 'string' && data.imageUrl.trim() !== '') {
+                try {
+                    const parsed = JSON.parse(data.imageUrl);
+                    if (Array.isArray(parsed)) imageCandidates.push(...parsed);
+                    else imageCandidates.push(data.imageUrl);
+                } catch (e) {
+                    imageCandidates.push(data.imageUrl);
+                }
+            }
+            data.imageUrls = imageCandidates.filter(key => typeof key === 'string' && key.trim() !== '');
+
+            const fullData = (data.fullData && typeof data.fullData === 'object') ? data.fullData : null;
+            if (fullData) {
+                if (!data.config && fullData.config) data.config = fullData.config;
+                if (!data.ratings && fullData.ratings) data.ratings = fullData.ratings;
+                if (data.calculatedScore === undefined && fullData.calculatedScore !== undefined) data.calculatedScore = fullData.calculatedScore;
+                if ((!Array.isArray(data.selectedFlavors) || data.selectedFlavors.length === 0) && Array.isArray(fullData.selectedFlavors)) {
+                    data.selectedFlavors = fullData.selectedFlavors;
+                }
+                if (!data.cigarReview && fullData.cigarReview) data.cigarReview = fullData.cigarReview;
+                if (!data.finalGrade && fullData.finalGrade) data.finalGrade = fullData.finalGrade;
+                if (fullData.cigarInfo) {
+                    const info = fullData.cigarInfo;
+                    const existing = data.cigarInfo && typeof data.cigarInfo === 'object' ? data.cigarInfo : {};
+                    data.cigarInfo = {
+                        name: existing.name ?? info.name ?? data.cigarName ?? null,
+                        size: existing.size ?? info.size ?? data.cigarSize ?? null,
+                        origin: existing.origin ?? info.origin ?? data.cigarOrigin ?? null
+                    };
+                }
+            }
+
+            if (!data.cigarInfo || typeof data.cigarInfo !== 'object') {
+                data.cigarInfo = {
+                    name: data.cigarName ?? null,
+                    size: data.cigarSize ?? null,
+                    origin: data.cigarOrigin ?? null
+                };
+            } else {
+                data.cigarInfo = {
+                    name: data.cigarInfo.name ?? data.cigarName ?? null,
+                    size: data.cigarInfo.size ?? data.cigarSize ?? null,
+                    origin: data.cigarInfo.origin ?? data.cigarOrigin ?? null
+                };
+            }
+
+            if (!Array.isArray(data.selectedFlavors)) {
+                data.selectedFlavors = Array.isArray(data.fullData?.selectedFlavors) ? data.fullData.selectedFlavors : [];
+            }
+
+            if (!data.finalGrade && data.finalGrade_grade) {
+                data.finalGrade = { grade: data.finalGrade_grade, name_cn: data.finalGrade_name_cn };
+            }
+
+            return data;
+        }
+
         // --- i18n Initialization Functions ---
         async function initI18n() {
             // Initialize i18next
@@ -1384,6 +1462,7 @@
                      }
                      resultsData = await response.json();
                      resultsData.isDraft = false; // Data from API is never a draft
+                     resultsData = normalizeResultsData(resultsData);
                      console.log("[results.html onload] Loaded data from API:", JSON.stringify(resultsData).substring(0, 300) + '...');
                  } else { // Load draft from sessionStorage
                      console.log("[results.html onload] Loading rating from sessionStorage");
@@ -1391,6 +1470,7 @@
                      if (!storedData) throw new Error(i18next.t('errors.noRatingDataFound'));
                      try {
                          resultsData = JSON.parse(storedData);
+                         resultsData = normalizeResultsData(resultsData);
                          // *** FIX: REMOVED resultsData.isDraft = true; ***
                          // The 'isDraft' flag (true from rate.html, false from history.html/index.html)
                          // is now correctly loaded from the stored data.
