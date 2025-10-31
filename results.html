@@ -344,6 +344,7 @@
         let thumbnailSwiper = null; // Swiper instance for thumbnails
         let shareImageGenerated = false; // Flag to prevent multiple generations
         let shareImageObjectUrl = null;  // Blob URL for generated share image (better mobile support)
+        const PRODUCTION_ORIGIN = 'https://www.pista-cho.com'; // Canonical domain used for share links
         const commentState = {
             comments: [],
             mutedUserIds: new Set(),
@@ -982,6 +983,32 @@
             }
         }
 
+        function buildShareUrl() {
+            if (ratingId) {
+                try {
+                    const productionUrl = new URL('/results.html', PRODUCTION_ORIGIN);
+                    productionUrl.searchParams.set('ratingId', ratingId);
+                    return productionUrl.toString();
+                } catch (err) {
+                    console.warn('[results.html buildShareUrl] Failed to build production URL, falling back to current origin.', err);
+                }
+            }
+
+            try {
+                const currentUrl = new URL(window.location.href);
+                if (ratingId && !currentUrl.searchParams.get('ratingId')) {
+                    currentUrl.searchParams.set('ratingId', ratingId);
+                }
+                return currentUrl.toString();
+            } catch (err) {
+                console.warn('[results.html buildShareUrl] Failed to parse window.location.href, using canonical domain.', err);
+                if (ratingId) {
+                    return `${PRODUCTION_ORIGIN}/results.html?ratingId=${encodeURIComponent(ratingId)}`;
+                }
+                return `${PRODUCTION_ORIGIN}/results.html`;
+            }
+        }
+
         // Generates QR code and resolves promise on image load/error
         function generateQRCode() {
             return new Promise((resolve, reject) => {
@@ -989,7 +1016,7 @@
                  if (qrCodeContainer && typeof QRCode !== 'undefined') {
                     qrCodeContainer.innerHTML = ''; // Clear previous
                     // Use ratingId if available (after save or loaded), otherwise use current page URL (for draft)
-                    const uniqueUrl = ratingId ? `${window.location.origin}/results.html?ratingId=${ratingId}` : window.location.href;
+                    const uniqueUrl = buildShareUrl();
                     console.log("[results.html generateQRCode] Generating QR for URL:", uniqueUrl); // Log the URL
                     try {
                          new QRCode(qrCodeContainer, {
