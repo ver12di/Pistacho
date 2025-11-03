@@ -2,6 +2,7 @@
 // 文件: /functions/api/image/[key].js
 // 作用: 动态路由, 用于从 R2 安全地获取并显示图片
 // 访问: /api/image/some-uuid.jpg
+// **MODIFIED**: 添加了 Access-Control-Allow-Origin 头部
 // ---------------------------------------------------
 
 export async function onRequestGet(context) {
@@ -39,6 +40,11 @@ export async function onRequestGet(context) {
         headers.set('etag', object.httpEtag);
         // (可选) 添加更长的浏览器缓存时间, e.g., 缓存 1 天
         headers.set('cache-control', 'public, max-age=86400');
+
+        // --- 关键修复 ---
+        // 添加此头部以允许 html2canvas 跨域读取图片
+        headers.set('Access-Control-Allow-Origin', '*');
+        // --- 修复结束 ---
 
         // 5. 将图片数据流式传输回客户端
         return new Response(object.body, {
