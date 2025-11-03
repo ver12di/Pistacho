@@ -97,6 +97,16 @@
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
             overflow: hidden; border: 1px solid #e5e7eb; visibility: hidden; z-index: -1;
         }
+        #share-card-container.capturing {
+            position: fixed;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            visibility: visible !important;
+            opacity: 0;
+            pointer-events: none;
+            z-index: -1;
+        }
         #share-card-image-wrapper {
             background-color: #e5e7eb; display: flex; align-items: center; justify-content: center;
             aspect-ratio: 1179 / 1572; /* Keep aspect ratio */
@@ -309,7 +319,7 @@
         <!-- Hidden Share Card Container (for image generation) -->
         <div id="share-card-container">
             <div id="share-card-image-wrapper">
-                <img id="share-card-image" src="" alt="Cigar Cover Image" crossorigin="anonymous" loading="lazy">
+                <img id="share-card-image" src="" alt="Cigar Cover Image" crossorigin="anonymous" loading="eager">
                 <div id="share-card-pagination" aria-hidden="true">
                     <span></span>
                     <span></span>
@@ -1047,8 +1057,17 @@
                       return false;
                  }
 
+                 const previousInlineStyle = shareCardElement.getAttribute('style');
+                 shareCardElement.dataset.previousInlineStyle = previousInlineStyle ?? '';
+                 shareCardElement.classList.add('capturing');
                  shareCardElement.style.visibility = 'visible';
-                 await new Promise(resolve => setTimeout(resolve, 300));
+                 shareCardElement.style.left = '50%';
+                 shareCardElement.style.top = '50%';
+                 shareCardElement.style.transform = 'translate(-50%, -50%)';
+                 shareCardElement.style.pointerEvents = 'none';
+                 shareCardElement.style.opacity = '0';
+
+                 await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 
                  const canvas = await html2canvasInstance(shareCardElement, { useCORS: true, allowTaint: true, scale: 2 });
 
@@ -1124,7 +1143,18 @@
                  }
                  return false;
             } finally {
-                 shareCardElement.style.visibility = 'hidden';
+                 const previousStyle = shareCardElement.dataset.previousInlineStyle;
+                 shareCardElement.classList.remove('capturing');
+                 if (previousStyle !== undefined) {
+                     if (previousStyle) {
+                         shareCardElement.setAttribute('style', previousStyle);
+                     } else {
+                         shareCardElement.removeAttribute('style');
+                     }
+                     delete shareCardElement.dataset.previousInlineStyle;
+                 } else {
+                     shareCardElement.style.visibility = 'hidden';
+                 }
                  if (statusElement) {
                      setTimeout(() => { statusElement.classList.add('hidden'); }, 3000);
                  }
