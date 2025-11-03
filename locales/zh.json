@@ -252,6 +252,11 @@
       "H": "犹豫 / 瑕瑜互见",
       "O": "令人反感 / 极差"
     },
+    "meta": {
+      "titleTemplate": "Cigar Review: {{name}}",
+      "descriptionTemplate": "综合评价：来自{{origin}}的{{name}}（尺寸：{{size}}）获得{{grade}}（{{score}}分）。点评来自：{{reviewer}}。",
+      "scoreFallback": "暂无评分"
+    },
     "narrative": {
       "part1": "本次品鉴的雪茄是来自<strong class=\"font-semibold\">{{origin}}</strong>的<strong class=\"font-semibold\">{{name}}</strong>，尺寸为<strong class=\"font-semibold\">{{size}}</strong>。",
       "part2": "品鉴过程中，我们观察到：{{observations}}。",

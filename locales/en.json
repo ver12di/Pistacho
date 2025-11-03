@@ -257,6 +257,11 @@
       "H": "Hesitant",
       "O": "Objectionable"
     },
+    "meta": {
+      "titleTemplate": "Cigar Review: {{name}}",
+      "descriptionTemplate": "Overall impression: {{name}} from {{origin}} (size: {{size}}) earned {{grade}} ({{score}}). Reviewed by {{reviewer}}.",
+      "scoreFallback": "N/A"
+    },
     "narrative": {
       "part1": "This tasting featured the <strong class=\"font-semibold\">{{name}}</strong> (size: <strong class=\"font-semibold\">{{size}}</strong>) from <strong class=\"font-semibold\">{{origin}}</strong>.",
       "part2": "During the tasting, we observed: {{observations}}.",
