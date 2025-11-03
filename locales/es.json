@@ -257,6 +257,11 @@
       "H": "Dudoso",
       "O": "Inaceptable"
     },
+    "meta": {
+      "titleTemplate": "Cigar Review: {{name}}",
+      "descriptionTemplate": "Evaluación general: {{name}} de {{origin}} (tamaño: {{size}}) obtuvo {{grade}} ({{score}}). Reseñado por {{reviewer}}.",
+      "scoreFallback": "N/D"
+    },
     "narrative": {
       "part1": "Esta cata fue del <strong class=\"font-semibold\">{{name}}</strong> (tamaño: <strong class=\"font-semibold\">{{size}}</strong>) de <strong class=\"font-semibold\">{{origin}}</strong>.",
       "part2": "Durante la cata, observamos: {{observations}}.",

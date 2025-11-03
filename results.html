@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-Hans">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,7 +10,7 @@
     <meta property="og:description" content="在 Pistacho 浏览详细的雪茄点评结果，生成二维码分享并导出高分卡片。">
     <meta property="og:type" content="website">
     <meta property="og:image" content="Certifiedstamp.png">
-    <meta property="og:locale" content="zh_CN">
+    <meta property="og:locale" content="en_US">
     <meta property="og:url" content="https://www.pista-cho.com/results.html">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="雪茄品鉴报告 - Pistacho">
@@ -18,6 +18,7 @@
     <meta name="twitter:image" content="Certifiedstamp.png">
     <title>雪茄品鉴 - 点评报告</title>
     <link rel="icon" type="image/png" href="Certifiedstamp.png">
+    <link rel="canonical" href="https://www.pista-cho.com/results.html">
 
     <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
     <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
@@ -358,7 +359,11 @@
         const SHARE_IMAGE_MAX_RETRIES = 5; // Limit retries to avoid infinite loops
         const SHARE_IMAGE_RETRY_DELAY = 800; // Base delay (ms) between retries
         const PRODUCTION_ORIGIN = 'https://www.pista-cho.com'; // Canonical domain used for share links
-        const DEFAULT_SHARE_DESCRIPTION = '查看 Pistacho 雪茄品鉴报告，回顾完整的评分细节、口感总结与分享卡片。';
+        const DEFAULT_SHARE_DESCRIPTIONS = {
+            zh: '查看 Pistacho 雪茄品鉴报告，回顾完整的评分细节、口感总结与分享卡片。',
+            es: 'Consulta los reportes de cata de Pistacho con detalles completos, resumen y tarjetas para compartir.',
+            en: 'Browse Pistacho cigar tasting reports with full scoring details, tasting summaries, and shareable cards.'
+        };
         const commentState = {
             comments: [],
             mutedUserIds: new Set(),
@@ -374,6 +379,21 @@
         const SWIPER_SCRIPT_URL = 'https://cdnjs.cloudflare.com/ajax/libs/Swiper/11.0.5/swiper-bundle.min.js';
         const HTML2CANVAS_SCRIPT_URL = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
         const QRCODE_SCRIPT_URL = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
+
+        function resolveLanguageContext(language) {
+            const normalized = (language || '').toLowerCase();
+            if (normalized.startsWith('zh')) {
+                return { lang: 'zh', htmlLang: 'zh-Hans', ogLocale: 'zh_CN' };
+            }
+            if (normalized.startsWith('es')) {
+                return { lang: 'es', htmlLang: 'es', ogLocale: 'es_ES' };
+            }
+            return { lang: 'en', htmlLang: 'en', ogLocale: 'en_US' };
+        }
+
+        function getDefaultDescriptionForLang(lang) {
+            return DEFAULT_SHARE_DESCRIPTIONS[lang] || DEFAULT_SHARE_DESCRIPTIONS.en;
+        }
 
         function toAbsoluteUrl(url) {
             try {
@@ -650,8 +670,12 @@
                     }
                 }
             });
-            // Update page title
-            document.title = i18next.t('resultsPage.pageTitle');
+            const langContext = resolveLanguageContext(i18next.language);
+            if (langContext) {
+                document.documentElement.setAttribute('lang', langContext.htmlLang);
+                document.documentElement.setAttribute('data-lang', langContext.lang);
+                setOrCreateMetaTag('property', 'og:locale', langContext.ogLocale);
+            }
             renderCommentsSection();
             updateCommentFormState();
         }
@@ -1273,46 +1297,115 @@
             }
         }
 
+        function buildMetaDescriptionBundle(metaContext) {
+            if (!i18next.isInitialized || !metaContext) {
+                return null;
+            }
+
+            const languages = ['zh', 'es', 'en'];
+            const descriptions = {};
+            languages.forEach(lang => {
+                const text = buildMetaDescriptionForLanguage(lang, metaContext);
+                if (text) {
+                    descriptions[lang] = text;
+                }
+            });
+
+            return Object.keys(descriptions).length > 0 ? descriptions : null;
+        }
+
+        function buildMetaDescriptionForLanguage(lang, metaContext) {
+            try {
+                const t = i18next.getFixedT(lang);
+                const info = metaContext.cigarInfo || {};
+                const name = info.name || t('common.unknown');
+                const size = info.size || t('common.unknown');
+                const origin = info.origin || t('common.unknown');
+                let gradeName = metaContext.finalGrade?.nameKey ? t(metaContext.finalGrade.nameKey) : (metaContext.finalGrade?.name || t('common.unrated'));
+                const gradeLetter = metaContext.finalGrade?.grade;
+                if (!gradeName) {
+                    gradeName = t('common.unrated');
+                }
+                const gradeText = gradeLetter ? `${gradeLetter} - ${gradeName}` : gradeName;
+                const scoreText = typeof metaContext.normalizedScore === 'number'
+                    ? metaContext.normalizedScore.toFixed(2)
+                    : t('resultsPage.meta.scoreFallback');
+                const reviewer = metaContext.userNickname || metaContext.userEmail || t('common.anonymous');
+                const description = t('resultsPage.meta.descriptionTemplate', { name, size, origin, grade: gradeText, score: scoreText, reviewer });
+                return typeof description === 'string' ? description.trim() : null;
+            } catch (error) {
+                console.warn('[results.html buildMetaDescriptionForLanguage] Failed to build description:', lang, error);
+                return null;
+            }
+        }
+
+        function setCanonicalLink(url) {
+            if (!url) return;
+            let link = document.head.querySelector('link[rel="canonical"]');
+            if (!link) {
+                link = document.createElement('link');
+                link.setAttribute('rel', 'canonical');
+                document.head.appendChild(link);
+            }
+            link.setAttribute('href', url);
+        }
+
         function updatePageMetadata(metaData) {
             if (!metaData || !i18next.isInitialized) return;
 
-            const titleText = metaData.title || i18next.t('common.noTitle');
-            const shareTitle = `${titleText} - Pistacho`;
-            document.title = shareTitle;
+            const langContext = resolveLanguageContext(i18next.language);
+            if (langContext) {
+                document.documentElement.setAttribute('lang', langContext.htmlLang);
+                document.documentElement.setAttribute('data-lang', langContext.lang);
+                setOrCreateMetaTag('property', 'og:locale', langContext.ogLocale);
+            }
+
+            const cigarName = metaData.cigarInfo?.name || metaData.title || i18next.t('common.noTitle');
+            const seoTitle = i18next.t('resultsPage.meta.titleTemplate', { name: cigarName });
+            document.title = seoTitle;
+
+            const keywords = new Set(['Pistacho', 'Cigar Review', 'Cigar Rating']);
+            if (cigarName) keywords.add(cigarName);
+            if (metaData.ratingTitle && metaData.ratingTitle !== cigarName) {
+                keywords.add(metaData.ratingTitle);
+            }
 
             const normalizedScore = typeof metaData.normalizedScore === 'number'
                 ? metaData.normalizedScore.toFixed(2)
                 : null;
-            let gradeLabel = null;
-            if (metaData.finalGrade) {
-                if (metaData.finalGrade.nameKey) {
-                    gradeLabel = i18next.t(metaData.finalGrade.nameKey);
-                } else if (metaData.finalGrade.name_cn || metaData.finalGrade.name) {
-                    gradeLabel = metaData.finalGrade.name_cn || metaData.finalGrade.name;
-                }
+
+            let shareDescription = null;
+            if (metaData.descriptions && typeof metaData.descriptions === 'object') {
+                const langKey = langContext?.lang || 'en';
+                shareDescription = metaData.descriptions[langKey]
+                    || metaData.descriptions.en
+                    || metaData.descriptions.zh
+                    || metaData.descriptions.es
+                    || null;
             }
 
-            const descriptionParts = [];
-            if (metaData.cigarInfo?.name) {
-                descriptionParts.push(metaData.cigarInfo.name);
-            }
-            if (gradeLabel && normalizedScore) {
-                descriptionParts.push(`${gradeLabel} · ${normalizedScore}`);
-            } else if (gradeLabel) {
-                descriptionParts.push(gradeLabel);
-            } else if (normalizedScore) {
-                descriptionParts.push(`评分 ${normalizedScore}`);
-            }
-            const reviewer = metaData.userNickname || metaData.userEmail;
-            if (reviewer) {
-                descriptionParts.push(`${i18next.t('resultsPage.by', { defaultValue: '点评来自:' })} ${reviewer}`);
+            if (!shareDescription || !shareDescription.trim()) {
+                const descriptionParts = [];
+                if (metaData.cigarInfo?.name) descriptionParts.push(metaData.cigarInfo.name);
+                if (metaData.finalGrade?.nameKey) descriptionParts.push(i18next.t(metaData.finalGrade.nameKey));
+                if (normalizedScore) descriptionParts.push(`${normalizedScore}`);
+                const reviewer = metaData.userNickname || metaData.userEmail;
+                if (reviewer) descriptionParts.push(`${i18next.t('resultsPage.by', { defaultValue: '点评来自:' })} ${reviewer}`);
+                shareDescription = descriptionParts.join(' | ');
             }
 
-            const shareDescription = descriptionParts.join(' | ') || DEFAULT_SHARE_DESCRIPTION;
+            if (!shareDescription || !shareDescription.trim()) {
+                const langKey = langContext?.lang || 'en';
+                shareDescription = getDefaultDescriptionForLang(langKey);
+            }
+
+            shareDescription = shareDescription ? shareDescription.trim() : null;
+            const shareTitle = seoTitle;
             const shareImage = resolveShareImageUrl(Array.isArray(metaData.imageUrls) && metaData.imageUrls.length > 0 ? metaData.imageUrls[0] : null);
             const shareUrl = buildShareUrl();
 
             setOrCreateMetaTag('name', 'description', shareDescription);
+            setOrCreateMetaTag('name', 'keywords', Array.from(keywords).join(', '));
             setOrCreateMetaTag('property', 'og:title', shareTitle);
             setOrCreateMetaTag('property', 'og:description', shareDescription);
             setOrCreateMetaTag('property', 'og:image', shareImage);
@@ -1322,6 +1415,8 @@
             if (shareImage) {
                 setOrCreateMetaTag('name', 'twitter:image', shareImage);
             }
+
+            setCanonicalLink(shareUrl);
         }
 
         // Generates QR code and resolves promise on image load/error
@@ -1766,14 +1861,25 @@
             console.log("  > Is Draft:", isDraft);
             // --- END ADDED LOGS ---
 
+            const metaContext = {
+                cigarInfo,
+                finalGrade: resolvedFinalGrade,
+                normalizedScore,
+                userNickname: data.userNickname,
+                userEmail: data.userEmail
+            };
+            const metaDescriptions = buildMetaDescriptionBundle(metaContext);
+
             updatePageMetadata({
-                title,
+                title: cigarInfo?.name || title,
+                ratingTitle: title,
                 normalizedScore,
                 finalGrade: resolvedFinalGrade,
                 cigarInfo,
                 userNickname: data.userNickname,
                 userEmail: data.userEmail,
                 imageUrls: Array.isArray(data.imageUrls) ? data.imageUrls : [],
+                descriptions: metaDescriptions
             });
 
             // --- ADDED: Get references to DOM elements ---
