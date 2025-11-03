@@ -69,7 +69,7 @@
         .cropper-container { max-height: 60vh; }
         .cropper-modal-content { width: 90%; max-width: 800px; }
         /* Preview grid and item styles */
-        .preview-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 0.5rem; }
+        .preview-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 0.75rem; }
         .preview-item {
             position: relative; aspect-ratio: 1179 / 1572; overflow: hidden; border-radius: 0.375rem; /* rounded-md */
             border: 1px solid #e5e7eb; /* border-gray-200 */
@@ -114,6 +114,14 @@
             border-color: #4f46e5; /* border-indigo-600 */
             box-shadow: 0 1px 2px rgba(0,0,0,0.1);
         }
+
+        @media (max-width: 640px) {
+            body { font-size: 0.95rem; }
+            .preview-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 0.5rem; }
+            .cropper-modal-content { width: 100%; max-width: 360px; padding: 1.5rem; }
+            .cropper-container { max-height: 50vh; }
+            .flavor-btn { padding: 0.35rem 0.65rem; font-size: 0.8rem; margin-right: 0.4rem; }
+        }
     </style>
 </head>
 <body class="bg-gray-100 font-sans antialiased text-gray-800">
@@ -124,21 +132,21 @@
     </div>
     <div id="app-container" class="max-w-4xl mx-auto p-4 md:p-8">
         <!-- Header with Score Display -->
-        <header class="mb-8 p-6 bg-indigo-700 text-white rounded-xl shadow-2xl">
-             <div class="flex justify-between items-start">
-                 <div> <h1 id="app-title-display" class="text-3xl font-extrabold mb-1">雪茄评分应用</h1> <p id="app-description-display" class="text-indigo-200 text-sm max-w-lg">正在加载描述...</p> </div>
-                 <div class="flex items-center space-x-3 flex-shrink-0"> <div id="admin-links-container" class="flex items-center space-x-3"></div> </div>
+        <header class="mb-6 sm:mb-8 p-4 sm:p-6 bg-indigo-700 text-white rounded-xl shadow-2xl">
+             <div class="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-start">
+                 <div> <h1 id="app-title-display" class="text-2xl sm:text-3xl font-extrabold mb-1">雪茄评分应用</h1> <p id="app-description-display" class="text-indigo-200 text-sm max-w-lg">正在加载描述...</p> </div>
+                 <div class="flex items-center gap-2 flex-wrap sm:flex-nowrap sm:justify-end"> <div id="admin-links-container" class="flex items-center gap-2"></div> </div>
              </div>
              <!-- Score and Progress Bar -->
-             <div class="mt-6 bg-black bg-opacity-20 p-4 rounded-lg">
-                 <div class="flex justify-between items-end">
+             <div class="mt-4 sm:mt-6 bg-black bg-opacity-20 p-4 rounded-lg">
+                 <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                      <div>
                         <p class="text-sm font-medium text-indigo-200" data-i18n="ratePage.currentScore">当前得分</p>
-                        <div class="flex items-baseline"> <span id="current-score-display" class="text-6xl font-black leading-none">0.00</span> <span class="text-lg font-medium text-indigo-200 ml-2">/ <span id="total-weight-max-display">0</span></span> </div>
+                        <div class="flex items-baseline"> <span id="current-score-display" class="text-4xl sm:text-6xl font-black leading-none">0.00</span> <span class="text-base sm:text-lg font-medium text-indigo-200 ml-2">/ <span id="total-weight-max-display">0</span></span> </div>
                      </div>
-                     <div class="text-right">
+                     <div class="text-right sm:text-right">
                         <p class="text-sm font-medium text-indigo-200" data-i18n="ratePage.itemsRated">已评项目</p>
-                        <p id="progress-text" class="font-bold text-lg">0 / 0</p>
+                        <p id="progress-text" class="font-bold text-base sm:text-lg">0 / 0</p>
                      </div>
                  </div>
                  <div class="w-full bg-indigo-900 rounded-full h-2.5 mt-2"> <div id="progress-bar" class="bg-green-400 h-2.5 rounded-full transition-width duration-500" style="width: 0%"></div> </div>
@@ -157,14 +165,14 @@
         <main id="main-content">
 
             <!-- Rating Title Section -->
-            <section class="mb-8 p-6 bg-white rounded-xl shadow-lg">
+            <section class="mb-6 sm:mb-8 p-4 sm:p-6 bg-white rounded-xl shadow-lg">
                 <h2 class="text-xl font-bold text-gray-800 mb-4" data-i18n="ratePage.ratingTitle">点评标题 <span class="text-red-500">*</span></h2>
                 <input type="text" id="rating-title" maxlength="22" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 focus:border-indigo-500 focus:ring-indigo-500" data-i18n="ratePage.ratingTitlePlaceholder" placeholder="填写标题会被更多人看到 (最多22字)">
                 <p id="title-char-count" class="text-xs text-gray-500 text-right mt-1">0 / 22</p>
             </section>
 
             <!-- Image Upload Section -->
-            <section class="mb-8 p-6 bg-white rounded-xl shadow-lg">
+            <section class="mb-6 sm:mb-8 p-4 sm:p-6 bg-white rounded-xl shadow-lg">
                 <h2 class="text-xl font-bold text-gray-800 mb-4" data-i18n="ratePage.uploadImages" data-i18n-options='{ "max": 5 }'>上传图片 (最多5张, 可拖拽排序) <span class="text-red-500">*</span></h2>
                 <p class="text-sm text-gray-600 mb-3" data-i18n="ratePage.uploadImagesDesc">第一张图片将作为封面图显示。点击图片左下角按钮更换封面。</p>
                 <div class="preview-grid mb-4" id="image-preview-grid">
@@ -181,7 +189,7 @@
             </section>
 
             <!-- Review and Flavors Section -->
-            <section class="mb-8 p-6 bg-white rounded-xl shadow-lg">
+            <section class="mb-6 sm:mb-8 p-4 sm:p-6 bg-white rounded-xl shadow-lg">
                 <h2 class="text-xl font-bold text-gray-800 mb-4" data-i18n="ratePage.reviewAndFlavors">文字评价与风味选择</h2>
                 <!-- Flavor Buttons -->
                 <div class="mb-4 border-b pb-4">
@@ -199,7 +207,7 @@
             </section>
 
             <!-- Cigar Information Section -->
-            <section class="mb-8 p-6 bg-white rounded-xl shadow-lg">
+            <section class="mb-6 sm:mb-8 p-4 sm:p-6 bg-white rounded-xl shadow-lg">
                 <h2 class="text-xl font-bold text-gray-800 mb-4" data-i18n="ratePage.cigarInfo">雪茄信息</h2>
                  <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div>
@@ -223,9 +231,9 @@
             </div>
 
             <!-- Action Buttons -->
-            <div class="mt-8 grid grid-cols-2 gap-4">
-                <button onclick="resetRatings()" class="w-full py-3 px-6 bg-red-500 text-white font-bold text-lg rounded-lg shadow-md hover:bg-red-600" data-i18n="ratePage.reset">重置</button>
-                <button id="main-action-button" onclick="showResults()" class="w-full py-3 px-6 bg-green-600 text-white font-bold text-lg rounded-lg shadow-md hover:bg-green-700" data-i18n="ratePage.viewReport">查看报告</button>
+            <div class="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <button onclick="resetRatings()" class="w-full py-3 px-6 bg-red-500 text-white font-bold text-base sm:text-lg rounded-lg shadow-md hover:bg-red-600" data-i18n="ratePage.reset">重置</button>
+                <button id="main-action-button" onclick="showResults()" class="w-full py-3 px-6 bg-green-600 text-white font-bold text-base sm:text-lg rounded-lg shadow-md hover:bg-green-700" data-i18n="ratePage.viewReport">查看报告</button>
             </div>
         </main>
 
@@ -337,6 +345,21 @@
         let editRatingId = null;        // ID of the rating being edited
         let cropper = null;             // Cropper.js instance
         let selectedFlavors = [];       // Array of selected flavor i18n keys
+        const mobileViewportMatcher = window.matchMedia('(max-width: 640px)');
+        let preferCompactApiPayload = mobileViewportMatcher.matches;
+
+        const updateCompactPreference = (event) => {
+            preferCompactApiPayload = event.matches;
+        };
+        if (typeof mobileViewportMatcher.addEventListener === 'function') {
+            mobileViewportMatcher.addEventListener('change', updateCompactPreference);
+        } else if (typeof mobileViewportMatcher.addListener === 'function') {
+            mobileViewportMatcher.addListener(updateCompactPreference);
+        }
+
+        function shouldUseCompactApiPayload() {
+            return preferCompactApiPayload;
+        }
 
         // DOM Element References (cached for performance)
         const cropperModal = document.getElementById('cropper-modal');
@@ -871,10 +894,10 @@
             const formContainer = document.getElementById('rating-form-container');
             // Generate HTML for each category
             formContainer.innerHTML = ratingConfig.ratingCriteria.map((category) => `
-                <div class="bg-white p-6 rounded-xl shadow-lg mb-8 border-l-4 border-indigo-500">
-                    <h3 class="text-xl font-bold text-indigo-700 mb-2">${i18next.t(category.categoryKey)}</h3>
+                <div class="bg-white p-4 sm:p-6 rounded-xl shadow-lg mb-6 sm:mb-8 border-l-4 border-indigo-500">
+                    <h3 class="text-lg sm:text-xl font-bold text-indigo-700 mb-2">${i18next.t(category.categoryKey)}</h3>
                     <p class="text-gray-500 text-sm mb-4">${i18next.t(category.detailKey) || ''}</p>
-                    <div class="space-y-6">
+                    <div class="space-y-5 sm:space-y-6">
                         ${(category.criteriaList || []).map((criterion) => renderRatingCriterion(category.categoryKey, criterion)).join('')}
                     </div>
                 </div>`).join('');
@@ -897,21 +920,21 @@
 
             // Generate HTML for the criterion
             return `
-            <div class="bg-gray-50 p-4 rounded-lg border">
-                <div class="flex justify-between items-center mb-3">
-                    <h4 class="text-lg font-semibold text-gray-800">
+            <div class="bg-gray-50 p-3 sm:p-4 rounded-lg border">
+                <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-3">
+                    <h4 class="text-base sm:text-lg font-semibold text-gray-800">
                         ${i18next.t(criterionKey)} ${isSuperAdmin ? `(${currentWeight} ${i18next.t('common.points')})` : ''}
                     </h4>
-                    <span class="text-xl font-extrabold text-green-600">${currentScore.toFixed(2)}</span>
+                    <span class="text-lg sm:text-xl font-extrabold text-green-600">${currentScore.toFixed(2)}</span>
                 </div>
-                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
+                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3">
                 ${(criterion.options || []).map((option, optIndex) => {
                     const isSelected = selectedOptionIndex === optIndex; // Check if this option is selected
                     const scoreValue = (currentWeight * (option.scorePct || 0)).toFixed(2); // Score for this option
                     return `<button type="button" onclick="updateRatingSelection('${categoryKey}', '${criterionKey}', ${optIndex})"
-                        class="p-2 text-sm text-center rounded-lg border transition ${isSelected ? 'bg-indigo-600 text-white shadow-md' : 'bg-white hover:bg-indigo-50'}">
+                        class="p-2 sm:p-3 text-xs sm:text-sm text-center rounded-lg border transition ${isSelected ? 'bg-indigo-600 text-white shadow-md' : 'bg-white hover:bg-indigo-50'}">
                         ${i18next.t(option.descriptionKey)}
-                        <span class="block text-xs ${isSelected ? 'text-indigo-200' : 'text-gray-500'}">(${i18next.t('common.score')} ${scoreValue} ${i18next.t('common.points')})</span>
+                        <span class="block text-[0.65rem] sm:text-xs ${isSelected ? 'text-indigo-200' : 'text-gray-500'}">(${i18next.t('common.score')} ${scoreValue} ${i18next.t('common.points')})</span>
                     </button>`;
                 }).join('')}
                 </div>
@@ -1075,28 +1098,36 @@
                 const token = sessionStorage.getItem('accessToken');
                 if (!token) throw new Error(i18next.t('common.sessionExpiredRead', { status: 'none'}));
 
-                const apiUrl = new URL(`/api/ratings?id=${ratingId}`, window.location.origin);
+                const apiUrl = new URL('/api/ratings', window.location.origin);
+                apiUrl.searchParams.set('id', ratingId);
+                if (shouldUseCompactApiPayload()) {
+                    apiUrl.searchParams.set('view', 'mobile');
+                }
                 const response = await fetch(apiUrl, { headers: { 'Authorization': `Bearer ${token}` } });
                 if (!response.ok) { throw new Error(i18next.t('ratePage.editLoadFailed', { msg: `Status ${response.status}` })); }
 
                 const data = await response.json();
+                const ratingPayload = data.mobileData || data.fullData || {};
 
                 // Populate form fields
-                titleInput.value = data.title || '';
-                document.getElementById('cigar-name').value = data.cigarInfo?.name || '';
-                document.getElementById('cigar-size').value = data.cigarInfo?.size || '';
-                document.getElementById('cigar-origin').value = data.cigarInfo?.origin || '';
-                reviewTextarea.value = (data.cigarReview && data.cigarReview !== i18next.t('common.noReview')) ? data.cigarReview : '';
+                titleInput.value = data.title || ratingPayload.title || '';
+                const infoSource = data.cigarInfo || ratingPayload.cigarInfo || {};
+                document.getElementById('cigar-name').value = infoSource.name || '';
+                document.getElementById('cigar-size').value = infoSource.size || '';
+                document.getElementById('cigar-origin').value = infoSource.origin || '';
+                const reviewSource = data.cigarReview || ratingPayload.cigarReview;
+                reviewTextarea.value = (reviewSource && reviewSource !== i18next.t('common.noReview')) ? reviewSource : '';
 
                 // FIX: Ensure imageUrls from data is used, default to empty array
-                currentImageKeys = Array.isArray(data.imageUrl) ? data.imageUrl : [];
+                const imageSource = Array.isArray(data.imageUrl) ? data.imageUrl : (Array.isArray(ratingPayload.imageUrls) ? ratingPayload.imageUrls : []);
+                currentImageKeys = imageSource;
 
-                selectedFlavors = Array.isArray(data.selectedFlavors) ? data.selectedFlavors : []; // Load flavor keys
+                selectedFlavors = Array.isArray(data.selectedFlavors) ? data.selectedFlavors : (Array.isArray(ratingPayload.selectedFlavors) ? ratingPayload.selectedFlavors : []); // Load flavor keys
 
                 // Load user selections (ratings) - critical: use the data from fullData
                 // Ensure fullData and ratings exist
-                if (data.fullData && data.fullData.ratings) {
-                     userRatings = data.fullData.ratings; // Use the stored ratings object directly
+                if (ratingPayload && ratingPayload.ratings) {
+                     userRatings = ratingPayload.ratings; // Use the stored ratings object directly
                 } else {
                      console.warn("Editing rating, but fullData.ratings is missing. Score might be inaccurate.");
                      userRatings = {}; // Fallback to empty if missing
