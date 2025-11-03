@@ -358,6 +358,10 @@
         let shareImageRetryTimer = null; // Timer reference for retry attempts
         const SHARE_IMAGE_MAX_RETRIES = 5; // Limit retries to avoid infinite loops
         const SHARE_IMAGE_RETRY_DELAY = 800; // Base delay (ms) between retries
+        let shareImageIdleHandle = null; // Tracks scheduled idle callback for share image
+        let shareImageIdleHandleType = null; // 'idle' or 'timeout'
+        let deferredCommentsHandle = null; // Tracks scheduled initial comments load
+        let deferredCommentsHandleType = null; // 'idle' or 'timeout'
         const PRODUCTION_ORIGIN = 'https://www.pista-cho.com'; // Canonical domain used for share links
         const DEFAULT_SHARE_DESCRIPTIONS = {
             zh: '查看 Pistacho 雪茄品鉴报告，回顾完整的评分细节、口感总结与分享卡片。',
@@ -706,6 +710,8 @@
                             renderPageContent(resultsData);
                             populateShareCard(resultsData);
                             await generateQRCode();
+                            shareImageGenerated = false;
+                            scheduleShareImageGeneration();
                             renderCommentsSection();
                             updateCommentFormState();
                         }
@@ -869,7 +875,7 @@
 
                     // Try generating share image again now that we have the final ID/URL
                     shareImageGenerated = false; // Reset flag
-                    tryAutoGenerateShareImage(); // Attempt generation
+                    scheduleShareImageGeneration(); // Attempt generation after QR is ready
                 }
             } catch (e) {
                 console.error("保存评分失败:", e);
@@ -1161,6 +1167,55 @@
                 const backoffDelay = SHARE_IMAGE_RETRY_DELAY * Math.max(1, retryCount + 1);
                 if (shareImageRetryTimer) clearTimeout(shareImageRetryTimer);
                 shareImageRetryTimer = setTimeout(() => tryAutoGenerateShareImage(retryCount + 1), backoffDelay);
+            }
+        }
+
+        function clearDeferredTask(handle, type) {
+            if (!handle) return;
+            if (type === 'idle' && typeof cancelIdleCallback === 'function') {
+                cancelIdleCallback(handle);
+            } else if (type === 'timeout') {
+                clearTimeout(handle);
+            }
+        }
+
+        function scheduleShareImageGeneration() {
+            if (shareImageGenerated || !resultsData) return;
+
+            clearDeferredTask(shareImageIdleHandle, shareImageIdleHandleType);
+
+            const runner = () => {
+                shareImageIdleHandle = null;
+                shareImageIdleHandleType = null;
+                tryAutoGenerateShareImage();
+            };
+
+            if (typeof requestIdleCallback === 'function') {
+                shareImageIdleHandleType = 'idle';
+                shareImageIdleHandle = requestIdleCallback(runner, { timeout: 4000 });
+            } else {
+                shareImageIdleHandleType = 'timeout';
+                shareImageIdleHandle = setTimeout(runner, 600);
+            }
+        }
+
+        function scheduleInitialCommentsLoad() {
+            if (!ratingId) return;
+
+            clearDeferredTask(deferredCommentsHandle, deferredCommentsHandleType);
+
+            const runner = () => {
+                deferredCommentsHandle = null;
+                deferredCommentsHandleType = null;
+                loadCommentsSection();
+            };
+
+            if (typeof requestIdleCallback === 'function') {
+                deferredCommentsHandleType = 'idle';
+                deferredCommentsHandle = requestIdleCallback(runner, { timeout: 3000 });
+            } else {
+                deferredCommentsHandleType = 'timeout';
+                deferredCommentsHandle = setTimeout(runner, 0);
             }
         }
 
@@ -1990,49 +2045,62 @@
                  const code = urlParams.get('code');
                  ratingId = urlParams.get('ratingId'); // Check if loading saved rating by ID
 
-                 let user = code ? await handleOidcCallback(code) : await validateSessionAndGetUser();
-                 currentAuthUser = user;
-                 renderLoginStatus(currentAuthUser);
-                 renderLanguageSwitcher();
-                 bindCommentFormEvents();
-                 updateCommentFormState();
-
                  loadingIndicator.classList.remove('hidden');
 
-                 // Determine if loading from ID or sessionStorage
-                 if (ratingId) { // Load saved rating from API
-                     console.log("[results.html onload] Loading rating from API with ID:", ratingId);
-                     const token = sessionStorage.getItem('accessToken');
-                     const apiUrl = new URL(`/api/ratings?id=${ratingId}`, window.location.origin);
-                     // Allow anonymous fetch if no token (API handles public read)
-                     const fetchOptions = token ? { headers: { 'Authorization': `Bearer ${token}` } } : {};
-                     const response = await fetch(apiUrl, fetchOptions);
-                     if (!response.ok) {
-                         let errorText = i18next.t('errors.loadRatingFailed', { status: response.status });
-                         try { const err = await response.json(); errorText = err.error || errorText; } catch(e){}
-                         throw new Error(errorText);
+                 const authPromise = (async () => {
+                     const user = code ? await handleOidcCallback(code) : await validateSessionAndGetUser();
+                     currentAuthUser = user;
+                     renderLoginStatus(currentAuthUser);
+                     renderLanguageSwitcher();
+                     bindCommentFormEvents();
+                     updateCommentFormState();
+                     return user;
+                 })();
+
+                 const dataPromise = (async () => {
+                     if (ratingId) {
+                         console.log("[results.html onload] Loading rating from API with ID:", ratingId);
+                         if (code) {
+                             try {
+                                 await authPromise;
+                             } catch (authError) {
+                                 console.warn('[results.html onload] Auth flow failed before data fetch. Proceeding without token.', authError);
+                             }
+                         }
+                         const token = sessionStorage.getItem('accessToken');
+                         const apiUrl = new URL(`/api/ratings?id=${ratingId}`, window.location.origin);
+                         // Allow anonymous fetch if no token (API handles public read)
+                         const fetchOptions = token ? { headers: { 'Authorization': `Bearer ${token}` } } : {};
+                         const response = await fetch(apiUrl, fetchOptions);
+                         if (!response.ok) {
+                             let errorText = i18next.t('errors.loadRatingFailed', { status: response.status });
+                             try { const err = await response.json(); errorText = err.error || errorText; } catch(e){}
+                             throw new Error(errorText);
+                         }
+                         let data = await response.json();
+                         data.isDraft = false; // Data from API is never a draft
+                         data = normalizeResultsData(data);
+                         console.log("[results.html onload] Loaded data from API:", JSON.stringify(data).substring(0, 300) + '...');
+                         return data;
                      }
-                     resultsData = await response.json();
-                     resultsData.isDraft = false; // Data from API is never a draft
-                     resultsData = normalizeResultsData(resultsData);
-                     console.log("[results.html onload] Loaded data from API:", JSON.stringify(resultsData).substring(0, 300) + '...');
-                 } else { // Load draft from sessionStorage
+
                      console.log("[results.html onload] Loading rating from sessionStorage");
                      const storedData = sessionStorage.getItem('cigarRatingResults');
                      if (!storedData) throw new Error(i18next.t('errors.noRatingDataFound'));
                      try {
-                         resultsData = JSON.parse(storedData);
-                         resultsData = normalizeResultsData(resultsData);
-                         // *** FIX: REMOVED resultsData.isDraft = true; ***
-                         // The 'isDraft' flag (true from rate.html, false from history.html/index.html)
-                         // is now correctly loaded from the stored data.
-                         ratingId = resultsData.ratingId; // Might be null if not saved yet
-                         console.log("[results.html onload] Parsed data from sessionStorage:", JSON.stringify(resultsData).substring(0, 300) + '...');
+                         let draftData = JSON.parse(storedData);
+                         draftData = normalizeResultsData(draftData);
+                         ratingId = draftData.ratingId ?? ratingId;
+                         console.log("[results.html onload] Parsed data from sessionStorage:", JSON.stringify(draftData).substring(0, 300) + '...');
+                         return draftData;
                      } catch(parseError) {
                          console.error("[results.html onload] Error parsing sessionStorage data:", parseError);
                          throw new Error(i18next.t('errors.invalidSessionData'));
                      }
-                 }
+                 })();
+
+                 const [, loadedData] = await Promise.all([authPromise, dataPromise]);
+                 resultsData = loadedData;
 
                  // Basic validation after loading data
                  if (!resultsData || resultsData.normalizedScore === undefined || !resultsData.cigarInfo) {
@@ -2040,6 +2108,9 @@
                      throw new Error(i18next.t('errors.missingEssentialData'));
                  }
 
+                 if (!ratingId && resultsData?.ratingId) {
+                     ratingId = resultsData.ratingId;
+                 }
                  if (!ratingId && resultsData?.id) {
                      ratingId = resultsData.id;
                  }
@@ -2048,13 +2119,17 @@
                  await initSwipers(resultsData.imageUrls || []); // Initialize image slider
                  renderPageContent(resultsData); // Render main content sections
 
-                 // Generate QR and attempt share image AFTER main content is rendered
-                 await generateQRCode();
-                 tryAutoGenerateShareImage();
-                 await loadCommentsSection();
-
                  loadingIndicator.classList.add('hidden'); // Hide loading indicator
                  mainContent.classList.remove('opacity-0'); // Show main content
+
+                 // Generate QR and attempt share image AFTER main content is rendered
+                 generateQRCode()
+                     .then(() => scheduleShareImageGeneration())
+                     .catch(error => {
+                         console.error('[results.html] QR generation failed during init:', error);
+                     });
+
+                 scheduleInitialCommentsLoad();
 
             } catch (e) { // Catch any error during initialization
                  loadingIndicator.classList.add('hidden');
@@ -2079,6 +2154,12 @@
                 clearTimeout(shareImageRetryTimer);
                 shareImageRetryTimer = null;
             }
+            clearDeferredTask(shareImageIdleHandle, shareImageIdleHandleType);
+            shareImageIdleHandle = null;
+            shareImageIdleHandleType = null;
+            clearDeferredTask(deferredCommentsHandle, deferredCommentsHandleType);
+            deferredCommentsHandle = null;
+            deferredCommentsHandleType = null;
         });
 
         // --- Rendering Utilities ---
