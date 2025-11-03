@@ -66,10 +66,10 @@
     "unrated": "Sin Calificar"
   },
   "seo": {
-    "description": "La comunidad de valoraciones de Pistacho ofrece reseñas, puntuaciones y certificaciones seleccionadas para que los aficionados compartan y descubran experiencias excepcionales.",
+    "description": "La comunidad de valoraciones de cigarros Pistacho reúne a aficionados con puntuaciones genuinas, reseñas expertas y sellos de certificación para descubrir puros memorables, e invita a cada usuario a participar calificando y compartiendo.",
     "keywords": "Pistacho, calificaciones de cigarros, comunidad de cigarros, certificación de cigarros, reseñas de cigarros",
     "ogTitle": "Comunidad de Valoraciones Pistacho",
-    "ogDescription": "Únete a la comunidad de valoraciones de cigarros Pistacho para descubrir reseñas seleccionadas y registros de certificación para tu próximo cigarro imprescindible.",
+    "ogDescription": "Únete a la comunidad de valoraciones de cigarros Pistacho y explora puntuaciones genuinas, reseñas expertas y sellos de certificación que revelan puros memorables; cada usuario está invitado a calificar y compartir.",
     "locale": "es_ES"
   },
   "nav": {
@@ -256,6 +256,11 @@
       "C": "Común",
       "H": "Dudoso",
       "O": "Inaceptable"
+    },
+    "meta": {
+      "titleTemplate": "Cigar Review: {{name}}",
+      "descriptionTemplate": "Evaluación general: {{name}} de {{origin}} (tamaño: {{size}}) obtuvo {{grade}} ({{score}}). Reseñado por {{reviewer}}.",
+      "scoreFallback": "N/D"
     },
     "narrative": {
       "part1": "Esta cata fue del <strong class=\"font-semibold\">{{name}}</strong> (tamaño: <strong class=\"font-semibold\">{{size}}</strong>) de <strong class=\"font-semibold\">{{origin}}</strong>.",

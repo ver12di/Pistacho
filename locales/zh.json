@@ -61,10 +61,10 @@
     "unnamedCigar": "未命名雪茄"
   },
   "seo": {
-    "description": "Pistacho 雪茄评分社区提供精选的雪茄点评、评分与认证内容，帮助雪茄爱好者分享与发现卓越体验。",
+    "description": "Pistacho 雪茄评分社区汇聚全球爱好者，以真实评分、专业点评与认证体系，发掘值得珍藏的每一支雪茄，并欢迎每位用户参与评分分享。",
     "keywords": "Pistacho, 雪茄评分, 雪茄社区, 雪茄认证, 雪茄点评",
     "ogTitle": "Pistacho 评分社区",
-    "ogDescription": "加入 Pistacho 雪茄评分社区，获取精选雪茄点评与认证记录，发现下一支必试雪茄。",
+    "ogDescription": "加入 Pistacho 雪茄评分社区，与全球爱好者一起通过真实评分、专业点评与认证体系发掘值得珍藏的雪茄，每位用户都可参与评分分享。",
     "locale": "zh_CN"
   },
   "nav": {
@@ -252,11 +252,16 @@
       "H": "犹豫 / 瑕瑜互见",
       "O": "令人反感 / 极差"
     },
+    "meta": {
+      "titleTemplate": "Cigar Review: {{name}}",
+      "descriptionTemplate": "综合评价：来自{{origin}}的{{name}}（尺寸：{{size}}）获得{{grade}}（{{score}}分）。点评来自：{{reviewer}}。",
+      "scoreFallback": "暂无评分"
+    },
     "narrative": {
       "part1": "本次品鉴的雪茄是来自<strong class=\"font-semibold\">{{origin}}</strong>的<strong class=\"font-semibold\">{{name}}</strong>，尺寸为<strong class=\"font-semibold\">{{size}}</strong>。",
       "part2": "品鉴过程中，我们观察到：{{observations}}。",
       "part3": "感受到的主要风味包括：<strong class=\"font-semibold\">{{flavors}}</strong>。",
-      "part4": "综合来看，本次基于Pistacho Cigar Rating System（Pistacho雪茄评分）的最终评级为<strong class=\"font-semibold text-indigo-600\">“{{grade}} - {{gradeName}}”</strong>。Pistacho品分等级从高到低为{{hierarchy}}。",
+      "part4": "综合来看，本次基于Pistacho Cigar Rating System（Pistacho雪茄评分）的最终评级为<strong class=\"font-semibold text-indigo-600\">“{{grade}} - {{gradeName}}”</strong>。Pistacho评分等级从高到低为{{hierarchy}}。",
       "noObservations": "(未记录详细评分选项)",
       "observation": "{{criterion}}: {{option}}",
       "noNarrativeData": "无法生成综合评价 (缺少数据)。"
