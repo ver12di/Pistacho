@@ -78,9 +78,9 @@
             position: absolute;
             top: 0.5rem;
             left: 0.5rem;
-            width: 33%;
-            max-width: 4.5rem;
-            min-width: 2.5rem;
+            width: 28%;
+            max-width: 3.75rem;
+            min-width: 2.25rem;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -88,10 +88,11 @@
             pointer-events: none;
         }
 
-        .certification-badge svg {
+        .certification-badge img {
             width: 100%;
             height: auto;
             display: block;
+            object-fit: contain;
             filter: drop-shadow(0 4px 6px rgba(15, 23, 42, 0.25));
         }
 
@@ -180,12 +181,7 @@
         const SUPPORTS_INTERSECTION_OBSERVER = typeof window !== 'undefined' && 'IntersectionObserver' in window;
         const CERTIFICATION_BADGE_HTML = `
             <span class="certification-badge" role="img" aria-label="Pistacho 认证评分" title="Pistacho 认证评分">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-                    <circle cx="32" cy="32" r="30" fill="#059669"></circle>
-                    <circle cx="32" cy="32" r="24" fill="none" stroke="#bbf7d0" stroke-width="4"></circle>
-                    <circle cx="32" cy="32" r="31" fill="none" stroke="rgba(255, 255, 255, 0.35)" stroke-width="2"></circle>
-                    <path d="M46 24 28.5 41.5 18 31" fill="none" stroke="#ffffff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"></path>
-                </svg>
+                <img src="Certifiedstamp.png" alt="Pistacho 认证评分徽章" loading="lazy">
             </span>
         `;
         let pendingRenderQueue = [];
