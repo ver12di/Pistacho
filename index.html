@@ -74,6 +74,27 @@
         .pinned-indicator { position: absolute; top: 0.5rem; right: 0.5rem; background-color: #ec4899; color: white; padding: 0.1rem 0.5rem; border-radius: 9999px; font-size: 0.7rem; font-weight: bold; display: flex; align-items: center; z-index: 10; }
         .pinned-indicator svg { width: 0.7rem; height: 0.7rem; margin-right: 0.2rem; }
 
+        .certification-badge {
+            position: absolute;
+            top: 0.5rem;
+            left: 0.5rem;
+            width: 33%;
+            max-width: 4.5rem;
+            min-width: 2.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        .certification-badge svg {
+            width: 100%;
+            height: auto;
+            display: block;
+            filter: drop-shadow(0 4px 6px rgba(15, 23, 42, 0.25));
+        }
+
         .admin-actions details > summary {
              list-style: none;
              cursor: pointer;
@@ -155,6 +176,16 @@
 
         const GRID_BATCH_SIZE = 20;
         const GRID_OBSERVER_MARGIN = '200px';
+        const CERTIFICATION_BADGE_HTML = `
+            <span class="certification-badge" role="img" aria-label="Pistacho 认证评分" title="Pistacho 认证评分">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+                    <circle cx="32" cy="32" r="30" fill="#059669"></circle>
+                    <circle cx="32" cy="32" r="24" fill="none" stroke="#bbf7d0" stroke-width="4"></circle>
+                    <circle cx="32" cy="32" r="31" fill="none" stroke="rgba(255, 255, 255, 0.35)" stroke-width="2"></circle>
+                    <path d="M46 24 28.5 41.5 18 31" fill="none" stroke="#ffffff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"></path>
+                </svg>
+            </span>
+        `;
         let pendingRenderQueue = [];
         let ratingsGridObserver = null;
         let ratingsGridSentinel = null;
@@ -353,11 +384,6 @@
         }
         // --- End i18n Functions ---
 
-
-        window.handleStampError = function(imgElement) {
-            console.warn('Certified stamp image failed to load.');
-            imgElement.style.display = 'none';
-        }
 
         // --- Element References ---
         const ratingsGrid = document.getElementById('ratings-grid');
@@ -841,7 +867,6 @@
 
             const isCertified = rating.isCertified;
             const isPinned = rating.isPinned;
-            const cacheBuster = `?t=${Date.now()}`;
 
             const isAdmin = currentAuthUser && (currentAuthUser.db_role === 'admin' || currentAuthUser.db_role === 'super_admin');
             let adminActionsHtml = '';
@@ -867,7 +892,7 @@
             div.innerHTML = `
                 <div class="aspect-[1179/1572] w-full overflow-hidden flex-shrink-0 relative">
                      ${isPinned ? `<div class="pinned-indicator" title="${i18next.t('common.pin')}">${pinIconSvg} ${i18next.t('common.pin')}</div>` : ''}
-                     ${isCertified ? `<img src="/Certifiedstamp.png${cacheBuster}" alt="Certified" class="absolute top-2 left-2 w-1/3 h-auto z-10" title="Pistacho 认证评分" onerror="handleStampError(this)" loading="lazy">` : ''}
+                     ${isCertified ? CERTIFICATION_BADGE_HTML : ''}
                      ${coverImageUrl ? `<img src="/api/image/${coverImageUrl}" alt="${rating.cigarInfo?.name || '雪茄图片'}" class="w-full h-full object-cover" loading="lazy">` : `<div class="w-full h-full bg-gray-200 flex items-center justify-center text-gray-400 text-sm">${i18next.t('certifiedPage.noImage')}</div>`}
                 </div>
                 <div class="p-1.5 sm:p-2 flex-grow flex flex-col justify-between">
