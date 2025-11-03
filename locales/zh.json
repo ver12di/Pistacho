@@ -261,7 +261,7 @@
       "part1": "本次品鉴的雪茄是来自<strong class=\"font-semibold\">{{origin}}</strong>的<strong class=\"font-semibold\">{{name}}</strong>，尺寸为<strong class=\"font-semibold\">{{size}}</strong>。",
       "part2": "品鉴过程中，我们观察到：{{observations}}。",
       "part3": "感受到的主要风味包括：<strong class=\"font-semibold\">{{flavors}}</strong>。",
-      "part4": "综合来看，本次基于Pistacho Cigar Rating System（Pistacho雪茄评分）的最终评级为<strong class=\"font-semibold text-indigo-600\">“{{grade}} - {{gradeName}}”</strong>。Pistacho品分等级从高到低为{{hierarchy}}。",
+      "part4": "综合来看，本次基于Pistacho Cigar Rating System（Pistacho雪茄评分）的最终评级为<strong class=\"font-semibold text-indigo-600\">“{{grade}} - {{gradeName}}”</strong>。Pistacho评分等级从高到低为{{hierarchy}}。",
       "noObservations": "(未记录详细评分选项)",
       "observation": "{{criterion}}: {{option}}",
       "noNarrativeData": "无法生成综合评价 (缺少数据)。"
