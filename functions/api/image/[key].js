@@ -43,7 +43,22 @@ export async function onRequestGet(context) {
 
         // --- 关键修复 ---
         // 添加此头部以允许 html2canvas 跨域读取图片
-        headers.set('Access-Control-Allow-Origin', '*');
+        const requestOrigin = request.headers.get('Origin');
+        if (requestOrigin) {
+            headers.set('Access-Control-Allow-Origin', requestOrigin);
+            const varyHeader = headers.get('Vary');
+            if (varyHeader) {
+                const varyValues = varyHeader.split(',').map(value => value.trim());
+                if (!varyValues.includes('Origin')) {
+                    varyValues.push('Origin');
+                    headers.set('Vary', varyValues.join(', '));
+                }
+            } else {
+                headers.set('Vary', 'Origin');
+            }
+        } else {
+            headers.set('Access-Control-Allow-Origin', '*');
+        }
         // --- 修复结束 ---
 
         // 5. 将图片数据流式传输回客户端
