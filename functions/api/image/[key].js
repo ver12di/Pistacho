@@ -40,6 +40,15 @@ export async function onRequestGet(context) {
         // (可选) 添加更长的浏览器缓存时间, e.g., 缓存 1 天
         headers.set('cache-control', 'public, max-age=86400');
 
+        // 为 html2canvas 这类前端库提供跨域访问权限
+        const requestOrigin = request.headers.get('Origin');
+        if (requestOrigin) {
+            headers.set('Access-Control-Allow-Origin', requestOrigin);
+            headers.append('Vary', 'Origin');
+        } else {
+            headers.set('Access-Control-Allow-Origin', '*');
+        }
+
         // 5. 将图片数据流式传输回客户端
         return new Response(object.body, {
             headers,
