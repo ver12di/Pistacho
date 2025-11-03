@@ -174,8 +174,10 @@
         let displayedRatings = {};
         let currentAuthUser = null;
 
-        const GRID_BATCH_SIZE = 20;
+        const GRID_BATCH_SIZE = 10;
         const GRID_OBSERVER_MARGIN = '200px';
+        const FALLBACK_SCROLL_MARGIN = 200;
+        const SUPPORTS_INTERSECTION_OBSERVER = typeof window !== 'undefined' && 'IntersectionObserver' in window;
         const CERTIFICATION_BADGE_HTML = `
             <span class="certification-badge" role="img" aria-label="Pistacho 认证评分" title="Pistacho 认证评分">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
@@ -189,6 +191,9 @@
         let pendingRenderQueue = [];
         let ratingsGridObserver = null;
         let ratingsGridSentinel = null;
+        let hasUserScrolled = false;
+        let initialScrollHandler = null;
+        let fallbackScrollListenerAttached = false;
 
         // --- i18n Functions ---
         const SUPPORTED_LANGUAGES = ['zh', 'en', 'es'];
@@ -669,11 +674,59 @@
             }
         }
 
+        function handleFallbackScroll() {
+            if (!hasUserScrolled) return;
+            if (pendingRenderQueue.length === 0) {
+                removeFallbackScrollListener();
+                return;
+            }
+
+            const scrollPosition = window.innerHeight + window.scrollY;
+            const body = document.body || { scrollHeight: 0, offsetHeight: 0 };
+            const doc = document.documentElement || { scrollHeight: 0, offsetHeight: 0, clientHeight: 0 };
+            const docHeight = Math.max(body.scrollHeight, body.offsetHeight, doc.scrollHeight, doc.offsetHeight, doc.clientHeight);
+
+            if (scrollPosition + FALLBACK_SCROLL_MARGIN >= docHeight) {
+                appendNextRatingsBatch();
+            }
+        }
+
+        function setupFallbackScrollListener() {
+            if (fallbackScrollListenerAttached) return;
+            fallbackScrollListenerAttached = true;
+            window.addEventListener('scroll', handleFallbackScroll, { passive: true });
+            window.addEventListener('touchmove', handleFallbackScroll, { passive: true });
+        }
+
+        function removeFallbackScrollListener() {
+            if (!fallbackScrollListenerAttached) return;
+            fallbackScrollListenerAttached = false;
+            window.removeEventListener('scroll', handleFallbackScroll);
+            window.removeEventListener('touchmove', handleFallbackScroll);
+        }
+
+        function attachInitialScrollTrigger() {
+            if (hasUserScrolled || initialScrollHandler) return;
+            initialScrollHandler = () => {
+                hasUserScrolled = true;
+                window.removeEventListener('scroll', initialScrollHandler);
+                window.removeEventListener('touchmove', initialScrollHandler);
+                initialScrollHandler = null;
+                setupGridObserver();
+                if (!SUPPORTS_INTERSECTION_OBSERVER) {
+                    handleFallbackScroll();
+                }
+            };
+            window.addEventListener('scroll', initialScrollHandler, { passive: true });
+            window.addEventListener('touchmove', initialScrollHandler, { passive: true });
+        }
+
         function cleanupGridObserver() {
             if (ratingsGridObserver) {
                 ratingsGridObserver.disconnect();
                 ratingsGridObserver = null;
             }
+            removeFallbackScrollListener();
         }
 
         function ensureGridSentinel() {
@@ -738,18 +791,28 @@
 
             ensureGridSentinel();
 
-            if (!ratingsGridObserver) {
-                ratingsGridObserver = new IntersectionObserver((entries) => {
-                    if (entries.some(entry => entry.isIntersecting)) {
-                        appendNextRatingsBatch();
-                    }
-                }, { root: null, rootMargin: GRID_OBSERVER_MARGIN, threshold: 0 });
-            } else {
-                ratingsGridObserver.disconnect();
+            if (!hasUserScrolled) {
+                attachInitialScrollTrigger();
+                return;
             }
 
-            if (ratingsGridSentinel) {
-                ratingsGridObserver.observe(ratingsGridSentinel);
+            if (SUPPORTS_INTERSECTION_OBSERVER) {
+                if (!ratingsGridObserver) {
+                    ratingsGridObserver = new IntersectionObserver((entries) => {
+                        if (entries.some(entry => entry.isIntersecting)) {
+                            appendNextRatingsBatch();
+                        }
+                    }, { root: null, rootMargin: GRID_OBSERVER_MARGIN, threshold: 0 });
+                } else {
+                    ratingsGridObserver.disconnect();
+                }
+
+                if (ratingsGridSentinel) {
+                    ratingsGridObserver.observe(ratingsGridSentinel);
+                }
+            } else {
+                setupFallbackScrollListener();
+                handleFallbackScroll();
             }
         }
 
