@@ -309,7 +309,8 @@
         <!-- Hidden Share Card Container (for image generation) -->
         <div id="share-card-container">
             <div id="share-card-image-wrapper">
-                <img id="share-card-image" src="" alt="Cigar Cover Image" crossorigin="anonymous" loading="lazy">
+                <!-- loading="lazy" intentionally omitted: this image stays off-screen but must load immediately for share card generation -->
+                <img id="share-card-image" src="" alt="Cigar Cover Image" crossorigin="anonymous">
                 <div id="share-card-pagination" aria-hidden="true">
                     <span></span>
                     <span></span>
@@ -1250,6 +1251,15 @@
 
             const shareCardImage = document.getElementById('share-card-image');
             const shareCardImageWrapper = document.getElementById('share-card-image-wrapper');
+            if (shareCardImage) {
+                  // Ensure the off-screen cover image loads immediately even on aggressive mobile lazy loading heuristics
+                  shareCardImage.loading = 'eager';
+                  shareCardImage.decoding = 'async';
+                  shareCardImage.removeAttribute('loading');
+                  if ('fetchPriority' in shareCardImage) {
+                      shareCardImage.fetchPriority = 'high';
+                  }
+            }
             if (imageUrls.length > 0) {
                   shareCardImage.src = `/api/image/${imageUrls[0]}`;
                   shareCardImage.style.display = 'block';
