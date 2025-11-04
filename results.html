@@ -1032,6 +1032,7 @@
             });
 
             const statusElement = document.getElementById('loading-indicator');
+            let shareCardOriginalStyles = null;
             try {
                  if (statusElement) {
                      statusElement.textContent = i18next.t('resultsPage.shareCard.generating');
@@ -1048,10 +1049,28 @@
                       return false;
                  }
 
-                 shareCardElement.style.visibility = 'visible';
-                 await new Promise(resolve => setTimeout(resolve, 300));
+                shareCardOriginalStyles = {
+                    position: shareCardElement.style.position,
+                    left: shareCardElement.style.left,
+                    top: shareCardElement.style.top,
+                    transform: shareCardElement.style.transform,
+                    zIndex: shareCardElement.style.zIndex,
+                    pointerEvents: shareCardElement.style.pointerEvents,
+                };
 
-                 const canvas = await html2canvasInstance(shareCardElement, { useCORS: true, allowTaint: true, scale: 2 });
+                // Move the share card into the viewport with full opacity so mobile browsers render it for capture.
+                shareCardElement.style.visibility = 'visible';
+                shareCardElement.style.position = 'fixed';
+                shareCardElement.style.left = '50%';
+                shareCardElement.style.top = '50%';
+                shareCardElement.style.transform = 'translate(-50%, -50%)';
+                shareCardElement.style.pointerEvents = 'none';
+                shareCardElement.style.zIndex = '-1';
+                shareCardElement.style.opacity = '1';
+
+                await new Promise(resolve => setTimeout(resolve, 300));
+
+                const canvas = await html2canvasInstance(shareCardElement, { useCORS: true, allowTaint: true, scale: 2 });
 
                  let imageSrc = null;
                  if (typeof canvas.toBlob === 'function') {
@@ -1125,6 +1144,14 @@
                  }
                  return false;
             } finally {
+                 shareCardElement.style.position = shareCardOriginalStyles?.position ?? '';
+                 shareCardElement.style.left = shareCardOriginalStyles?.left ?? '';
+                 shareCardElement.style.top = shareCardOriginalStyles?.top ?? '';
+                 shareCardElement.style.transform = shareCardOriginalStyles?.transform ?? '';
+                 shareCardElement.style.zIndex = shareCardOriginalStyles?.zIndex ?? '';
+                 shareCardElement.style.pointerEvents = shareCardOriginalStyles?.pointerEvents ?? '';
+                 // Clear any inline opacity so future captures aren't skipped by mobile rendering optimizations.
+                 shareCardElement.style.removeProperty('opacity');
                  shareCardElement.style.visibility = 'hidden';
                  if (statusElement) {
                      setTimeout(() => { statusElement.classList.add('hidden'); }, 3000);
