@@ -123,6 +123,11 @@
             <p id="loading-message" class="text-center text-gray-500 py-10" data-i18n="common.loading">正在加载...</p>
         </div>
 
+        <section id="incoming-comments-section" class="hidden mt-10">
+            <h2 class="text-2xl font-bold text-gray-800" data-i18n="historyPage.incomingCommentsTitle">其他用户给我的留言</h2>
+            <div id="incoming-comments-container" class="mt-4 space-y-4"></div>
+        </section>
+
         <section id="comment-participation-section" class="hidden mt-10">
             <h2 class="text-2xl font-bold text-gray-800" data-i18n="historyPage.commentHistoryTitle">我参与的其他点评</h2>
             <div id="comment-participation-container" class="mt-4 space-y-4"></div>
@@ -172,6 +177,7 @@
             document.title = i18next.t(isAdmin ? 'historyPage.allRatingsTitle' : 'historyPage.title');
             historyTitle.textContent = i18next.t(isAdmin ? 'historyPage.allRatingsTitle' : 'historyPage.title');
             renderCommentParticipation(commentParticipationData);
+            renderIncomingComments(incomingCommentsData);
         }
 
         function renderLanguageSwitcher() {
@@ -220,6 +226,8 @@
         const loginPrompt = document.getElementById('login-prompt');
         const commentParticipationSection = document.getElementById('comment-participation-section');
         const commentParticipationContainer = document.getElementById('comment-participation-container');
+        const incomingCommentsSection = document.getElementById('incoming-comments-section');
+        const incomingCommentsContainer = document.getElementById('incoming-comments-container');
 
         const AUTHING_APP_ID = '68f5b0b6875017c02b3bfdb3';
         const AUTHING_HOST = 'https://xfvu647mcdbk-demo.authing.cn';
@@ -238,6 +246,37 @@
         // --- End Global Variables ---
 
         let commentParticipationData = [];
+        let incomingCommentsData = [];
+
+        function broadcastUnreadStatus(hasUnread) {
+            try {
+                sessionStorage.setItem('hasUnreadComments', hasUnread ? 'true' : 'false');
+            } catch (storageError) {
+                console.warn('Unable to persist unread comment status:', storageError);
+            }
+            document.dispatchEvent(new CustomEvent('comments:unread-changed', {
+                detail: { hasUnread: !!hasUnread }
+            }));
+        }
+
+        function computeGradeDisplay(data) {
+            if (data.finalGrade_grade) {
+                const foundGrade = GRADING_SCALE.find(g => g.grade === data.finalGrade_grade);
+                if (foundGrade) {
+                    const gradeName = i18next.t(foundGrade.nameKey);
+                    return `${data.finalGrade_grade} - ${gradeName}`;
+                }
+                return `${data.finalGrade_grade} - ?`;
+            }
+            if (typeof data.normalizedScore === 'number') {
+                const identifier = data.id || data.ratingId || 'unknown';
+                console.warn(`[history.html computeGradeDisplay] Rating ${identifier} missing finalGrade_grade, calculating from score.`);
+                const foundGrade = GRADING_SCALE.find(g => data.normalizedScore >= g.min_score) || GRADING_SCALE[GRADING_SCALE.length - 1];
+                const gradeName = i18next.t(foundGrade.nameKey);
+                return `${foundGrade.grade} - ${gradeName}`;
+            }
+            return i18next.t('historyPage.unrated');
+        }
 
 
         // --- Authentication ---
@@ -495,6 +534,10 @@
                 loadingMessage.style.display = 'none';
                 if (commentParticipationSection) commentParticipationSection.classList.add('hidden');
                 commentParticipationData = [];
+                if (incomingCommentsSection) incomingCommentsSection.classList.add('hidden');
+                if (incomingCommentsContainer) incomingCommentsContainer.innerHTML = '';
+                incomingCommentsData = [];
+                broadcastUnreadStatus(false);
                 return;
             } else {
                  historyContainer.style.display = 'block';
@@ -510,6 +553,10 @@
                  loadingMessage.style.display = 'none';
                  if (commentParticipationSection) commentParticipationSection.classList.add('hidden');
                  commentParticipationData = [];
+                 if (incomingCommentsSection) incomingCommentsSection.classList.add('hidden');
+                 if (incomingCommentsContainer) incomingCommentsContainer.innerHTML = '';
+                 incomingCommentsData = [];
+                 broadcastUnreadStatus(false);
                  return;
             }
 
@@ -547,13 +594,15 @@
                     historyContainer.innerHTML = historyHtml;
                 }
                  loadingMessage.style.display = 'none'; // Hide loading indicator
-                await fetchCommentParticipation(user);
             } catch (error) {
                 console.error("获取历史记录失败:", error);
                 // updateContent(); // Update title even on error
                 historyContainer.innerHTML = `<div class="text-center p-6 bg-red-100 text-red-700 rounded-lg shadow"><p>${i18next.t('historyPage.loadFailed', { msg: error.message })}</p></div>`;
                 loadingMessage.style.display = 'none';
             }
+
+            await fetchCommentParticipation(user);
+            await fetchIncomingComments(user, { markRead: true });
         }
 
         function renderRatingCard(data, currentUserId, currentUserRole) {
@@ -562,23 +611,7 @@
             const scoreDisplay = data.normalizedScore !== undefined ? data.normalizedScore.toFixed(2) : 'N/A';
 
             // Use GRADING_SCALE and i18n
-            let gradeDisplay = i18next.t('historyPage.unrated'); // Default text
-            // Check based on finalGrade_grade property from API response
-            if (data.finalGrade_grade) {
-                 const foundGrade = GRADING_SCALE.find(g => g.grade === data.finalGrade_grade);
-                 if (foundGrade) {
-                     const gradeName = i18next.t(foundGrade.nameKey); // Use i18n to get translated name
-                     gradeDisplay = `${data.finalGrade_grade} - ${gradeName}`;
-                 } else {
-                     gradeDisplay = `${data.finalGrade_grade} - ?`; // Fallback if grade letter not found in scale
-                 }
-            } else if (data.normalizedScore !== undefined) {
-                 // Fallback: Calculate grade from score if grade info is missing in data
-                 console.warn(`[history.html renderRatingCard] Rating ${ratingId} missing finalGrade_grade, calculating from score.`);
-                 const foundGrade = GRADING_SCALE.find(g => data.normalizedScore >= g.min_score) || GRADING_SCALE[GRADING_SCALE.length - 1];
-                 const gradeName = i18next.t(foundGrade.nameKey);
-                 gradeDisplay = `${foundGrade.grade} - ${gradeName}`;
-            }
+            const gradeDisplay = computeGradeDisplay({ ...data, id: ratingId });
             // --- End Modification ---
 
             const isOwner = data.userId === currentUserId;
@@ -642,6 +675,142 @@
             } catch (e) {
                 return isoString;
             }
+        }
+
+        function renderIncomingComments(items = []) {
+            if (!incomingCommentsSection || !incomingCommentsContainer) return;
+            if (!currentAuthUser) {
+                incomingCommentsSection.classList.add('hidden');
+                incomingCommentsContainer.innerHTML = '';
+                return;
+            }
+
+            incomingCommentsContainer.innerHTML = '';
+            incomingCommentsSection.classList.remove('hidden');
+
+            if (!items.length) {
+                const emptyMessage = document.createElement('p');
+                emptyMessage.className = 'text-sm text-gray-500';
+                emptyMessage.textContent = i18next.t('historyPage.noIncomingComments');
+                incomingCommentsContainer.appendChild(emptyMessage);
+                return;
+            }
+
+            const grouped = new Map();
+            items.forEach(item => {
+                if (!item || !item.ratingId) return;
+                if (!grouped.has(item.ratingId)) {
+                    grouped.set(item.ratingId, {
+                        ratingId: item.ratingId,
+                        ratingTitle: item.ratingTitle,
+                        cigarName: item.cigarName,
+                        cigarSize: item.cigarSize,
+                        cigarOrigin: item.cigarOrigin,
+                        normalizedScore: item.normalizedScore,
+                        finalGrade_grade: item.finalGrade_grade,
+                        finalGrade_name_cn: item.finalGrade_name_cn,
+                        comments: [],
+                        hasNew: false
+                    });
+                }
+                const group = grouped.get(item.ratingId);
+                group.comments.push(item);
+                if (item.isNew) {
+                    group.hasNew = true;
+                }
+            });
+
+            grouped.forEach(group => {
+                const card = document.createElement('div');
+                card.className = 'bg-white rounded-lg border border-gray-200 shadow-sm p-4';
+
+                const titleRow = document.createElement('div');
+                titleRow.className = 'flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between';
+
+                const heading = document.createElement('div');
+                heading.className = 'flex items-center gap-2';
+                const titleEl = document.createElement('h3');
+                titleEl.className = 'text-lg font-semibold text-gray-800';
+                titleEl.textContent = group.ratingTitle || i18next.t('common.noTitle');
+                heading.appendChild(titleEl);
+                if (group.hasNew) {
+                    const badge = document.createElement('span');
+                    badge.className = 'new-comment-badge';
+                    badge.textContent = i18next.t('historyPage.newCommentBadge');
+                    heading.appendChild(badge);
+                }
+                titleRow.appendChild(heading);
+
+                const summary = document.createElement('div');
+                summary.className = 'text-sm text-gray-500';
+                const cigarName = group.cigarName || i18next.t('certifiedPage.unnamedCigar');
+                const cigarSize = group.cigarSize || i18next.t('common.unknown');
+                const cigarOrigin = group.cigarOrigin || i18next.t('common.unknown');
+                summary.textContent = `${cigarName} • ${cigarSize} • ${cigarOrigin}`;
+                titleRow.appendChild(summary);
+
+                const statsRow = document.createElement('div');
+                statsRow.className = 'flex flex-wrap items-center gap-3 text-xs text-gray-500';
+                if (typeof group.normalizedScore === 'number') {
+                    const scoreLabel = document.createElement('span');
+                    scoreLabel.textContent = `${i18next.t('common.score')}: ${group.normalizedScore.toFixed(2)}`;
+                    statsRow.appendChild(scoreLabel);
+                }
+                const gradeLabel = document.createElement('span');
+                gradeLabel.className = 'font-semibold text-indigo-600';
+                gradeLabel.textContent = computeGradeDisplay(group);
+                statsRow.appendChild(gradeLabel);
+                titleRow.appendChild(statsRow);
+
+                card.appendChild(titleRow);
+
+                const commentList = document.createElement('div');
+                commentList.className = 'mt-4 space-y-3';
+                group.comments.forEach(comment => {
+                    const entry = document.createElement('div');
+                    entry.className = 'border-l-4 border-indigo-100 bg-white/40 pl-3';
+
+                    const metaLine = document.createElement('div');
+                    metaLine.className = 'text-xs text-gray-500 flex flex-wrap items-center gap-2';
+                    const authorName = comment.userNickname || comment.userEmail || comment.userId || i18next.t('common.anonymous');
+                    const metaText = document.createElement('span');
+                    metaText.textContent = `${i18next.t('historyPage.commentFromLabel')} ${authorName} · ${formatParticipationDate(comment.createdAt)}`;
+                    metaLine.appendChild(metaText);
+                    if (comment.isNew) {
+                        const newBadge = document.createElement('span');
+                        newBadge.className = 'inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-600';
+                        newBadge.textContent = i18next.t('historyPage.newCommentBadge');
+                        metaLine.appendChild(newBadge);
+                    }
+                    entry.appendChild(metaLine);
+
+                    const content = document.createElement('div');
+                    content.className = 'mt-1 text-sm text-gray-700 whitespace-pre-wrap break-words bg-gray-50 border border-gray-100 rounded-md p-3';
+                    content.textContent = comment.content;
+                    entry.appendChild(content);
+
+                    commentList.appendChild(entry);
+                });
+                card.appendChild(commentList);
+
+                const footer = document.createElement('div');
+                footer.className = 'mt-4 flex flex-wrap items-center justify-between gap-2 text-xs text-gray-500';
+                const latest = group.comments[0];
+                if (latest) {
+                    const latestLabel = document.createElement('span');
+                    latestLabel.textContent = `${i18next.t('historyPage.latestCommentAt')}: ${formatParticipationDate(latest.createdAt)}`;
+                    footer.appendChild(latestLabel);
+                }
+
+                const viewLink = document.createElement('a');
+                viewLink.href = `results.html?ratingId=${group.ratingId}`;
+                viewLink.className = 'inline-flex items-center font-semibold text-indigo-600 hover:text-indigo-700';
+                viewLink.textContent = i18next.t('historyPage.viewRating');
+                footer.appendChild(viewLink);
+
+                card.appendChild(footer);
+                incomingCommentsContainer.appendChild(card);
+            });
         }
 
         function renderCommentParticipation(items = []) {
@@ -769,6 +938,85 @@
                 console.error('Failed to load comment participation:', error);
                 commentParticipationSection.classList.remove('hidden');
                 commentParticipationContainer.innerHTML = `<div class="bg-red-100 text-red-700 rounded-lg p-4 text-sm">${i18next.t('historyPage.commentHistoryError', { msg: error.message })}</div>`;
+            }
+        }
+
+        async function fetchIncomingComments(user, options = {}) {
+            if (!incomingCommentsSection) {
+                incomingCommentsData = [];
+                return;
+            }
+
+            const markRead = options.markRead === true;
+
+            if (!user) {
+                incomingCommentsSection.classList.add('hidden');
+                incomingCommentsContainer.innerHTML = '';
+                incomingCommentsData = [];
+                if (markRead) {
+                    broadcastUnreadStatus(false);
+                }
+                return;
+            }
+
+            let token;
+            try {
+                token = sessionStorage.getItem('accessToken');
+            } catch (storageError) {
+                console.warn('Unable to access sessionStorage:', storageError);
+                token = null;
+            }
+
+            if (!token) {
+                incomingCommentsSection.classList.add('hidden');
+                incomingCommentsContainer.innerHTML = '';
+                incomingCommentsData = [];
+                if (markRead) {
+                    broadcastUnreadStatus(false);
+                }
+                return;
+            }
+
+            try {
+                const apiUrl = new URL('/api/comments', window.location.origin);
+                apiUrl.searchParams.set('owned', 'true');
+                if (markRead) {
+                    apiUrl.searchParams.set('markRead', 'true');
+                }
+                const response = await fetch(apiUrl, {
+                    headers: { 'Authorization': `Bearer ${token}` },
+                    cache: 'no-store'
+                });
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        broadcastUnreadStatus(false);
+                        incomingCommentsSection.classList.add('hidden');
+                        incomingCommentsContainer.innerHTML = '';
+                        incomingCommentsData = [];
+                        return;
+                    }
+                    let errorText = `HTTP ${response.status}`;
+                    try {
+                        const err = await response.json();
+                        errorText = err.error || errorText;
+                    } catch (e) { /* ignore */ }
+                    throw new Error(errorText);
+                }
+
+                const data = await response.json();
+                const incoming = Array.isArray(data.incoming) ? data.incoming : [];
+                incomingCommentsData = incoming;
+                renderIncomingComments(incomingCommentsData);
+
+                if (markRead) {
+                    broadcastUnreadStatus(false);
+                } else if (typeof data.hasUnread !== 'undefined') {
+                    broadcastUnreadStatus(!!data.hasUnread);
+                }
+            } catch (error) {
+                console.error('Failed to load incoming comments:', error);
+                incomingCommentsSection.classList.remove('hidden');
+                incomingCommentsContainer.innerHTML = `<div class="bg-red-100 text-red-700 rounded-lg p-4 text-sm">${i18next.t('historyPage.incomingCommentsError', { msg: error.message })}</div>`;
             }
         }
 

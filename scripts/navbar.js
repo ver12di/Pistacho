@@ -1,6 +1,37 @@
 const NAVBAR_URL = new URL('../partials/navbar.html', import.meta.url);
 let cachedNavbarHtml = null;
 
+function readSessionStorage(key) {
+    try {
+        return sessionStorage.getItem(key);
+    } catch (error) {
+        console.warn('[navbar] Unable to read sessionStorage key', key, error);
+        return null;
+    }
+}
+
+function writeSessionStorage(key, value) {
+    try {
+        sessionStorage.setItem(key, value);
+    } catch (error) {
+        console.warn('[navbar] Unable to write sessionStorage key', key, error);
+    }
+}
+
+function removeSessionStorage(key) {
+    try {
+        sessionStorage.removeItem(key);
+    } catch (error) {
+        console.warn('[navbar] Unable to remove sessionStorage key', key, error);
+    }
+}
+
+function dispatchUnreadStatus(hasUnread) {
+    document.dispatchEvent(new CustomEvent('comments:unread-changed', {
+        detail: { hasUnread: !!hasUnread }
+    }));
+}
+
 function parseHtml(html) {
     const template = document.createElement('template');
     template.innerHTML = html.trim();
@@ -93,6 +124,96 @@ function setupMobileToggle(nav) {
     });
 }
 
+function initializeUnreadCommentsIndicator(nav) {
+    const indicator = nav.querySelector('[data-nav-unread-indicator]');
+    if (!indicator) {
+        return;
+    }
+
+    const updateIndicator = (hasUnread) => {
+        if (hasUnread) {
+            indicator.classList.remove('hidden');
+            indicator.classList.add('inline-flex');
+            indicator.setAttribute('aria-hidden', 'false');
+        } else {
+            indicator.classList.add('hidden');
+            indicator.classList.remove('inline-flex');
+            indicator.setAttribute('aria-hidden', 'true');
+        }
+    };
+
+    const stored = readSessionStorage('hasUnreadComments');
+    if (stored !== null) {
+        updateIndicator(stored === 'true');
+    } else {
+        indicator.setAttribute('aria-hidden', 'true');
+    }
+
+    document.addEventListener('comments:unread-changed', event => {
+        const hasUnread = !!(event?.detail && event.detail.hasUnread);
+        writeSessionStorage('hasUnreadComments', hasUnread ? 'true' : 'false');
+        updateIndicator(hasUnread);
+    });
+
+    checkUnreadComments(updateIndicator).catch(error => {
+        console.warn('[navbar] Failed to check unread comments:', error);
+    });
+}
+
+async function checkUnreadComments(updateIndicator) {
+    let token;
+    const previousRaw = readSessionStorage('hasUnreadComments');
+    const previousStatus = previousRaw === 'true';
+    try {
+        token = sessionStorage.getItem('accessToken');
+    } catch (error) {
+        console.warn('[navbar] Unable to access sessionStorage for token:', error);
+        token = null;
+    }
+
+    if (!token) {
+        writeSessionStorage('hasUnreadComments', 'false');
+        updateIndicator(false);
+        if (previousStatus) {
+            dispatchUnreadStatus(false);
+        }
+        return;
+    }
+
+    try {
+        const apiUrl = new URL('/api/comments', window.location.origin);
+        apiUrl.searchParams.set('owned', 'true');
+        const response = await fetch(apiUrl, {
+            headers: { 'Authorization': `Bearer ${token}` },
+            cache: 'no-store'
+        });
+
+        if (!response.ok) {
+            if (response.status === 401) {
+                removeSessionStorage('accessToken');
+                removeSessionStorage('userInfo');
+                writeSessionStorage('hasUnreadComments', 'false');
+                updateIndicator(false);
+                if (previousStatus) {
+                    dispatchUnreadStatus(false);
+                }
+                return;
+            }
+            throw new Error(`HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+        const hasUnread = !!data.hasUnread;
+        writeSessionStorage('hasUnreadComments', hasUnread ? 'true' : 'false');
+        updateIndicator(hasUnread);
+        if (previousStatus !== hasUnread) {
+            dispatchUnreadStatus(hasUnread);
+        }
+    } catch (error) {
+        console.warn('[navbar] Unable to check unread comments:', error);
+    }
+}
+
 async function fetchNavbarHtml() {
     if (cachedNavbarHtml) {
         return cachedNavbarHtml;
@@ -131,6 +252,7 @@ async function insertNavbars() {
         setActiveLink(nav, activeTarget);
         configureLanguageControls(nav, languageMode);
         setupMobileToggle(nav);
+        initializeUnreadCommentsIndicator(nav);
 
         placeholder.replaceWith(nav);
     });
