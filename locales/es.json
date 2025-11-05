@@ -107,7 +107,7 @@
     "currentScore": "Puntaje Actual",
     "itemsRated": "Items Calificados",
     "ratingTitle": "Título de la Reseña",
-    "ratingTitlePlaceholder": "Un título atrae más vistas (Máx 22 car.)",
+    "ratingTitlePlaceholder": "Un título atrae más vistas (Máx 35 car.)",
     "uploadImages": "Subir Imágenes (Máx {{max}}, arrastrar para ordenar)",
     "uploadImagesDesc": "La primera imagen será la portada. Haz clic en el botón de una imagen para establecerla como portada.",
     "selectImages": "Seleccionar Imágenes",
@@ -191,6 +191,7 @@
     "commentHistoryError": "No se pudieron cargar tus comentarios: {{msg}}",
     "commentPreviewLabel": "Mi comentario",
     "viewRating": "Ver reseña",
+    "newCommentBadge": "Nuevo comentario",
     "gradeShortLabel": "Calificación"
   },
   "certifiedPage": {
