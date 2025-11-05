@@ -84,11 +84,23 @@
              align-items: center;
              z-index: 10;
         }
-         .pinned-indicator svg {
-             width: 0.7rem;
-             height: 0.7rem;
-             margin-right: 0.2rem;
-         }
+        .pinned-indicator svg {
+            width: 0.7rem;
+            height: 0.7rem;
+            margin-right: 0.2rem;
+        }
+        .new-comment-badge {
+            display: inline-flex;
+            align-items: center;
+            margin-left: 0.5rem;
+            padding: 0.1rem 0.5rem;
+            border-radius: 9999px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            background-color: #dc2626;
+            color: #fff;
+            white-space: nowrap;
+        }
     </style>
 </head>
 <body class="bg-gray-100 font-sans">
@@ -444,6 +456,7 @@
 
              const detailedData = {
                  ratingId: ratingData.id,
+                 userId: ratingData.userId,
                  title: ratingData.title || i18next.t('common.noTitle'),
                  cigarInfo: ratingData.cigarInfo || { name: ratingData.cigarName, size: ratingData.cigarSize, origin: ratingData.cigarOrigin }, // Provide fallback cigarInfo
                  cigarReview: ratingData.cigarReview || i18next.t('common.noReview'),
@@ -576,6 +589,9 @@
             const authorDisplay = data.userNickname || data.userEmail || data.userId || i18next.t('historyPage.unknownUser');
             const showAuthor = isAdmin; // Only show author for admin view
             const isPinned = data.isPinned;
+            const hasNewComments = !!data.hasNewComments;
+            const showNewCommentBadge = isOwner && hasNewComments;
+            const newCommentLabel = i18next.t('historyPage.newCommentBadge');
 
             let actionButtonsHtml = '';
             if (canModify) {
@@ -596,7 +612,10 @@
                      ${isAdmin && isPinned ? `<div class="pinned-indicator" title="${i18next.t('common.pin')}">${pinIconSvg} ${i18next.t('common.pin')}</div>` : ''}
                     <div class="flex flex-wrap justify-between items-center gap-2">
                         <div class="flex-grow min-w-0 pr-4">
-                             <p class="text-lg font-bold text-gray-800 truncate" title="${data.title || ''}">${data.title || i18next.t('certifiedPage.noTitle')}</p>
+                             <div class="flex items-center gap-2">
+                                 <p class="text-lg font-bold text-gray-800 truncate" title="${data.title || ''}">${data.title || i18next.t('certifiedPage.noTitle')}</p>
+                                 ${showNewCommentBadge ? `<span class="new-comment-badge">${newCommentLabel}</span>` : ''}
+                             </div>
                              <p class="text-sm text-gray-500 truncate" title="${data.cigarInfo?.name || ''}">
                                 ${data.cigarName || i18next.t('certifiedPage.unnamedCigar')} |
                                 ${data.cigarSize || i18next.t('common.noData')} |

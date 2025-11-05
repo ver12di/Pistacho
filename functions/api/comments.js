@@ -20,6 +20,12 @@ async function ensureCommentTables(db) {
     )`).run();
     await db.prepare('CREATE INDEX IF NOT EXISTS idx_comments_ratingId ON comments(ratingId)').run();
     await db.prepare('CREATE INDEX IF NOT EXISTS idx_comments_userId ON comments(userId)').run();
+    await db.prepare(`CREATE TABLE IF NOT EXISTS comment_reads (
+        ratingId TEXT NOT NULL,
+        userId TEXT NOT NULL,
+        lastReadAt TEXT NOT NULL,
+        PRIMARY KEY (ratingId, userId)
+    )`).run();
     await db.prepare(`CREATE TABLE IF NOT EXISTS comment_mutes (
         mutedUserId TEXT PRIMARY KEY,
         mutedBy TEXT,
@@ -101,6 +107,7 @@ function isAdminRole(userInfo) {
 async function handleGetRatingComments(env, request, url) {
     const ratingId = url.searchParams.get('ratingId');
     const includeMine = url.searchParams.get('mine') === 'true';
+    const markAsRead = url.searchParams.get('markRead') === 'true';
     if (!ratingId && !includeMine) {
         return new Response(JSON.stringify({ error: 'ratingId parameter is required.' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
     }
@@ -122,7 +129,7 @@ async function handleGetRatingComments(env, request, url) {
         return new Response(JSON.stringify({ participation: results || [] }), { headers: { 'Content-Type': 'application/json' } });
     }
 
-    const userInfo = await validateToken(request, env, { optional: true });
+    const userInfo = await validateToken(request, env, { optional: !markAsRead });
 
     const commentStmt = env.DB.prepare(`
         SELECT id, ratingId, userId, userNickname, userEmail, content, createdAt
@@ -136,6 +143,31 @@ async function handleGetRatingComments(env, request, url) {
     const { results: muteRows } = await muteStmt.all();
     const mutedUserIds = (muteRows || []).map(row => row.mutedUserId).filter(Boolean);
     const currentUserId = userInfo?.sub ?? null;
+
+    if (markAsRead && userInfo && currentUserId) {
+        try {
+            const ratingOwnerStmt = env.DB.prepare('SELECT userId FROM ratings WHERE id = ?').bind(ratingId);
+            const ratingOwner = await ratingOwnerStmt.first();
+            if (ratingOwner && ratingOwner.userId === currentUserId) {
+                let latestOtherCommentAt = null;
+                (commentRows || []).forEach(comment => {
+                    if (comment.userId && comment.userId !== currentUserId) {
+                        if (!latestOtherCommentAt || comment.createdAt > latestOtherCommentAt) {
+                            latestOtherCommentAt = comment.createdAt;
+                        }
+                    }
+                });
+                const timestampToStore = latestOtherCommentAt || new Date().toISOString();
+                await env.DB.prepare(`
+                    INSERT INTO comment_reads (ratingId, userId, lastReadAt)
+                    VALUES (?, ?, ?)
+                    ON CONFLICT(ratingId, userId) DO UPDATE SET lastReadAt = excluded.lastReadAt
+                `).bind(ratingId, currentUserId, timestampToStore).run();
+            }
+        } catch (markErr) {
+            console.error('[comments API] Failed to update comment_reads:', markErr.message);
+        }
+    }
     const responsePayload = {
         comments: commentRows || [],
         mutedUserIds,

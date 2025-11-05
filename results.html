@@ -1795,6 +1795,10 @@
                 const headers = {};
                 const token = sessionStorage.getItem('accessToken');
                 if (token) headers['Authorization'] = `Bearer ${token}`;
+                const shouldMarkRead = Boolean(token && currentAuthUser && resultsData && resultsData.userId && currentAuthUser.sub === resultsData.userId);
+                if (shouldMarkRead) {
+                    apiUrl.searchParams.set('markRead', 'true');
+                }
 
                 const response = await fetch(apiUrl, { headers });
                 if (!response.ok) {

@@ -102,7 +102,7 @@
     "currentScore": "当前得分",
     "itemsRated": "已评项目",
     "ratingTitle": "点评标题",
-    "ratingTitlePlaceholder": "填写标题会被更多人看到 (最多22字)",
+    "ratingTitlePlaceholder": "填写标题会被更多人看到 (最多35字)",
     "uploadImages": "上传图片 (最多{{max}}张, 可拖拽排序)",
     "uploadImagesDesc": "第一张图片将作为封面图显示。点击图片左下角按钮更换封面。",
     "selectImages": "选择图片",
@@ -186,6 +186,7 @@
     "commentHistoryError": "无法加载评论参与记录：{{msg}}",
     "commentPreviewLabel": "我的留言",
     "viewRating": "查看该点评",
+    "newCommentBadge": "新评论",
     "gradeShortLabel": "评级"
   },
   "certifiedPage": {
