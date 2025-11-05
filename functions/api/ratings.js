@@ -46,6 +46,30 @@ async function getRoleFromDatabase(db, userInfo, source = "unknown") {
 }
 
 
+let commentSupportEnsured = false;
+async function ensureCommentSupportTables(db) {
+    if (commentSupportEnsured) return;
+    await db.prepare(`CREATE TABLE IF NOT EXISTS comments (
+        id TEXT PRIMARY KEY,
+        ratingId TEXT NOT NULL,
+        userId TEXT NOT NULL,
+        userNickname TEXT,
+        userEmail TEXT,
+        content TEXT NOT NULL,
+        createdAt TEXT NOT NULL,
+        isDeleted INTEGER NOT NULL DEFAULT 0
+    )`).run();
+    await db.prepare('CREATE INDEX IF NOT EXISTS idx_comments_ratingId ON comments(ratingId)').run();
+    await db.prepare('CREATE INDEX IF NOT EXISTS idx_comments_userId ON comments(userId)').run();
+    await db.prepare(`CREATE TABLE IF NOT EXISTS comment_reads (
+        ratingId TEXT NOT NULL,
+        userId TEXT NOT NULL,
+        lastReadAt TEXT NOT NULL,
+        PRIMARY KEY (ratingId, userId)
+    )`).run();
+    commentSupportEnsured = true;
+}
+
 // --- API: GET /api/ratings ---
 export async function onRequestGet(context) {
      const { request, env } = context;
@@ -144,13 +168,63 @@ export async function onRequestGet(context) {
                  catch (e) { console.error(`Failed to parse imageUrl JSON for list item ID ${row.id}:`, e.message); row.imageUrl = []; }
                  row.cigarInfo = { name: row.cigarName, size: row.cigarSize, origin: row.cigarOrigin };
                  if (row.finalGrade_grade && row.finalGrade_name_cn) { row.finalGrade = { grade: row.finalGrade_grade, name_cn: row.finalGrade_name_cn }; } else { row.finalGrade = null; }
-                 row.isPinned = !!row.isPinned;
-                 return row;
-             });
+                row.isPinned = !!row.isPinned;
+                row.hasNewComments = false;
+                return row;
+            });
 
-             console.log(`[GET /api/ratings] Returning ${parsedResults.length} parsed ratings.`);
-             return new Response(JSON.stringify(parsedResults), { headers: { 'Content-Type': 'application/json' } });
-         }
+            if (!getCertified && userInfo && !(currentUserRole === 'admin' || currentUserRole === 'super_admin')) {
+                try {
+                    await ensureCommentSupportTables(env.DB);
+                    const ownerRatingIds = parsedResults.filter(row => row.userId === userInfo.sub).map(row => row.id);
+                    if (ownerRatingIds.length > 0) {
+                        const placeholders = ownerRatingIds.map(() => '?').join(', ');
+                        const latestStmt = env.DB.prepare(`
+                            SELECT ratingId, MAX(createdAt) AS latestOtherComment
+                            FROM comments
+                            WHERE ratingId IN (${placeholders}) AND isDeleted = 0 AND userId != ?
+                            GROUP BY ratingId
+                        `).bind(...ownerRatingIds, userInfo.sub);
+                        const { results: latestRows } = await latestStmt.all();
+                        const latestMap = new Map();
+                        (latestRows || []).forEach(row => {
+                            if (row && row.ratingId && row.latestOtherComment) {
+                                latestMap.set(row.ratingId, row.latestOtherComment);
+                            }
+                        });
+
+                        const readStmt = env.DB.prepare(`
+                            SELECT ratingId, lastReadAt
+                            FROM comment_reads
+                            WHERE userId = ? AND ratingId IN (${placeholders})
+                        `).bind(userInfo.sub, ...ownerRatingIds);
+                        const { results: readRows } = await readStmt.all();
+                        const readMap = new Map();
+                        (readRows || []).forEach(row => {
+                            if (row && row.ratingId && row.lastReadAt) {
+                                readMap.set(row.ratingId, row.lastReadAt);
+                            }
+                        });
+
+                        parsedResults.forEach(row => {
+                            if (row.userId !== userInfo.sub) return;
+                            const latestOther = latestMap.get(row.id);
+                            if (!latestOther) {
+                                row.hasNewComments = false;
+                                return;
+                            }
+                            const lastRead = readMap.get(row.id);
+                            row.hasNewComments = !lastRead || latestOther > lastRead;
+                        });
+                    }
+                } catch (commentErr) {
+                    console.error('[GET /api/ratings] Failed to compute new comment indicators:', commentErr.message);
+                }
+            }
+
+            console.log(`[GET /api/ratings] Returning ${parsedResults.length} parsed ratings.`);
+            return new Response(JSON.stringify(parsedResults), { headers: { 'Content-Type': 'application/json' } });
+        }
      } catch(e) {
           console.error("[GET /api/ratings] Final catch block error:", e.message, e); let errorMessage = e.message || 'An unknown error occurred while fetching ratings.'; let statusCode = 500; if (e.message.includes('token') || e.message.includes('需要登录')) statusCode = 401; if (e.message.includes("评分未找到")) statusCode = 404; return new Response(JSON.stringify({ error: errorMessage }), { status: statusCode, headers: { 'Content-Type': 'application/json' } });
      }
