@@ -1795,6 +1795,10 @@
                 const headers = {};
                 const token = sessionStorage.getItem('accessToken');
                 if (token) headers['Authorization'] = `Bearer ${token}`;
+                const shouldMarkRead = Boolean(token && currentAuthUser && resultsData && resultsData.userId && currentAuthUser.sub === resultsData.userId);
+                if (shouldMarkRead) {
+                    apiUrl.searchParams.set('markRead', 'true');
+                }
 
                 const response = await fetch(apiUrl, { headers });
                 if (!response.ok) {
@@ -1814,6 +1818,9 @@
                 commentState.currentUserRole = data.currentUser?.role ?? (currentAuthUser?.db_role ?? 'general');
                 renderCommentsSection();
                 updateCommentFormState();
+                if (shouldMarkRead) {
+                    document.dispatchEvent(new CustomEvent('comments:refresh-summary'));
+                }
             } catch (error) {
                 console.error('[results.html] Failed to load comments:', error);
                 showCommentStatus(i18next.t('resultsPage.comments.loadFailed', { msg: error.message }), true);

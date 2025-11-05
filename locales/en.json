@@ -84,7 +84,9 @@
     "logout": "Logout",
     "configAdmin": "Rating Config",
     "userAdmin": "User Admin",
-    "loggedIn": "Logged In"
+    "loggedIn": "Logged In",
+    "newCommentsBadge": "New replies",
+    "newCommentsBadgeWithCount": "New replies ({{count}})"
   },
   "indexPage": {
     "searchPlaceholder": "Search cigar name, origin, size, review, user...",
@@ -107,7 +109,7 @@
     "currentScore": "Current Score",
     "itemsRated": "Items Rated",
     "ratingTitle": "Review Title",
-    "ratingTitlePlaceholder": "A title gets more views (Max 22 chars)",
+    "ratingTitlePlaceholder": "A title gets more views (Max 35 chars)",
     "uploadImages": "Upload Images (Max {{max}}, drag to sort)",
     "uploadImagesDesc": "The first image will be the cover. Click the button on an image to set it as cover.",
     "selectImages": "Select Images",
@@ -189,9 +191,16 @@
     "commentHistoryTitle": "Reviews I've Commented On",
     "noCommentHistory": "You haven't commented on other reviews yet.",
     "commentHistoryError": "Failed to load your comment activity: {{msg}}",
-    "commentPreviewLabel": "My comment",
+    "commentPreviewLabel": "Comment",
     "viewRating": "View Review",
-    "gradeShortLabel": "Grade"
+    "newCommentBadge": "New comment",
+    "gradeShortLabel": "Grade",
+    "incomingCommentsTitle": "Replies from other users",
+    "incomingCommentsSubtitle": "See what others have said about your ratings.",
+    "noIncomingComments": "No one has replied to your ratings yet.",
+    "unreadBadge": "Unread",
+    "commentMeta": "{{author}} · {{time}}",
+    "incomingCommentsError": "Failed to load replies: {{msg}}"
   },
   "certifiedPage": {
     "title": "Pistacho Certified Ratings",

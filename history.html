@@ -84,11 +84,23 @@
              align-items: center;
              z-index: 10;
         }
-         .pinned-indicator svg {
-             width: 0.7rem;
-             height: 0.7rem;
-             margin-right: 0.2rem;
-         }
+        .pinned-indicator svg {
+            width: 0.7rem;
+            height: 0.7rem;
+            margin-right: 0.2rem;
+        }
+        .new-comment-badge {
+            display: inline-flex;
+            align-items: center;
+            margin-left: 0.5rem;
+            padding: 0.1rem 0.5rem;
+            border-radius: 9999px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            background-color: #dc2626;
+            color: #fff;
+            white-space: nowrap;
+        }
     </style>
 </head>
 <body class="bg-gray-100 font-sans">
@@ -110,6 +122,14 @@
         <div id="history-container">
             <p id="loading-message" class="text-center text-gray-500 py-10" data-i18n="common.loading">正在加载...</p>
         </div>
+
+        <section id="incoming-comments-section" class="hidden mt-10">
+            <div class="flex items-center justify-between flex-wrap gap-2">
+                <h2 class="text-2xl font-bold text-gray-800" data-i18n="historyPage.incomingCommentsTitle">其他用户给我的留言</h2>
+                <p class="text-sm text-gray-500" data-i18n="historyPage.incomingCommentsSubtitle">查看其他用户对您评分的最新留言。</p>
+            </div>
+            <div id="incoming-comments-container" class="mt-4 space-y-4"></div>
+        </section>
 
         <section id="comment-participation-section" class="hidden mt-10">
             <h2 class="text-2xl font-bold text-gray-800" data-i18n="historyPage.commentHistoryTitle">我参与的其他点评</h2>
@@ -159,6 +179,7 @@
             const isAdmin = currentAuthUser && (currentAuthUser.db_role === 'admin' || currentAuthUser.db_role === 'super_admin');
             document.title = i18next.t(isAdmin ? 'historyPage.allRatingsTitle' : 'historyPage.title');
             historyTitle.textContent = i18next.t(isAdmin ? 'historyPage.allRatingsTitle' : 'historyPage.title');
+            renderIncomingComments(incomingCommentsData);
             renderCommentParticipation(commentParticipationData);
         }
 
@@ -206,6 +227,8 @@
         const historyContainer = document.getElementById('history-container');
         const historyTitle = document.getElementById('history-title');
         const loginPrompt = document.getElementById('login-prompt');
+        const incomingCommentsSection = document.getElementById('incoming-comments-section');
+        const incomingCommentsContainer = document.getElementById('incoming-comments-container');
         const commentParticipationSection = document.getElementById('comment-participation-section');
         const commentParticipationContainer = document.getElementById('comment-participation-container');
 
@@ -225,6 +248,7 @@
         ];
         // --- End Global Variables ---
 
+        let incomingCommentsData = [];
         let commentParticipationData = [];
 
 
@@ -444,6 +468,7 @@
 
              const detailedData = {
                  ratingId: ratingData.id,
+                 userId: ratingData.userId,
                  title: ratingData.title || i18next.t('common.noTitle'),
                  cigarInfo: ratingData.cigarInfo || { name: ratingData.cigarName, size: ratingData.cigarSize, origin: ratingData.cigarOrigin }, // Provide fallback cigarInfo
                  cigarReview: ratingData.cigarReview || i18next.t('common.noReview'),
@@ -480,8 +505,11 @@
                 historyContainer.style.display = 'none';
                 loginPrompt.classList.remove('hidden');
                 loadingMessage.style.display = 'none';
+                if (incomingCommentsSection) incomingCommentsSection.classList.add('hidden');
+                incomingCommentsData = [];
                 if (commentParticipationSection) commentParticipationSection.classList.add('hidden');
                 commentParticipationData = [];
+                document.dispatchEvent(new CustomEvent('comments:unread-count', { detail: { unreadRatingCount: 0 } }));
                 return;
             } else {
                  historyContainer.style.display = 'block';
@@ -495,8 +523,11 @@
                  loginPrompt.classList.remove('hidden');
                  loginPrompt.querySelector('p').textContent = i18next.t('historyPage.loginExpired');
                  loadingMessage.style.display = 'none';
+                 if (incomingCommentsSection) incomingCommentsSection.classList.add('hidden');
+                 incomingCommentsData = [];
                  if (commentParticipationSection) commentParticipationSection.classList.add('hidden');
                  commentParticipationData = [];
+                 document.dispatchEvent(new CustomEvent('comments:unread-count', { detail: { unreadRatingCount: 0 } }));
                  return;
             }
 
@@ -533,13 +564,15 @@
                     historyHtml += '</div>';
                     historyContainer.innerHTML = historyHtml;
                 }
-                 loadingMessage.style.display = 'none'; // Hide loading indicator
+                loadingMessage.style.display = 'none'; // Hide loading indicator
+                await fetchIncomingComments(user);
                 await fetchCommentParticipation(user);
             } catch (error) {
                 console.error("获取历史记录失败:", error);
                 // updateContent(); // Update title even on error
                 historyContainer.innerHTML = `<div class="text-center p-6 bg-red-100 text-red-700 rounded-lg shadow"><p>${i18next.t('historyPage.loadFailed', { msg: error.message })}</p></div>`;
                 loadingMessage.style.display = 'none';
+                await fetchIncomingComments(user);
             }
         }
 
@@ -576,6 +609,9 @@
             const authorDisplay = data.userNickname || data.userEmail || data.userId || i18next.t('historyPage.unknownUser');
             const showAuthor = isAdmin; // Only show author for admin view
             const isPinned = data.isPinned;
+            const hasNewComments = !!data.hasNewComments;
+            const showNewCommentBadge = isOwner && hasNewComments;
+            const newCommentLabel = i18next.t('historyPage.newCommentBadge');
 
             let actionButtonsHtml = '';
             if (canModify) {
@@ -596,7 +632,10 @@
                      ${isAdmin && isPinned ? `<div class="pinned-indicator" title="${i18next.t('common.pin')}">${pinIconSvg} ${i18next.t('common.pin')}</div>` : ''}
                     <div class="flex flex-wrap justify-between items-center gap-2">
                         <div class="flex-grow min-w-0 pr-4">
-                             <p class="text-lg font-bold text-gray-800 truncate" title="${data.title || ''}">${data.title || i18next.t('certifiedPage.noTitle')}</p>
+                             <div class="flex items-center gap-2">
+                                 <p class="text-lg font-bold text-gray-800 truncate" title="${data.title || ''}">${data.title || i18next.t('certifiedPage.noTitle')}</p>
+                                 ${showNewCommentBadge ? `<span class="new-comment-badge">${newCommentLabel}</span>` : ''}
+                             </div>
                              <p class="text-sm text-gray-500 truncate" title="${data.cigarInfo?.name || ''}">
                                 ${data.cigarName || i18next.t('certifiedPage.unnamedCigar')} |
                                 ${data.cigarSize || i18next.t('common.noData')} |
@@ -706,6 +745,159 @@
                 card.appendChild(footer);
                 commentParticipationContainer.appendChild(card);
             });
+        }
+
+        function renderIncomingComments(items = []) {
+            if (!incomingCommentsSection || !incomingCommentsContainer) return;
+            if (!currentAuthUser) {
+                incomingCommentsSection.classList.add('hidden');
+                incomingCommentsContainer.innerHTML = '';
+                return;
+            }
+
+            incomingCommentsContainer.innerHTML = '';
+
+            if (!items.length) {
+                incomingCommentsSection.classList.remove('hidden');
+                const emptyMessage = document.createElement('p');
+                emptyMessage.className = 'text-sm text-gray-500';
+                emptyMessage.textContent = i18next.t('historyPage.noIncomingComments');
+                incomingCommentsContainer.appendChild(emptyMessage);
+                return;
+            }
+
+            incomingCommentsSection.classList.remove('hidden');
+
+            items.forEach(item => {
+                const card = document.createElement('article');
+                card.className = 'bg-white rounded-lg border border-indigo-100 shadow-sm p-4';
+
+                const header = document.createElement('div');
+                header.className = 'flex flex-wrap items-center justify-between gap-2';
+
+                const titleWrapper = document.createElement('div');
+                titleWrapper.className = 'flex flex-wrap items-center gap-2';
+
+                const titleLink = document.createElement('a');
+                titleLink.href = `results.html?ratingId=${item.ratingId}`;
+                titleLink.className = 'text-lg font-semibold text-indigo-700 hover:text-indigo-800 transition';
+                titleLink.textContent = item.title || i18next.t('common.noTitle');
+                titleWrapper.appendChild(titleLink);
+
+                if (item.isUnread) {
+                    const unreadBadge = document.createElement('span');
+                    unreadBadge.className = 'inline-flex items-center rounded-full bg-red-500 px-2 py-0.5 text-xs font-semibold text-white';
+                    unreadBadge.textContent = i18next.t('historyPage.unreadBadge');
+                    titleWrapper.appendChild(unreadBadge);
+                }
+
+                header.appendChild(titleWrapper);
+                card.appendChild(header);
+
+                const cigarInfoEl = document.createElement('p');
+                cigarInfoEl.className = 'text-sm text-gray-500 mt-1';
+                const cigarName = item.cigarName || i18next.t('certifiedPage.unnamedCigar');
+                const cigarSize = item.cigarSize || i18next.t('common.unknown');
+                const cigarOrigin = item.cigarOrigin || i18next.t('common.unknown');
+                cigarInfoEl.textContent = `${cigarName} • ${cigarSize} • ${cigarOrigin}`;
+                card.appendChild(cigarInfoEl);
+
+                const commenterName = item.commenterNickname || item.commenterEmail || item.commenterId || i18next.t('historyPage.unknownUser');
+                const metaEl = document.createElement('p');
+                metaEl.className = 'text-xs text-gray-500 mt-1';
+                metaEl.textContent = i18next.t('historyPage.commentMeta', {
+                    author: commenterName,
+                    time: formatParticipationDate(item.createdAt)
+                });
+                card.appendChild(metaEl);
+
+                if (item.content) {
+                    const commentBlock = document.createElement('div');
+                    commentBlock.className = 'mt-3 text-sm text-gray-700 whitespace-pre-wrap break-words bg-gray-50 border border-gray-100 rounded-md p-3';
+                    const label = document.createElement('span');
+                    label.className = 'font-semibold text-gray-600 mr-2';
+                    label.textContent = i18next.t('historyPage.commentPreviewLabel');
+                    const text = document.createElement('span');
+                    text.textContent = item.content;
+                    commentBlock.appendChild(label);
+                    commentBlock.appendChild(text);
+                    card.appendChild(commentBlock);
+                }
+
+                const footer = document.createElement('div');
+                footer.className = 'mt-3 flex items-center justify-between text-xs text-gray-500';
+
+                const scoreParts = [];
+                if (typeof item.normalizedScore === 'number') {
+                    scoreParts.push(`${i18next.t('common.score')}: ${item.normalizedScore.toFixed(2)}`);
+                }
+                if (item.finalGrade_grade) {
+                    scoreParts.push(`${i18next.t('historyPage.gradeShortLabel')}: ${item.finalGrade_grade}`);
+                }
+                if (scoreParts.length > 0) {
+                    const scoreLabel = document.createElement('span');
+                    scoreLabel.textContent = scoreParts.join(' · ');
+                    footer.appendChild(scoreLabel);
+                }
+
+                const viewLink = document.createElement('a');
+                viewLink.href = `results.html?ratingId=${item.ratingId}`;
+                viewLink.className = 'inline-flex items-center font-semibold text-indigo-600 hover:text-indigo-700';
+                viewLink.textContent = i18next.t('historyPage.viewRating');
+                footer.appendChild(viewLink);
+
+                card.appendChild(footer);
+                incomingCommentsContainer.appendChild(card);
+            });
+        }
+
+        async function fetchIncomingComments(user) {
+            if (!incomingCommentsSection || !incomingCommentsContainer) {
+                return;
+            }
+
+            if (!user) {
+                incomingCommentsSection.classList.add('hidden');
+                incomingCommentsContainer.innerHTML = '';
+                incomingCommentsData = [];
+                document.dispatchEvent(new CustomEvent('comments:unread-count', { detail: { unreadRatingCount: 0 } }));
+                return;
+            }
+
+            const token = sessionStorage.getItem('accessToken');
+            if (!token) {
+                incomingCommentsSection.classList.add('hidden');
+                incomingCommentsContainer.innerHTML = '';
+                incomingCommentsData = [];
+                document.dispatchEvent(new CustomEvent('comments:unread-count', { detail: { unreadRatingCount: 0 } }));
+                return;
+            }
+
+            try {
+                const apiUrl = new URL('/api/comments', window.location.origin);
+                apiUrl.searchParams.set('inbox', 'true');
+                const response = await fetch(apiUrl, { headers: { 'Authorization': `Bearer ${token}` } });
+                if (!response.ok) {
+                    let errorText = `HTTP ${response.status}`;
+                    try {
+                        const err = await response.json();
+                        errorText = err.error || errorText;
+                    } catch (e) { /* ignore */ }
+                    throw new Error(errorText);
+                }
+
+                const data = await response.json();
+                const incoming = Array.isArray(data.inbox) ? data.inbox : [];
+                incomingCommentsData = incoming;
+                renderIncomingComments(incomingCommentsData);
+
+                const unreadCount = Number.isFinite(data.unreadRatingCount) ? data.unreadRatingCount : 0;
+                document.dispatchEvent(new CustomEvent('comments:unread-count', { detail: { unreadRatingCount: unreadCount } }));
+            } catch (error) {
+                console.error('Failed to load incoming comments:', error);
+                incomingCommentsSection.classList.remove('hidden');
+                incomingCommentsContainer.innerHTML = `<div class="bg-red-100 text-red-700 rounded-lg p-4 text-sm">${i18next.t('historyPage.incomingCommentsError', { msg: error.message })}</div>`;
+            }
         }
 
         async function fetchCommentParticipation(user) {

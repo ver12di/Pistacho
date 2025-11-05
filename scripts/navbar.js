@@ -1,5 +1,8 @@
 const NAVBAR_URL = new URL('../partials/navbar.html', import.meta.url);
 let cachedNavbarHtml = null;
+let navNewCommentBadge = null;
+let navNewCommentCount = 0;
+let navNewCommentRefreshPromise = null;
 
 function parseHtml(html) {
     const template = document.createElement('template');
@@ -131,12 +134,115 @@ async function insertNavbars() {
         setActiveLink(nav, activeTarget);
         configureLanguageControls(nav, languageMode);
         setupMobileToggle(nav);
+        initNewCommentIndicator(nav);
 
         placeholder.replaceWith(nav);
     });
 
     document.dispatchEvent(new CustomEvent('navbar:loaded'));
 }
+
+function formatNewCommentLabel(count) {
+    if (window.i18next?.isInitialized) {
+        if (typeof window.i18next.getFixedT === 'function') {
+            const t = window.i18next.getFixedT();
+            const key = count > 0 ? 'nav.newCommentsBadgeWithCount' : 'nav.newCommentsBadge';
+            return t(key, { count });
+        }
+        const key = count > 0 ? 'nav.newCommentsBadgeWithCount' : 'nav.newCommentsBadge';
+        try {
+            return window.i18next.t(key, { count });
+        } catch (e) {
+            /* ignore */
+        }
+    }
+    if (count > 0) {
+        return count > 99 ? 'New (99+)' : `New (${count})`;
+    }
+    return 'New';
+}
+
+function setNewCommentBadgeCount(count) {
+    navNewCommentCount = Math.max(0, Number.isFinite(count) ? count : 0);
+    if (!navNewCommentBadge) return;
+    const hasUnread = navNewCommentCount > 0;
+    navNewCommentBadge.classList.toggle('hidden', !hasUnread);
+    navNewCommentBadge.textContent = formatNewCommentLabel(navNewCommentCount);
+}
+
+async function refreshNewCommentBadge(force = false) {
+    if (!navNewCommentBadge) return;
+    const token = sessionStorage.getItem('accessToken');
+    if (!token) {
+        setNewCommentBadgeCount(0);
+        return;
+    }
+
+    if (navNewCommentRefreshPromise && !force) {
+        try {
+            await navNewCommentRefreshPromise;
+        } catch (e) {
+            /* ignore */
+        }
+        return;
+    }
+
+    navNewCommentRefreshPromise = (async () => {
+        try {
+            const apiUrl = new URL('/api/comments', window.location.origin);
+            apiUrl.searchParams.set('inbox', 'summary');
+            const response = await fetch(apiUrl.toString(), {
+                headers: { 'Authorization': `Bearer ${token}` },
+                cache: 'no-store'
+            });
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            const data = await response.json();
+            setNewCommentBadgeCount(data.unreadRatingCount ?? 0);
+        } catch (error) {
+            console.warn('[navbar] Failed to refresh new comment badge:', error);
+        } finally {
+            navNewCommentRefreshPromise = null;
+        }
+    })();
+
+    await navNewCommentRefreshPromise;
+}
+
+function initNewCommentIndicator(nav) {
+    navNewCommentBadge = nav.querySelector('.nav-new-comment-indicator');
+    if (!navNewCommentBadge) {
+        return;
+    }
+    setNewCommentBadgeCount(navNewCommentCount);
+    refreshNewCommentBadge();
+
+    if (window.i18next?.on) {
+        window.i18next.on('languageChanged', () => {
+            setNewCommentBadgeCount(navNewCommentCount);
+        });
+    }
+}
+
+document.addEventListener('comments:unread-count', event => {
+    if (!event?.detail) return;
+    if (typeof event.detail.unreadRatingCount === 'number') {
+        setNewCommentBadgeCount(event.detail.unreadRatingCount);
+    }
+});
+
+document.addEventListener('comments:refresh-summary', () => {
+    refreshNewCommentBadge(true);
+});
+
+window.addEventListener('focus', () => refreshNewCommentBadge());
+
+document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+        refreshNewCommentBadge();
+    }
+});
 
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', insertNavbars);

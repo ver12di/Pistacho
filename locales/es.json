@@ -84,7 +84,9 @@
     "logout": "Cerrar Sesión",
     "configAdmin": "Config. de Calificación",
     "userAdmin": "Admin. de Usuarios",
-    "loggedIn": "Sesión iniciada"
+    "loggedIn": "Sesión iniciada",
+    "newCommentsBadge": "Nuevos comentarios",
+    "newCommentsBadgeWithCount": "Nuevos comentarios ({{count}})"
   },
   "indexPage": {
     "searchPlaceholder": "Buscar nombre, origen, tamaño, reseña, usuario...",
@@ -107,7 +109,7 @@
     "currentScore": "Puntaje Actual",
     "itemsRated": "Items Calificados",
     "ratingTitle": "Título de la Reseña",
-    "ratingTitlePlaceholder": "Un título atrae más vistas (Máx 22 car.)",
+    "ratingTitlePlaceholder": "Un título atrae más vistas (Máx 35 car.)",
     "uploadImages": "Subir Imágenes (Máx {{max}}, arrastrar para ordenar)",
     "uploadImagesDesc": "La primera imagen será la portada. Haz clic en el botón de una imagen para establecerla como portada.",
     "selectImages": "Seleccionar Imágenes",
@@ -189,9 +191,16 @@
     "commentHistoryTitle": "Reseñas que he comentado",
     "noCommentHistory": "Aún no has comentado en otras reseñas.",
     "commentHistoryError": "No se pudieron cargar tus comentarios: {{msg}}",
-    "commentPreviewLabel": "Mi comentario",
+    "commentPreviewLabel": "Comentario",
     "viewRating": "Ver reseña",
-    "gradeShortLabel": "Calificación"
+    "newCommentBadge": "Nuevo comentario",
+    "gradeShortLabel": "Calificación",
+    "incomingCommentsTitle": "Comentarios de otros usuarios",
+    "incomingCommentsSubtitle": "Revisa lo que otros han dicho sobre tus reseñas.",
+    "noIncomingComments": "Aún no hay comentarios de otros usuarios.",
+    "unreadBadge": "Sin leer",
+    "commentMeta": "{{author}} · {{time}}",
+    "incomingCommentsError": "No se pudieron cargar los comentarios: {{msg}}"
   },
   "certifiedPage": {
     "title": "Reseñas Certificadas Pistacho",

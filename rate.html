@@ -168,8 +168,8 @@
             <!-- Rating Title Section -->
             <section class="mb-6 sm:mb-8 p-4 sm:p-6 bg-white rounded-xl shadow-lg">
                 <h2 class="text-xl font-bold text-gray-800 mb-4" data-i18n="ratePage.ratingTitle">点评标题 <span class="text-red-500">*</span></h2>
-                <input type="text" id="rating-title" maxlength="22" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 focus:border-indigo-500 focus:ring-indigo-500" data-i18n="ratePage.ratingTitlePlaceholder" placeholder="填写标题会被更多人看到 (最多22字)">
-                <p id="title-char-count" class="text-xs text-gray-500 text-right mt-1">0 / 22</p>
+                <input type="text" id="rating-title" maxlength="35" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 focus:border-indigo-500 focus:ring-indigo-500" data-i18n="ratePage.ratingTitlePlaceholder" placeholder="填写标题会被更多人看到 (最多35字)">
+                <p id="title-char-count" class="text-xs text-gray-500 text-right mt-1">0 / 35</p>
             </section>
 
             <!-- Image Upload Section -->
@@ -392,6 +392,11 @@
              "flavors.wood", "flavors.sweetness", "flavors.cream", "flavors.floral",
              "flavors.fruit", "flavors.caramel", "flavors.vanilla", "flavors.citrus"
         ];
+        const TITLE_MAX_LENGTH = 35;
+
+        if (titleInput) {
+            titleInput.maxLength = TITLE_MAX_LENGTH;
+        }
 
 
         // --- Authentication ---
@@ -1116,7 +1121,7 @@
         // --- Utility Functions ---
         // Updates character counts for title and review fields
         function updateCharCounts() {
-            if(titleInput && titleCharCount) titleCharCount.textContent = `${titleInput.value.length} / 22`;
+            if(titleInput && titleCharCount) titleCharCount.textContent = `${titleInput.value.length} / ${TITLE_MAX_LENGTH}`;
             if(reviewTextarea && reviewCharCount) reviewCharCount.textContent = `${reviewTextarea.value.length} / 1500`;
         }
 

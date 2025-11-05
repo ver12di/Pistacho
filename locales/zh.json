@@ -79,7 +79,9 @@
     "logout": "退出",
     "configAdmin": "评分配置",
     "userAdmin": "用户管理",
-    "loggedIn": "已登录"
+    "loggedIn": "已登录",
+    "newCommentsBadge": "新留言",
+    "newCommentsBadgeWithCount": "新留言 ({{count}})"
   },
   "indexPage": {
     "searchPlaceholder": "搜索雪茄名称, 产地, 尺寸, 点评, 用户...",
@@ -102,7 +104,7 @@
     "currentScore": "当前得分",
     "itemsRated": "已评项目",
     "ratingTitle": "点评标题",
-    "ratingTitlePlaceholder": "填写标题会被更多人看到 (最多22字)",
+    "ratingTitlePlaceholder": "填写标题会被更多人看到 (最多35字)",
     "uploadImages": "上传图片 (最多{{max}}张, 可拖拽排序)",
     "uploadImagesDesc": "第一张图片将作为封面图显示。点击图片左下角按钮更换封面。",
     "selectImages": "选择图片",
@@ -184,9 +186,16 @@
     "commentHistoryTitle": "我参与的其他点评",
     "noCommentHistory": "暂时没有参与其他用户的点评。",
     "commentHistoryError": "无法加载评论参与记录：{{msg}}",
-    "commentPreviewLabel": "我的留言",
+    "commentPreviewLabel": "留言内容",
     "viewRating": "查看该点评",
-    "gradeShortLabel": "评级"
+    "newCommentBadge": "新评论",
+    "gradeShortLabel": "评级",
+    "incomingCommentsTitle": "其他用户给我的留言",
+    "incomingCommentsSubtitle": "查看其他用户对您评分的最新留言。",
+    "noIncomingComments": "暂时没有其他用户的留言。",
+    "unreadBadge": "未读",
+    "commentMeta": "{{author}} · {{time}}",
+    "incomingCommentsError": "无法加载其他用户留言：{{msg}}"
   },
   "certifiedPage": {
     "title": "Pistacho 认证评分",

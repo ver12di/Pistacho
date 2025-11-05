@@ -20,6 +20,12 @@ async function ensureCommentTables(db) {
     )`).run();
     await db.prepare('CREATE INDEX IF NOT EXISTS idx_comments_ratingId ON comments(ratingId)').run();
     await db.prepare('CREATE INDEX IF NOT EXISTS idx_comments_userId ON comments(userId)').run();
+    await db.prepare(`CREATE TABLE IF NOT EXISTS comment_reads (
+        ratingId TEXT NOT NULL,
+        userId TEXT NOT NULL,
+        lastReadAt TEXT NOT NULL,
+        PRIMARY KEY (ratingId, userId)
+    )`).run();
     await db.prepare(`CREATE TABLE IF NOT EXISTS comment_mutes (
         mutedUserId TEXT PRIMARY KEY,
         mutedBy TEXT,
@@ -101,8 +107,85 @@ function isAdminRole(userInfo) {
 async function handleGetRatingComments(env, request, url) {
     const ratingId = url.searchParams.get('ratingId');
     const includeMine = url.searchParams.get('mine') === 'true';
+    const inboxModeRaw = url.searchParams.get('inbox');
+    const inboxMode = inboxModeRaw ? inboxModeRaw.toLowerCase() : null;
+    const markAsRead = url.searchParams.get('markRead') === 'true';
     if (!ratingId && !includeMine) {
         return new Response(JSON.stringify({ error: 'ratingId parameter is required.' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+    }
+
+    if (inboxMode) {
+        const userInfo = await validateToken(request, env);
+
+        const inboxStmt = env.DB.prepare(`
+            SELECT c.id AS commentId, c.ratingId, c.userId AS commenterId, c.userNickname AS commenterNickname,
+                   c.userEmail AS commenterEmail, c.content, c.createdAt,
+                   r.title, r.cigarName, r.cigarSize, r.cigarOrigin, r.normalizedScore,
+                   r.finalGrade_grade, r.finalGrade_name_cn, r.timestamp AS ratingTimestamp
+            FROM comments c
+            JOIN ratings r ON c.ratingId = r.id
+            WHERE r.userId = ? AND c.isDeleted = 0 AND (c.userId IS NULL OR c.userId != ?)
+            ORDER BY datetime(c.createdAt) DESC
+            LIMIT 200
+        `).bind(userInfo.sub, userInfo.sub);
+        const { results: inboxRows } = await inboxStmt.all();
+
+        const readStmt = env.DB.prepare(`
+            SELECT ratingId, lastReadAt
+            FROM comment_reads
+            WHERE userId = ?
+        `).bind(userInfo.sub);
+        const { results: readRows } = await readStmt.all();
+        const readMap = new Map();
+        (readRows || []).forEach(row => {
+            if (row && row.ratingId) {
+                readMap.set(row.ratingId, row.lastReadAt);
+            }
+        });
+
+        const unreadRatingIds = new Set();
+        let unreadCommentCount = 0;
+        const inboxComments = (inboxRows || []).map(row => {
+            const lastReadAt = row.ratingId ? readMap.get(row.ratingId) : null;
+            const isUnread = !lastReadAt || (row.createdAt && row.createdAt > lastReadAt);
+            if (isUnread && row.ratingId) {
+                unreadRatingIds.add(row.ratingId);
+                unreadCommentCount += 1;
+            }
+            return {
+                commentId: row.commentId,
+                ratingId: row.ratingId,
+                commenterId: row.commenterId,
+                commenterNickname: row.commenterNickname,
+                commenterEmail: row.commenterEmail,
+                content: row.content,
+                createdAt: row.createdAt,
+                title: row.title,
+                cigarName: row.cigarName,
+                cigarSize: row.cigarSize,
+                cigarOrigin: row.cigarOrigin,
+                normalizedScore: row.normalizedScore,
+                finalGrade_grade: row.finalGrade_grade,
+                finalGrade_name_cn: row.finalGrade_name_cn,
+                ratingTimestamp: row.ratingTimestamp,
+                isUnread
+            };
+        });
+
+        const summary = {
+            unreadRatingIds: Array.from(unreadRatingIds),
+            unreadRatingCount: unreadRatingIds.size,
+            unreadCommentCount
+        };
+
+        const wantsList = inboxMode === 'true' || inboxMode === 'list' || inboxMode === 'full';
+        const wantsSummaryOnly = inboxMode === 'summary';
+
+        if (wantsSummaryOnly && !wantsList) {
+            return new Response(JSON.stringify(summary), { headers: { 'Content-Type': 'application/json' } });
+        }
+
+        return new Response(JSON.stringify({ ...summary, inbox: inboxComments }), { headers: { 'Content-Type': 'application/json' } });
     }
 
     if (includeMine) {
@@ -122,7 +205,7 @@ async function handleGetRatingComments(env, request, url) {
         return new Response(JSON.stringify({ participation: results || [] }), { headers: { 'Content-Type': 'application/json' } });
     }
 
-    const userInfo = await validateToken(request, env, { optional: true });
+    const userInfo = await validateToken(request, env, { optional: !markAsRead });
 
     const commentStmt = env.DB.prepare(`
         SELECT id, ratingId, userId, userNickname, userEmail, content, createdAt
@@ -136,6 +219,31 @@ async function handleGetRatingComments(env, request, url) {
     const { results: muteRows } = await muteStmt.all();
     const mutedUserIds = (muteRows || []).map(row => row.mutedUserId).filter(Boolean);
     const currentUserId = userInfo?.sub ?? null;
+
+    if (markAsRead && userInfo && currentUserId) {
+        try {
+            const ratingOwnerStmt = env.DB.prepare('SELECT userId FROM ratings WHERE id = ?').bind(ratingId);
+            const ratingOwner = await ratingOwnerStmt.first();
+            if (ratingOwner && ratingOwner.userId === currentUserId) {
+                let latestOtherCommentAt = null;
+                (commentRows || []).forEach(comment => {
+                    if (comment.userId && comment.userId !== currentUserId) {
+                        if (!latestOtherCommentAt || comment.createdAt > latestOtherCommentAt) {
+                            latestOtherCommentAt = comment.createdAt;
+                        }
+                    }
+                });
+                const timestampToStore = latestOtherCommentAt || new Date().toISOString();
+                await env.DB.prepare(`
+                    INSERT INTO comment_reads (ratingId, userId, lastReadAt)
+                    VALUES (?, ?, ?)
+                    ON CONFLICT(ratingId, userId) DO UPDATE SET lastReadAt = excluded.lastReadAt
+                `).bind(ratingId, currentUserId, timestampToStore).run();
+            }
+        } catch (markErr) {
+            console.error('[comments API] Failed to update comment_reads:', markErr.message);
+        }
+    }
     const responsePayload = {
         comments: commentRows || [],
         mutedUserIds,
