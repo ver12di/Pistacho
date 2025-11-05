@@ -50,9 +50,10 @@ async function getRoleFromDatabase(db, userInfo, source = "unknown") {
 export async function onRequestGet(context) {
      const { request, env } = context;
      const url = new URL(request.url);
+     const viewMode = url.searchParams.get('view') || 'default';
      const getCertified = url.searchParams.get('certified') === 'true';
      const singleRatingId = url.searchParams.get('id');
-     console.log(`[GET /api/ratings] Request URL: ${request.url}, Certified: ${getCertified}, Single ID: ${singleRatingId}`);
+     console.log(`[GET /api/ratings] Request URL: ${request.url}, Certified: ${getCertified}, Single ID: ${singleRatingId}, View: ${viewMode}`);
 
      try {
          let stmt;
@@ -96,6 +97,34 @@ export async function onRequestGet(context) {
              result.cigarInfo = { name: result.cigarName, size: result.cigarSize, origin: result.cigarOrigin };
              // Reconstruct finalGrade object
              if (result.finalGrade_grade && result.finalGrade_name_cn) { result.finalGrade = { grade: result.finalGrade_grade, name_cn: result.finalGrade_name_cn }; } else { result.finalGrade = null; }
+
+             if (viewMode === 'mobile' && result) {
+                 const fullDataObject = (result.fullData && typeof result.fullData === 'object') ? result.fullData : {};
+                 const compactData = {
+                     ratings: (fullDataObject.ratings && typeof fullDataObject.ratings === 'object') ? fullDataObject.ratings : {},
+                     selectedFlavors: Array.isArray(result.selectedFlavors) ? result.selectedFlavors : (Array.isArray(fullDataObject.selectedFlavors) ? fullDataObject.selectedFlavors : []),
+                 };
+                 if (typeof fullDataObject.normalizedScore === 'number') { compactData.normalizedScore = fullDataObject.normalizedScore; }
+                 if (fullDataObject.finalGrade && typeof fullDataObject.finalGrade === 'object') { compactData.finalGrade = fullDataObject.finalGrade; }
+                 if (fullDataObject.cigarInfo && typeof fullDataObject.cigarInfo === 'object') { compactData.cigarInfo = fullDataObject.cigarInfo; }
+                 if (Array.isArray(fullDataObject.imageUrls)) { compactData.imageUrls = fullDataObject.imageUrls; }
+                 if (!compactData.imageUrls && Array.isArray(result.imageUrl)) { compactData.imageUrls = result.imageUrl; }
+                 if (fullDataObject.cigarReview) { compactData.cigarReview = fullDataObject.cigarReview; }
+                 if (result.cigarReview && !compactData.cigarReview) { compactData.cigarReview = result.cigarReview; }
+
+                 result.mobileData = compactData;
+                 if (result.fullData) {
+                     result.fullData = {
+                         ratings: compactData.ratings,
+                         selectedFlavors: compactData.selectedFlavors,
+                         normalizedScore: compactData.normalizedScore,
+                         finalGrade: compactData.finalGrade
+                     };
+                     if (compactData.cigarReview) { result.fullData.cigarReview = compactData.cigarReview; }
+                     if (compactData.cigarInfo) { result.fullData.cigarInfo = compactData.cigarInfo; }
+                     if (compactData.imageUrls) { result.fullData.imageUrls = compactData.imageUrls; }
+                 }
+             }
 
              return new Response(JSON.stringify(result), { headers: { 'Content-Type': 'application/json' } });
 

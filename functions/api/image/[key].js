@@ -39,6 +39,8 @@ export async function onRequestGet(context) {
         headers.set('etag', object.httpEtag);
         // (可选) 添加更长的浏览器缓存时间, e.g., 缓存 1 天
         headers.set('cache-control', 'public, max-age=86400');
+        // 添加 CORS 头部以允许跨域访问
+        headers.set('Access-Control-Allow-Origin', '*');
 
         // 5. 将图片数据流式传输回客户端
         return new Response(object.body, {
