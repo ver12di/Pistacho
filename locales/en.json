@@ -192,7 +192,12 @@
     "commentPreviewLabel": "My comment",
     "viewRating": "View Review",
     "newCommentBadge": "New comment",
-    "gradeShortLabel": "Grade"
+    "gradeShortLabel": "Grade",
+    "incomingCommentsTitle": "Comments other users left for me",
+    "noIncomingComments": "No comments from other users yet.",
+    "incomingCommentsError": "Failed to load incoming comments: {{msg}}",
+    "commentFromLabel": "From",
+    "latestCommentAt": "Latest comment"
   },
   "certifiedPage": {
     "title": "Pistacho Certified Ratings",

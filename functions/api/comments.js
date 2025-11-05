@@ -105,6 +105,10 @@ function isAdminRole(userInfo) {
 }
 
 async function handleGetRatingComments(env, request, url) {
+    const owned = url.searchParams.get('owned') === 'true';
+    if (owned) {
+        return await handleGetOwnedRatingComments(env, request, url);
+    }
     const ratingId = url.searchParams.get('ratingId');
     const includeMine = url.searchParams.get('mine') === 'true';
     const markAsRead = url.searchParams.get('markRead') === 'true';
@@ -178,6 +182,73 @@ async function handleGetRatingComments(env, request, url) {
         } : null
     };
     return new Response(JSON.stringify(responsePayload), { headers: { 'Content-Type': 'application/json' } });
+}
+
+async function handleGetOwnedRatingComments(env, request, url) {
+    const markAllAsRead = url.searchParams.get('markRead') === 'true';
+    const userInfo = await validateToken(request, env);
+    const ownerId = userInfo.sub;
+
+    const stmt = env.DB.prepare(`
+        SELECT c.id AS commentId, c.ratingId, c.userId, c.userNickname, c.userEmail, c.content, c.createdAt,
+               r.title AS ratingTitle, r.cigarName, r.cigarSize, r.cigarOrigin,
+               r.normalizedScore, r.finalGrade_grade, r.finalGrade_name_cn,
+               cr.lastReadAt,
+               CASE WHEN cr.lastReadAt IS NULL OR datetime(c.createdAt) > datetime(cr.lastReadAt) THEN 1 ELSE 0 END AS isNew
+        FROM comments c
+        JOIN ratings r ON c.ratingId = r.id
+        LEFT JOIN comment_reads cr ON cr.ratingId = c.ratingId AND cr.userId = r.userId
+        WHERE r.userId = ? AND c.userId != ? AND c.isDeleted = 0
+        ORDER BY datetime(c.createdAt) DESC
+        LIMIT 300
+    `).bind(ownerId, ownerId);
+
+    const { results } = await stmt.all();
+    const comments = (results || []).map(row => ({
+        commentId: row.commentId,
+        ratingId: row.ratingId,
+        userId: row.userId,
+        userNickname: row.userNickname,
+        userEmail: row.userEmail,
+        content: row.content,
+        createdAt: row.createdAt,
+        ratingTitle: row.ratingTitle,
+        cigarName: row.cigarName,
+        cigarSize: row.cigarSize,
+        cigarOrigin: row.cigarOrigin,
+        normalizedScore: row.normalizedScore,
+        finalGrade_grade: row.finalGrade_grade,
+        finalGrade_name_cn: row.finalGrade_name_cn,
+        lastReadAt: row.lastReadAt,
+        isNew: row.isNew === 1
+    }));
+
+    const hasUnread = comments.some(comment => comment.isNew);
+
+    if (markAllAsRead && comments.length > 0) {
+        try {
+            const latestPerRating = new Map();
+            comments.forEach(comment => {
+                const existing = latestPerRating.get(comment.ratingId);
+                if (!existing || comment.createdAt > existing) {
+                    latestPerRating.set(comment.ratingId, comment.createdAt);
+                }
+            });
+            for (const [ratingId, latestTimestamp] of latestPerRating.entries()) {
+                await env.DB.prepare(`
+                    INSERT INTO comment_reads (ratingId, userId, lastReadAt)
+                    VALUES (?, ?, ?)
+                    ON CONFLICT(ratingId, userId) DO UPDATE SET lastReadAt = excluded.lastReadAt
+                `).bind(ratingId, ownerId, latestTimestamp).run();
+            }
+        } catch (markErr) {
+            console.error('[comments API] Failed to update comment_reads for owned comments:', markErr.message);
+        }
+    }
+
+    return new Response(JSON.stringify({ incoming: comments, hasUnread }), {
+        headers: { 'Content-Type': 'application/json' }
+    });
 }
 
 async function handlePostComment(env, request) {

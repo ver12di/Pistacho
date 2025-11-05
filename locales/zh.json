@@ -187,7 +187,12 @@
     "commentPreviewLabel": "我的留言",
     "viewRating": "查看该点评",
     "newCommentBadge": "新评论",
-    "gradeShortLabel": "评级"
+    "gradeShortLabel": "评级",
+    "incomingCommentsTitle": "其他用户给我的留言",
+    "noIncomingComments": "暂时没有其他用户的留言。",
+    "incomingCommentsError": "无法加载其他用户的留言：{{msg}}",
+    "commentFromLabel": "留言来自",
+    "latestCommentAt": "最新留言时间"
   },
   "certifiedPage": {
     "title": "Pistacho 认证评分",

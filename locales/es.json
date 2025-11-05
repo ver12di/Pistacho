@@ -192,7 +192,12 @@
     "commentPreviewLabel": "Mi comentario",
     "viewRating": "Ver reseña",
     "newCommentBadge": "Nuevo comentario",
-    "gradeShortLabel": "Calificación"
+    "gradeShortLabel": "Calificación",
+    "incomingCommentsTitle": "Comentarios que otros usuarios me dejaron",
+    "noIncomingComments": "Aún no hay comentarios de otros usuarios.",
+    "incomingCommentsError": "No se pudieron cargar los comentarios entrantes: {{msg}}",
+    "commentFromLabel": "De",
+    "latestCommentAt": "Último comentario"
   },
   "certifiedPage": {
     "title": "Reseñas Certificadas Pistacho",
