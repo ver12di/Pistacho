@@ -1053,6 +1053,9 @@
                     position: shareCardElement.style.position,
                     left: shareCardElement.style.left,
                     top: shareCardElement.style.top,
+                    right: shareCardElement.style.right,
+                    bottom: shareCardElement.style.bottom,
+                    margin: shareCardElement.style.margin,
                     transform: shareCardElement.style.transform,
                     zIndex: shareCardElement.style.zIndex,
                     pointerEvents: shareCardElement.style.pointerEvents,
@@ -1062,8 +1065,11 @@
                 shareCardElement.style.visibility = 'visible';
                 shareCardElement.style.position = 'fixed';
                 shareCardElement.style.left = '50%';
-                shareCardElement.style.top = '50%';
-                shareCardElement.style.transform = 'translate(-50%, -50%)';
+                shareCardElement.style.top = '16px';
+                shareCardElement.style.right = 'auto';
+                shareCardElement.style.bottom = 'auto';
+                shareCardElement.style.margin = '0';
+                shareCardElement.style.transform = 'translateX(-50%)';
                 shareCardElement.style.pointerEvents = 'none';
                 shareCardElement.style.zIndex = '-1';
                 shareCardElement.style.opacity = '1';
@@ -1145,8 +1151,11 @@
                  return false;
             } finally {
                  shareCardElement.style.position = shareCardOriginalStyles?.position ?? '';
-                 shareCardElement.style.left = shareCardOriginalStyles?.left ?? '';
-                 shareCardElement.style.top = shareCardOriginalStyles?.top ?? '';
+                shareCardElement.style.left = shareCardOriginalStyles?.left ?? '';
+                shareCardElement.style.top = shareCardOriginalStyles?.top ?? '';
+                shareCardElement.style.right = shareCardOriginalStyles?.right ?? '';
+                shareCardElement.style.bottom = shareCardOriginalStyles?.bottom ?? '';
+                shareCardElement.style.margin = shareCardOriginalStyles?.margin ?? '';
                  shareCardElement.style.transform = shareCardOriginalStyles?.transform ?? '';
                  shareCardElement.style.zIndex = shareCardOriginalStyles?.zIndex ?? '';
                  shareCardElement.style.pointerEvents = shareCardOriginalStyles?.pointerEvents ?? '';
