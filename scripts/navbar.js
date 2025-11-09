@@ -26,6 +26,11 @@ function removeSessionStorage(key) {
     }
 }
 
+function getPreferredLanguageParam() {
+    const source = (window.i18next?.language || navigator.language || 'zh').toLowerCase();
+    return source.split('-')[0];
+}
+
 function dispatchUnreadStatus(hasUnread) {
     document.dispatchEvent(new CustomEvent('comments:unread-changed', {
         detail: { hasUnread: !!hasUnread }
@@ -183,6 +188,7 @@ async function checkUnreadComments(updateIndicator) {
     try {
         const apiUrl = new URL('/api/comments', window.location.origin);
         apiUrl.searchParams.set('owned', 'true');
+        apiUrl.searchParams.set('lang', getPreferredLanguageParam());
         const response = await fetch(apiUrl, {
             headers: { 'Authorization': `Bearer ${token}` },
             cache: 'no-store'

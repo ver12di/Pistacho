@@ -65,6 +65,11 @@
     "points": "pts",
     "score": "Score"
   },
+  "translation": {
+    "machineTranslated": "Automatically translated",
+    "viewOriginal": "View original",
+    "viewTranslation": "View translation"
+  },
   "seo": {
     "description": "The Pistacho cigar rating community unites enthusiasts with authentic scores, expert reviews, and certification badges to uncover cigars worth savoring—and every member is invited to rate and share.",
     "keywords": "Pistacho, cigar ratings, cigar community, cigar certification, cigar reviews",

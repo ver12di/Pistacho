@@ -632,6 +632,11 @@
         }
         // --- End Rating Actions ---
 
+        function getPreferredLanguageParam() {
+            const source = (window.i18next?.language || navigator.language || 'zh').toLowerCase();
+            return source.split('-')[0];
+        }
+
         // --- Data Fetching and Rendering ---
         async function fetchRatings() {
              if (!loadingMessage || !ratingsGrid || !i18next.isInitialized) {
@@ -643,6 +648,7 @@
             ratingsGrid.innerHTML = '';
             try {
                 const apiUrl = new URL('/api/ratings', window.location.origin);
+                apiUrl.searchParams.set('lang', getPreferredLanguageParam());
                 const response = await fetch(apiUrl);
                 if (!response.ok) {
                     let errorText = `Load failed: ${response.status}`;

@@ -396,6 +396,11 @@
             return { lang: 'en', htmlLang: 'en', ogLocale: 'en_US' };
         }
 
+        function getPreferredLanguageParam() {
+            const source = (window.i18next?.language || navigator.language || 'zh').toLowerCase();
+            return source.split('-')[0];
+        }
+
         function getDefaultDescriptionForLang(lang) {
             return DEFAULT_SHARE_DESCRIPTIONS[lang] || DEFAULT_SHARE_DESCRIPTIONS.en;
         }
@@ -1761,10 +1766,56 @@
 
                 item.appendChild(header);
 
-                const contentParagraph = document.createElement('p');
-                contentParagraph.className = 'mt-3 text-sm text-gray-700 whitespace-pre-wrap break-words';
-                contentParagraph.textContent = comment.content || '';
-                item.appendChild(contentParagraph);
+                const contentContainer = document.createElement('div');
+                contentContainer.className = 'mt-3 text-sm text-gray-700 whitespace-pre-wrap break-words';
+                const translatedParagraph = document.createElement('p');
+                translatedParagraph.className = 'whitespace-pre-wrap break-words';
+                translatedParagraph.textContent = comment.content || '';
+                contentContainer.appendChild(translatedParagraph);
+
+                const translationMeta = comment.translationMeta;
+                const preferredLang = getPreferredLanguageParam();
+                const hasTranslation = Boolean(
+                    translationMeta && translationMeta.language === preferredLang &&
+                    comment.originalContent && comment.content && comment.content !== comment.originalContent
+                );
+
+                if (hasTranslation) {
+                    const infoRow = document.createElement('div');
+                    infoRow.className = 'mt-2 flex flex-wrap items-center gap-3 text-xs text-indigo-600';
+
+                    const badge = document.createElement('span');
+                    badge.textContent = i18next.t('translation.machineTranslated');
+                    infoRow.appendChild(badge);
+
+                    const toggleButton = document.createElement('button');
+                    toggleButton.type = 'button';
+                    toggleButton.className = 'underline hover:text-indigo-700 focus:outline-none focus:ring-0';
+                    toggleButton.textContent = i18next.t('translation.viewOriginal');
+
+                    const originalParagraph = document.createElement('p');
+                    originalParagraph.className = 'mt-2 hidden text-xs text-gray-600 whitespace-pre-wrap break-words';
+                    originalParagraph.textContent = comment.originalContent || '';
+
+                    let showingOriginal = false;
+                    toggleButton.addEventListener('click', event => {
+                        event.preventDefault();
+                        showingOriginal = !showingOriginal;
+                        if (showingOriginal) {
+                            originalParagraph.classList.remove('hidden');
+                            toggleButton.textContent = i18next.t('translation.viewTranslation');
+                        } else {
+                            originalParagraph.classList.add('hidden');
+                            toggleButton.textContent = i18next.t('translation.viewOriginal');
+                        }
+                    });
+
+                    infoRow.appendChild(toggleButton);
+                    contentContainer.appendChild(infoRow);
+                    contentContainer.appendChild(originalParagraph);
+                }
+
+                item.appendChild(contentContainer);
 
                 listEl.appendChild(item);
             });
@@ -1801,6 +1852,7 @@
             try {
                 const apiUrl = new URL('/api/comments', window.location.origin);
                 apiUrl.searchParams.set('ratingId', ratingId);
+                apiUrl.searchParams.set('lang', getPreferredLanguageParam());
                 const headers = {};
                 const token = sessionStorage.getItem('accessToken');
                 if (token) headers['Authorization'] = `Bearer ${token}`;
@@ -1937,6 +1989,67 @@
         }
 
 
+        function renderReviewBlock(container, data) {
+            if (!container) return;
+            container.innerHTML = '';
+            const reviewText = (data?.cigarReview || '').trim();
+            const hasReview = reviewText.length > 0 && reviewText !== i18next.t('common.noReview');
+
+            const reviewParagraph = document.createElement('p');
+            if (hasReview) {
+                reviewParagraph.className = 'whitespace-pre-wrap break-words';
+                reviewParagraph.textContent = reviewText;
+            } else {
+                reviewParagraph.className = 'text-gray-400 italic';
+                reviewParagraph.textContent = i18next.t('common.noReview');
+            }
+            container.appendChild(reviewParagraph);
+
+            const translationMeta = data?.translationMeta;
+            const preferredLang = getPreferredLanguageParam();
+            const hasTranslation = Boolean(
+                translationMeta && translationMeta.language === preferredLang &&
+                data?.originalCigarReview && data?.cigarReview && data.cigarReview !== data.originalCigarReview
+            );
+            if (!hasTranslation) {
+                return;
+            }
+
+            const infoRow = document.createElement('div');
+            infoRow.className = 'mt-2 flex flex-wrap items-center gap-3 text-xs text-indigo-600';
+
+            const badge = document.createElement('span');
+            badge.textContent = i18next.t('translation.machineTranslated');
+            infoRow.appendChild(badge);
+
+            const toggleButton = document.createElement('button');
+            toggleButton.type = 'button';
+            toggleButton.className = 'underline hover:text-indigo-700 focus:outline-none focus:ring-0';
+            toggleButton.textContent = i18next.t('translation.viewOriginal');
+
+            const originalParagraph = document.createElement('p');
+            originalParagraph.className = 'mt-2 hidden text-xs text-gray-600 whitespace-pre-wrap break-words';
+            originalParagraph.textContent = data.originalCigarReview || '';
+
+            let showingOriginal = false;
+            toggleButton.addEventListener('click', event => {
+                event.preventDefault();
+                showingOriginal = !showingOriginal;
+                if (showingOriginal) {
+                    originalParagraph.classList.remove('hidden');
+                    toggleButton.textContent = i18next.t('translation.viewTranslation');
+                } else {
+                    originalParagraph.classList.add('hidden');
+                    toggleButton.textContent = i18next.t('translation.viewOriginal');
+                }
+            });
+
+            infoRow.appendChild(toggleButton);
+            container.appendChild(infoRow);
+            container.appendChild(originalParagraph);
+        }
+
+
         // Renders the main content of the results page using the provided data
         function renderPageContent(data) {
              console.log("[results.html renderPageContent] Received data:", JSON.stringify(data).substring(0, 300) + '...'); // Log received data start
@@ -2039,7 +2152,7 @@
                  if (cigarNameEl) cigarNameEl.textContent = cigarInfo?.name ?? i18next.t('common.unknown');
                  if (cigarSizeEl) cigarSizeEl.textContent = cigarInfo?.size ?? i18next.t('common.unknown');
                  if (cigarOriginEl) cigarOriginEl.textContent = cigarInfo?.origin ?? i18next.t('common.unknown');
-                 if (reviewContainerEl) reviewContainerEl.innerHTML = (cigarReview && cigarReview.trim() && cigarReview !== i18next.t('common.noReview')) ? `<p>${cigarReview.replace(/\n/g, '<br>')}</p>` : `<p class="text-gray-400 italic">${i18next.t('common.noReview')}</p>`;
+                renderReviewBlock(reviewContainerEl, data);
                  if (flavorsContainerEl) {
                      if (selectedFlavors.length > 0) {
                         if (flavorsDisplayEl) flavorsDisplayEl.innerHTML = selectedFlavors.map(flavorKey => `<span class="flavor-tag">${i18next.t(flavorKey) || flavorKey}</span>`).join('');
@@ -2055,7 +2168,7 @@
                  if (cigarNameEl) cigarNameEl.textContent = cigarInfo?.name ?? i18next.t('common.unknown');
                  if (cigarSizeEl) cigarSizeEl.textContent = cigarInfo?.size ?? i18next.t('common.unknown');
                  if (cigarOriginEl) cigarOriginEl.textContent = cigarInfo?.origin ?? i18next.t('common.unknown');
-                 if (reviewContainerEl) reviewContainerEl.innerHTML = (cigarReview && cigarReview.trim() && cigarReview !== i18next.t('common.noReview')) ? `<p>${cigarReview.replace(/\n/g, '<br>')}</p>` : `<p class="text-gray-400 italic">${i18next.t('common.noReview')}</p>`;
+                renderReviewBlock(reviewContainerEl, data);
                  if (flavorsContainerEl) {
                      if (selectedFlavors.length > 0) {
                          if(flavorsDisplayEl) flavorsDisplayEl.innerHTML = selectedFlavors.map(flavorKey => `<span class="flavor-tag">${i18next.t(flavorKey) || flavorKey}</span>`).join('');
@@ -2118,9 +2231,11 @@
                              }
                          }
                          const token = sessionStorage.getItem('accessToken');
-                         const apiUrl = new URL(`/api/ratings?id=${ratingId}`, window.location.origin);
-                         // Allow anonymous fetch if no token (API handles public read)
-                         const fetchOptions = token ? { headers: { 'Authorization': `Bearer ${token}` } } : {};
+                        const apiUrl = new URL('/api/ratings', window.location.origin);
+                        apiUrl.searchParams.set('id', ratingId);
+                        apiUrl.searchParams.set('lang', getPreferredLanguageParam());
+                        // Allow anonymous fetch if no token (API handles public read)
+                        const fetchOptions = token ? { headers: { 'Authorization': `Bearer ${token}` } } : {};
                          const response = await fetch(apiUrl, fetchOptions);
                          if (!response.ok) {
                              let errorText = i18next.t('errors.loadRatingFailed', { status: response.status });

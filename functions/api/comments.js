@@ -3,8 +3,19 @@
 // 作用: 提供点评详情页的评论功能以及管理员禁言能力
 // ---------------------------------------------------
 
+import {
+    detectPreferredLanguage,
+    normalizeLanguageCode,
+    isTargetLanguageSupported,
+    getTranslationTargets,
+    translateText,
+    ensureCommentTranslationTable,
+    storeCommentTranslation
+} from './utils/translation.js';
+
 const MAX_COMMENT_LENGTH = 500;
 let tablesEnsured = false;
+let translationTableEnsured = false;
 
 async function ensureCommentTables(db) {
     if (tablesEnsured) return;
@@ -32,6 +43,58 @@ async function ensureCommentTables(db) {
         createdAt TEXT NOT NULL
     )`).run();
     tablesEnsured = true;
+}
+
+async function ensureCommentTranslations(db) {
+    if (translationTableEnsured) return;
+    await ensureCommentTranslationTable(db);
+    translationTableEnsured = true;
+}
+
+function shouldSkipTranslation(lang) {
+    const normalized = normalizeLanguageCode(lang);
+    if (!normalized) return true;
+    return normalized === 'zh' || normalized === 'zh-cn';
+}
+
+async function translateAndCacheComment(env, commentId, content, targetLang) {
+    const normalizedLang = normalizeLanguageCode(targetLang);
+    if (!normalizedLang || shouldSkipTranslation(normalizedLang)) {
+        return null;
+    }
+    const translation = await translateText(env, content, normalizedLang);
+    if (!translation.success) {
+        return null;
+    }
+    await ensureCommentTranslations(env.DB);
+    await storeCommentTranslation(env.DB, commentId, normalizedLang, translation.text, translation.detectedSource);
+    return {
+        translatedContent: translation.text,
+        detectedSource: translation.detectedSource || 'auto'
+    };
+}
+
+async function fetchCommentTranslations(db, commentIds, targetLang) {
+    if (!commentIds || !commentIds.length) return new Map();
+    const normalizedLang = normalizeLanguageCode(targetLang);
+    if (!normalizedLang) return new Map();
+    const placeholders = commentIds.map(() => '?').join(', ');
+    const stmt = db.prepare(`
+        SELECT commentId, translatedContent, detectedSource
+        FROM comment_translations
+        WHERE targetLang = ? AND commentId IN (${placeholders})
+    `).bind(normalizedLang, ...commentIds);
+    const { results } = await stmt.all();
+    const map = new Map();
+    (results || []).forEach(row => {
+        if (row && row.commentId) {
+            map.set(row.commentId, {
+                translatedContent: row.translatedContent,
+                detectedSource: row.detectedSource || 'auto'
+            });
+        }
+    });
+    return map;
 }
 
 async function getRoleFromDatabase(db, userInfo, source = 'comments') {
@@ -116,6 +179,11 @@ async function handleGetRatingComments(env, request, url) {
         return new Response(JSON.stringify({ error: 'ratingId parameter is required.' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
     }
 
+    const requestedLang = url.searchParams.get('lang');
+    const preferredLang = detectPreferredLanguage(request, requestedLang);
+    const normalizedLang = normalizeLanguageCode(preferredLang);
+    const shouldTranslate = normalizedLang && !shouldSkipTranslation(normalizedLang) && isTargetLanguageSupported(env, normalizedLang);
+
     if (includeMine) {
         const userInfo = await validateToken(request, env);
         const stmt = env.DB.prepare(`
@@ -123,14 +191,44 @@ async function handleGetRatingComments(env, request, url) {
                    r.title, r.cigarName, r.cigarSize, r.cigarOrigin,
                    r.userNickname AS ratingUserNickname, r.userId AS ratingUserId,
                    r.normalizedScore, r.finalGrade_grade, r.finalGrade_name_cn
-            FROM comments c
-            JOIN ratings r ON c.ratingId = r.id
-            WHERE c.userId = ? AND c.isDeleted = 0
-            ORDER BY c.createdAt DESC
-            LIMIT 200
+        FROM comments c
+        JOIN ratings r ON c.ratingId = r.id
+        WHERE c.userId = ? AND c.isDeleted = 0
+        ORDER BY c.createdAt DESC
+        LIMIT 200
         `).bind(userInfo.sub);
         const { results } = await stmt.all();
-        return new Response(JSON.stringify({ participation: results || [] }), { headers: { 'Content-Type': 'application/json' } });
+        let participation = results || [];
+        if (shouldTranslate && participation.length > 0) {
+            await ensureCommentTranslations(env.DB);
+            const commentIds = participation.map(row => row.commentId).filter(Boolean);
+            let translationMap = await fetchCommentTranslations(env.DB, commentIds, normalizedLang);
+            const missing = participation.filter(row => row.commentId && !translationMap.has(row.commentId));
+            if (missing.length > 0) {
+                for (const row of missing) {
+                    const translated = await translateAndCacheComment(env, row.commentId, row.content, normalizedLang);
+                    if (translated) {
+                        translationMap.set(row.commentId, translated);
+                    }
+                }
+            }
+            participation = participation.map(row => {
+                const translation = translationMap.get(row.commentId);
+                if (!translation) return row;
+                return {
+                    ...row,
+                    originalContent: row.content,
+                    content: translation.translatedContent,
+                    translationMeta: {
+                        language: normalizedLang,
+                        provider: 'baidu',
+                        source: 'machine',
+                        detectedSource: translation.detectedSource || 'auto'
+                    }
+                };
+            });
+        }
+        return new Response(JSON.stringify({ participation }), { headers: { 'Content-Type': 'application/json' } });
     }
 
     const userInfo = await validateToken(request, env, { optional: !markAsRead });
@@ -147,6 +245,40 @@ async function handleGetRatingComments(env, request, url) {
     const { results: muteRows } = await muteStmt.all();
     const mutedUserIds = (muteRows || []).map(row => row.mutedUserId).filter(Boolean);
     const currentUserId = userInfo?.sub ?? null;
+
+    let translationMap = new Map();
+
+    if (shouldTranslate && commentRows && commentRows.length > 0) {
+        await ensureCommentTranslations(env.DB);
+        const commentIds = commentRows.map(row => row.id).filter(Boolean);
+        translationMap = await fetchCommentTranslations(env.DB, commentIds, normalizedLang);
+        const missing = commentRows.filter(row => row.id && !translationMap.has(row.id));
+        if (missing.length > 0) {
+            for (const row of missing) {
+                const translated = await translateAndCacheComment(env, row.id, row.content, normalizedLang);
+                if (translated) {
+                    translationMap.set(row.id, translated);
+                }
+            }
+        }
+    }
+
+    const comments = (commentRows || []).map(row => {
+        if (!row) return row;
+        const result = { ...row };
+        if (shouldTranslate && translationMap.has(row.id)) {
+            const translated = translationMap.get(row.id);
+            result.originalContent = row.content;
+            result.content = translated.translatedContent;
+            result.translationMeta = {
+                language: normalizedLang,
+                provider: 'baidu',
+                source: 'machine',
+                detectedSource: translated.detectedSource || 'auto'
+            };
+        }
+        return result;
+    });
 
     if (markAsRead && userInfo && currentUserId) {
         try {
@@ -173,7 +305,7 @@ async function handleGetRatingComments(env, request, url) {
         }
     }
     const responsePayload = {
-        comments: commentRows || [],
+        comments,
         mutedUserIds,
         currentUser: userInfo ? {
             id: currentUserId,
@@ -204,7 +336,7 @@ async function handleGetOwnedRatingComments(env, request, url) {
     `).bind(ownerId, ownerId);
 
     const { results } = await stmt.all();
-    const comments = (results || []).map(row => ({
+    let comments = (results || []).map(row => ({
         commentId: row.commentId,
         ratingId: row.ratingId,
         userId: row.userId,
@@ -222,6 +354,41 @@ async function handleGetOwnedRatingComments(env, request, url) {
         lastReadAt: row.lastReadAt,
         isNew: row.isNew === 1
     }));
+
+    const requestedLang = url.searchParams.get('lang');
+    const preferredLang = detectPreferredLanguage(request, requestedLang);
+    const normalizedLang = normalizeLanguageCode(preferredLang);
+    const shouldTranslate = normalizedLang && !shouldSkipTranslation(normalizedLang) && isTargetLanguageSupported(env, normalizedLang);
+
+    if (shouldTranslate && comments.length > 0) {
+        await ensureCommentTranslations(env.DB);
+        const commentIds = comments.map(comment => comment.commentId).filter(Boolean);
+        let translationMap = await fetchCommentTranslations(env.DB, commentIds, normalizedLang);
+        const missing = comments.filter(comment => comment.commentId && !translationMap.has(comment.commentId));
+        if (missing.length > 0) {
+            for (const item of missing) {
+                const translated = await translateAndCacheComment(env, item.commentId, item.content, normalizedLang);
+                if (translated) {
+                    translationMap.set(item.commentId, translated);
+                }
+            }
+        }
+        comments = comments.map(item => {
+            if (!translationMap.has(item.commentId)) return item;
+            const translated = translationMap.get(item.commentId);
+            return {
+                ...item,
+                originalContent: item.content,
+                content: translated.translatedContent,
+                translationMeta: {
+                    language: normalizedLang,
+                    provider: 'baidu',
+                    source: 'machine',
+                    detectedSource: translated.detectedSource || 'auto'
+                }
+            };
+        });
+    }
 
     const hasUnread = comments.some(comment => comment.isNew);
 
@@ -294,6 +461,18 @@ async function handlePostComment(env, request) {
         content,
         createdAt
     ).run();
+
+    try {
+        const targets = getTranslationTargets(env).filter(lang => !shouldSkipTranslation(lang));
+        if (targets.length > 0) {
+            await ensureCommentTranslations(env.DB);
+            for (const target of targets) {
+                await translateAndCacheComment(env, commentId, content, target);
+            }
+        }
+    } catch (translationError) {
+        console.error('[comments API] Failed to pre-translate comment:', translationError.message);
+    }
 
     return new Response(JSON.stringify({
         success: true,

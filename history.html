@@ -243,6 +243,11 @@
             { "grade": "H", "nameKey": "resultsPage.grade.H", "min_score": 30, "color": "orange" },
             { "grade": "O", "nameKey": "resultsPage.grade.O", "min_score": 0, "color": "red" }
         ];
+
+        function getPreferredLanguageParam() {
+            const source = (window.i18next?.language || navigator.language || 'zh').toLowerCase();
+            return source.split('-')[0];
+        }
         // --- End Global Variables ---
 
         let commentParticipationData = [];
@@ -566,6 +571,7 @@
 
             try {
                  const apiUrl = new URL('/api/ratings', window.location.origin);
+                 apiUrl.searchParams.set('lang', getPreferredLanguageParam());
                  // No need to pass userId, API determines based on token/role
                  const response = await fetch(apiUrl, { headers: { 'Authorization': `Bearer ${token}` } });
                  if (!response.ok) { let errorText = `Load failed: ${response.status}`; try { const err = await response.json(); errorText = err.error || errorText; } catch(e){/*ignore*/} throw new Error(errorText); }
@@ -786,7 +792,53 @@
 
                     const content = document.createElement('div');
                     content.className = 'mt-1 text-sm text-gray-700 whitespace-pre-wrap break-words bg-gray-50 border border-gray-100 rounded-md p-3';
-                    content.textContent = comment.content;
+                    const translatedParagraph = document.createElement('p');
+                    translatedParagraph.className = 'whitespace-pre-wrap break-words';
+                    translatedParagraph.textContent = comment.content || '';
+                    content.appendChild(translatedParagraph);
+
+                    const translationMeta = comment.translationMeta;
+                    const preferredLang = getPreferredLanguageParam();
+                    const hasTranslation = Boolean(
+                        translationMeta && translationMeta.language === preferredLang &&
+                        comment.originalContent && comment.content && comment.content !== comment.originalContent
+                    );
+
+                    if (hasTranslation) {
+                        const infoRow = document.createElement('div');
+                        infoRow.className = 'mt-2 flex flex-wrap items-center gap-3 text-xs text-indigo-600';
+
+                        const badge = document.createElement('span');
+                        badge.textContent = i18next.t('translation.machineTranslated');
+                        infoRow.appendChild(badge);
+
+                        const toggleButton = document.createElement('button');
+                        toggleButton.type = 'button';
+                        toggleButton.className = 'underline hover:text-indigo-700 focus:outline-none focus:ring-0';
+                        toggleButton.textContent = i18next.t('translation.viewOriginal');
+
+                        const originalParagraph = document.createElement('p');
+                        originalParagraph.className = 'mt-2 hidden text-xs text-gray-600 whitespace-pre-wrap break-words';
+                        originalParagraph.textContent = comment.originalContent || '';
+
+                        let showingOriginal = false;
+                        toggleButton.addEventListener('click', event => {
+                            event.preventDefault();
+                            showingOriginal = !showingOriginal;
+                            if (showingOriginal) {
+                                originalParagraph.classList.remove('hidden');
+                                toggleButton.textContent = i18next.t('translation.viewTranslation');
+                            } else {
+                                originalParagraph.classList.add('hidden');
+                                toggleButton.textContent = i18next.t('translation.viewOriginal');
+                            }
+                        });
+
+                        infoRow.appendChild(toggleButton);
+                        content.appendChild(infoRow);
+                        content.appendChild(originalParagraph);
+                    }
+
                     entry.appendChild(content);
 
                     commentList.appendChild(entry);
@@ -858,14 +910,62 @@
 
                 if (item.content) {
                     const commentBlock = document.createElement('div');
-                    commentBlock.className = 'mt-3 text-sm text-gray-700 whitespace-pre-wrap break-words bg-gray-50 border border-gray-100 rounded-md p-3';
+                    commentBlock.className = 'mt-3 text-sm text-gray-700 bg-gray-50 border border-gray-100 rounded-md p-3';
                     const label = document.createElement('span');
-                    label.className = 'font-semibold text-gray-600 mr-2';
+                    label.className = 'font-semibold text-gray-600';
                     label.textContent = i18next.t('historyPage.commentPreviewLabel');
-                    const text = document.createElement('span');
-                    text.textContent = item.content;
                     commentBlock.appendChild(label);
-                    commentBlock.appendChild(text);
+
+                    const textWrapper = document.createElement('div');
+                    textWrapper.className = 'mt-1 whitespace-pre-wrap break-words';
+                    const translatedParagraph = document.createElement('p');
+                    translatedParagraph.className = 'whitespace-pre-wrap break-words';
+                    translatedParagraph.textContent = item.content || '';
+                    textWrapper.appendChild(translatedParagraph);
+                    commentBlock.appendChild(textWrapper);
+
+                    const translationMeta = item.translationMeta;
+                    const preferredLang = getPreferredLanguageParam();
+                    const hasTranslation = Boolean(
+                        translationMeta && translationMeta.language === preferredLang &&
+                        item.originalContent && item.content && item.content !== item.originalContent
+                    );
+
+                    if (hasTranslation) {
+                        const infoRow = document.createElement('div');
+                        infoRow.className = 'mt-2 flex flex-wrap items-center gap-3 text-xs text-indigo-600';
+
+                        const badge = document.createElement('span');
+                        badge.textContent = i18next.t('translation.machineTranslated');
+                        infoRow.appendChild(badge);
+
+                        const toggleButton = document.createElement('button');
+                        toggleButton.type = 'button';
+                        toggleButton.className = 'underline hover:text-indigo-700 focus:outline-none focus:ring-0';
+                        toggleButton.textContent = i18next.t('translation.viewOriginal');
+
+                        const originalParagraph = document.createElement('p');
+                        originalParagraph.className = 'mt-2 hidden text-xs text-gray-600 whitespace-pre-wrap break-words';
+                        originalParagraph.textContent = item.originalContent || '';
+
+                        let showingOriginal = false;
+                        toggleButton.addEventListener('click', event => {
+                            event.preventDefault();
+                            showingOriginal = !showingOriginal;
+                            if (showingOriginal) {
+                                originalParagraph.classList.remove('hidden');
+                                toggleButton.textContent = i18next.t('translation.viewTranslation');
+                            } else {
+                                originalParagraph.classList.add('hidden');
+                                toggleButton.textContent = i18next.t('translation.viewOriginal');
+                            }
+                        });
+
+                        infoRow.appendChild(toggleButton);
+                        commentBlock.appendChild(infoRow);
+                        commentBlock.appendChild(originalParagraph);
+                    }
+
                     card.appendChild(commentBlock);
                 }
 
@@ -912,6 +1012,7 @@
 
             try {
                 const apiUrl = new URL('/api/comments', window.location.origin);
+                apiUrl.searchParams.set('lang', getPreferredLanguageParam());
                 apiUrl.searchParams.set('mine', 'true');
                 const response = await fetch(apiUrl, { headers: { 'Authorization': `Bearer ${token}` } });
                 if (!response.ok) {
@@ -979,6 +1080,7 @@
 
             try {
                 const apiUrl = new URL('/api/comments', window.location.origin);
+                apiUrl.searchParams.set('lang', getPreferredLanguageParam());
                 apiUrl.searchParams.set('owned', 'true');
                 if (markRead) {
                     apiUrl.searchParams.set('markRead', 'true');

@@ -4,6 +4,16 @@
 // **MODIFIED**: Allows anonymous GET for single ID
 // ---------------------------------------------------
 
+import {
+    detectPreferredLanguage,
+    normalizeLanguageCode,
+    isTargetLanguageSupported,
+    getTranslationTargets,
+    translateText,
+    ensureRatingTranslationTable,
+    storeRatingTranslation
+} from './utils/translation.js';
+
 /**
  * 验证 Authing Token 并返回用户信息 (包含 db_role)
  */
@@ -70,6 +80,113 @@ async function ensureCommentSupportTables(db) {
     commentSupportEnsured = true;
 }
 
+let ratingTranslationEnsured = false;
+
+async function ensureRatingTranslations(db) {
+    if (ratingTranslationEnsured) return;
+    await ensureRatingTranslationTable(db);
+    ratingTranslationEnsured = true;
+}
+
+function shouldSkipTranslation(lang) {
+    const normalized = normalizeLanguageCode(lang);
+    if (!normalized) return true;
+    return normalized === 'zh' || normalized === 'zh-cn';
+}
+
+async function translateAndCacheRating(env, ratingId, ratingPayload, targetLang) {
+    const normalizedLang = normalizeLanguageCode(targetLang);
+    if (!normalizedLang || shouldSkipTranslation(normalizedLang)) {
+        return null;
+    }
+    await ensureRatingTranslations(env.DB);
+
+    const titleText = ratingPayload?.title || '';
+    const reviewText = ratingPayload?.cigarReview || '';
+    let translatedTitle = null;
+    let translatedReview = null;
+    let detectedSource = 'auto';
+
+    if (titleText) {
+        const translation = await translateText(env, titleText, normalizedLang);
+        if (translation.success) {
+            translatedTitle = translation.text;
+            detectedSource = translation.detectedSource || detectedSource;
+        }
+    }
+
+    if (reviewText) {
+        const translation = await translateText(env, reviewText, normalizedLang);
+        if (translation.success) {
+            translatedReview = translation.text;
+            detectedSource = translation.detectedSource || detectedSource;
+        }
+    }
+
+    if (!translatedTitle && !translatedReview) {
+        return null;
+    }
+
+    await storeRatingTranslation(env.DB, ratingId, normalizedLang, translatedTitle, translatedReview, detectedSource);
+    return {
+        translatedTitle,
+        translatedReview,
+        detectedSource
+    };
+}
+
+async function fetchRatingTranslations(db, ratingIds, targetLang) {
+    if (!ratingIds || ratingIds.length === 0) return new Map();
+    const normalizedLang = normalizeLanguageCode(targetLang);
+    if (!normalizedLang) return new Map();
+    const placeholders = ratingIds.map(() => '?').join(', ');
+    const stmt = db.prepare(`
+        SELECT ratingId, translatedTitle, translatedReview, detectedSource
+        FROM rating_translations
+        WHERE targetLang = ? AND ratingId IN (${placeholders})
+    `).bind(normalizedLang, ...ratingIds);
+    const { results } = await stmt.all();
+    const map = new Map();
+    (results || []).forEach(row => {
+        if (row && row.ratingId) {
+            map.set(row.ratingId, {
+                translatedTitle: row.translatedTitle,
+                translatedReview: row.translatedReview,
+                detectedSource: row.detectedSource || 'auto'
+            });
+        }
+    });
+    return map;
+}
+
+function applyRatingTranslation(rating, translation, normalizedLang) {
+    if (!translation) return rating;
+    const mutated = rating;
+    mutated.translationMeta = {
+        language: normalizedLang,
+        provider: 'baidu',
+        source: 'machine',
+        detectedSource: translation.detectedSource || 'auto'
+    };
+    if (translation.translatedTitle) {
+        mutated.originalTitle = rating.title;
+        mutated.title = translation.translatedTitle;
+    }
+    if (translation.translatedReview) {
+        mutated.originalCigarReview = rating.cigarReview;
+        mutated.cigarReview = translation.translatedReview;
+        if (mutated.fullData && typeof mutated.fullData === 'object') {
+            mutated.fullData.originalCigarReview = mutated.fullData.cigarReview || rating.cigarReview || null;
+            mutated.fullData.cigarReview = translation.translatedReview;
+        }
+        if (mutated.mobileData && typeof mutated.mobileData === 'object') {
+            mutated.mobileData.originalCigarReview = mutated.mobileData.cigarReview || rating.cigarReview || null;
+            mutated.mobileData.cigarReview = translation.translatedReview;
+        }
+    }
+    return mutated;
+}
+
 // --- API: GET /api/ratings ---
 export async function onRequestGet(context) {
      const { request, env } = context;
@@ -77,7 +194,11 @@ export async function onRequestGet(context) {
      const viewMode = url.searchParams.get('view') || 'default';
      const getCertified = url.searchParams.get('certified') === 'true';
      const singleRatingId = url.searchParams.get('id');
-     console.log(`[GET /api/ratings] Request URL: ${request.url}, Certified: ${getCertified}, Single ID: ${singleRatingId}, View: ${viewMode}`);
+     const requestedLang = url.searchParams.get('lang');
+     const preferredLang = detectPreferredLanguage(request, requestedLang);
+     const normalizedLang = normalizeLanguageCode(preferredLang);
+     const shouldTranslateRatings = normalizedLang && !shouldSkipTranslation(normalizedLang) && isTargetLanguageSupported(env, normalizedLang);
+     console.log(`[GET /api/ratings] Request URL: ${request.url}, Certified: ${getCertified}, Single ID: ${singleRatingId}, View: ${viewMode}, Lang: ${normalizedLang || 'default'}`);
 
      try {
          let stmt;
@@ -150,7 +271,23 @@ export async function onRequestGet(context) {
                  }
              }
 
-             return new Response(JSON.stringify(result), { headers: { 'Content-Type': 'application/json' } });
+            if (shouldTranslateRatings) {
+                await ensureRatingTranslations(env.DB);
+                const translationMap = await fetchRatingTranslations(env.DB, [result.id], normalizedLang);
+                let translation = translationMap.get(result.id);
+                if (!translation) {
+                    const payload = {
+                        title: result.title,
+                        cigarReview: result.cigarReview || (result.fullData && result.fullData.cigarReview) || null
+                    };
+                    translation = await translateAndCacheRating(env, result.id, payload, normalizedLang);
+                }
+                if (translation) {
+                    applyRatingTranslation(result, translation, normalizedLang);
+                }
+            }
+
+            return new Response(JSON.stringify(result), { headers: { 'Content-Type': 'application/json' } });
 
          } else { // List view (Community, History, Certified)
              if (getCertified) { stmt = env.DB.prepare(`SELECT ${selectFields} FROM ratings r WHERE r.isCertified = 1 ${defaultOrderBy}`); }
@@ -161,7 +298,7 @@ export async function onRequestGet(context) {
              const { results } = await stmt.all();
              console.log(`[GET /api/ratings] Found ${results.length} ratings in list view.`);
 
-             const parsedResults = results.map(row => {
+            let parsedResults = results.map(row => {
                  try { if (row.fullData && typeof row.fullData === 'string') { row.fullData = JSON.parse(row.fullData); if (!row.fullData || !row.fullData.config || !row.fullData.ratings || row.fullData.calculatedScore === undefined) { row.fullData = null; } } else if (!row.fullData) { row.fullData = null; } }
                  catch (e) { console.error(`Failed to parse fullData for list item ID ${row.id}:`, e.message); row.fullData = null; }
                  try { if (row.imageUrl && typeof row.imageUrl === 'string') { row.imageUrl = JSON.parse(row.imageUrl); } else { row.imageUrl = Array.isArray(row.imageUrl) ? row.imageUrl : []; } }
@@ -172,6 +309,30 @@ export async function onRequestGet(context) {
                 row.hasNewComments = false;
                 return row;
             });
+
+            if (shouldTranslateRatings && parsedResults.length > 0) {
+                await ensureRatingTranslations(env.DB);
+                const ratingIds = parsedResults.map(row => row.id).filter(Boolean);
+                let translationMap = await fetchRatingTranslations(env.DB, ratingIds, normalizedLang);
+                const missing = parsedResults.filter(row => row.id && !translationMap.has(row.id));
+                if (missing.length > 0) {
+                    for (const row of missing) {
+                        const payload = {
+                            title: row.title,
+                            cigarReview: row.cigarReview || (row.fullData && row.fullData.cigarReview) || null
+                        };
+                        const translated = await translateAndCacheRating(env, row.id, payload, normalizedLang);
+                        if (translated) {
+                            translationMap.set(row.id, translated);
+                        }
+                    }
+                }
+                parsedResults = parsedResults.map(row => {
+                    const translation = translationMap.get(row.id);
+                    if (!translation) return row;
+                    return applyRatingTranslation(row, translation, normalizedLang);
+                });
+            }
 
             if (!getCertified && userInfo && !(currentUserRole === 'admin' || currentUserRole === 'super_admin')) {
                 try {
@@ -250,6 +411,21 @@ export async function onRequestPost(context) {
            newId, userInfo.sub, userInfo.email ?? null, nickname ?? null, new Date().toISOString(), ratingToSave.title, ratingToSave?.cigarInfo?.name ?? null, ratingToSave?.cigarInfo?.size ?? null, ratingToSave?.cigarInfo?.origin ?? null, ratingToSave?.normalizedScore ?? null, ratingToSave?.finalGrade?.grade ?? null, ratingToSave?.finalGrade?.name_cn ?? null, false, null, imageUrlsString, ratingToSave?.cigarReview ?? null, false, JSON.stringify(ratingToSave)
          ).run();
          console.log(`[POST /api/ratings] Successfully inserted ID ${newId}`);
+         try {
+             const payload = {
+                 title: ratingToSave.title,
+                 cigarReview: ratingToSave?.cigarReview || (ratingToSave?.fullData && ratingToSave.fullData.cigarReview) || null
+             };
+             const targets = getTranslationTargets(env).filter(lang => !shouldSkipTranslation(lang));
+             if (targets.length > 0) {
+                 await ensureRatingTranslations(env.DB);
+                 for (const target of targets) {
+                     await translateAndCacheRating(env, newId, payload, target);
+                 }
+             }
+         } catch (translationError) {
+             console.error('[POST /api/ratings] Failed to pre-translate rating:', translationError.message);
+         }
          // **MODIFIED**: Return the new ID in the success response
          return new Response(JSON.stringify({ success: true, id: newId }), { status: 201, headers: { 'Content-Type': 'application/json' } });
      } catch (e) {
@@ -272,11 +448,26 @@ export async function onRequestPut(context) {
          const isOwner = originalRating.userId === userInfo.sub; const isAdmin = userInfo.db_role === 'admin' || userInfo.db_role === 'super_admin'; console.log(`[PUT /api/ratings] Is Owner: ${isOwner}, Is Admin: ${isAdmin}`); if (!isOwner && !isAdmin) throw new Error("Permission denied to edit this rating.");
          const imageUrlsString = JSON.stringify(ratingToSave.imageUrls || []);
          console.log(`[PUT /api/ratings] Preparing to update ID ${ratingId}`);
-         await env.DB.prepare(
-           `UPDATE ratings SET timestamp = ?, title = ?, cigarName = ?, cigarSize = ?, cigarOrigin = ?, normalizedScore = ?, finalGrade_grade = ?, finalGrade_name_cn = ?, imageUrl = ?, cigarReview = ?, fullData = ? WHERE id = ?`
-         ).bind( new Date().toISOString(), ratingToSave.title, ratingToSave?.cigarInfo?.name ?? null, ratingToSave?.cigarInfo?.size ?? null, ratingToSave?.cigarInfo?.origin ?? null, ratingToSave?.normalizedScore ?? null, ratingToSave?.finalGrade?.grade ?? null, ratingToSave?.finalGrade?.name_cn ?? null, imageUrlsString, ratingToSave?.cigarReview ?? null, JSON.stringify(ratingToSave), ratingId ).run();
-         console.log(`[PUT /api/ratings] Successfully updated ID ${ratingId}`);
-         return new Response(JSON.stringify({ success: true, id: ratingId }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+        await env.DB.prepare(
+          `UPDATE ratings SET timestamp = ?, title = ?, cigarName = ?, cigarSize = ?, cigarOrigin = ?, normalizedScore = ?, finalGrade_grade = ?, finalGrade_name_cn = ?, imageUrl = ?, cigarReview = ?, fullData = ? WHERE id = ?`
+        ).bind( new Date().toISOString(), ratingToSave.title, ratingToSave?.cigarInfo?.name ?? null, ratingToSave?.cigarInfo?.size ?? null, ratingToSave?.cigarInfo?.origin ?? null, ratingToSave?.normalizedScore ?? null, ratingToSave?.finalGrade?.grade ?? null, ratingToSave?.finalGrade?.name_cn ?? null, imageUrlsString, ratingToSave?.cigarReview ?? null, JSON.stringify(ratingToSave), ratingId ).run();
+        console.log(`[PUT /api/ratings] Successfully updated ID ${ratingId}`);
+        try {
+            const payload = {
+                title: ratingToSave.title,
+                cigarReview: ratingToSave?.cigarReview || (ratingToSave?.fullData && ratingToSave.fullData.cigarReview) || null
+            };
+            const targets = getTranslationTargets(env).filter(lang => !shouldSkipTranslation(lang));
+            if (targets.length > 0) {
+                await ensureRatingTranslations(env.DB);
+                for (const target of targets) {
+                    await translateAndCacheRating(env, ratingId, payload, target);
+                }
+            }
+        } catch (translationError) {
+            console.error('[PUT /api/ratings] Failed to refresh rating translations:', translationError.message);
+        }
+        return new Response(JSON.stringify({ success: true, id: ratingId }), { status: 200, headers: { 'Content-Type': 'application/json' } });
      } catch (e) {
           console.error("[PUT /api/ratings] Update rating error:", e.message, e); let errorMessage = e.message || 'An unknown error occurred while updating the rating.'; let statusCode = 500; if (e.message.includes('token') || e.message.includes('需要登录')) statusCode = 401; if (e.message.includes('Permission denied')) statusCode = 403; if (e.message.includes("not found")) statusCode = 404; if (e.message.includes('Cannot save rating update') || e.message.includes('Title is missing')) statusCode = 400; return new Response(JSON.stringify({ error: errorMessage }), { status: statusCode, headers: { 'Content-Type': 'application/json' } });
      }
