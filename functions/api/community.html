@@ -197,7 +197,8 @@
 
             try {
                 // Fetch public ratings (no token needed, as handled by API)
-                const response = await fetch('/api/ratings');
+                const currentLang = (i18next.language || 'zh').split('-')[0];
+                const response = await fetch(`/api/ratings?lang=${currentLang}`);
                 if (!response.ok) {
                     throw new Error(i18next.t('errors.apiError', { status: response.statusText }));
                 }
