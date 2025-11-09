@@ -1053,9 +1053,6 @@
                     position: shareCardElement.style.position,
                     left: shareCardElement.style.left,
                     top: shareCardElement.style.top,
-                    right: shareCardElement.style.right,
-                    bottom: shareCardElement.style.bottom,
-                    margin: shareCardElement.style.margin,
                     transform: shareCardElement.style.transform,
                     zIndex: shareCardElement.style.zIndex,
                     pointerEvents: shareCardElement.style.pointerEvents,
@@ -1064,12 +1061,9 @@
                 // Move the share card into the viewport with full opacity so mobile browsers render it for capture.
                 shareCardElement.style.visibility = 'visible';
                 shareCardElement.style.position = 'fixed';
-                shareCardElement.style.left = '0';
-                shareCardElement.style.top = '16px';
-                shareCardElement.style.right = '0';
-                shareCardElement.style.bottom = 'auto';
-                shareCardElement.style.margin = '0 auto';
-                shareCardElement.style.transform = 'none';
+                shareCardElement.style.left = '50%';
+                shareCardElement.style.top = '50%';
+                shareCardElement.style.transform = 'translate(-50%, -50%)';
                 shareCardElement.style.pointerEvents = 'none';
                 shareCardElement.style.zIndex = '-1';
                 shareCardElement.style.opacity = '1';
@@ -1151,11 +1145,8 @@
                  return false;
             } finally {
                  shareCardElement.style.position = shareCardOriginalStyles?.position ?? '';
-                shareCardElement.style.left = shareCardOriginalStyles?.left ?? '';
-                shareCardElement.style.top = shareCardOriginalStyles?.top ?? '';
-                shareCardElement.style.right = shareCardOriginalStyles?.right ?? '';
-                shareCardElement.style.bottom = shareCardOriginalStyles?.bottom ?? '';
-                shareCardElement.style.margin = shareCardOriginalStyles?.margin ?? '';
+                 shareCardElement.style.left = shareCardOriginalStyles?.left ?? '';
+                 shareCardElement.style.top = shareCardOriginalStyles?.top ?? '';
                  shareCardElement.style.transform = shareCardOriginalStyles?.transform ?? '';
                  shareCardElement.style.zIndex = shareCardOriginalStyles?.zIndex ?? '';
                  shareCardElement.style.pointerEvents = shareCardOriginalStyles?.pointerEvents ?? '';
