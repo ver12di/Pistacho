@@ -1047,7 +1047,9 @@
                 size: document.getElementById('cigar-size').value || i18next.t('common.unknown'), // Use translated 'unknown'
                 origin: document.getElementById('cigar-origin').value || i18next.t('common.unknown') // Use translated 'unknown'
             };
-            const cigarReview = reviewTextarea.value || i18next.t('common.noReview'); // Use translated default
+            const reviewRaw = reviewTextarea.value ? reviewTextarea.value.trim() : '';
+            const cigarReview = reviewRaw || '';
+            const sourceLanguage = (i18next.language || 'zh').split('-')[0];
             const finalScore = calculateFinalScore();
             const maxScore = ratingConfig.totalWeightMax || 1; // Avoid division by zero
             const normalizedScore = maxScore > 0 ? (finalScore / maxScore) * 100 : 0; // Normalize score to 0-100
@@ -1075,7 +1077,8 @@
                 selectedFlavors: selectedFlavors, // Array of selected flavor keys
                 isDraft: !isEditMode,           // Mark as draft if it's a new rating
                 userNickname: currentAuthUser?.nickname || currentAuthUser?.name || currentAuthUser?.preferred_username || currentAuthUser?.email,
-                userEmail: currentAuthUser?.email
+                userEmail: currentAuthUser?.email,
+                sourceLanguage: sourceLanguage
             };
 
             // --- ADDED LOG ---
@@ -1145,6 +1148,8 @@
                 if (shouldUseCompactApiPayload()) {
                     apiUrl.searchParams.set('view', 'mobile');
                 }
+                const currentLang = (i18next.language || 'zh').split('-')[0];
+                apiUrl.searchParams.set('lang', currentLang);
                 const response = await fetch(apiUrl, { headers: { 'Authorization': `Bearer ${token}` } });
                 if (!response.ok) { throw new Error(i18next.t('ratePage.editLoadFailed', { msg: `Status ${response.status}` })); }
 

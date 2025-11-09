@@ -593,6 +593,9 @@
                 }
                 if (!data.cigarReview && fullData.cigarReview) data.cigarReview = fullData.cigarReview;
                 if (!data.finalGrade && fullData.finalGrade) data.finalGrade = fullData.finalGrade;
+                if (!data.translations && fullData.translations) data.translations = fullData.translations;
+                if (!data.sourceLanguage && fullData.sourceLanguage) data.sourceLanguage = fullData.sourceLanguage;
+                if (!data.availableLanguages && fullData.availableLanguages) data.availableLanguages = fullData.availableLanguages;
                 if (fullData.cigarInfo) {
                     const info = fullData.cigarInfo;
                     const existing = data.cigarInfo && typeof data.cigarInfo === 'object' ? data.cigarInfo : {};
@@ -2118,8 +2121,10 @@
                              }
                          }
                          const token = sessionStorage.getItem('accessToken');
-                         const apiUrl = new URL(`/api/ratings?id=${ratingId}`, window.location.origin);
-                         // Allow anonymous fetch if no token (API handles public read)
+                        const apiUrl = new URL(`/api/ratings?id=${ratingId}`, window.location.origin);
+                        const currentLang = (i18next.language || 'zh').split('-')[0];
+                        apiUrl.searchParams.set('lang', currentLang);
+                        // Allow anonymous fetch if no token (API handles public read)
                          const fetchOptions = token ? { headers: { 'Authorization': `Bearer ${token}` } } : {};
                          const response = await fetch(apiUrl, fetchOptions);
                          if (!response.ok) {
