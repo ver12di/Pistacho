@@ -232,6 +232,11 @@
 
 
         // --- Core API Call with Improved Error Handling ---
+        function getPreferredLanguageParam() {
+            const source = (window.i18next?.language || navigator.language || 'zh').toLowerCase();
+            return source.split('-')[0];
+        }
+
         async function fetchAndRenderCertified() {
              loadingIndicator.textContent = i18next.t('certifiedPage.loading');
              loadingIndicator.style.display = 'block';
@@ -241,6 +246,7 @@
             try {
                 const apiUrl = new URL('/api/ratings', window.location.origin);
                 apiUrl.searchParams.set('certified', 'true');
+                apiUrl.searchParams.set('lang', getPreferredLanguageParam());
                 const response = await fetch(apiUrl);
 
                 if (!response.ok) {
