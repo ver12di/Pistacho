@@ -240,6 +240,8 @@
 
             try {
                 const apiUrl = new URL('/api/ratings', window.location.origin);
+                const currentLang = (i18next.language || 'zh').split('-')[0];
+                apiUrl.searchParams.set('lang', currentLang);
                 apiUrl.searchParams.set('certified', 'true');
                 const response = await fetch(apiUrl);
 
@@ -321,6 +323,7 @@
                 return;
             }
             let detailedData = {};
+            const sourceLanguage = (i18next.language || 'zh').split('-')[0];
             const cigarInfo = ratingData.cigarInfo || { name: ratingData.cigarName, size: ratingData.cigarSize, origin: ratingData.cigarOrigin };
             
             // **MODIFIED**: Reconstruct grade using i18n
@@ -353,7 +356,7 @@
                      calculatedScore: ratingData.fullData.calculatedScore,
                      title: ratingData.title || i18next.t('certifiedPage.noTitle'),
                      cigarInfo: cigarInfo,
-                     cigarReview: ratingData.cigarReview || '无',
+                    cigarReview: ratingData.cigarReview || i18next.t('common.noReview'),
                      imageUrls: imageUrls,
                      normalizedScore: ratingData.normalizedScore,
                      finalGrade: finalGrade, // Pass grade object with nameKey
@@ -361,14 +364,15 @@
                      timestamp: ratingData.timestamp,
                      userNickname: ratingData.userNickname,
                      userEmail: ratingData.userEmail,
-                     isDraft: false
+                     isDraft: false,
+                     sourceLanguage: sourceLanguage
                  };
             } else {
                  detailedData = {
                      ...detailedData,
                      title: ratingData.title || i18next.t('certifiedPage.noTitle'),
                      cigarInfo: cigarInfo,
-                     cigarReview: ratingData.cigarReview || '无',
+                    cigarReview: ratingData.cigarReview || i18next.t('common.noReview'),
                      imageUrls: imageUrls,
                      normalizedScore: ratingData.normalizedScore,
                      finalGrade: finalGrade, // Pass grade object with nameKey
@@ -376,7 +380,8 @@
                      timestamp: ratingData.timestamp,
                      userNickname: ratingData.userNickname,
                      userEmail: ratingData.userEmail,
-                     isDraft: false
+                     isDraft: false,
+                     sourceLanguage: sourceLanguage
                  };
             }
             try {

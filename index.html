@@ -643,6 +643,8 @@
             ratingsGrid.innerHTML = '';
             try {
                 const apiUrl = new URL('/api/ratings', window.location.origin);
+                const currentLang = (i18next.language || 'zh').split('-')[0];
+                apiUrl.searchParams.set('lang', currentLang);
                 const response = await fetch(apiUrl);
                 if (!response.ok) {
                     let errorText = `Load failed: ${response.status}`;
@@ -1022,19 +1024,21 @@
 
             const hasCompleteFullData = ratingData.fullData && ratingData.fullData.config && ratingData.fullData.ratings && ratingData.fullData.calculatedScore !== undefined;
 
+            const sourceLanguage = (i18next.language || 'zh').split('-')[0];
             detailedData = {
-                 ratingId: ratingData.id,
-                 title: ratingData.title,
-                 cigarInfo: cigarInfo,
-                 cigarReview: ratingData.cigarReview || '',
-                 imageUrls: imageUrls,
-                 normalizedScore: ratingData.normalizedScore,
-                 finalGrade: finalGrade,
-                 selectedFlavors: selectedFlavors,
-                 timestamp: ratingData.timestamp,
-                 userNickname: ratingData.userNickname,
-                 userEmail: ratingData.userEmail,
-                 isDraft: false // Data from index/history is NEVER a draft
+                ratingId: ratingData.id,
+                title: ratingData.title,
+                cigarInfo: cigarInfo,
+                cigarReview: ratingData.cigarReview || '',
+                imageUrls: imageUrls,
+                normalizedScore: ratingData.normalizedScore,
+                finalGrade: finalGrade,
+                selectedFlavors: selectedFlavors,
+                timestamp: ratingData.timestamp,
+                userNickname: ratingData.userNickname,
+                userEmail: ratingData.userEmail,
+                isDraft: false, // Data from index/history is NEVER a draft
+                sourceLanguage: sourceLanguage
             };
 
             if (hasCompleteFullData) {

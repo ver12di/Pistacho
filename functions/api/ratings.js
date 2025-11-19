@@ -4,6 +4,79 @@
 // **MODIFIED**: Allows anonymous GET for single ID
 // ---------------------------------------------------
 
+import { buildTranslationMap, normalizeLanguageTag, SUPPORTED_LANGUAGES } from './translation.js';
+
+function sanitizeString(input) {
+    if (typeof input !== 'string') return '';
+    return input.trim();
+}
+
+function extractTranslationBucket(rating) {
+    if (!rating || typeof rating !== 'object') return null;
+    if (rating.translations && typeof rating.translations === 'object') {
+        return rating.translations;
+    }
+    const fullData = rating.fullData;
+    if (fullData && typeof fullData === 'object' && typeof fullData.translations === 'object') {
+        return fullData.translations;
+    }
+    return null;
+}
+
+function pickLocalizedValue(originalValue, translations, requestedLanguage) {
+    if (!translations || typeof translations !== 'object') {
+        return originalValue ?? '';
+    }
+    const normalizedLang = normalizeLanguageTag(requestedLanguage, 'zh');
+    const directValue = translations[normalizedLang];
+    if (typeof directValue === 'string' && directValue.trim() !== '') {
+        return directValue;
+    }
+    if (normalizedLang !== 'zh') {
+        const zhValue = translations.zh;
+        if (typeof zhValue === 'string' && zhValue.trim() !== '') {
+            return zhValue;
+        }
+    }
+    for (const langKey of SUPPORTED_LANGUAGES) {
+        const candidate = translations[langKey];
+        if (typeof candidate === 'string' && candidate.trim() !== '') {
+            return candidate;
+        }
+    }
+    const firstAvailable = Object.values(translations).find(val => typeof val === 'string');
+    return (typeof firstAvailable === 'string') ? firstAvailable : (originalValue ?? '');
+}
+
+function applyTranslationsToRating(rating, requestedLanguage) {
+    if (!rating || typeof rating !== 'object') return;
+    const translationBucket = extractTranslationBucket(rating);
+    if (!translationBucket) return;
+    rating.translations = translationBucket;
+    const normalizedLang = normalizeLanguageTag(requestedLanguage, 'zh');
+    if (translationBucket.title) {
+        rating.title = pickLocalizedValue(rating.title, translationBucket.title, normalizedLang);
+    }
+    if (translationBucket.cigarReview) {
+        rating.cigarReview = pickLocalizedValue(rating.cigarReview, translationBucket.cigarReview, normalizedLang);
+    }
+    if (rating.fullData && typeof rating.fullData === 'object') {
+        if (translationBucket.title) {
+            rating.fullData.localizedTitle = rating.title;
+        }
+        if (translationBucket.cigarReview) {
+            rating.fullData.localizedCigarReview = rating.cigarReview;
+        }
+        rating.fullData.translations = translationBucket;
+        if (!rating.sourceLanguage && rating.fullData.sourceLanguage) {
+            rating.sourceLanguage = rating.fullData.sourceLanguage;
+        }
+        if (!rating.availableLanguages && rating.fullData.availableLanguages) {
+            rating.availableLanguages = rating.fullData.availableLanguages;
+        }
+    }
+}
+
 /**
  * 验证 Authing Token 并返回用户信息 (包含 db_role)
  */
@@ -77,6 +150,7 @@ export async function onRequestGet(context) {
      const viewMode = url.searchParams.get('view') || 'default';
      const getCertified = url.searchParams.get('certified') === 'true';
      const singleRatingId = url.searchParams.get('id');
+     const requestedLang = normalizeLanguageTag(url.searchParams.get('lang') || 'zh', 'zh');
      console.log(`[GET /api/ratings] Request URL: ${request.url}, Certified: ${getCertified}, Single ID: ${singleRatingId}, View: ${viewMode}`);
 
      try {
@@ -150,6 +224,7 @@ export async function onRequestGet(context) {
                  }
              }
 
+             applyTranslationsToRating(result, requestedLang);
              return new Response(JSON.stringify(result), { headers: { 'Content-Type': 'application/json' } });
 
          } else { // List view (Community, History, Certified)
@@ -161,15 +236,16 @@ export async function onRequestGet(context) {
              const { results } = await stmt.all();
              console.log(`[GET /api/ratings] Found ${results.length} ratings in list view.`);
 
-             const parsedResults = results.map(row => {
-                 try { if (row.fullData && typeof row.fullData === 'string') { row.fullData = JSON.parse(row.fullData); if (!row.fullData || !row.fullData.config || !row.fullData.ratings || row.fullData.calculatedScore === undefined) { row.fullData = null; } } else if (!row.fullData) { row.fullData = null; } }
-                 catch (e) { console.error(`Failed to parse fullData for list item ID ${row.id}:`, e.message); row.fullData = null; }
-                 try { if (row.imageUrl && typeof row.imageUrl === 'string') { row.imageUrl = JSON.parse(row.imageUrl); } else { row.imageUrl = Array.isArray(row.imageUrl) ? row.imageUrl : []; } }
-                 catch (e) { console.error(`Failed to parse imageUrl JSON for list item ID ${row.id}:`, e.message); row.imageUrl = []; }
-                 row.cigarInfo = { name: row.cigarName, size: row.cigarSize, origin: row.cigarOrigin };
-                 if (row.finalGrade_grade && row.finalGrade_name_cn) { row.finalGrade = { grade: row.finalGrade_grade, name_cn: row.finalGrade_name_cn }; } else { row.finalGrade = null; }
+            const parsedResults = results.map(row => {
+                try { if (row.fullData && typeof row.fullData === 'string') { row.fullData = JSON.parse(row.fullData); if (!row.fullData || !row.fullData.config || !row.fullData.ratings || row.fullData.calculatedScore === undefined) { row.fullData = null; } } else if (!row.fullData) { row.fullData = null; } }
+                catch (e) { console.error(`Failed to parse fullData for list item ID ${row.id}:`, e.message); row.fullData = null; }
+                try { if (row.imageUrl && typeof row.imageUrl === 'string') { row.imageUrl = JSON.parse(row.imageUrl); } else { row.imageUrl = Array.isArray(row.imageUrl) ? row.imageUrl : []; } }
+                catch (e) { console.error(`Failed to parse imageUrl JSON for list item ID ${row.id}:`, e.message); row.imageUrl = []; }
+                row.cigarInfo = { name: row.cigarName, size: row.cigarSize, origin: row.cigarOrigin };
+                if (row.finalGrade_grade && row.finalGrade_name_cn) { row.finalGrade = { grade: row.finalGrade_grade, name_cn: row.finalGrade_name_cn }; } else { row.finalGrade = null; }
                 row.isPinned = !!row.isPinned;
                 row.hasNewComments = false;
+                applyTranslationsToRating(row, requestedLang);
                 return row;
             });
 
@@ -238,8 +314,23 @@ export async function onRequestPost(context) {
          const userInfo = await validateTokenAndGetUser(request, env); if (!userInfo) throw new Error("需要登录才能保存评分。"); console.log(`[POST /api/ratings] User validated: ${userInfo.sub}`);
          const ratingToSave = await request.json(); console.log(`[POST /api/ratings] Received rating data. Title: ${ratingToSave?.title}, Cigar: ${ratingToSave?.cigarInfo?.name}, Image count: ${ratingToSave?.imageUrls?.length}`);
          if (!ratingToSave || typeof ratingToSave !== 'object') throw new Error("Invalid rating data received.");
+         ratingToSave.title = sanitizeString(ratingToSave.title);
          if (!ratingToSave.title) throw new Error("Cannot save rating: Title is missing.");
+         ratingToSave.cigarReview = sanitizeString(ratingToSave.cigarReview);
          if (!ratingToSave.config || !ratingToSave.ratings || ratingToSave.calculatedScore === undefined) throw new Error("Cannot save rating: Data is incomplete (missing config, ratings, or calculatedScore).");
+         const normalizedSourceLanguage = normalizeLanguageTag(ratingToSave.sourceLanguage || 'zh', 'zh');
+         ratingToSave.sourceLanguage = normalizedSourceLanguage;
+         const [titleTranslations, reviewTranslations] = await Promise.all([
+             buildTranslationMap(env, ratingToSave.title, normalizedSourceLanguage),
+             buildTranslationMap(env, ratingToSave.cigarReview, normalizedSourceLanguage)
+         ]);
+         const translationsPayload = {};
+         if (titleTranslations) translationsPayload.title = titleTranslations;
+         if (reviewTranslations) translationsPayload.cigarReview = reviewTranslations;
+         if (Object.keys(translationsPayload).length > 0) {
+             ratingToSave.translations = translationsPayload;
+             ratingToSave.availableLanguages = [...SUPPORTED_LANGUAGES];
+         }
          const newId = crypto.randomUUID();
          const nickname = userInfo.nickname || userInfo.name || userInfo.preferred_username || userInfo.email;
          const imageUrlsString = JSON.stringify(ratingToSave.imageUrls || []);
@@ -265,11 +356,26 @@ export async function onRequestPut(context) {
          const ratingToSave = await request.json(); const ratingId = ratingToSave?.ratingId; console.log(`[PUT /api/ratings] Received update data for ID ${ratingId}. Title: ${ratingToSave?.title}, Cigar: ${ratingToSave?.cigarInfo?.name}, Image count: ${ratingToSave?.imageUrls?.length}`);
          if (!ratingId) throw new Error("Missing ratingId for update.");
          if (!ratingToSave || typeof ratingToSave !== 'object') throw new Error("Invalid rating data received.");
+         ratingToSave.title = sanitizeString(ratingToSave.title);
          if (!ratingToSave.title) throw new Error("Cannot save rating update: Title is missing.");
+         ratingToSave.cigarReview = sanitizeString(ratingToSave.cigarReview);
          if (!ratingToSave.config || !ratingToSave.ratings || ratingToSave.calculatedScore === undefined) throw new Error("Cannot save rating update: Data is incomplete (missing config, ratings, or calculatedScore).");
          console.log(`[PUT /api/ratings] Checking permissions for user ${userInfo.sub} on rating ${ratingId}`);
          const stmt = env.DB.prepare("SELECT userId FROM ratings WHERE id = ?").bind(ratingId); const originalRating = await stmt.first(); if (!originalRating) { console.log(`[PUT /api/ratings] Rating ${ratingId} not found.`); throw new Error("Rating not found."); }
          const isOwner = originalRating.userId === userInfo.sub; const isAdmin = userInfo.db_role === 'admin' || userInfo.db_role === 'super_admin'; console.log(`[PUT /api/ratings] Is Owner: ${isOwner}, Is Admin: ${isAdmin}`); if (!isOwner && !isAdmin) throw new Error("Permission denied to edit this rating.");
+         const normalizedSourceLanguage = normalizeLanguageTag(ratingToSave.sourceLanguage || 'zh', 'zh');
+         ratingToSave.sourceLanguage = normalizedSourceLanguage;
+         const [titleTranslations, reviewTranslations] = await Promise.all([
+             buildTranslationMap(env, ratingToSave.title, normalizedSourceLanguage),
+             buildTranslationMap(env, ratingToSave.cigarReview, normalizedSourceLanguage)
+         ]);
+         const translationsPayload = {};
+         if (titleTranslations) translationsPayload.title = titleTranslations;
+         if (reviewTranslations) translationsPayload.cigarReview = reviewTranslations;
+         if (Object.keys(translationsPayload).length > 0) {
+             ratingToSave.translations = translationsPayload;
+             ratingToSave.availableLanguages = [...SUPPORTED_LANGUAGES];
+         }
          const imageUrlsString = JSON.stringify(ratingToSave.imageUrls || []);
          console.log(`[PUT /api/ratings] Preparing to update ID ${ratingId}`);
          await env.DB.prepare(

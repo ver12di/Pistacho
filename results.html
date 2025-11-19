@@ -99,11 +99,10 @@
         }
         #share-card-image-wrapper {
             background-color: #e5e7eb; display: flex; align-items: center; justify-content: center;
-            aspect-ratio: 1179 / 1572; /* Keep aspect ratio */
-            position: relative;
+            position: relative; width: 100%;
         }
         #share-card-image-wrapper.no-image #share-card-pagination { display: none; }
-        #share-card-image { width: 100%; height: 100%; object-fit: cover; }
+        #share-card-image { width: 100%; height: auto; object-fit: contain; }
         #share-card-pagination {
             position: absolute;
             bottom: 12px;
@@ -593,6 +592,9 @@
                 }
                 if (!data.cigarReview && fullData.cigarReview) data.cigarReview = fullData.cigarReview;
                 if (!data.finalGrade && fullData.finalGrade) data.finalGrade = fullData.finalGrade;
+                if (!data.translations && fullData.translations) data.translations = fullData.translations;
+                if (!data.sourceLanguage && fullData.sourceLanguage) data.sourceLanguage = fullData.sourceLanguage;
+                if (!data.availableLanguages && fullData.availableLanguages) data.availableLanguages = fullData.availableLanguages;
                 if (fullData.cigarInfo) {
                     const info = fullData.cigarInfo;
                     const existing = data.cigarInfo && typeof data.cigarInfo === 'object' ? data.cigarInfo : {};
@@ -2118,8 +2120,10 @@
                              }
                          }
                          const token = sessionStorage.getItem('accessToken');
-                         const apiUrl = new URL(`/api/ratings?id=${ratingId}`, window.location.origin);
-                         // Allow anonymous fetch if no token (API handles public read)
+                        const apiUrl = new URL(`/api/ratings?id=${ratingId}`, window.location.origin);
+                        const currentLang = (i18next.language || 'zh').split('-')[0];
+                        apiUrl.searchParams.set('lang', currentLang);
+                        // Allow anonymous fetch if no token (API handles public read)
                          const fetchOptions = token ? { headers: { 'Authorization': `Bearer ${token}` } } : {};
                          const response = await fetch(apiUrl, fetchOptions);
                          if (!response.ok) {

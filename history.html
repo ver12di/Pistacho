@@ -493,12 +493,13 @@
              // Ensure fullData exists for narrative/summary, provide defaults
              const hasCompleteFullData = ratingData.fullData && ratingData.fullData.config && ratingData.fullData.ratings && ratingData.fullData.calculatedScore !== undefined;
 
-             const detailedData = {
-                 ratingId: ratingData.id,
-                 userId: ratingData.userId,
-                 title: ratingData.title || i18next.t('common.noTitle'),
-                 cigarInfo: ratingData.cigarInfo || { name: ratingData.cigarName, size: ratingData.cigarSize, origin: ratingData.cigarOrigin }, // Provide fallback cigarInfo
-                 cigarReview: ratingData.cigarReview || i18next.t('common.noReview'),
+            const sourceLanguage = (i18next.language || 'zh').split('-')[0];
+            const detailedData = {
+                ratingId: ratingData.id,
+                userId: ratingData.userId,
+                title: ratingData.title || i18next.t('common.noTitle'),
+                cigarInfo: ratingData.cigarInfo || { name: ratingData.cigarName, size: ratingData.cigarSize, origin: ratingData.cigarOrigin }, // Provide fallback cigarInfo
+                cigarReview: ratingData.cigarReview || i18next.t('common.noReview'),
                  imageUrls: imageUrls,
                  normalizedScore: ratingData.normalizedScore,
                  finalGrade: finalGrade, // Pass the constructed finalGrade object
@@ -510,8 +511,9 @@
                  // Include config and ratings ONLY if fullData is complete
                  config: hasCompleteFullData ? ratingData.fullData.config : null,
                  ratings: hasCompleteFullData ? ratingData.fullData.ratings : null,
-                 calculatedScore: hasCompleteFullData ? ratingData.fullData.calculatedScore : null
-             };
+                calculatedScore: hasCompleteFullData ? ratingData.fullData.calculatedScore : null,
+                sourceLanguage: sourceLanguage
+            };
 
             console.log("[history.html viewRatingDetails] Storing data to sessionStorage:", JSON.stringify(detailedData).substring(0,500) + '...'); // Log data being stored
 
@@ -565,7 +567,9 @@
             historyContainer.innerHTML = ''; // Clear previous results
 
             try {
-                 const apiUrl = new URL('/api/ratings', window.location.origin);
+                const apiUrl = new URL('/api/ratings', window.location.origin);
+                const currentLang = (i18next.language || 'zh').split('-')[0];
+                apiUrl.searchParams.set('lang', currentLang);
                  // No need to pass userId, API determines based on token/role
                  const response = await fetch(apiUrl, { headers: { 'Authorization': `Bearer ${token}` } });
                  if (!response.ok) { let errorText = `Load failed: ${response.status}`; try { const err = await response.json(); errorText = err.error || errorText; } catch(e){/*ignore*/} throw new Error(errorText); }
