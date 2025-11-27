@@ -19,6 +19,7 @@
     <title>雪茄品鉴 - 点评报告</title>
     <link rel="icon" type="image/png" href="Certifiedstamp.png">
     <link rel="canonical" href="https://www.pista-cho.com/results.html">
+    <script id="structured-data" type="application/ld+json"></script>
 
     <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
     <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
@@ -1442,6 +1443,25 @@
             }
         }
 
+        function buildSeoSnippet(metaData, langContext, normalizedScoreValue) {
+            try {
+                const langKey = langContext?.lang || 'en';
+                const t = i18next.getFixedT(langKey);
+                const gradeText = metaData?.finalGrade?.grade && metaData?.finalGrade?.nameKey
+                    ? `${metaData.finalGrade.grade} - ${t(metaData.finalGrade.nameKey)}`
+                    : (metaData?.finalGrade?.name || null);
+                const scoreText = typeof normalizedScoreValue === 'number'
+                    ? normalizedScoreValue.toFixed(2)
+                    : t('resultsPage.meta.scoreFallback');
+                const resolvedGrade = gradeText || t('common.unrated');
+                const snippet = t('resultsPage.meta.searchSnippet', { score: scoreText, grade: resolvedGrade });
+                return typeof snippet === 'string' ? snippet.trim() : null;
+            } catch (error) {
+                console.warn('[results.html buildSeoSnippet] Failed to build snippet:', error);
+                return null;
+            }
+        }
+
         function setCanonicalLink(url) {
             if (!url) return;
             let link = document.head.querySelector('link[rel="canonical"]');
@@ -1453,8 +1473,153 @@
             link.setAttribute('href', url);
         }
 
+        function ensureStructuredDataScriptElement() {
+            let script = document.getElementById('structured-data');
+            if (!script) {
+                script = document.createElement('script');
+                script.type = 'application/ld+json';
+                script.id = 'structured-data';
+                document.head.appendChild(script);
+            }
+            return script;
+        }
+
+        function updateStructuredDataFromResults(results, metadataInfo = null, selectedFlavors = []) {
+            try {
+                const payload = buildStructuredDataPayload(results, metadataInfo, selectedFlavors);
+                const scriptEl = ensureStructuredDataScriptElement();
+                if (!payload) {
+                    scriptEl.textContent = '';
+                    return;
+                }
+                scriptEl.textContent = JSON.stringify(payload, null, 2);
+            } catch (error) {
+                console.error('[results.html] Failed to update structured data:', error);
+            }
+        }
+
+        function buildStructuredDataPayload(results, metadataInfo = null, selectedFlavors = []) {
+            if (!results || !i18next.isInitialized) {
+                return null;
+            }
+
+            const cigarInfo = results.cigarInfo || {};
+            const langContext = resolveLanguageContext(i18next.language);
+            const reviewer = results.userNickname || results.userEmail || i18next.t('common.anonymous');
+            const normalizedScore = typeof results.normalizedScore === 'number'
+                ? Number(results.normalizedScore.toFixed(2))
+                : null;
+            const shareUrl = metadataInfo?.shareUrl || buildShareUrl();
+            const seoTitle = metadataInfo?.shareTitle
+                || results.title
+                || cigarInfo.name
+                || 'Pistacho Cigar Review';
+            const reviewBody = (results.cigarReview || '').trim();
+            const publishedDate = results.createdAt || results.updatedAt || null;
+            const modifiedDate = results.updatedAt || results.createdAt || null;
+
+            const keywords = new Set(Array.isArray(metadataInfo?.keywords) ? metadataInfo.keywords : []);
+            if (cigarInfo.name) keywords.add(cigarInfo.name);
+            if (cigarInfo.origin) keywords.add(cigarInfo.origin);
+            if (Array.isArray(selectedFlavors) && selectedFlavors.length > 0) {
+                selectedFlavors.forEach(flavorKey => {
+                    const translated = i18next.t(flavorKey);
+                    keywords.add(translated || flavorKey);
+                });
+            }
+
+            const itemReviewed = { '@type': 'Product' };
+            if (cigarInfo.name) itemReviewed.name = cigarInfo.name;
+            if (cigarInfo.origin) itemReviewed.countryOfOrigin = cigarInfo.origin;
+            const additionalProperty = [];
+            if (cigarInfo.size) {
+                additionalProperty.push({
+                    '@type': 'PropertyValue',
+                    name: i18next.t('resultsPage.size'),
+                    value: cigarInfo.size
+                });
+            }
+            if (Array.isArray(selectedFlavors) && selectedFlavors.length > 0) {
+                additionalProperty.push({
+                    '@type': 'PropertyValue',
+                    name: i18next.t('resultsPage.flavors'),
+                    value: selectedFlavors.map(key => i18next.t(key) || key).join(', ')
+                });
+            }
+            if (additionalProperty.length > 0) {
+                itemReviewed.additionalProperty = additionalProperty;
+            }
+
+            const rawImages = Array.isArray(results.imageUrls) ? results.imageUrls : [];
+            const imageSet = new Set();
+            if (metadataInfo?.shareImage) {
+                imageSet.add(metadataInfo.shareImage);
+            }
+            rawImages.forEach(url => {
+                const resolved = resolveShareImageUrl(url);
+                if (resolved) {
+                    imageSet.add(resolved);
+                }
+            });
+            const images = Array.from(imageSet);
+
+            const payload = {
+                '@context': 'https://schema.org',
+                '@type': 'Review',
+                name: seoTitle,
+                headline: seoTitle,
+                inLanguage: langContext?.htmlLang || 'en',
+                url: shareUrl,
+                mainEntityOfPage: shareUrl,
+                isAccessibleForFree: true,
+                publisher: {
+                    '@type': 'Organization',
+                    name: 'Pistacho',
+                    url: getCanonicalOrigin()
+                },
+                author: {
+                    '@type': 'Person',
+                    name: reviewer
+                },
+                itemReviewed
+            };
+
+            if (metadataInfo?.shareDescription) {
+                payload.description = metadataInfo.shareDescription;
+            }
+            if (reviewBody) {
+                payload.reviewBody = reviewBody;
+            }
+            if (publishedDate) {
+                payload.datePublished = publishedDate;
+            }
+            if (modifiedDate) {
+                payload.dateModified = modifiedDate;
+            }
+            if (normalizedScore !== null) {
+                const ratingMeta = {
+                    '@type': 'Rating',
+                    ratingValue: normalizedScore,
+                    bestRating: 100,
+                    worstRating: 0
+                };
+                if (results.finalGrade?.grade && results.finalGrade?.nameKey) {
+                    ratingMeta.ratingExplanation = `${results.finalGrade.grade} - ${i18next.t(results.finalGrade.nameKey)}`;
+                }
+                payload.reviewRating = ratingMeta;
+            }
+            if (images.length > 0) {
+                payload.image = images;
+            }
+            if (keywords.size > 0) {
+                payload.keywords = Array.from(keywords);
+            }
+
+            return payload;
+        }
+
         function updatePageMetadata(metaData) {
-            if (!metaData || !i18next.isInitialized) return;
+            if (!metaData || !i18next.isInitialized) return null;
 
             const langContext = resolveLanguageContext(i18next.language);
             if (langContext) {
@@ -1473,9 +1638,13 @@
                 keywords.add(metaData.ratingTitle);
             }
 
-            const normalizedScore = typeof metaData.normalizedScore === 'number'
-                ? metaData.normalizedScore.toFixed(2)
+            const normalizedScoreValue = typeof metaData.normalizedScore === 'number'
+                ? metaData.normalizedScore
                 : null;
+            const normalizedScore = normalizedScoreValue !== null
+                ? normalizedScoreValue.toFixed(2)
+                : null;
+            const seoSnippet = buildSeoSnippet(metaData, langContext, normalizedScoreValue);
 
             let shareDescription = null;
             if (metaData.descriptions && typeof metaData.descriptions === 'object') {
@@ -1495,6 +1664,12 @@
                 const reviewer = metaData.userNickname || metaData.userEmail;
                 if (reviewer) descriptionParts.push(`${i18next.t('resultsPage.by', { defaultValue: '点评来自:' })} ${reviewer}`);
                 shareDescription = descriptionParts.join(' | ');
+            }
+
+            if (seoSnippet) {
+                shareDescription = shareDescription && shareDescription.trim()
+                    ? `${shareDescription} | ${seoSnippet}`
+                    : seoSnippet;
             }
 
             if (!shareDescription || !shareDescription.trim()) {
@@ -1520,6 +1695,15 @@
             }
 
             setCanonicalLink(shareUrl);
+
+            return {
+                shareUrl,
+                shareImage,
+                shareTitle,
+                shareDescription,
+                keywords: Array.from(keywords),
+                langContext
+            };
         }
 
         // Generates QR code and resolves promise on image load/error
@@ -1977,7 +2161,7 @@
             };
             const metaDescriptions = buildMetaDescriptionBundle(metaContext);
 
-            updatePageMetadata({
+            const metadataInfo = updatePageMetadata({
                 title: cigarInfo?.name || title,
                 ratingTitle: title,
                 normalizedScore,
@@ -1988,6 +2172,7 @@
                 imageUrls: Array.isArray(data.imageUrls) ? data.imageUrls : [],
                 descriptions: metaDescriptions
             });
+            updateStructuredDataFromResults(data, metadataInfo, selectedFlavors);
 
             // --- ADDED: Get references to DOM elements ---
              const userNicknameEl = document.getElementById('user-nickname');
