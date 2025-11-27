@@ -266,6 +266,7 @@
     "meta": {
       "titleTemplate": "Cigar Review: {{name}}",
       "descriptionTemplate": "Overall impression: {{name}} from {{origin}} (size: {{size}}) earned {{grade}} ({{score}}). Reviewed by {{reviewer}}.",
+      "searchSnippet": "Score {{score}} · Overall {{grade}}",
       "scoreFallback": "N/A"
     },
     "narrative": {

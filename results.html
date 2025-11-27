@@ -1443,6 +1443,25 @@
             }
         }
 
+        function buildSeoSnippet(metaData, langContext, normalizedScoreValue) {
+            try {
+                const langKey = langContext?.lang || 'en';
+                const t = i18next.getFixedT(langKey);
+                const gradeText = metaData?.finalGrade?.grade && metaData?.finalGrade?.nameKey
+                    ? `${metaData.finalGrade.grade} - ${t(metaData.finalGrade.nameKey)}`
+                    : (metaData?.finalGrade?.name || null);
+                const scoreText = typeof normalizedScoreValue === 'number'
+                    ? normalizedScoreValue.toFixed(2)
+                    : t('resultsPage.meta.scoreFallback');
+                const resolvedGrade = gradeText || t('common.unrated');
+                const snippet = t('resultsPage.meta.searchSnippet', { score: scoreText, grade: resolvedGrade });
+                return typeof snippet === 'string' ? snippet.trim() : null;
+            } catch (error) {
+                console.warn('[results.html buildSeoSnippet] Failed to build snippet:', error);
+                return null;
+            }
+        }
+
         function setCanonicalLink(url) {
             if (!url) return;
             let link = document.head.querySelector('link[rel="canonical"]');
@@ -1619,9 +1638,13 @@
                 keywords.add(metaData.ratingTitle);
             }
 
-            const normalizedScore = typeof metaData.normalizedScore === 'number'
-                ? metaData.normalizedScore.toFixed(2)
+            const normalizedScoreValue = typeof metaData.normalizedScore === 'number'
+                ? metaData.normalizedScore
                 : null;
+            const normalizedScore = normalizedScoreValue !== null
+                ? normalizedScoreValue.toFixed(2)
+                : null;
+            const seoSnippet = buildSeoSnippet(metaData, langContext, normalizedScoreValue);
 
             let shareDescription = null;
             if (metaData.descriptions && typeof metaData.descriptions === 'object') {
@@ -1641,6 +1664,12 @@
                 const reviewer = metaData.userNickname || metaData.userEmail;
                 if (reviewer) descriptionParts.push(`${i18next.t('resultsPage.by', { defaultValue: '点评来自:' })} ${reviewer}`);
                 shareDescription = descriptionParts.join(' | ');
+            }
+
+            if (seoSnippet) {
+                shareDescription = shareDescription && shareDescription.trim()
+                    ? `${shareDescription} | ${seoSnippet}`
+                    : seoSnippet;
             }
 
             if (!shareDescription || !shareDescription.trim()) {

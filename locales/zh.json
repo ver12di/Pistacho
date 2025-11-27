@@ -261,6 +261,7 @@
     "meta": {
       "titleTemplate": "Cigar Review: {{name}}",
       "descriptionTemplate": "综合评价：来自{{origin}}的{{name}}（尺寸：{{size}}）获得{{grade}}（{{score}}分）。点评来自：{{reviewer}}。",
+      "searchSnippet": "打分 {{score}} · 综合评价 {{grade}}",
       "scoreFallback": "暂无评分"
     },
     "narrative": {
