@@ -814,12 +814,17 @@
             }
         }
 
+        function normalizeForSearch(text) {
+            if (!text) return '';
+            return text.toString().toLowerCase().replace(/\s+/g, '');
+        }
+
         window.applyFilters = function() {
             if (!searchInput || !sortSelect || !ratingsGrid || !loadingMessage || !i18next.isInitialized) {
                 console.error("applyFilters called before DOM ready or i18n initialized.");
                 return;
             }
-            const searchTerm = searchInput.value.toLowerCase().trim();
+            const searchTerm = normalizeForSearch(searchInput.value);
             const sortBy = sortSelect.value;
 
             if (!Array.isArray(allRatings)) {
@@ -829,11 +834,11 @@
             }
 
             let filtered = allRatings.filter(rating => {
-                const nameMatch = rating?.cigarInfo?.name?.toLowerCase().includes(searchTerm);
-                const originMatch = rating?.cigarInfo?.origin?.toLowerCase().includes(searchTerm);
-                const sizeMatch = rating?.cigarInfo?.size?.toLowerCase().includes(searchTerm);
-                const reviewMatch = rating?.cigarReview?.toLowerCase().includes(searchTerm);
-                const authorMatch = rating?.userNickname?.toLowerCase().includes(searchTerm);
+                const nameMatch = normalizeForSearch(rating?.cigarInfo?.name).includes(searchTerm);
+                const originMatch = normalizeForSearch(rating?.cigarInfo?.origin).includes(searchTerm);
+                const sizeMatch = normalizeForSearch(rating?.cigarInfo?.size).includes(searchTerm);
+                const reviewMatch = normalizeForSearch(rating?.cigarReview).includes(searchTerm);
+                const authorMatch = normalizeForSearch(rating?.userNickname).includes(searchTerm);
                 return nameMatch || originMatch || sizeMatch || reviewMatch || authorMatch;
             });
 
