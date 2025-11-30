@@ -102,37 +102,25 @@
             background-color: #e5e7eb; display: flex; align-items: center; justify-content: center;
             position: relative; width: 100%;
         }
-        #share-card-image-wrapper.no-image #share-card-pagination { display: none; }
         #share-card-image { width: 100%; height: auto; object-fit: contain; }
-        #share-card-pagination {
-            position: absolute;
-            bottom: 12px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            gap: 4px;
-        }
-        #share-card-pagination span {
-            width: 6px;
-            height: 6px;
-            border-radius: 9999px;
-            background-color: rgba(156, 163, 175, 0.8); /* Gray-400 with slight transparency */
-        }
         #share-card-content {
             padding: 10px 12px 14px; /* Spacing below the image */
             display: flex;
             flex-direction: column;
             justify-content: center;
-            align-items: center;
-            gap: 6px;
+            align-items: stretch;
+            gap: 8px;
             text-align: center;
         }
+        #share-card-header { display: flex; width: 100%; justify-content: space-between; align-items: flex-start; gap: 10px; }
         #share-card-left {
             display: flex;
             flex-direction: column;
-            align-items: center;
+            align-items: flex-start;
             gap: 6px;
             width: 100%;
+            max-width: 55%;
+            text-align: left;
         }
         #share-card-score {
             font-size: 2.6rem;
@@ -148,6 +136,9 @@
              font-weight: 700;
              line-height: 1.2;
         }
+        #share-card-cigar-info { flex: 1; text-align: right; font-size: 0.85rem; line-height: 1.25; color: #4b5563; }
+        #share-card-cigar-name { font-weight: 700; font-size: 0.9rem; color: #111827; }
+        #share-card-cigar-size { font-weight: 600; font-size: 0.82rem; color: #4b5563; }
         #share-card-title {
             font-size: 0.98rem;
             font-weight: 700;
@@ -331,25 +322,24 @@
             <div id="share-card-image-wrapper">
                 <!-- loading="lazy" intentionally omitted: this image stays off-screen but must load immediately for share card generation -->
                 <img id="share-card-image" src="" alt="Cigar Cover Image" crossorigin="anonymous">
-                <div id="share-card-pagination" aria-hidden="true">
-                    <span></span>
-                    <span></span>
-                    <span></span>
-                    <span></span>
-                    <span></span>
-                </div>
                 <div id="share-card-qrcode">
                     <!-- QR code img will be added here -->
                 </div>
             </div>
             <!-- --- MODIFIED: Share Card Content Structure --- -->
             <div id="share-card-content">
-                <div id="share-card-left">
-                    <span id="share-card-score">0.00</span>
-                    <span id="share-card-grade-badge">? - ???</span>
-                    <p id="share-card-title"></p>
-                    <p id="share-card-watermark">rated on www.pista-cho.com</p>
+                <div id="share-card-header">
+                    <div id="share-card-left">
+                        <span id="share-card-score">0.00</span>
+                        <span id="share-card-grade-badge">? - ???</span>
+                    </div>
+                    <div id="share-card-cigar-info">
+                        <p id="share-card-cigar-name"></p>
+                        <p id="share-card-cigar-size"></p>
+                    </div>
                 </div>
+                <p id="share-card-title"></p>
+                <p id="share-card-watermark">rated on www.pista-cho.com</p>
             </div>
             <!-- --- End Modified Share Card Content --- -->
         </div>
@@ -1306,6 +1296,8 @@
 
             const watermarkEl = document.getElementById('share-card-watermark');
             const shareTitleEl = document.getElementById('share-card-title');
+            const shareCigarNameEl = document.getElementById('share-card-cigar-name');
+            const shareCigarSizeEl = document.getElementById('share-card-cigar-size');
             if (watermarkEl) {
                  const watermarkName = userNickname || userEmail || i18next.t('common.anonymous');
                  watermarkEl.textContent = `${watermarkName} rated on www.pista-cho.com`;
@@ -1314,6 +1306,16 @@
                  const shareTitle = data.title || i18next.t('common.noTitle');
                  shareTitleEl.textContent = shareTitle;
                  shareTitleEl.title = shareTitle;
+            }
+            if (shareCigarNameEl) {
+                 const cigarName = data.cigarInfo?.name || data.title || i18next.t('common.noTitle');
+                 shareCigarNameEl.textContent = cigarName;
+                 shareCigarNameEl.title = cigarName;
+            }
+            if (shareCigarSizeEl) {
+                 const cigarSize = data.cigarInfo?.size || i18next.t('common.unknown');
+                 shareCigarSizeEl.textContent = cigarSize;
+                 shareCigarSizeEl.title = cigarSize;
             }
 
             const shareCardImage = document.getElementById('share-card-image');
