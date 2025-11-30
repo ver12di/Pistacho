@@ -152,6 +152,18 @@
             letter-spacing: 0.02em; /* Slightly wider spacing for clarity */
             /* Removed width constraint, let flexbox handle it */
         }
+        #share-card-title {
+            font-size: 0.95rem;
+            font-weight: 700;
+            line-height: 1.25;
+            color: #111827;
+            margin: 0;
+            word-break: break-word;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
         #share-card-qrcode {
             width: 110px; /* Increased width for better scanability */ height: 110px; /* Increased height */
             flex-shrink: 0; /* Prevent QR code from shrinking */
@@ -324,6 +336,7 @@
                 <div id="share-card-left">
                     <span id="share-card-score">0.00</span>
                     <span id="share-card-grade-badge">? - ???</span>
+                    <p id="share-card-title"></p>
                     <p id="share-card-watermark">Rating on www.pista-cho.com</p>
                 </div>
                 <div id="share-card-qrcode">
@@ -1284,8 +1297,14 @@
              }
 
             const watermarkEl = document.getElementById('share-card-watermark');
+            const shareTitleEl = document.getElementById('share-card-title');
             if (watermarkEl) {
                  watermarkEl.textContent = 'Rating on www.pista-cho.com';
+            }
+            if (shareTitleEl) {
+                 const shareTitle = data.title || i18next.t('common.noTitle');
+                 shareTitleEl.textContent = shareTitle;
+                 shareTitleEl.title = shareTitle;
             }
 
             const shareCardImage = document.getElementById('share-card-image');
