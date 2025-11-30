@@ -348,7 +348,7 @@
                     <span id="share-card-score">0.00</span>
                     <span id="share-card-grade-badge">? - ???</span>
                     <p id="share-card-title"></p>
-                    <p id="share-card-watermark">Rationg@www.pista-cho.com</p>
+                    <p id="share-card-watermark">rating on www.pista-cho.com</p>
                 </div>
             </div>
             <!-- --- End Modified Share Card Content --- -->
@@ -1307,7 +1307,8 @@
             const watermarkEl = document.getElementById('share-card-watermark');
             const shareTitleEl = document.getElementById('share-card-title');
             if (watermarkEl) {
-                 watermarkEl.textContent = 'Rationg@www.pista-cho.com';
+                 const watermarkName = userNickname || userEmail || i18next.t('common.anonymous');
+                 watermarkEl.textContent = `${watermarkName} rating on www.pista-cho.com`;
             }
             if (shareTitleEl) {
                  const shareTitle = data.title || i18next.t('common.noTitle');
