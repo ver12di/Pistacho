@@ -819,6 +819,66 @@
             return text.toString().toLowerCase().replace(/\s+/g, '');
         }
 
+        function levenshteinDistance(a, b, maxDistance = 2) {
+            if (Math.abs(a.length - b.length) > maxDistance) return maxDistance + 1;
+
+            const prev = new Array(b.length + 1).fill(0);
+            const curr = new Array(b.length + 1).fill(0);
+
+            for (let j = 0; j <= b.length; j++) {
+                prev[j] = j;
+            }
+
+            for (let i = 1; i <= a.length; i++) {
+                curr[0] = i;
+                let rowMin = curr[0];
+
+                for (let j = 1; j <= b.length; j++) {
+                    const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+                    curr[j] = Math.min(
+                        prev[j] + 1,
+                        curr[j - 1] + 1,
+                        prev[j - 1] + cost
+                    );
+
+                    rowMin = Math.min(rowMin, curr[j]);
+                }
+
+                if (rowMin > maxDistance) return maxDistance + 1;
+
+                for (let j = 0; j <= b.length; j++) {
+                    prev[j] = curr[j];
+                }
+            }
+
+            return prev[b.length];
+        }
+
+        function fuzzyContains(text, query) {
+            const normalizedText = normalizeForSearch(text);
+            const normalizedQuery = normalizeForSearch(query);
+
+            if (!normalizedQuery) return true;
+            if (normalizedText.includes(normalizedQuery)) return true;
+
+            const windowSize = normalizedQuery.length;
+            let minDistance = Infinity;
+
+            for (let i = 0; i <= normalizedText.length - windowSize; i++) {
+                const segment = normalizedText.slice(i, i + windowSize);
+                const distance = levenshteinDistance(segment, normalizedQuery);
+                minDistance = Math.min(minDistance, distance);
+                if (distance <= 2) return true;
+            }
+
+            // If the text is shorter than the query, compare directly.
+            if (normalizedText.length < windowSize) {
+                return levenshteinDistance(normalizedText, normalizedQuery) <= 2;
+            }
+
+            return minDistance <= 2;
+        }
+
         window.applyFilters = function() {
             if (!searchInput || !sortSelect || !ratingsGrid || !loadingMessage || !i18next.isInitialized) {
                 console.error("applyFilters called before DOM ready or i18n initialized.");
@@ -834,18 +894,18 @@
             }
 
             let filtered = allRatings.filter(rating => {
-                const nameMatch = normalizeForSearch(rating?.cigarInfo?.name).includes(searchTerm);
-                const originMatch = normalizeForSearch(rating?.cigarInfo?.origin).includes(searchTerm);
-                const sizeMatch = normalizeForSearch(rating?.cigarInfo?.size).includes(searchTerm);
-                const reviewMatch = normalizeForSearch(rating?.cigarReview).includes(searchTerm);
-                const authorMatch = normalizeForSearch(rating?.userNickname).includes(searchTerm);
+                const nameMatch = fuzzyContains(rating?.cigarInfo?.name, searchTerm);
+                const originMatch = fuzzyContains(rating?.cigarInfo?.origin, searchTerm);
+                const sizeMatch = fuzzyContains(rating?.cigarInfo?.size, searchTerm);
+                const reviewMatch = fuzzyContains(rating?.cigarReview, searchTerm);
+                const authorMatch = fuzzyContains(rating?.userNickname, searchTerm);
                 return nameMatch || originMatch || sizeMatch || reviewMatch || authorMatch;
             });
 
             filtered.sort((a, b) => {
                 const pinDiff = (b.isPinned || 0) - (a.isPinned || 0);
                 if (sortBy === 'latest' && pinDiff !== 0) return pinDiff;
-                if (sortBy === 'highest') return (b.normalizedScore ?? 0) - (b.normalizedScore ?? 0);
+                if (sortBy === 'highest') return (b.normalizedScore ?? 0) - (a.normalizedScore ?? 0);
                 if (sortBy === 'lowest') return (a.normalizedScore ?? 0) - (b.normalizedScore ?? 0);
                 return pinDiff !== 0 ? pinDiff : (new Date(b.timestamp) - new Date(a.timestamp));
              });
