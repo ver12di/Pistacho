@@ -132,10 +132,12 @@
             justify-content: flex-start; /* Keep score block higher in the card */
             flex-grow: 1; /* Allow left side to take available space */
             margin-right: 8px; /* Add space between left and QR */
-            gap: 4px; /* Consistent spacing between text elements */
+            gap: 6px; /* Consistent spacing between text elements */
         }
         #share-card-score {
-            font-size: 2.5rem; /* Slightly smaller score */ font-weight: 900; line-height: 0.9; /* Tighter line height */
+            font-size: 2.5rem; /* Slightly smaller score */ font-weight: 900; line-height: 0.95; /* Tighter line height */
+            margin-top: -2px; /* Lift score slightly for better balance */
+            margin-bottom: 4px; /* Add breathing room before grade */
         }
         #share-card-grade-badge {
              /* Grade badge styles */
@@ -153,14 +155,14 @@
             /* Removed width constraint, let flexbox handle it */
         }
         #share-card-title {
-            font-size: 0.95rem;
+            font-size: 0.9rem;
             font-weight: 700;
             line-height: 1.25;
             color: #111827;
             margin: 0;
             word-break: break-word;
             display: -webkit-box;
-            -webkit-line-clamp: 2;
+            -webkit-line-clamp: 3;
             -webkit-box-orient: vertical;
             overflow: hidden;
         }
