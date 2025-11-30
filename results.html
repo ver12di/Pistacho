@@ -119,7 +119,7 @@
             background-color: rgba(156, 163, 175, 0.8); /* Gray-400 with slight transparency */
         }
         #share-card-content {
-            padding: 8px; /* Adjust padding if needed */
+            padding: 6px 8px 8px; /* Bring content closer to image while keeping horizontal padding */
             display: flex; /* Use flexbox for layout */
             justify-content: space-between; /* Space between left (score/text) and right (QR) */
             align-items: flex-start; /* Lift content to align with enlarged QR code */
@@ -132,12 +132,12 @@
             justify-content: flex-start; /* Keep score block higher in the card */
             flex-grow: 1; /* Allow left side to take available space */
             margin-right: 8px; /* Add space between left and QR */
-            gap: 6px; /* Consistent spacing between text elements */
+            gap: 4px; /* Slightly tighter spacing to reserve room for long titles */
         }
         #share-card-score {
             font-size: 2.5rem; /* Slightly smaller score */ font-weight: 900; line-height: 0.95; /* Tighter line height */
-            margin-top: -2px; /* Lift score slightly for better balance */
-            margin-bottom: 4px; /* Add breathing room before grade */
+            margin-top: -4px; /* Lift score closer to the image */
+            margin-bottom: 2px; /* Add minimal breathing room before grade */
         }
         #share-card-grade-badge {
              /* Grade badge styles */
@@ -145,7 +145,7 @@
              padding: 1px 6px; /* Adjust padding */
              border-radius: 9999px;
              font-size: 0.9rem; /* Larger grade label */ font-weight: 600;
-             margin-bottom: 3px; /* --- MODIFIED: Adjusted space below grade --- */
+             margin-bottom: 2px; /* --- MODIFIED: Adjusted space below grade --- */
              /* Color applied dynamically */
         }
         #share-card-watermark {
@@ -155,15 +155,17 @@
             /* Removed width constraint, let flexbox handle it */
         }
         #share-card-title {
-            font-size: 0.9rem;
+            font-size: 0.95rem;
             font-weight: 700;
-            line-height: 1.25;
+            line-height: 1.3;
             color: #111827;
             margin: 0;
-            word-break: break-word;
+            word-break: break-all; /* Support continuous CJK characters */
+            overflow-wrap: anywhere;
             display: -webkit-box;
-            -webkit-line-clamp: 3;
+            -webkit-line-clamp: 3; /* Allow up to ~35 characters across three lines */
             -webkit-box-orient: vertical;
+            max-height: calc(1.3em * 3);
             overflow: hidden;
         }
         #share-card-qrcode {
