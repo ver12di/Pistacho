@@ -7,10 +7,6 @@
 export async function onRequestGet(context) {
     const { request, env, params } = context;
     const key = params.key; // 从 URL 中获取文件名, e.g., "some-uuid.jpg"
-    const url = new URL(request.url);
-    const widthParam = parseInt(url.searchParams.get('w') || '', 10);
-    const qualityParam = parseInt(url.searchParams.get('q') || '', 10);
-    const formatParam = (url.searchParams.get('format') || '').toLowerCase();
 
     // 1. 检查 Key 是否存在
     if (!key) {
@@ -35,60 +31,21 @@ export async function onRequestGet(context) {
             return new Response('Object Not Found', { status: 404 });
         }
 
-        const shouldTransform = Number.isFinite(widthParam) || Number.isFinite(qualityParam) || formatParam;
+        // 4. 设置正确的响应头
         const headers = new Headers();
+        // 复制 R2 中存储的元数据 (例如 Content-Type)
         object.writeHttpMetadata(headers);
+        // 添加 ETag 用于浏览器缓存
+        headers.set('etag', object.httpEtag);
+        // (可选) 添加更长的浏览器缓存时间, e.g., 缓存 1 天
+        headers.set('cache-control', 'public, max-age=86400');
+        // 添加 CORS 头部以允许跨域访问
         headers.set('Access-Control-Allow-Origin', '*');
 
-        // 如果无需转换, 直接返回原图并附带缓存
-        if (!shouldTransform) {
-            headers.set('etag', object.httpEtag);
-            headers.set('cache-control', 'public, max-age=604800, stale-while-revalidate=86400');
-            return new Response(object.body, { headers });
-        }
-
-        try {
-            const originalType = headers.get('content-type') || 'image/jpeg';
-            const buffer = await object.arrayBuffer();
-            const bitmap = await createImageBitmap(new Blob([buffer], { type: originalType }));
-
-            const targetWidth = Number.isFinite(widthParam)
-                ? Math.max(120, Math.min(widthParam, bitmap.width))
-                : Math.min(1280, bitmap.width);
-            const aspectRatio = bitmap.height / bitmap.width;
-            const targetHeight = Math.max(120, Math.round(targetWidth * aspectRatio));
-
-            const normalizedFormat = ['webp', 'avif', 'png', 'jpeg', 'jpg'].includes(formatParam)
-                ? formatParam
-                : 'webp';
-            const mimeTypeMap = {
-                webp: 'image/webp',
-                avif: 'image/avif',
-                png: 'image/png',
-                jpeg: 'image/jpeg',
-                jpg: 'image/jpeg',
-            };
-            const outputMimeType = mimeTypeMap[normalizedFormat] || 'image/webp';
-            const quality = Number.isFinite(qualityParam)
-                ? Math.min(90, Math.max(40, qualityParam)) / 100
-                : 0.75;
-
-            const canvas = new OffscreenCanvas(targetWidth, targetHeight);
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(bitmap, 0, 0, targetWidth, targetHeight);
-            const optimizedBlob = await canvas.convertToBlob({ type: outputMimeType, quality });
-
-            headers.set('content-type', outputMimeType);
-            headers.set('etag', `${object.httpEtag}-w${targetWidth}-q${Math.round(quality * 100)}-${normalizedFormat}`);
-            headers.set('cache-control', 'public, max-age=604800, stale-while-revalidate=86400');
-
-            return new Response(optimizedBlob.stream(), { headers });
-        } catch (transformError) {
-            console.error(`[image-proxy] 图片转换失败, 回退原图: ${transformError.message}`);
-            headers.set('etag', object.httpEtag);
-            headers.set('cache-control', 'public, max-age=604800, stale-while-revalidate=86400');
-            return new Response(object.body, { headers });
-        }
+        // 5. 将图片数据流式传输回客户端
+        return new Response(object.body, {
+            headers,
+        });
 
     } catch (e) {
         console.error(`[image-proxy] R2 检索失败: ${e.message}`);

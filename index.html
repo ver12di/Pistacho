@@ -956,22 +956,6 @@
             }
         }
 
-        function buildImageSources(imageKey) {
-            if (!imageKey) return null;
-            const encodedKey = encodeURIComponent(imageKey);
-            const baseUrl = `/api/image/${encodedKey}`;
-            const quality = 72;
-            const widths = [160, 200, 260, 320, 420];
-            const srcSet = widths
-                .map((w) => `${baseUrl}?w=${w}&format=webp&q=${quality} ${w}w`)
-                .join(', ');
-
-            return {
-                src: `${baseUrl}?w=420&format=webp&q=${quality}`,
-                srcSet,
-            };
-        }
-
         function createRatingCard(rating) {
             if (!rating || !rating.id || !i18next.isInitialized) {
                 console.warn("Cannot create card, invalid rating data or i18n not ready:", rating);
@@ -1010,7 +994,6 @@
             }
 
 
-            const imageSources = coverImageUrl ? buildImageSources(coverImageUrl) : null;
             const isCertified = rating.isCertified;
             const isPinned = rating.isPinned;
 
@@ -1039,7 +1022,7 @@
                 <div class="aspect-[1179/1572] w-full overflow-hidden flex-shrink-0 relative bg-gray-100 flex items-center justify-center">
                      ${isPinned ? `<div class="pinned-indicator" title="${i18next.t('common.pin')}">${pinIconSvg} ${i18next.t('common.pin')}</div>` : ''}
                      ${isCertified ? CERTIFICATION_BADGE_HTML : ''}
-                     ${imageSources ? `<img src="${imageSources.src}" srcset="${imageSources.srcSet}" alt="${rating.cigarInfo?.name || '雪茄图片'}" class="max-h-full max-w-full object-contain" loading="lazy" decoding="async" fetchpriority="low" width="320" height="426" sizes="(min-width: 1280px) 180px, (min-width: 1024px) 160px, (min-width: 768px) 140px, 120px">` : `<div class="w-full h-full flex items-center justify-center text-gray-400 text-sm">${i18next.t('certifiedPage.noImage')}</div>`}
+                     ${coverImageUrl ? `<img src="/api/image/${coverImageUrl}" alt="${rating.cigarInfo?.name || '雪茄图片'}" class="max-h-full max-w-full object-contain" loading="lazy" decoding="async" fetchpriority="low" width="400" height="533" sizes="(min-width: 1280px) 180px, (min-width: 1024px) 160px, (min-width: 768px) 140px, 120px">` : `<div class="w-full h-full flex items-center justify-center text-gray-400 text-sm">${i18next.t('certifiedPage.noImage')}</div>`}
                 </div>
                 <div class="p-1.5 sm:p-2 flex-grow flex flex-col justify-between">
                      <div>
