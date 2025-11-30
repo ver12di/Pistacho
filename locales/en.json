@@ -95,7 +95,7 @@
     "loadFailed": "Failed to load reviews: {{msg}}",
     "noMatches": "No matching reviews found.",
     "uncertify": "Uncertify",
-    "smokingWarning": "Smoking and excessive drinking are harmful to your health. This site contains tobacco and alcohol content; minors should refrain."
+    "smokingWarning": "Smoking and excessive drinking are harmful to your health. This site is only for users who have reached the legal age in your region; those who have not should refrain."
   },
   "ratePage": {
     "title": "Post a Cigar Review",

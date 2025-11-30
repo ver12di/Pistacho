@@ -90,7 +90,7 @@
     "loadFailed": "加载点评失败: {{msg}}",
     "noMatches": "没有找到匹配的点评。",
     "uncertify": "取消认证",
-    "smokingWarning": "吸烟酗酒有害健康，本网站含烟酒内容未成年人请回避。"
+    "smokingWarning": "吸烟酗酒有害健康，本网站仅供已达到您所在地区的合法年龄的用户访问，未达标者请回避。"
   },
   "ratePage": {
     "title": "发布雪茄点评",

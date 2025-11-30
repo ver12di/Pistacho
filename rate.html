@@ -596,8 +596,8 @@
                 const coverButtonText = index === 0 ? i18next.t('common.cover') : i18next.t('ratePage.setCover');
                 item.innerHTML = `
                     <img src="/api/image/${key}" alt="${i18next.t('common.image')} ${index + 1}">
-                    <button class="remove-btn" onclick="removeImage(${index})" title="${i18next.t('common.delete')} ${i18next.t('common.image')}">&times;</button>
-                    <button class="set-cover-btn" onclick="setCoverImage(${index})" title="${coverButtonText}">
+                    <button type="button" class="remove-btn" onclick="removeImage(event, ${index})" title="${i18next.t('common.delete')} ${i18next.t('common.image')}">&times;</button>
+                    <button type="button" class="set-cover-btn" onclick="setCoverImage(event, ${index})" title="${coverButtonText}">
                         ${coverButtonText}
                     </button>
                 `;
@@ -635,7 +635,8 @@
         }
 
         // Sets the image at the given index as the cover image (moves it to index 0)
-        window.setCoverImage = function(index) {
+        window.setCoverImage = function(event, index) {
+            if (event) event.stopPropagation();
             if (index === 0 || index >= currentImageKeys.length) return; // Already cover or invalid index
             const keyToMove = currentImageKeys.splice(index, 1)[0]; // Remove item
             currentImageKeys.unshift(keyToMove); // Add to beginning
@@ -643,7 +644,8 @@
         }
 
         // Removes the image at the specified index
-        window.removeImage = function(indexToRemove) {
+        window.removeImage = function(event, indexToRemove) {
+            if (event) event.stopPropagation();
             if (indexToRemove < 0 || indexToRemove >= currentImageKeys.length) return;
             // Note: We don't delete from R2 here, only remove from the list for this rating.
             // Actual deletion might happen if the rating itself is deleted later.
