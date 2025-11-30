@@ -25,6 +25,9 @@
     <link rel="icon" type="image/png" href="Certifiedstamp.png">
     <link rel="preconnect" href="https://cdn.tailwindcss.com" crossorigin>
     <link rel="preconnect" href="https://unpkg.com" crossorigin>
+    <link rel="preconnect" href="https://xfvu647mcdbk-demo.authing.cn" crossorigin>
+    <link rel="dns-prefetch" href="https://xfvu647mcdbk-demo.authing.cn">
+    <link rel="preload" as="image" href="/Certifiedstamp.png" imagesrcset="/Certifiedstamp.png" fetchpriority="high">
     <script src="https://cdn.tailwindcss.com" defer></script>
 
     <script src="https://unpkg.com/i18next/i18next.min.js" defer></script>
@@ -181,7 +184,7 @@
         const SUPPORTS_INTERSECTION_OBSERVER = typeof window !== 'undefined' && 'IntersectionObserver' in window;
         const CERTIFICATION_BADGE_HTML = `
             <span class="certification-badge" role="img" aria-label="Pistacho 认证评分" title="Pistacho 认证评分">
-                <img src="Certifiedstamp.png" alt="Pistacho 认证评分徽章" loading="lazy">
+                <img src="Certifiedstamp.png" alt="Pistacho 认证评分徽章" loading="lazy" decoding="async" fetchpriority="low" width="120" height="120">
             </span>
         `;
         let pendingRenderQueue = [];
@@ -1019,7 +1022,7 @@
                 <div class="aspect-[1179/1572] w-full overflow-hidden flex-shrink-0 relative bg-gray-100 flex items-center justify-center">
                      ${isPinned ? `<div class="pinned-indicator" title="${i18next.t('common.pin')}">${pinIconSvg} ${i18next.t('common.pin')}</div>` : ''}
                      ${isCertified ? CERTIFICATION_BADGE_HTML : ''}
-                     ${coverImageUrl ? `<img src="/api/image/${coverImageUrl}" alt="${rating.cigarInfo?.name || '雪茄图片'}" class="max-h-full max-w-full object-contain" loading="lazy">` : `<div class="w-full h-full flex items-center justify-center text-gray-400 text-sm">${i18next.t('certifiedPage.noImage')}</div>`}
+                     ${coverImageUrl ? `<img src="/api/image/${coverImageUrl}" alt="${rating.cigarInfo?.name || '雪茄图片'}" class="max-h-full max-w-full object-contain" loading="lazy" decoding="async" fetchpriority="low" width="400" height="533" sizes="(min-width: 1280px) 180px, (min-width: 1024px) 160px, (min-width: 768px) 140px, 120px">` : `<div class="w-full h-full flex items-center justify-center text-gray-400 text-sm">${i18next.t('certifiedPage.noImage')}</div>`}
                 </div>
                 <div class="p-1.5 sm:p-2 flex-grow flex flex-col justify-between">
                      <div>
