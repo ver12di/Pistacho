@@ -93,7 +93,7 @@
 
         /* --- MODIFIED: Share Card Styles --- */
         #share-card-container {
-            position: absolute; left: -9999px; top: 0; width: 350px; /* Fixed width */
+            position: absolute; left: -9999px; top: 0; width: 360px; /* Slightly wider for text space */
             background-color: white; border-radius: 0.5rem;
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
             overflow: hidden; border: 1px solid #e5e7eb; visibility: hidden; z-index: -1;
@@ -119,67 +119,67 @@
             background-color: rgba(156, 163, 175, 0.8); /* Gray-400 with slight transparency */
         }
         #share-card-content {
-            padding: 6px 8px 8px; /* Bring content closer to image while keeping horizontal padding */
-            display: flex; /* Use flexbox for layout */
-            justify-content: flex-start; /* Space now dedicated to text block */
-            align-items: flex-start; /* Lift content to align with image */
-            min-height: 75px; /* Adjust min-height as needed, but try to keep it compact */
-            gap: 6px; /* Maintain breathing room between sections */
+            padding: 10px 12px 14px; /* Spacing below the image */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 6px;
+            text-align: center;
         }
         #share-card-left {
             display: flex;
-            flex-direction: column; /* Stack score, grade, watermark */
-            justify-content: flex-start; /* Keep score block higher in the card */
-            flex-grow: 1; /* Allow left side to take available space */
-            gap: 4px; /* Slightly tighter spacing to reserve room for long titles */
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            width: 100%;
         }
         #share-card-score {
-            font-size: 2.5rem; /* Slightly smaller score */ font-weight: 900; line-height: 0.95; /* Tighter line height */
-            margin-top: -4px; /* Lift score closer to the image */
-            margin-bottom: 2px; /* Add minimal breathing room before grade */
+            font-size: 2.6rem;
+            font-weight: 900;
+            line-height: 1;
+            margin: 0;
         }
         #share-card-grade-badge {
-             /* Grade badge styles */
-             display: inline-block; /* Allow it to sit below score */
-             padding: 1px 6px; /* Adjust padding */
+             display: inline-block;
+             padding: 2px 8px;
              border-radius: 9999px;
-             font-size: 0.9rem; /* Larger grade label */ font-weight: 600;
-             margin-bottom: 2px; /* --- MODIFIED: Adjusted space below grade --- */
-             /* Color applied dynamically */
-        }
-        #share-card-watermark {
-            font-size: 0.7rem; color: #4b5563; line-height: 1.2; margin: 0; /* Remove default margin */
-            font-weight: 600; /* Improve readability of the URL */
-            letter-spacing: 0.02em; /* Slightly wider spacing for clarity */
-            /* Removed width constraint, let flexbox handle it */
+             font-size: 1rem;
+             font-weight: 700;
+             line-height: 1.2;
         }
         #share-card-title {
-            font-size: 0.88rem;
+            font-size: 0.98rem;
             font-weight: 700;
-            line-height: 1.25;
+            line-height: 1.35;
             color: #111827;
             margin: 0;
-            word-break: break-all; /* Support continuous CJK characters */
+            word-break: break-word;
             overflow-wrap: anywhere;
-            display: -webkit-box;
-            -webkit-line-clamp: 3; /* Allow up to ~35 characters across three lines */
-            -webkit-box-orient: vertical;
-            max-height: calc(1.25em * 3);
-            overflow: hidden;
+            max-width: 100%;
+        }
+        #share-card-watermark {
+            font-size: 0.8rem;
+            color: #4b5563;
+            line-height: 1.2;
+            margin: 0;
+            font-weight: 600;
+            letter-spacing: 0.02em;
         }
         #share-card-qrcode {
             position: absolute;
-            bottom: 8px;
-            right: 8px;
-            width: 95px; /* Optimized for overlay without blocking the title area */
-            height: 95px;
-            background-color: white;
-            padding: 3px; /* Small padding around QR */
-            border: 1px solid #eee; box-shadow: 0 0 2px rgba(0,0,0,0.12);
-            display: flex; /* Center the img tag if needed */
+            bottom: 10px;
+            right: 10px;
+            width: 98px; /* Overlay on bottom-right of image */
+            height: 98px;
+            background-color: rgba(255, 255, 255, 0.95);
+            padding: 4px;
+            border: 1px solid #e5e7eb;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.12);
+            display: flex;
             align-items: center;
             justify-content: center;
-            border-radius: 10px;
+            border-radius: 12px;
         }
         #share-card-qrcode img {
             display: block; width: 100%; height: 100%; object-fit: contain; /* Ensure QR fits */
@@ -348,7 +348,7 @@
                     <span id="share-card-score">0.00</span>
                     <span id="share-card-grade-badge">? - ???</span>
                     <p id="share-card-title"></p>
-                    <p id="share-card-watermark">Rating on www.pista-cho.com</p>
+                    <p id="share-card-watermark">Rationg@www.pista-cho.com</p>
                 </div>
             </div>
             <!-- --- End Modified Share Card Content --- -->
@@ -1307,7 +1307,7 @@
             const watermarkEl = document.getElementById('share-card-watermark');
             const shareTitleEl = document.getElementById('share-card-title');
             if (watermarkEl) {
-                 watermarkEl.textContent = 'Rating on www.pista-cho.com';
+                 watermarkEl.textContent = 'Rationg@www.pista-cho.com';
             }
             if (shareTitleEl) {
                  const shareTitle = data.title || i18next.t('common.noTitle');
