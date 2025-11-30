@@ -184,6 +184,39 @@
         #share-card-qrcode img {
             display: block; width: 100%; height: 100%; object-fit: contain; /* Ensure QR fits */
         }
+        .share-card-flavor-overlay {
+            position: absolute;
+            inset: 0;
+            padding: 16px 118px 16px 16px; /* Leave space for QR code on the right */
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            pointer-events: none;
+            gap: 12px;
+        }
+        .share-card-flavor-column {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-width: 38%;
+        }
+        .share-card-flavor-column-right {
+            align-items: flex-end;
+        }
+        .share-card-flavor-tag {
+            display: inline-flex;
+            align-items: center;
+            padding: 6px 12px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: #991b1b;
+            background-color: rgba(255, 255, 255, 0.92);
+            border: 1px solid rgba(220, 38, 38, 0.6);
+            border-radius: 9999px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
+            white-space: nowrap;
+            pointer-events: none;
+        }
         /* --- End Modified Share Card Styles --- */
     </style>
 </head>
@@ -337,6 +370,10 @@
                     <span></span>
                     <span></span>
                     <span></span>
+                </div>
+                <div id="share-card-flavor-overlay" class="share-card-flavor-overlay hidden" aria-hidden="true">
+                    <div id="share-card-flavor-left" class="share-card-flavor-column"></div>
+                    <div id="share-card-flavor-right" class="share-card-flavor-column share-card-flavor-column-right"></div>
                 </div>
                 <div id="share-card-qrcode">
                     <!-- QR code img will be added here -->
@@ -1280,6 +1317,63 @@
             }
         }
 
+        function distributeFlavorsForShareCard(flavors = []) {
+            const normalizedFlavors = Array.isArray(flavors) ? flavors.filter(Boolean) : [];
+            if (normalizedFlavors.length === 0) return { left: [], right: [] };
+
+            if (normalizedFlavors.length === 2) {
+                return { left: [normalizedFlavors[0]], right: [normalizedFlavors[1]] };
+            }
+
+            if (normalizedFlavors.length === 4) {
+                return {
+                    left: normalizedFlavors.slice(0, 2),
+                    right: normalizedFlavors.slice(2, 4)
+                };
+            }
+
+            const midpoint = Math.ceil(normalizedFlavors.length / 2);
+            return {
+                left: normalizedFlavors.slice(0, midpoint),
+                right: normalizedFlavors.slice(midpoint)
+            };
+        }
+
+        function renderShareCardFlavors(selectedFlavors = []) {
+            const overlayEl = document.getElementById('share-card-flavor-overlay');
+            const leftCol = document.getElementById('share-card-flavor-left');
+            const rightCol = document.getElementById('share-card-flavor-right');
+
+            if (!overlayEl || !leftCol || !rightCol) return;
+
+            leftCol.innerHTML = '';
+            rightCol.innerHTML = '';
+
+            const translatedFlavors = (Array.isArray(selectedFlavors) ? selectedFlavors.filter(Boolean) : [])
+                .slice(0, 4)
+                .map(key => i18next.t(key) || key);
+
+            if (translatedFlavors.length === 0) {
+                overlayEl.classList.add('hidden');
+                overlayEl.setAttribute('aria-hidden', 'true');
+                return;
+            }
+
+            const createTag = (text) => {
+                const tag = document.createElement('span');
+                tag.className = 'share-card-flavor-tag';
+                tag.textContent = text;
+                return tag;
+            };
+
+            const layout = distributeFlavorsForShareCard(translatedFlavors);
+            layout.left.forEach(text => leftCol.appendChild(createTag(text)));
+            layout.right.forEach(text => rightCol.appendChild(createTag(text)));
+
+            overlayEl.classList.remove('hidden');
+            overlayEl.setAttribute('aria-hidden', 'false');
+        }
+
         // Populates the hidden share card elements
         function populateShareCard(data) {
              if (!data || !i18next.isInitialized) return;
@@ -1344,6 +1438,8 @@
                       shareCardImageWrapper.appendChild(placeholder);
                   }
             }
+
+            renderShareCardFlavors(Array.isArray(data.selectedFlavors) ? data.selectedFlavors : []);
         }
 
         function buildShareUrl() {
