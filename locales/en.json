@@ -567,35 +567,7 @@
          "mustHave": "Must have"
       }
    },
-    "instagramAdmin": {
-        "pageTitle": "Instagram Share Console",
-        "loading": "Loading...",
-        "loginRequiredTitle": "Login required",
-        "loginRequired": "Please sign in and make sure you are a Super Admin to use the Instagram sharing console.",
-        "superAdmin": "Super Admin only",
-        "title": "Instagram Sharing",
-        "configTitle": "API credentials & webhook",
-        "configSubtitle": "Save Instagram Graph API tokens, App ID/Secret, and webhook verification token.",
-        "businessAccountId": "Instagram Business Account ID",
-        "instagramUserId": "Instagram User ID",
-        "accessToken": "Long-lived Access Token",
-        "appId": "App ID",
-        "appSecret": "App Secret",
-        "webhookUrl": "Webhook Callback URL",
-        "webhookVerify": "Webhook Verify Token",
-        "configHint": "Only super admins can view these credentials. If posting fails, please verify tokens are still valid.",
-        "saveSettings": "Save settings",
-        "saved": "Settings saved",
-        "selectTitle": "Choose a rating to share",
-        "selectSubtitle": "Pick a rating, edit its caption, and queue it for Instagram.",
-        "reload": "Refresh list",
-        "noRatings": "No ratings available yet.",
-        "captionPlaceholder": "Add caption, hashtags, and rating details...",
-        "shareBtn": "Queue to Instagram",
-        "shareQueued": "Queued for Instagram publishing",
-        "gradeLabel": "Grade"
-    },
-    "flavors": {
+   "flavors": {
         "coffee": "Coffee",
         "chocolate": "Chocolate",
         "cedar": "Cedar",
