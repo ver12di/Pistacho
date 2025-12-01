@@ -7,6 +7,12 @@
 export async function onRequestGet(context) {
     const { request, env, params } = context;
     const key = params.key; // 从 URL 中获取文件名, e.g., "some-uuid.jpg"
+    const url = new URL(request.url);
+    const widthParam = url.searchParams.get('w') || url.searchParams.get('width');
+    const requestedWidth = widthParam ? parseInt(widthParam, 10) : null;
+    const normalizedWidth = requestedWidth && requestedWidth > 0
+        ? Math.min(requestedWidth, 1600)
+        : null;
 
     // 1. 检查 Key 是否存在
     if (!key) {
@@ -31,7 +37,44 @@ export async function onRequestGet(context) {
             return new Response('Object Not Found', { status: 404 });
         }
 
-        // 4. 设置正确的响应头
+        // 4a. 若请求了自适应宽度，则尝试使用 Cloudflare Image Resizing 从 R2 生成缩略图
+        if (normalizedWidth) {
+            try {
+                const presignedUrl = await env.PISTACHO_BUCKET.createPresignedUrl({
+                    key,
+                    method: 'GET',
+                    expiration: 60,
+                });
+
+                const resizeOptions = {
+                    fit: 'inside',
+                    width: normalizedWidth,
+                    quality: 82,
+                    format: 'auto',
+                };
+
+                const resizedResponse = await fetch(new Request(presignedUrl, {
+                    cf: { image: resizeOptions },
+                }));
+
+                if (resizedResponse && resizedResponse.ok) {
+                    const headers = new Headers(resizedResponse.headers);
+                    headers.set('cache-control', 'public, max-age=86400');
+                    headers.set('Access-Control-Allow-Origin', '*');
+                    return new Response(resizedResponse.body, {
+                        status: resizedResponse.status,
+                        statusText: resizedResponse.statusText,
+                        headers,
+                    });
+                }
+
+                console.warn(`[image-proxy] 自适应缩放失败, 返回原图: ${key}`, resizedResponse?.status);
+            } catch (resizeError) {
+                console.warn(`[image-proxy] 生成自适应图片失败, 将返回原图: ${resizeError.message}`);
+            }
+        }
+
+        // 4b. 设置正确的响应头并返回原图
         const headers = new Headers();
         // 复制 R2 中存储的元数据 (例如 Content-Type)
         object.writeHttpMetadata(headers);
