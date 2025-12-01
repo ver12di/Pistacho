@@ -494,11 +494,29 @@
                 document.addEventListener('DOMContentLoaded', resolve);
             });
 
+            const normalizeLanguage = (lng) => {
+                if (!lng) return 'zh';
+                const base = Array.isArray(lng) ? lng[0] : lng;
+                return base.split('-')[0].split('@')[0] || 'zh';
+            };
+
             await i18next.use(i18nextHttpBackend).use(i18nextBrowserLanguageDetector).init({
                 fallbackLng: 'zh',
-                backend: { loadPath: '/locales/{{lng}}.json' },
-                detection: { order: ['querystring', 'localStorage', 'navigator'] }
+                load: 'languageOnly',
+                supportedLngs: ['zh', 'en', 'es'],
+                backend: {
+                    loadPath: (lng) => `/locales/${normalizeLanguage(lng)}.json`
+                },
+                detection: {
+                    order: ['querystring', 'localStorage', 'navigator'],
+                    convertDetectedLanguage: normalizeLanguage
+                }
             });
+
+            const normalizedLng = normalizeLanguage(i18next.language);
+            if (normalizedLng !== i18next.language) {
+                await i18next.changeLanguage(normalizedLng);
+            }
             updateContent();
 
             const urlParams = new URLSearchParams(window.location.search);
