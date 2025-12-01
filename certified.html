@@ -291,7 +291,7 @@
                  <div class="aspect-[1179/1572] w-full overflow-hidden flex-shrink-0 relative">
                       <img src="/Certifiedstamp.png${cacheBuster}" alt="Certified" class="absolute top-1 left-1 w-12 h-12 md:w-16 md:h-16 z-10" title="Pistacho 认证评分" onerror="this.style.display='none'">
                      ${coverImageUrl
-                         ? `<img src="/api/image/${coverImageUrl}" alt="${rating.cigarInfo?.name || '雪茄图片'}" class="w-full h-full object-cover">`
+                         ? `<img src="/api/image/${coverImageUrl}" alt="${rating.cigarInfo?.name || '雪茄图片'}" class="w-full h-full object-cover" loading="lazy" decoding="async" fetchpriority="low" width="400" height="533">`
                          : `<div class="w-full h-full bg-gray-200 flex items-center justify-center text-gray-400 text-sm">${i18next.t('certifiedPage.noImage')}</div>`
                      }
                  </div>
