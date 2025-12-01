@@ -73,7 +73,9 @@
         .tooltip .tooltiptext::after { content: ""; position: absolute; top: 100%; left: 50%; margin-left: -5px; border-width: 5px; border-style: solid; border-color: #555 transparent transparent transparent; }
         .tooltip:hover .tooltiptext { visibility: visible; opacity: 1; }
         /* Swiper styles */
-        .swiper-container.main-swiper { width: 100%; position: relative; }
+        .swiper-container.main-swiper { width: 100%; position: relative; aspect-ratio: 1179 / 1572; }
+        .main-swiper .swiper-slide { display: flex; align-items: center; justify-content: center; background-color: #f3f4f6; }
+        .main-swiper-image { width: 100%; height: auto; max-height: 100%; object-fit: contain; }
         .swiper-slide { height: auto; display: flex; flex-direction: column; align-items: center; /* Center content */ justify-content: center; /* Center content */ }
         /* --- Ensure slides adapt height --- */
         .swiper-wrapper { align-items: flex-start; /* Prevent vertical stretching */ }
@@ -321,7 +323,7 @@
         <div id="share-card-container">
             <div id="share-card-image-wrapper">
                 <!-- loading="lazy" intentionally omitted: this image stays off-screen but must load immediately for share card generation -->
-                <img id="share-card-image" src="" alt="Cigar Cover Image" crossorigin="anonymous">
+                <img id="share-card-image" src="" alt="Cigar Cover Image" crossorigin="anonymous" width="1179" height="1572">
                 <div id="share-card-qrcode">
                     <!-- QR code img will be added here -->
                 </div>
@@ -946,7 +948,7 @@
 
              normalizedImages.forEach(key => {
                  const imageUrl = `/api/image/${key}`;
-                 const imgElement = `<img src="${imageUrl}" alt="${i18next.t('common.cigarImageAlt')}" crossorigin="anonymous" loading="lazy" onerror="this.src='https://placehold.co/600x800/gray/white?text=Loading+Failed'; this.onerror=null;">`;
+                 const imgElement = `<img src="${imageUrl}" alt="${i18next.t('common.cigarImageAlt')}" crossorigin="anonymous" class="main-swiper-image" loading="lazy" decoding="async" fetchpriority="low" width="400" height="533" onerror="this.src='https://placehold.co/600x800/gray/white?text=Loading+Failed'; this.onerror=null;">`;
                  mainWrapper.innerHTML += `<div class="swiper-slide">${imgElement}</div>`;
                  thumbWrapper.innerHTML += `<div class="swiper-slide thumbnail-slide">${imgElement}</div>`;
              });
