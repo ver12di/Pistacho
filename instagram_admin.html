@@ -141,18 +141,21 @@
 
         function renderLoginStatus(user) {
             const container = document.getElementById('login-status-container');
+            const canTranslate = typeof i18next !== 'undefined' && i18next.isInitialized;
             if (!container) return;
+            const loginText = canTranslate ? i18next.t('nav.login') : 'Login';
+            const logoutText = canTranslate ? i18next.t('nav.logout') : 'Logout';
             if (user) {
                 const name = user.nickname || user.name || user.preferred_username || user.email || '';
-                container.innerHTML = `<span class="hidden text-xs font-medium text-gray-700 sm:inline">${name}</span><button onclick="logout()" class="rounded-full bg-red-500 px-3 py-1 text-xs font-medium text-white hover:bg-red-600">${i18next.t('nav.logout')}</button>`;
+                container.innerHTML = `<span class="hidden text-xs font-medium text-gray-700 sm:inline">${name}</span><button onclick="logout()" class="rounded-full bg-red-500 px-3 py-1 text-xs font-medium text-white hover:bg-red-600">${logoutText}</button>`;
             } else {
-                container.innerHTML = `<button onclick="login()" class="rounded-full bg-green-500 px-3 py-1 text-xs font-medium text-white hover:bg-green-600">${i18next.t('nav.login')}</button>`;
+                container.innerHTML = `<button onclick="login()" class="rounded-full bg-green-500 px-3 py-1 text-xs font-medium text-white hover:bg-green-600">${loginText}</button>`;
             }
         }
 
         function renderLanguageSwitcher() {
             const container = document.getElementById('language-flags');
-            if (!container || !i18next.isInitialized) return;
+            if (!container || typeof i18next === 'undefined' || !i18next.isInitialized) return;
             container.innerHTML = '';
             const languages = ['zh', 'en', 'es'];
             const currentLang = i18next.language ? i18next.language.split('-')[0] : 'zh';
@@ -177,9 +180,10 @@
         function renderAdminLinks() {
             const configLink = document.getElementById('config-admin-link');
             const instagramLink = document.getElementById('instagram-admin-link');
+            const canTranslate = typeof i18next !== 'undefined' && i18next.isInitialized;
             if (configLink) configLink.classList.add('hidden');
             if (instagramLink) instagramLink.classList.add('hidden');
-            if (!currentAuthUser || !i18next.isInitialized) return;
+            if (!currentAuthUser || !canTranslate) return;
             if (currentAuthUser.db_role === 'admin' || currentAuthUser.db_role === 'super_admin') {
                 configLink?.classList.remove('hidden');
                 configLink.textContent = i18next.t('nav.configAdmin');
@@ -208,7 +212,11 @@
                 return fullUserProfile;
             } catch (error) {
                 console.error('OIDC callback failed', error);
-                alert(i18next.t('errors.loginFailed', { message: error.message }));
+                const fallback = `Login failed: ${error.message}`;
+                const message = typeof i18next !== 'undefined' && i18next.isInitialized
+                    ? i18next.t('errors.loginFailed', { message: error.message })
+                    : fallback;
+                alert(message);
                 sessionStorage.removeItem('userInfo');
                 sessionStorage.removeItem('accessToken');
                 return null;
