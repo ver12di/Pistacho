@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="管理将用户评分分享到 Instagram 的配置与执行队列，专属超级管理员。">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Instagram 分享控制台</title>
+    <link rel="icon" type="image/png" href="Certifiedstamp.png">
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <script src="https://unpkg.com/i18next/i18next.min.js"></script>
+    <script src="https://unpkg.com/i18next-http-backend/i18nextHttpBackend.min.js"></script>
+    <script src="https://unpkg.com/i18next-browser-languagedetector/i18nextBrowserLanguageDetector.min.js"></script>
+    <script type="module" src="scripts/navbar.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'Noto Sans SC', 'system-ui', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gray-50 text-slate-800">
+    <div class="px-4 sm:px-6 lg:px-8 pt-4">
+        <div class="mx-auto max-w-6xl">
+            <div data-include-nav data-active="config" data-language="flags"></div>
+        </div>
+    </div>
+
+    <main id="app" class="max-w-6xl mx-auto px-4 md:px-0 pb-16">
+        <div class="text-center text-gray-500 mt-12" data-i18n="instagramAdmin.loading">正在加载...</div>
+    </main>
+
+    <script type="module">
+        async function initI18n() {
+            await i18next
+                .use(i18nextHttpBackend)
+                .use(i18nextBrowserLanguageDetector)
+                .init({
+                    fallbackLng: 'zh',
+                    debug: false,
+                    ns: ['translation'],
+                    defaultNS: 'translation',
+                    backend: { loadPath: '/locales/{{lng}}.json' },
+                    detection: { order: ['localStorage', 'navigator'], caches: ['localStorage'] }
+                });
+            document.title = i18next.t('instagramAdmin.pageTitle');
+        }
+
+        function t(key, options) {
+            return i18next.t(key, options);
+        }
+
+        const app = document.getElementById('app');
+        let token = null;
+        let me = null;
+        let settings = null;
+        let ratings = [];
+
+        function renderLanguageSwitcher() {
+            const switcher = document.getElementById('language-switcher');
+            if (!switcher || !i18next.isInitialized) return;
+            switcher.value = i18next.language?.split('-')[0] || 'zh';
+            switcher.addEventListener('change', async (e) => {
+                await i18next.changeLanguage(e.target.value);
+                document.title = i18next.t('instagramAdmin.pageTitle');
+                renderPage();
+            });
+        }
+
+        function renderError(messageKey) {
+            app.innerHTML = `
+                <div class="max-w-2xl mx-auto mt-12 bg-red-50 border border-red-200 text-red-800 p-6 rounded-xl shadow">
+                    <p class="font-semibold" data-i18n="${messageKey}">${t(messageKey)}</p>
+                    <div class="mt-4 text-center">
+                        <a class="text-indigo-600 underline" href="index.html" data-i18n="common.backToHome">${t('common.backToHome')}</a>
+                    </div>
+                </div>
+            `;
+            i18next.isInitialized && updateI18n();
+        }
+
+        function renderLoginPrompt() {
+            app.innerHTML = `
+                <div class="max-w-2xl mx-auto mt-12 bg-white border border-slate-200 p-8 rounded-xl shadow">
+                    <h1 class="text-2xl font-bold mb-2" data-i18n="instagramAdmin.loginRequiredTitle">${t('instagramAdmin.loginRequiredTitle')}</h1>
+                    <p class="text-slate-600" data-i18n="instagramAdmin.loginRequired">${t('instagramAdmin.loginRequired')}</p>
+                    <div class="mt-4 text-center">
+                        <a href="/index.html" class="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg shadow hover:bg-indigo-700 transition" data-i18n="common.backToHome">${t('common.backToHome')}</a>
+                    </div>
+                </div>
+            `;
+            i18next.isInitialized && updateI18n();
+        }
+
+        function updateI18n() {
+            document.querySelectorAll('[data-i18n]').forEach((el) => {
+                const key = el.getAttribute('data-i18n');
+                const value = i18next.t(key, {});
+                if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+                    if (el.hasAttribute('placeholder')) {
+                        el.placeholder = value;
+                    }
+                } else {
+                    el.innerHTML = value;
+                }
+            });
+        }
+
+        function renderPage() {
+            if (!me) {
+                renderError('errors.permissionDenied');
+                return;
+            }
+            app.innerHTML = `
+                <header class="bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-2xl shadow-lg p-8 mt-4">
+                    <div class="flex items-center justify-between gap-4 flex-wrap">
+                        <div>
+                            <p class="text-sm text-indigo-100" data-i18n="instagramAdmin.superAdmin">${t('instagramAdmin.superAdmin')}</p>
+                            <h1 class="text-3xl font-extrabold" data-i18n="instagramAdmin.title">${t('instagramAdmin.title')}</h1>
+                            <p class="text-indigo-100 text-sm mt-1">${me.email || me.sub}</p>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <select id="language-switcher" class="rounded-lg bg-white/10 border border-white/30 text-white text-sm px-3 py-2 focus:outline-none focus:ring-2 focus:ring-white/60">
+                                <option value="zh">简体中文</option>
+                                <option value="en">English</option>
+                                <option value="es">Español</option>
+                            </select>
+                            <a href="index.html" class="px-4 py-2 bg-white text-indigo-700 rounded-lg font-semibold shadow hover:shadow-md transition" data-i18n="common.backToHome">${t('common.backToHome')}</a>
+                        </div>
+                    </div>
+                </header>
+
+                <section class="mt-8 bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="h-10 w-10 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold">IG</div>
+                        <div>
+                            <h2 class="text-xl font-semibold" data-i18n="instagramAdmin.configTitle">${t('instagramAdmin.configTitle')}</h2>
+                            <p class="text-slate-500" data-i18n="instagramAdmin.configSubtitle">${t('instagramAdmin.configSubtitle')}</p>
+                        </div>
+                    </div>
+                    <form id="settings-form" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <label class="block">
+                            <span class="text-sm font-medium text-slate-700" data-i18n="instagramAdmin.businessAccountId">${t('instagramAdmin.businessAccountId')}</span>
+                            <input id="businessAccountId" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="1784..." />
+                        </label>
+                        <label class="block">
+                            <span class="text-sm font-medium text-slate-700" data-i18n="instagramAdmin.instagramUserId">${t('instagramAdmin.instagramUserId')}</span>
+                            <input id="instagramUserId" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="634..." />
+                        </label>
+                        <label class="block md:col-span-2">
+                            <span class="text-sm font-medium text-slate-700" data-i18n="instagramAdmin.accessToken">${t('instagramAdmin.accessToken')}</span>
+                            <input id="accessToken" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="EAA..." />
+                        </label>
+                        <label class="block">
+                            <span class="text-sm font-medium text-slate-700" data-i18n="instagramAdmin.appId">${t('instagramAdmin.appId')}</span>
+                            <input id="appId" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="123..." />
+                        </label>
+                        <label class="block">
+                            <span class="text-sm font-medium text-slate-700" data-i18n="instagramAdmin.appSecret">${t('instagramAdmin.appSecret')}</span>
+                            <input id="appSecret" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="app secret" />
+                        </label>
+                        <label class="block">
+                            <span class="text-sm font-medium text-slate-700" data-i18n="instagramAdmin.webhookUrl">${t('instagramAdmin.webhookUrl')}</span>
+                            <input id="webhookCallback" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="https://example.com/webhook" />
+                        </label>
+                        <label class="block">
+                            <span class="text-sm font-medium text-slate-700" data-i18n="instagramAdmin.webhookVerify">${t('instagramAdmin.webhookVerify')}</span>
+                            <input id="webhookVerifyToken" class="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="verify token" />
+                        </label>
+                        <div class="md:col-span-2 flex items-center justify-between gap-3">
+                            <p class="text-sm text-slate-500" data-i18n="instagramAdmin.configHint">${t('instagramAdmin.configHint')}</p>
+                            <button type="submit" class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg shadow hover:bg-indigo-700 transition" data-i18n="instagramAdmin.saveSettings">${t('instagramAdmin.saveSettings')}</button>
+                        </div>
+                    </form>
+                </section>
+
+                <section class="mt-8 bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                    <div class="flex items-center justify-between gap-3 mb-4">
+                        <div>
+                            <h2 class="text-xl font-semibold" data-i18n="instagramAdmin.selectTitle">${t('instagramAdmin.selectTitle')}</h2>
+                            <p class="text-slate-500" data-i18n="instagramAdmin.selectSubtitle">${t('instagramAdmin.selectSubtitle')}</p>
+                        </div>
+                        <button id="reload-ratings" class="px-3 py-2 text-sm bg-slate-100 hover:bg-slate-200 rounded-lg" data-i18n="instagramAdmin.reload">${t('instagramAdmin.reload')}</button>
+                    </div>
+                    <div id="ratings-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+                </section>
+            `;
+
+            renderLanguageSwitcher();
+            fillSettings();
+            renderRatings();
+            updateI18n();
+
+            document.getElementById('settings-form')?.addEventListener('submit', handleSaveSettings);
+            document.getElementById('reload-ratings')?.addEventListener('click', loadRatings);
+        }
+
+        function fillSettings() {
+            if (!settings) return;
+            const fields = ['businessAccountId', 'instagramUserId', 'accessToken', 'appId', 'appSecret', 'webhookCallback', 'webhookVerifyToken'];
+            fields.forEach((id) => {
+                const el = document.getElementById(id);
+                if (el) el.value = settings[id] || '';
+            });
+        }
+
+        function renderRatings() {
+            const grid = document.getElementById('ratings-grid');
+            if (!grid) return;
+            if (!ratings || ratings.length === 0) {
+                grid.innerHTML = `<div class="text-slate-500" data-i18n="instagramAdmin.noRatings">${t('instagramAdmin.noRatings')}</div>`;
+                updateI18n();
+                return;
+            }
+            grid.innerHTML = ratings.map((rating) => {
+                const cover = rating.imageUrl ? `<img src="${rating.imageUrl}" alt="${rating.title}" class="h-32 w-full object-cover rounded-lg border">` : '<div class="h-32 w-full rounded-lg bg-slate-100 flex items-center justify-center text-slate-400">No Image</div>';
+                return `
+                    <div class="border border-slate-200 rounded-xl p-4 shadow-sm bg-slate-50 flex flex-col gap-3">
+                        <div class="flex items-start gap-3">
+                            <div class="w-1/3">${cover}</div>
+                            <div class="flex-1">
+                                <h3 class="text-lg font-semibold">${rating.title || 'Untitled'}</h3>
+                                <p class="text-sm text-slate-600">${rating.cigarName || ''}</p>
+                                <p class="text-sm text-slate-500">${rating.finalGrade ? `${t('instagramAdmin.gradeLabel')}: ${rating.finalGrade}` : ''}</p>
+                                <p class="text-xs text-slate-400">${new Date(rating.timestamp).toLocaleString()}</p>
+                            </div>
+                        </div>
+                        <textarea data-caption-for="${rating.id}" class="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" placeholder="${t('instagramAdmin.captionPlaceholder')}"></textarea>
+                        <button data-share-id="${rating.id}" class="inline-flex items-center justify-center gap-2 px-3 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition" data-i18n="instagramAdmin.shareBtn">${t('instagramAdmin.shareBtn')}</button>
+                    </div>
+                `;
+            }).join('');
+
+            grid.querySelectorAll('[data-share-id]').forEach((btn) => {
+                btn.addEventListener('click', () => handleShare(btn.getAttribute('data-share-id')));
+            });
+            updateI18n();
+        }
+
+        async function handleSaveSettings(event) {
+            event.preventDefault();
+            const payload = {
+                businessAccountId: document.getElementById('businessAccountId')?.value || '',
+                instagramUserId: document.getElementById('instagramUserId')?.value || '',
+                accessToken: document.getElementById('accessToken')?.value || '',
+                appId: document.getElementById('appId')?.value || '',
+                appSecret: document.getElementById('appSecret')?.value || '',
+                webhookCallback: document.getElementById('webhookCallback')?.value || '',
+                webhookVerifyToken: document.getElementById('webhookVerifyToken')?.value || ''
+            };
+
+            const res = await fetch('/api/instagram?action=settings', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`
+                },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if (!res.ok || data.error) {
+                alert(data.error || 'Save failed');
+                return;
+            }
+            settings = data.settings;
+            alert(t('instagramAdmin.saved')); 
+        }
+
+        async function handleShare(ratingId) {
+            const textarea = document.querySelector(`[data-caption-for="${ratingId}"]`);
+            const caption = textarea ? textarea.value : '';
+            const res = await fetch('/api/instagram?action=share', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`
+                },
+                body: JSON.stringify({ ratingId, caption })
+            });
+            const data = await res.json();
+            if (!res.ok || data.error) {
+                alert(data.error || 'Share failed');
+                return;
+            }
+            alert(t('instagramAdmin.shareQueued'));
+        }
+
+        async function loadProfile() {
+            try {
+                token = sessionStorage.getItem('accessToken');
+            } catch (err) {
+                token = null;
+            }
+            if (!token) {
+                renderLoginPrompt();
+                return;
+            }
+            const res = await fetch('/api/me', { headers: { Authorization: `Bearer ${token}` } });
+            if (!res.ok) {
+                renderLoginPrompt();
+                return;
+            }
+            me = await res.json();
+            if (me.db_role !== 'super_admin') {
+                renderError('errors.permissionInsufficientSuperAdmin');
+                return;
+            }
+            await loadSettings();
+            await loadRatings();
+            renderPage();
+        }
+
+        async function loadSettings() {
+            const res = await fetch('/api/instagram?action=settings', {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            const data = await res.json();
+            if (res.ok && data.settings) {
+                settings = data.settings;
+            }
+        }
+
+        async function loadRatings() {
+            const res = await fetch('/api/instagram?action=shareable', {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            const data = await res.json();
+            if (res.ok && data.ratings) {
+                ratings = data.ratings;
+            } else {
+                ratings = [];
+            }
+            renderRatings();
+        }
+
+        document.addEventListener('navbar:loaded', renderLanguageSwitcher);
+
+        initI18n().then(loadProfile);
+    </script>
+</body>
+</html>
