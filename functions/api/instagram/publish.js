@@ -5,6 +5,8 @@
 
 const DEFAULT_TEMPLATE = '{{title}} 获得 {{score}} 分! \n\n{{review}}\n\n#Cigar #Pistacho.';
 
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 async function validateSuperAdmin(request, env) {
     const authHeader = request.headers.get('Authorization') || '';
     const token = authHeader.replace('Bearer ', '');
@@ -122,6 +124,32 @@ async function publishContainer(env, igUserId, token, creationId) {
     return data.id || creationId;
 }
 
+async function waitForContainerReady(creationId, token, options = {}) {
+    const { maxAttempts = 10, delayMs = 1000 } = options;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        const statusRes = await fetch(`https://graph.facebook.com/v21.0/${creationId}?fields=status_code&access_token=${token}`);
+        const statusData = await statusRes.json();
+
+        if (!statusRes.ok) {
+            const igError = formatInstagramError(statusData, 'Failed to fetch media status.');
+            throw new Error(igError);
+        }
+
+        const status = statusData.status_code;
+        if (status === 'FINISHED' || status === 'READY') return;
+        if (status === 'ERROR' || status === 'FAILED') {
+            throw new Error(`Instagram Error: Media processing failed (${status || 'unknown status'}).`);
+        }
+
+        if (attempt < maxAttempts) {
+            await delay(delayMs);
+        }
+    }
+
+    throw new Error('Instagram media is still processing. Please retry in a moment.');
+}
+
 function formatInstagramError(data, fallbackMessage) {
     const errorInfo = data?.error || {};
     const parts = [
@@ -182,6 +210,7 @@ export async function onRequestPost(context) {
                 const igError = formatInstagramError(itemData, 'Failed to upload carousel item');
                 throw new Error(igError);
             }
+            await waitForContainerReady(itemData.id, accessToken);
             containerIds.push(itemData.id);
         }
 
@@ -202,6 +231,7 @@ export async function onRequestPost(context) {
             throw new Error(igError);
         }
 
+        await waitForContainerReady(carouselData.id, accessToken);
         const publishId = await publishContainer(env, igUserId, accessToken, carouselData.id);
 
         return new Response(JSON.stringify({ success: true, publishId }), {
