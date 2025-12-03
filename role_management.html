@@ -150,101 +150,6 @@
         let accessToken = null;
         const APP_CONTAINER = document.getElementById('app-container');
         const STATUS_DISPLAY = document.getElementById('status-message');
-        const DEFAULT_IG_TEMPLATE = '{{title}} 获得 {{score}} 分! \n\n{{review}}\n\n#Cigar #Pistacho.';
-
-        function setIgStatus(message, isError = false) {
-            const statusEl = document.getElementById('ig-config-status');
-            if (!statusEl) return;
-            statusEl.textContent = message;
-            statusEl.className = `text-sm ${isError ? 'text-red-600' : 'text-gray-700'}`;
-        }
-
-        async function loadInstagramConfig() {
-            try {
-                setIgStatus('加载中...');
-                const response = await fetch('/api/instagram/config', {
-                    headers: { 'Authorization': `Bearer ${accessToken}` }
-                });
-                const data = await response.json();
-                if (!response.ok) {
-                    throw new Error(data.error || '加载配置失败');
-                }
-
-                const tokenInput = document.getElementById('ig-access-token');
-                const templateInput = document.getElementById('ig-template-input');
-                const connectedMessage = document.getElementById('ig-connected-message');
-
-                if (templateInput) {
-                    templateInput.value = data.template || DEFAULT_IG_TEMPLATE;
-                }
-                if (tokenInput) {
-                    tokenInput.value = '';
-                    tokenInput.placeholder = data.token ? `已保存: ${data.token}` : 'Paste your EAA... token here';
-                }
-                if (connectedMessage) {
-                    if (data.userId) {
-                        connectedMessage.textContent = `已连接 IG Account ID: ${data.userId}`;
-                        connectedMessage.classList.remove('hidden');
-                    } else {
-                        connectedMessage.classList.add('hidden');
-                    }
-                }
-                setIgStatus('配置已加载');
-            } catch (error) {
-                console.error('加载 Instagram 配置失败:', error);
-                setIgStatus(`加载失败: ${error.message}`, true);
-            }
-        }
-
-        async function saveInstagramConfig() {
-            const button = document.getElementById('ig-save-button');
-            const tokenInput = document.getElementById('ig-access-token');
-            const templateInput = document.getElementById('ig-template-input');
-            const connectedMessage = document.getElementById('ig-connected-message');
-            if (!templateInput) return;
-
-            const payload = { template: templateInput.value?.trim() || DEFAULT_IG_TEMPLATE };
-            const tokenValue = tokenInput?.value?.trim();
-            if (tokenValue) payload.token = tokenValue;
-
-            try {
-                if (button) button.disabled = true;
-                setIgStatus('Connecting...');
-                const response = await fetch('/api/instagram/config', {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${accessToken}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(payload)
-                });
-                const data = await response.json();
-                if (!response.ok) {
-                    throw new Error(data.error || '保存失败');
-                }
-
-                if (tokenInput) tokenInput.value = '';
-                if (tokenInput) tokenInput.placeholder = data.token ? `已保存: ${data.token}` : tokenInput.placeholder;
-                if (connectedMessage) {
-                    connectedMessage.textContent = `Connected! Linked to IG Account ID: ${data.userId}`;
-                    connectedMessage.classList.remove('hidden');
-                }
-                setIgStatus('Connected! 已保存配置');
-            } catch (error) {
-                console.error('保存 Instagram 配置失败:', error);
-                setIgStatus(`Error: ${error.message}`, true);
-            } finally {
-                if (button) button.disabled = false;
-            }
-        }
-
-        function attachInstagramConfigHandlers() {
-            const saveButton = document.getElementById('ig-save-button');
-            if (saveButton) {
-                saveButton.onclick = saveInstagramConfig;
-            }
-            loadInstagramConfig();
-        }
 
         // **MODIFIED**: Uses i18n
         function renderStatus(messageKey, isError = false, options = {}) {
@@ -288,7 +193,7 @@
 
                 <div class="bg-white p-6 rounded-xl shadow-lg mb-8">
                     <h2 class="text-2xl font-bold text-purple-700 mb-4">${i18next.t('rolePage.queryAndSet')}</h2>
-
+                    
                     <div class="space-y-4">
                         <label class="block">
                             <span class="text-gray-700">${i18next.t('rolePage.userEmail')}</span>
@@ -306,34 +211,9 @@
                         <p class="text-gray-500">${i18next.t('rolePage.promptQuery')}</p>
                     </div>
                 </div>
-
-                <div class="bg-white p-6 rounded-xl shadow-lg mb-8">
-                    <h2 class="text-2xl font-bold text-purple-700 mb-2">Instagram 配置 (Super Admin Only)</h2>
-                    <p class="text-sm text-gray-600 mb-4">配置 Instagram 发布凭证并设置发布模板。</p>
-
-                    <div class="space-y-4">
-                        <label class="block">
-                            <span class="text-gray-700">Access Token</span>
-                            <input type="password" id="ig-access-token" placeholder="Paste your EAA... token here" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 focus:border-purple-500">
-                            <p class="text-xs text-gray-500 mt-1">将不会明文展示，保存后自动解析 Business Account ID。</p>
-                        </label>
-
-                        <label class="block">
-                            <span class="text-gray-700">发布模板</span>
-                            <textarea id="ig-template-input" rows="4" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 focus:border-purple-500" placeholder="{{title}} 获得 {{score}} 分!&#10;&#10;{{review}}&#10;&#10;#Cigar #Pistacho."></textarea>
-                        </label>
-
-                        <div class="flex items-center gap-3">
-                            <button id="ig-save-button" class="py-2 px-4 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition duration-150">保存 & 连接</button>
-                            <span id="ig-config-status" class="text-sm text-gray-500"></span>
-                        </div>
-                        <p id="ig-connected-message" class="text-sm text-green-600 hidden"></p>
-                    </div>
-                </div>
             `;
             // **NEW**: After rendering the UI, ensure the language buttons are refreshed
             renderLanguageSwitcher();
-            attachInstagramConfigHandlers();
         }
 
         // **MODIFIED**: Uses i18n
