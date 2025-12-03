@@ -93,62 +93,54 @@
         /* Flavor tag style */
         .flavor-tag { display: inline-block; background-color: #e5e7eb; color: #374151; font-size: 0.75rem; font-weight: 600; margin-right: 0.5rem; margin-bottom: 0.5rem; padding: 0.125rem 0.625rem; border-radius: 9999px; }
 
-        /* Instagram-Specific Share Card Styles */
+        /* Instagram Share Card - Fixed 4:5 Ratio */
         #share-card-container {
-            position: fixed; top: 0; left: -9999px; /* Hide off-screen */
-            width: 1080px !important;
-            height: 1350px !important;
+            /* Fixed Dimensions for IG Portrait */
+            width: 1080px;
+            height: 1350px;
             background-color: #ffffff;
+            /* Hide it initially but keep it in DOM flow for assets to load */
+            position: fixed;
+            top: 0; left: -9999px;
+            z-index: -100;
             display: flex; flex-direction: column;
-            z-index: -10; font-family: 'Inter', sans-serif;
+            box-sizing: border-box; font-family: sans-serif;
         }
 
+        /* Image Area (Top 74%) */
         #share-card-image-wrapper {
-            width: 100%;
-            height: 1000px; /* Top 74% */
-            overflow: hidden; position: relative;
-            background-color: #f3f4f6;
+            width: 100%; height: 1000px;
+            overflow: hidden; position: relative; background: #f3f4f6;
         }
-
         #share-card-image {
-            width: 100%; height: 100%;
-            object-fit: cover; /* Ensures 4:5 fill without distortion */
+            width: 100%; height: 100%; object-fit: cover;
         }
 
-        /* Redesigned Footer for 4:5 Ratio */
+        /* Footer Area (Bottom 26%) - Re-layout for Vertical Card */
         #share-card-content {
-            height: 350px; /* Bottom 26% */
+            height: 350px;
             padding: 30px 40px;
             display: flex; flex-direction: row; /* Horizontal layout */
             align-items: center; justify-content: space-between;
-            border-top: 1px solid #e5e7eb;
+            border-top: 2px solid #e5e7eb; background: white;
         }
 
-        /* Footer - Left: Score */
-        #share-card-left {
-            display: flex; flex-direction: column; align-items: flex-start;
-            min-width: 250px;
-        }
+        /* Footer Elements */
+        #share-card-left { display: flex; flex-direction: column; }
         #share-card-score { font-size: 6rem; line-height: 1; font-weight: 900; color: #4f46e5; }
-        #share-card-grade-badge { font-size: 1.5rem; padding: 5px 15px; margin-top: 10px; border-radius: 99px; background: #e0e7ff; color: #3730a3; font-weight: bold;}
+        #share-card-grade-badge { font-size: 1.4rem; padding: 5px 15px; margin-top: 10px; border-radius: 99px; background: #e0e7ff; color: #3730a3; font-weight: bold; text-align: center; }
 
-        /* Footer - Middle: Info */
-        #share-card-cigar-info {
-            flex-grow: 1; margin: 0 40px; text-align: left;
-        }
-        #share-card-cigar-name { font-size: 2.2rem; font-weight: 800; color: #111827; line-height: 1.2; margin-bottom: 10px; }
+        #share-card-cigar-info { flex-grow: 1; margin: 0 40px; text-align: left; }
+        #share-card-cigar-name { font-size: 2.2rem; font-weight: 800; color: #111827; line-height: 1.2; margin-bottom: 8px; }
         #share-card-cigar-size { font-size: 1.4rem; color: #4b5563; font-weight: 500; }
-        #share-card-title { font-size: 1.4rem; color: #1f2937; font-weight: 600; margin-top: 10px; }
-        #share-card-watermark { font-size: 1rem; color: #9ca3af; margin-top: 15px; font-weight: 600; }
+        #share-card-watermark { font-size: 1rem; color: #9ca3af; margin-top: 15px; font-weight: 600; text-transform: uppercase; }
 
-        /* Footer - Right: QR Code */
         #share-card-qrcode {
-            position: static; /* Reset absolute positioning */
-            width: 220px; height: 220px;
-            background: white; border: 2px solid #e5e7eb; border-radius: 16px;
-            padding: 10px; flex-shrink: 0;
+            width: 220px !important; height: 220px !important;
+            background: white; border: 2px solid #e5e7eb; border-radius: 16px; padding: 10px;
+            flex-shrink: 0; display: flex; align-items: center; justify-content: center;
         }
-        #share-card-qrcode img { width: 100%; height: 100%; }
+        #share-card-qrcode img { width: 100%; height: 100%; object-fit: contain; }
     </style>
 </head>
 <body class="bg-gray-100 font-sans antialiased text-gray-800">
@@ -809,69 +801,79 @@
         }
 
         window.postToInstagram = async function() {
-            if (!currentAuthUser || currentAuthUser.db_role !== 'super_admin') {
-                alert('只有超级管理员可以发布到 Instagram。');
-                return;
-            }
+            if (!currentAuthUser || currentAuthUser.db_role !== 'super_admin') return;
             if (!ratingId) {
                 alert('请先保存评分后再发布。');
                 return;
             }
-            if (!confirm('Start Instagram publishing flow? (1. Generate Card, 2. Crop Photos)')) return;
-
-            const token = sessionStorage.getItem('accessToken');
-            if (!token) {
-                alert(i18next.t('common.loginRequired'));
-                return;
-            }
+            if (!confirm('Start Instagram publishing? (This will crop images to 4:5)')) return;
 
             const publishBtn = document.getElementById('ig-publish-button');
-            const finalKeys = [];
+            if (publishBtn) {
+                publishBtn.disabled = true;
+                publishBtn.textContent = 'Processing Images...';
+            }
 
             try {
-                if (publishBtn) {
-                    publishBtn.disabled = true;
-                    publishBtn.textContent = 'Generating Card...';
-                }
-                setInstagramPublishStatus('生成分享卡...');
+                const finalKeys = [];
 
+                // --- 1. Capture Share Card (Slide 1) ---
                 await ensureHtml2Canvas();
                 const shareContainer = document.getElementById('share-card-container');
                 if (!shareContainer) throw new Error('Share card container missing.');
 
-                const canvas = await html2canvas(shareContainer, { scale: 1, useCORS: true });
+                // Move container on-screen but invisible to user for proper rendering
+                const originalStyle = shareContainer.getAttribute('style');
+                shareContainer.style.left = '0';
+                shareContainer.style.top = '0';
+                shareContainer.style.zIndex = '-1000';
+                shareContainer.style.visibility = 'visible';
+
+                await new Promise((r) => setTimeout(r, 200));
+
+                const canvas = await html2canvas(shareContainer, {
+                    scale: 1,
+                    useCORS: true,
+                    backgroundColor: '#ffffff'
+                });
+
+                if (originalStyle !== null) {
+                    shareContainer.setAttribute('style', originalStyle);
+                } else {
+                    shareContainer.removeAttribute('style');
+                }
+
                 const cardBlob = await new Promise((resolve, reject) => {
                     canvas.toBlob((result) => {
                         if (result) resolve(result);
                         else reject(new Error('Failed to create share card image.'));
                     }, 'image/jpeg', 0.95);
                 });
-                const cardUpload = await uploadBlob(cardBlob, 'ig-share-card.jpg');
+                const cardUpload = await uploadBlob(cardBlob, 'ig-cover.jpg');
                 finalKeys.push(cardUpload.imageKey);
 
+                // --- 2. Crop User Images (Slides 2+) ---
                 const userImages = resultsData?.imageUrls || [];
                 if (userImages.length > 0) {
                     await ensureCropper();
                 }
+
                 for (let i = 0; i < userImages.length; i++) {
                     const imgKey = userImages[i];
                     const imgUrl = `/api/image/${imgKey}`;
-                    if (publishBtn) publishBtn.textContent = `Cropping ${i + 1}/${userImages.length}...`;
+                    if (publishBtn) publishBtn.textContent = `Cropping Image ${i + 1}...`;
                     const croppedBlob = await promptCrop4to5(imgUrl, i + 1, userImages.length);
-                    if (!croppedBlob) throw new Error('Cropping cancelled by user.');
-                    const userUpload = await uploadBlob(croppedBlob, `ig-photo-${i}.jpg`);
+                    if (!croppedBlob) throw new Error('Cropping cancelled.');
+                    const userUpload = await uploadBlob(croppedBlob, `ig-slide-${i}.jpg`);
                     finalKeys.push(userUpload.imageKey);
                 }
 
+                // --- 3. Publish ---
                 if (publishBtn) publishBtn.textContent = 'Publishing to IG...';
-                setInstagramPublishStatus('发布中...');
                 await performPublish(finalKeys);
-
-                setInstagramPublishStatus('已发布到 Instagram');
-                alert(`Success! Published ${finalKeys.length} images to Instagram.`);
+                alert('Published Successfully!');
             } catch (error) {
                 console.error('发布到 Instagram 失败:', error);
-                setInstagramPublishStatus(`Error: ${error.message}`, true);
                 alert(`发布失败: ${error.message}`);
             } finally {
                 if (publishBtn) {
