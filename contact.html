@@ -132,21 +132,14 @@
 
         function renderAdminLinks() {
             const configLink = document.getElementById('config-admin-link');
-            const instagramLink = document.getElementById('instagram-admin-link');
-            if (configLink) configLink.classList.add('hidden');
-            if (instagramLink) instagramLink.classList.add('hidden');
+            if (!configLink) return;
+            configLink.classList.add('hidden');
             if (!currentAuthUser) return;
             const role = currentAuthUser.db_role;
-            if ((role === 'admin' || role === 'super_admin') && configLink) {
+            if (role === 'admin' || role === 'super_admin') {
                 configLink.classList.remove('hidden');
                 if (i18next.isInitialized) {
                     configLink.textContent = i18next.t('nav.configAdmin');
-                }
-            }
-            if (role === 'super_admin' && instagramLink) {
-                instagramLink.classList.remove('hidden');
-                if (i18next.isInitialized) {
-                    instagramLink.textContent = i18next.t('nav.instagramConsole');
                 }
             }
         }
