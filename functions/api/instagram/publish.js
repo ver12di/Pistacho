@@ -86,22 +86,22 @@ async function fetchRating(env, ratingId) {
 }
 
 async function createContainer(env, igUserId, token, imageUrl, caption) {
-    const payload = new URLSearchParams({
+    const payload = {
         image_url: imageUrl,
         caption,
         access_token: token
-    });
+    };
     const response = await fetch(`https://graph.facebook.com/v21.0/${igUserId}/media`, {
         method: 'POST',
-        body: payload
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
     });
     const data = await response.json();
-    if (!response.ok) {
-        const message = data?.error?.message || 'Failed to create Instagram media container.';
-        throw new Error(message);
-    }
-    if (!data.id) {
-        throw new Error('Instagram did not return a creation_id');
+    if (!response.ok || !data.id) {
+        console.error('[IG Publish] Step 1 Failed:', JSON.stringify(data));
+        const errorMsg = data?.error?.message || 'Unknown error creating media container';
+        const errorType = data?.error?.type || 'UnknownType';
+        throw new Error(`Instagram Error (${errorType}): ${errorMsg}`);
     }
     return data.id;
 }
@@ -150,7 +150,9 @@ export async function onRequestPost(context) {
             throw new Error('This rating has no image to publish.');
         }
 
-        const imageUrl = `https://www.pista-cho.com/api/image/${rating.imageUrls[0]}`;
+        const origin = new URL(request.url).origin;
+        const imageUrl = `${origin}/api/image/${rating.imageUrls[0]}`;
+        console.log(`[IG Publish] Sending Image URL: ${imageUrl}`);
         const caption = buildCaption(template, rating);
 
         const creationId = await createContainer(env, igUserId, accessToken, imageUrl, caption);
