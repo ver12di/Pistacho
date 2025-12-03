@@ -99,9 +99,8 @@ async function createContainer(env, igUserId, token, imageUrl, caption) {
     const data = await response.json();
     if (!response.ok || !data.id) {
         console.error('[IG Publish] Step 1 Failed:', JSON.stringify(data));
-        const errorMsg = data?.error?.message || 'Unknown error creating media container';
-        const errorType = data?.error?.type || 'UnknownType';
-        throw new Error(`Instagram Error (${errorType}): ${errorMsg}`);
+        const igError = formatInstagramError(data, 'Unknown error creating media container');
+        throw new Error(igError);
     }
     return data.id;
 }
@@ -117,10 +116,22 @@ async function publishContainer(env, igUserId, token, creationId) {
     });
     const data = await response.json();
     if (!response.ok) {
-        const message = data?.error?.message || 'Failed to publish Instagram media.';
-        throw new Error(message);
+        const igError = formatInstagramError(data, 'Failed to publish Instagram media.');
+        throw new Error(igError);
     }
     return data.id || creationId;
+}
+
+function formatInstagramError(data, fallbackMessage) {
+    const errorInfo = data?.error || {};
+    const parts = [
+        errorInfo.message || fallbackMessage,
+        errorInfo.type ? `Type: ${errorInfo.type}` : null,
+        errorInfo.code ? `Code: ${errorInfo.code}` : null,
+        errorInfo.error_subcode ? `Subcode: ${errorInfo.error_subcode}` : null,
+        errorInfo.fbtrace_id ? `Trace ID: ${errorInfo.fbtrace_id}` : null
+    ].filter(Boolean);
+    return `Instagram Error: ${parts.join(' | ')}`;
 }
 
 export async function onRequestPost(context) {
