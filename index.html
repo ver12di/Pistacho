@@ -448,16 +448,22 @@
 
         function renderAdminLinks() {
             const configLink = document.getElementById('config-admin-link');
-            if (!configLink || !i18next.isInitialized) return;
-            configLink.classList.add('hidden');
-            if (!currentAuthUser) return;
+            const instagramLink = document.getElementById('instagram-admin-link');
+
+            if (configLink) configLink.classList.add('hidden');
+            if (instagramLink) instagramLink.classList.add('hidden');
+            if (!currentAuthUser || !i18next.isInitialized) return;
 
             const userRole = currentAuthUser.db_role;
             const isAdmin = userRole === 'admin' || userRole === 'super_admin';
 
-            if (isAdmin) {
+            if (isAdmin && configLink) {
                 configLink.classList.remove('hidden');
                 configLink.textContent = i18next.t('nav.configAdmin');
+            }
+            if (userRole === 'super_admin' && instagramLink) {
+                instagramLink.classList.remove('hidden');
+                instagramLink.textContent = i18next.t('nav.instagramConsole');
             }
         }
 

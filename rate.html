@@ -449,7 +449,14 @@
         // Renders admin-specific navigation links if user has permissions
         function renderAdminLinks() {
             const adminLinksContainer = document.getElementById('admin-links-container');
-            adminLinksContainer.innerHTML = ''; // Clear previous links
+            if (adminLinksContainer) {
+                adminLinksContainer.innerHTML = ''; // Clear previous links
+            }
+            const configLink = document.getElementById('config-admin-link');
+            const instagramLink = document.getElementById('instagram-admin-link');
+
+            if (configLink) configLink.classList.add('hidden');
+            if (instagramLink) instagramLink.classList.add('hidden');
             if (!adminLinksContainer || !currentAuthUser) return;
 
             const userRole = currentAuthUser.db_role; // Role from our database
@@ -459,10 +466,18 @@
             // Show config link for admins and super admins
             if (isAdmin) {
                 adminLinksContainer.innerHTML += `<a href="cigar_rating_config.html" class="flex items-center px-3 py-1.5 border text-xs font-medium rounded-full text-white bg-blue-600 hover:bg-blue-500 transition duration-150">${i18next.t('nav.configAdmin')}</a>`;
+                if (configLink) {
+                    configLink.classList.remove('hidden');
+                    configLink.textContent = i18next.t('nav.configAdmin');
+                }
             }
             // Show user management link only for super admins
             if (isSuperAdmin) {
                 adminLinksContainer.innerHTML += `<a href="role_management.html" class="flex items-center px-3 py-1.5 border text-xs font-medium rounded-full text-yellow-100 bg-purple-600 hover:bg-purple-500 ml-2 transition duration-150">${i18next.t('nav.userAdmin')}</a>`;
+                if (instagramLink) {
+                    instagramLink.classList.remove('hidden');
+                    instagramLink.textContent = i18next.t('nav.instagramConsole');
+                }
             }
         }
 
