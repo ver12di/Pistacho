@@ -227,6 +227,15 @@
                          <span><span data-i18n="resultsPage.size">尺寸</span>: <strong id="cigar-size"></strong></span>
                          <span><span data-i18n="resultsPage.origin">产地</span>: <strong id="cigar-origin"></strong></span>
                      </div>
+                     <div id="admin-actions" class="hidden mb-4">
+                         <div class="flex items-center gap-3">
+                             <button id="ig-publish-button" class="flex items-center gap-2 px-3 py-2 bg-pink-500 text-white rounded-lg shadow hover:bg-pink-600 transition" onclick="postToInstagram()">
+                                 <span aria-hidden="true">📸</span>
+                                 <span>发布到 Instagram</span>
+                             </button>
+                             <span id="ig-publish-status" class="text-sm text-gray-600"></span>
+                         </div>
+                     </div>
                      <!-- Written Review -->
                      <div id="cigar-review-container" class="prose prose-sm max-w-none text-gray-700 border-t pt-4">
                          <!-- Review content inserted by JS -->
@@ -780,6 +789,68 @@
                 container.innerHTML = `<button onclick="login()" class="px-3 py-1 text-xs font-medium rounded-full bg-green-500 text-white hover:bg-green-600">${i18next.t('nav.login')}</button>`;
             }
         }
+
+        function setInstagramPublishStatus(message, isError = false) {
+            const statusEl = document.getElementById('ig-publish-status');
+            if (!statusEl) return;
+            statusEl.textContent = message || '';
+            statusEl.className = `text-sm ${isError ? 'text-red-600' : 'text-gray-700'}`;
+        }
+
+        function updateInstagramPublishVisibility() {
+            const container = document.getElementById('admin-actions');
+            if (!container) return;
+            const isSuperAdmin = currentAuthUser?.db_role === 'super_admin';
+            if (isSuperAdmin && ratingId) {
+                container.classList.remove('hidden');
+            } else {
+                container.classList.add('hidden');
+            }
+        }
+
+        window.postToInstagram = async function() {
+            if (!currentAuthUser || currentAuthUser.db_role !== 'super_admin') {
+                alert('只有超级管理员可以发布到 Instagram。');
+                return;
+            }
+            if (!ratingId) {
+                alert('请先保存评分后再发布。');
+                return;
+            }
+            if (!confirm('Publish this rating to Instagram?')) return;
+
+            const token = sessionStorage.getItem('accessToken');
+            if (!token) {
+                alert(i18next.t('common.loginRequired'));
+                return;
+            }
+
+            const button = document.getElementById('ig-publish-button');
+            try {
+                if (button) button.disabled = true;
+                setInstagramPublishStatus('发布中...');
+                const response = await fetch('/api/instagram/publish', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ ratingId })
+                });
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || '发布失败');
+                }
+                setInstagramPublishStatus('已发布到 Instagram');
+                alert('发布成功！');
+            } catch (error) {
+                console.error('发布到 Instagram 失败:', error);
+                setInstagramPublishStatus(`Error: ${error.message}`, true);
+                alert(`发布失败: ${error.message}`);
+            } finally {
+                if (button) button.disabled = false;
+            }
+        };
 
         // Handles the OIDC callback after login
         async function handleOidcCallback(code) {
@@ -2385,6 +2456,8 @@
                  if (!ratingId && resultsData?.id) {
                      ratingId = resultsData.id;
                  }
+
+                 updateInstagramPublishVisibility();
 
                  // Render UI elements
                  await initSwipers(resultsData.imageUrls || []); // Initialize image slider
