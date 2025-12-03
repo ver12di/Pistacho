@@ -93,91 +93,62 @@
         /* Flavor tag style */
         .flavor-tag { display: inline-block; background-color: #e5e7eb; color: #374151; font-size: 0.75rem; font-weight: 600; margin-right: 0.5rem; margin-bottom: 0.5rem; padding: 0.125rem 0.625rem; border-radius: 9999px; }
 
-        /* --- MODIFIED: Share Card Styles --- */
+        /* Instagram-Specific Share Card Styles */
         #share-card-container {
-            position: absolute; left: -9999px; top: 0; width: 360px; /* Slightly wider for text space */
-            background-color: white; border-radius: 0.5rem;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-            overflow: hidden; border: 1px solid #e5e7eb; visibility: hidden; z-index: -1;
+            position: fixed; top: 0; left: -9999px; /* Hide off-screen */
+            width: 1080px !important;
+            height: 1350px !important;
+            background-color: #ffffff;
+            display: flex; flex-direction: column;
+            z-index: -10; font-family: 'Inter', sans-serif;
         }
+
         #share-card-image-wrapper {
-            background-color: #e5e7eb; display: flex; align-items: center; justify-content: center;
-            position: relative; width: 100%;
-        }
-        #share-card-image { width: 100%; height: auto; object-fit: contain; }
-        #share-card-content {
-            padding: 10px 12px 14px; /* Spacing below the image */
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: stretch;
-            gap: 8px;
-            text-align: center;
-        }
-        #share-card-header { display: flex; width: 100%; justify-content: space-between; align-items: flex-start; gap: 10px; }
-        #share-card-left {
-            display: flex;
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 6px;
             width: 100%;
-            max-width: 55%;
-            text-align: left;
+            height: 1000px; /* Top 74% */
+            overflow: hidden; position: relative;
+            background-color: #f3f4f6;
         }
-        #share-card-score {
-            font-size: 2.6rem;
-            font-weight: 900;
-            line-height: 1;
-            margin: 0;
+
+        #share-card-image {
+            width: 100%; height: 100%;
+            object-fit: cover; /* Ensures 4:5 fill without distortion */
         }
-        #share-card-grade-badge {
-             display: inline-block;
-             padding: 2px 8px;
-             border-radius: 9999px;
-             font-size: 1rem;
-             font-weight: 700;
-             line-height: 1.2;
+
+        /* Redesigned Footer for 4:5 Ratio */
+        #share-card-content {
+            height: 350px; /* Bottom 26% */
+            padding: 30px 40px;
+            display: flex; flex-direction: row; /* Horizontal layout */
+            align-items: center; justify-content: space-between;
+            border-top: 1px solid #e5e7eb;
         }
-        #share-card-cigar-info { flex: 1; text-align: right; font-size: 0.85rem; line-height: 1.25; color: #4b5563; }
-        #share-card-cigar-name { font-weight: 700; font-size: 0.9rem; color: #111827; }
-        #share-card-cigar-size { font-weight: 600; font-size: 0.82rem; color: #4b5563; }
-        #share-card-title {
-            font-size: 0.98rem;
-            font-weight: 700;
-            line-height: 1.35;
-            color: #111827;
-            margin: 0;
-            word-break: break-word;
-            overflow-wrap: anywhere;
-            max-width: 100%;
+
+        /* Footer - Left: Score */
+        #share-card-left {
+            display: flex; flex-direction: column; align-items: flex-start;
+            min-width: 250px;
         }
-        #share-card-watermark {
-            font-size: 0.8rem;
-            color: #4b5563;
-            line-height: 1.2;
-            margin: 0;
-            font-weight: 600;
-            letter-spacing: 0.02em;
+        #share-card-score { font-size: 6rem; line-height: 1; font-weight: 900; color: #4f46e5; }
+        #share-card-grade-badge { font-size: 1.5rem; padding: 5px 15px; margin-top: 10px; border-radius: 99px; background: #e0e7ff; color: #3730a3; font-weight: bold;}
+
+        /* Footer - Middle: Info */
+        #share-card-cigar-info {
+            flex-grow: 1; margin: 0 40px; text-align: left;
         }
+        #share-card-cigar-name { font-size: 2.2rem; font-weight: 800; color: #111827; line-height: 1.2; margin-bottom: 10px; }
+        #share-card-cigar-size { font-size: 1.4rem; color: #4b5563; font-weight: 500; }
+        #share-card-title { font-size: 1.4rem; color: #1f2937; font-weight: 600; margin-top: 10px; }
+        #share-card-watermark { font-size: 1rem; color: #9ca3af; margin-top: 15px; font-weight: 600; }
+
+        /* Footer - Right: QR Code */
         #share-card-qrcode {
-            position: absolute;
-            bottom: 10px;
-            right: 10px;
-            width: 98px; /* Overlay on bottom-right of image */
-            height: 98px;
-            background-color: rgba(255, 255, 255, 0.95);
-            padding: 4px;
-            border: 1px solid #e5e7eb;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.12);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 12px;
+            position: static; /* Reset absolute positioning */
+            width: 220px; height: 220px;
+            background: white; border: 2px solid #e5e7eb; border-radius: 16px;
+            padding: 10px; flex-shrink: 0;
         }
-        #share-card-qrcode img {
-            display: block; width: 100%; height: 100%; object-fit: contain; /* Ensure QR fits */
-        }
-        /* --- End Modified Share Card Styles --- */
+        #share-card-qrcode img { width: 100%; height: 100%; }
     </style>
 </head>
 <body class="bg-gray-100 font-sans antialiased text-gray-800">
@@ -332,27 +303,40 @@
         <div id="share-card-container">
             <div id="share-card-image-wrapper">
                 <!-- loading="lazy" intentionally omitted: this image stays off-screen but must load immediately for share card generation -->
-                <img id="share-card-image" src="" alt="Cigar Cover Image" crossorigin="anonymous" width="1179" height="1572">
+                <img id="share-card-image" src="" alt="Cigar Cover Image" crossorigin="anonymous" width="1080" height="1000">
+            </div>
+            <div id="share-card-content">
+                <div id="share-card-left">
+                    <span id="share-card-score">0.00</span>
+                    <span id="share-card-grade-badge">? - ???</span>
+                </div>
+                <div id="share-card-cigar-info">
+                    <p id="share-card-cigar-name"></p>
+                    <p id="share-card-cigar-size"></p>
+                    <p id="share-card-title"></p>
+                    <p id="share-card-watermark">rated on www.pista-cho.com</p>
+                </div>
                 <div id="share-card-qrcode">
                     <!-- QR code img will be added here -->
                 </div>
             </div>
-            <!-- --- MODIFIED: Share Card Content Structure --- -->
-            <div id="share-card-content">
-                <div id="share-card-header">
-                    <div id="share-card-left">
-                        <span id="share-card-score">0.00</span>
-                        <span id="share-card-grade-badge">? - ???</span>
-                    </div>
-                    <div id="share-card-cigar-info">
-                        <p id="share-card-cigar-name"></p>
-                        <p id="share-card-cigar-size"></p>
+        </div>
+
+        <!-- Instagram Cropper Modal -->
+        <div id="cropper-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50 hidden">
+            <div class="bg-white rounded-lg shadow-xl p-6 max-w-3xl w-full">
+                <h2 class="text-2xl font-bold mb-4">裁切图片</h2>
+                <div class="w-full flex justify-center mb-4">
+                    <div class="w-full max-h-[70vh] flex items-center justify-center overflow-hidden bg-gray-50 border rounded-lg">
+                        <img id="cropper-image" src="" alt="Image to crop">
                     </div>
                 </div>
-                <p id="share-card-title"></p>
-                <p id="share-card-watermark">rated on www.pista-cho.com</p>
+                <p id="cropper-status" class="text-sm font-medium text-indigo-600 my-2"></p>
+                <div class="flex justify-end gap-4 mt-4">
+                    <button id="cropper-cancel" class="py-2 px-5 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400">取消</button>
+                    <button id="cropper-confirm" class="py-2 px-5 bg-blue-600 text-white rounded-lg hover:bg-blue-700">确认并上传</button>
+                </div>
             </div>
-            <!-- --- End Modified Share Card Content --- -->
         </div>
     </div>
 
@@ -406,6 +390,8 @@
         const SWIPER_SCRIPT_URL = 'https://cdnjs.cloudflare.com/ajax/libs/Swiper/11.0.5/swiper-bundle.min.js';
         const HTML2CANVAS_SCRIPT_URL = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
         const QRCODE_SCRIPT_URL = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
+        const CROPPER_STYLE_URL = 'https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css';
+        const CROPPER_SCRIPT_URL = 'https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js';
 
         function resolveLanguageContext(language) {
             const normalized = (language || '').toLowerCase();
@@ -533,6 +519,20 @@
                 throw new Error('QRCode library failed to load');
             }
             return QRCode;
+        }
+
+        async function ensureCropper() {
+            if (typeof Cropper !== 'undefined') {
+                return Cropper;
+            }
+            await Promise.all([
+                loadStylesheetOnce(CROPPER_STYLE_URL),
+                loadScriptOnce(CROPPER_SCRIPT_URL)
+            ]);
+            if (typeof Cropper === 'undefined') {
+                throw new Error('Cropper.js failed to load');
+            }
+            return Cropper;
         }
 
         function resolveFinalGrade(rawFinalGrade, normalizedScore) {
@@ -817,7 +817,7 @@
                 alert('请先保存评分后再发布。');
                 return;
             }
-            if (!confirm('Publish this rating to Instagram?')) return;
+            if (!confirm('Start Instagram publishing flow? (1. Generate Card, 2. Crop Photos)')) return;
 
             const token = sessionStorage.getItem('accessToken');
             if (!token) {
@@ -825,32 +825,172 @@
                 return;
             }
 
-            const button = document.getElementById('ig-publish-button');
+            const publishBtn = document.getElementById('ig-publish-button');
+            const finalKeys = [];
+
             try {
-                if (button) button.disabled = true;
-                setInstagramPublishStatus('发布中...');
-                const response = await fetch('/api/instagram/publish', {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ ratingId })
-                });
-                const data = await response.json();
-                if (!response.ok) {
-                    throw new Error(data.error || '发布失败');
+                if (publishBtn) {
+                    publishBtn.disabled = true;
+                    publishBtn.textContent = 'Generating Card...';
                 }
+                setInstagramPublishStatus('生成分享卡...');
+
+                await ensureHtml2Canvas();
+                const shareContainer = document.getElementById('share-card-container');
+                if (!shareContainer) throw new Error('Share card container missing.');
+
+                const canvas = await html2canvas(shareContainer, { scale: 1, useCORS: true });
+                const cardBlob = await new Promise((resolve, reject) => {
+                    canvas.toBlob((result) => {
+                        if (result) resolve(result);
+                        else reject(new Error('Failed to create share card image.'));
+                    }, 'image/jpeg', 0.95);
+                });
+                const cardUpload = await uploadBlob(cardBlob, 'ig-share-card.jpg');
+                finalKeys.push(cardUpload.imageKey);
+
+                const userImages = resultsData?.imageUrls || [];
+                if (userImages.length > 0) {
+                    await ensureCropper();
+                }
+                for (let i = 0; i < userImages.length; i++) {
+                    const imgKey = userImages[i];
+                    const imgUrl = `/api/image/${imgKey}`;
+                    if (publishBtn) publishBtn.textContent = `Cropping ${i + 1}/${userImages.length}...`;
+                    const croppedBlob = await promptCrop4to5(imgUrl, i + 1, userImages.length);
+                    if (!croppedBlob) throw new Error('Cropping cancelled by user.');
+                    const userUpload = await uploadBlob(croppedBlob, `ig-photo-${i}.jpg`);
+                    finalKeys.push(userUpload.imageKey);
+                }
+
+                if (publishBtn) publishBtn.textContent = 'Publishing to IG...';
+                setInstagramPublishStatus('发布中...');
+                await performPublish(finalKeys);
+
                 setInstagramPublishStatus('已发布到 Instagram');
-                alert('发布成功！');
+                alert(`Success! Published ${finalKeys.length} images to Instagram.`);
             } catch (error) {
                 console.error('发布到 Instagram 失败:', error);
                 setInstagramPublishStatus(`Error: ${error.message}`, true);
                 alert(`发布失败: ${error.message}`);
             } finally {
-                if (button) button.disabled = false;
+                if (publishBtn) {
+                    publishBtn.disabled = false;
+                    publishBtn.textContent = '发布到 Instagram';
+                }
             }
         };
+
+        async function performPublish(imageKeys) {
+            if (!ratingId) throw new Error('缺少评分ID。');
+            if (!Array.isArray(imageKeys) || imageKeys.length === 0) throw new Error('No images to publish.');
+            const token = sessionStorage.getItem('accessToken');
+            const response = await fetch('/api/instagram/publish', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ ratingId, overrideImageKeys: imageKeys })
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.error || '发布失败');
+            }
+            return data;
+        }
+
+        async function uploadBlob(blob, filename) {
+            const token = sessionStorage.getItem('accessToken');
+            if (!token) throw new Error('登录后才能上传图片');
+            const formData = new FormData();
+            formData.append('image', blob, filename);
+
+            const res = await fetch('/api/upload-image', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` },
+                body: formData
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                throw new Error(data.error || 'Upload failed');
+            }
+            return data;
+        }
+
+        function promptCrop4to5(url, current, total) {
+            return new Promise(async (resolve, reject) => {
+                try {
+                    await ensureCropper();
+                } catch (err) {
+                    reject(err);
+                    return;
+                }
+                const modal = document.getElementById('cropper-modal');
+                const imgEl = document.getElementById('cropper-image');
+                const status = document.getElementById('cropper-status');
+                const confirmBtn = document.getElementById('cropper-confirm');
+                const cancelBtn = document.getElementById('cropper-cancel');
+
+                if (!modal || !imgEl || !status || !confirmBtn || !cancelBtn) {
+                    reject(new Error('Cropper modal missing.'));
+                    return;
+                }
+
+                status.textContent = `Adjust for Instagram (4:5) - Image ${current} of ${total}`;
+                modal.classList.remove('hidden');
+
+                const cleanup = () => {
+                    modal.classList.add('hidden');
+                    if (window.igCropper) {
+                        window.igCropper.destroy();
+                        window.igCropper = null;
+                    }
+                    imgEl.src = '';
+                };
+
+                const initCropper = () => {
+                    if (window.igCropper) {
+                        window.igCropper.destroy();
+                    }
+                    window.igCropper = new Cropper(imgEl, {
+                        aspectRatio: 0.8,
+                        viewMode: 1,
+                        dragMode: 'move',
+                        autoCropArea: 1,
+                        cropBoxResizable: true
+                    });
+                };
+
+                imgEl.onload = initCropper;
+                imgEl.onerror = () => {
+                    cleanup();
+                    resolve(null);
+                };
+                imgEl.src = url;
+
+                const handleConfirm = () => {
+                    if (!window.igCropper) {
+                        cleanup();
+                        resolve(null);
+                        return;
+                    }
+                    const canvas = window.igCropper.getCroppedCanvas({ width: 1080, height: 1350 });
+                    canvas.toBlob((blob) => {
+                        cleanup();
+                        resolve(blob);
+                    }, 'image/jpeg', 0.9);
+                };
+
+                const handleCancel = () => {
+                    cleanup();
+                    resolve(null);
+                };
+
+                confirmBtn.addEventListener('click', handleConfirm, { once: true });
+                cancelBtn.addEventListener('click', handleCancel, { once: true });
+            });
+        }
 
         // Handles the OIDC callback after login
         async function handleOidcCallback(code) {
@@ -1355,7 +1495,7 @@
                   console.warn("populateShareCard: finalGrade data missing or incomplete. Cannot populate share card grade.", finalGrade);
                   document.getElementById('share-card-score').textContent = normalizedScore?.toFixed(2) ?? '?.??';
                   document.getElementById('share-card-grade-badge').textContent = i18next.t('common.unrated');
-                  document.getElementById('share-card-grade-badge').className = 'inline-block px-1 py-0.5 rounded-full text-xs font-semibold bg-gray-300 text-gray-800 bg-opacity-20';
+                  document.getElementById('share-card-grade-badge').className = 'inline-block px-4 py-2 rounded-full font-semibold bg-gray-200 text-gray-800';
              } else {
                   const gradeName = i18next.t(finalGrade.nameKey);
                   const gradeStyles = getGradeStyles(finalGrade.color);
@@ -1363,7 +1503,7 @@
                   const gradeEl = document.getElementById('share-card-grade-badge');
                   scoreEl.className = `font-black ${gradeStyles.textColor}`; // Apply color class
                   scoreEl.textContent = normalizedScore.toFixed(2);
-                  gradeEl.className = `inline-block px-1 py-0.5 rounded-full text-xs font-semibold ${gradeStyles.bgColor} ${gradeStyles.textColor} bg-opacity-20`;
+                  gradeEl.className = `inline-block px-4 py-2 rounded-full font-semibold ${gradeStyles.bgColor} ${gradeStyles.textColor} bg-opacity-20`;
                   gradeEl.textContent = gradeName;
              }
 
@@ -1833,7 +1973,7 @@
                     console.log("[results.html generateQRCode] Generating QR for URL:", uniqueUrl); // Log the URL
                     try {
                          new QRCode(qrCodeContainerInner, {
-                             text: uniqueUrl, width: 100, height: 100, // Larger QR code for easier scanning
+                             text: uniqueUrl, width: 200, height: 200, // Larger QR code for easier scanning
                              colorDark : "#000000", colorLight : "#ffffff",
                              correctLevel : QRCode.CorrectLevel.H
                          });

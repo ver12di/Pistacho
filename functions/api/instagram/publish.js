@@ -157,17 +157,52 @@ export async function onRequestPost(context) {
         }
 
         const rating = await fetchRating(env, ratingId);
-        if (!Array.isArray(rating.imageUrls) || rating.imageUrls.length === 0) {
+        const targetKeys = Array.isArray(body?.overrideImageKeys) ? body.overrideImageKeys : [];
+        const imageKeys = targetKeys.length > 0 ? targetKeys : rating.imageUrls;
+        if (!Array.isArray(imageKeys) || imageKeys.length === 0) {
             throw new Error('This rating has no image to publish.');
         }
 
         const origin = new URL(request.url).origin;
-        const imageUrl = `${origin}/api/image/${rating.imageUrls[0]}`;
-        console.log(`[IG Publish] Sending Image URL: ${imageUrl}`);
-        const caption = buildCaption(template, rating);
+        const containerIds = [];
 
-        const creationId = await createContainer(env, igUserId, accessToken, imageUrl, caption);
-        const publishId = await publishContainer(env, igUserId, accessToken, creationId);
+        for (const key of imageKeys) {
+            const imageUrl = `${origin}/api/image/${key}`;
+            const itemRes = await fetch(`https://graph.facebook.com/v21.0/${igUserId}/media`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    image_url: imageUrl,
+                    is_carousel_item: true,
+                    access_token: accessToken
+                })
+            });
+            const itemData = await itemRes.json();
+            if (!itemRes.ok || !itemData.id) {
+                const igError = formatInstagramError(itemData, 'Failed to upload carousel item');
+                throw new Error(igError);
+            }
+            containerIds.push(itemData.id);
+        }
+
+        const caption = buildCaption(template, rating);
+        const carouselRes = await fetch(`https://graph.facebook.com/v21.0/${igUserId}/media`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                media_type: 'CAROUSEL',
+                children: containerIds.join(','),
+                caption,
+                access_token: accessToken
+            })
+        });
+        const carouselData = await carouselRes.json();
+        if (!carouselRes.ok || !carouselData.id) {
+            const igError = formatInstagramError(carouselData, 'Failed to create carousel container');
+            throw new Error(igError);
+        }
+
+        const publishId = await publishContainer(env, igUserId, accessToken, carouselData.id);
 
         return new Response(JSON.stringify({ success: true, publishId }), {
             headers: { 'Content-Type': 'application/json' }
