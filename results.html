@@ -1665,7 +1665,7 @@
                      reviewEl.innerHTML = trimmedReview.replace(/\n/g, '<br>');
                      reviewEl.classList.remove('muted');
                  } else {
-                     reviewEl.textContent = i18next.t('common.noReview');
+                     reviewEl.innerHTML = '&nbsp;';
                      reviewEl.classList.add('muted');
                  }
             }
@@ -1680,9 +1680,14 @@
                  shareCigarNameEl.title = cigarName;
             }
             if (shareCigarSizeEl) {
-                 const cigarSize = data.cigarInfo?.size || i18next.t('common.unknown');
-                 shareCigarSizeEl.textContent = cigarSize;
-                 shareCigarSizeEl.title = cigarSize;
+                 const cigarSize = (data.cigarInfo?.size || '').trim();
+                 if (cigarSize) {
+                     shareCigarSizeEl.textContent = cigarSize;
+                     shareCigarSizeEl.title = cigarSize;
+                 } else {
+                     shareCigarSizeEl.innerHTML = '&nbsp;';
+                     shareCigarSizeEl.title = '';
+                 }
             }
 
             const shareCardImage = document.getElementById('share-card-image');
