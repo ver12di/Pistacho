@@ -358,10 +358,6 @@
             mobileViewportMatcher.addListener(updateCompactPreference);
         }
 
-        const formatScoreDisplay = (value, fallback = '0') => {
-            return Number.isFinite(value) ? String(Math.trunc(value)) : fallback;
-        };
-
         function shouldUseCompactApiPayload() {
             return preferCompactApiPayload;
         }
@@ -958,7 +954,7 @@
             document.getElementById('app-title-display').textContent = i18next.t(ratingConfig.appTitle || "Rating App");
             document.getElementById('app-description-display').textContent = i18next.t(ratingConfig.description || "Loading description...");
             document.getElementById('total-weight-max-display').textContent = ratingConfig.totalWeightMax ?? 0;
-            document.getElementById('current-score-display').textContent = formatScoreDisplay(totalScore, '0');
+            document.getElementById('current-score-display').textContent = totalScore.toFixed(2);
 
             // Update progress bar
             const ratedCount = Object.keys(userRatings).length;
@@ -1001,12 +997,12 @@
                     <h4 class="text-base sm:text-lg font-semibold text-gray-800">
                         ${i18next.t(criterionKey)} ${isSuperAdmin ? `(${currentWeight} ${i18next.t('common.points')})` : ''}
                     </h4>
-                    <span class="text-lg sm:text-xl font-extrabold text-green-600">${formatScoreDisplay(currentScore, '0')}</span>
+                    <span class="text-lg sm:text-xl font-extrabold text-green-600">${currentScore.toFixed(2)}</span>
                 </div>
                 <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3">
                 ${(criterion.options || []).map((option, optIndex) => {
                     const isSelected = selectedOptionIndex === optIndex; // Check if this option is selected
-                    const scoreValue = formatScoreDisplay(currentWeight * (option.scorePct || 0), '0'); // Score for this option
+                    const scoreValue = (currentWeight * (option.scorePct || 0)).toFixed(2); // Score for this option
                     return `<button type="button" onclick="updateRatingSelection('${categoryKey}', '${criterionKey}', ${optIndex})"
                         class="p-2 sm:p-3 text-xs sm:text-sm text-center rounded-lg border transition ${isSelected ? 'bg-indigo-600 text-white shadow-md' : 'bg-white hover:bg-indigo-50'}">
                         ${i18next.t(option.descriptionKey)}
