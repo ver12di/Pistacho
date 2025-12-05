@@ -177,7 +177,8 @@
         #share-card-score { font-size: clamp(4.6rem, 6.2vw, 5.9rem); line-height: 1; font-weight: 900; color: #fbbf24; text-shadow: 0 6px 18px rgba(0,0,0,0.35); }
         #share-card-grade-badge { padding: 9px 16px; border-radius: 12px; font-size: 1.22rem; font-weight: 820; background: rgba(255,255,255,0.12); color: #e0e7ff; border: 1px solid rgba(255,255,255,0.2); }
         #share-card-qr-block { margin-top: auto; display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
-        #share-card-signature { font-size: 1.05rem; color: #e2e8f0; max-width: 280px; white-space: normal; line-height: 1.35; text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+        #share-card-signature { font-size: 1.05rem; color: #e2e8f0; max-width: 280px; white-space: normal; line-height: 1.35; text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; text-shadow: 0 4px 12px rgba(0,0,0,0.45); }
+        #share-card-footer { position: absolute; left: 26px; right: 26px; bottom: 22px; display: flex; justify-content: flex-start; pointer-events: none; }
         .share-card-signature-url { white-space: nowrap; display: block; }
         #share-card-rating-system { font-size: 0.98rem; color: #cbd5e1; max-width: 260px; text-align: right; line-height: 1.4; }
         #share-card-qrcode {
@@ -362,15 +363,17 @@
                         <p id="share-card-username"></p>
                     </div>
                     <div id="share-card-score-stack">
-                        <span id="share-card-grade-badge">? - ???</span>
                         <span id="share-card-score">0.00</span>
+                        <span id="share-card-grade-badge">? - ???</span>
                     </div>
                     <div id="share-card-qr-block">
                         <div id="share-card-qrcode"></div>
                         <div id="share-card-rating-system">Pistacho 评分体系：96-100 卓越 / 90-95 优秀 / 85-89 不错 / 80-84 合格 / &lt;80 需改进</div>
-                        <div id="share-card-signature">rated on www.pista-cho.com</div>
                     </div>
                 </div>
+            </div>
+            <div id="share-card-footer">
+                <div id="share-card-signature">rated on www.pista-cho.com</div>
             </div>
         </div>
 
@@ -426,6 +429,11 @@
             zh: '查看 Pistacho 雪茄品鉴报告，回顾完整的评分细节、口感总结与分享卡片。',
             es: 'Consulta los reportes de cata de Pistacho con detalles completos, resumen y tarjetas para compartir.',
             en: 'Browse Pistacho cigar tasting reports with full scoring details, tasting summaries, and shareable cards.'
+        };
+        const RATING_SYSTEM_COPY = {
+            zh: 'Pistacho 评分体系：96-100 卓越 / 90-95 优秀 / 85-89 不错 / 80-84 合格 / <80 需改进',
+            en: 'Pistacho rating system: 96-100 Exceptional / 90-95 Excellent / 85-89 Good / 80-84 Pass / <80 Needs improvement',
+            es: 'Sistema de calificación Pistacho: 96-100 Sobresaliente / 90-95 Excelente / 85-89 Bueno / 80-84 Aprobado / <80 Necesita mejora'
         };
         const commentState = {
             comments: [],
@@ -1657,14 +1665,20 @@
             const shareCigarSizeEl = document.getElementById('share-card-cigar-size');
             const usernameEl = document.getElementById('share-card-username');
             const signatureEl = document.getElementById('share-card-signature');
+            const ratingSystemEl = document.getElementById('share-card-rating-system');
             const reviewEl = document.getElementById('share-card-review');
             const displayName = userNickname || userEmail || i18next.t('common.anonymous');
+            const langContext = resolveLanguageContext(i18next.language);
             if (usernameEl) {
                  usernameEl.textContent = displayName;
                  usernameEl.title = displayName;
             }
             if (signatureEl) {
                  signatureEl.innerHTML = `${displayName} rated on<br><span class="share-card-signature-url">www.pista-cho.com</span>`;
+            }
+            if (ratingSystemEl) {
+                 const ratingSystemText = RATING_SYSTEM_COPY[langContext.lang] || RATING_SYSTEM_COPY.en;
+                 ratingSystemEl.textContent = ratingSystemText;
             }
             if (reviewEl) {
                  const trimmedReview = (data.cigarReview || '').trim();
