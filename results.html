@@ -166,21 +166,18 @@
             backdrop-filter: blur(8px);
             box-shadow: 0 10px 30px rgba(0,0,0,0.25);
         }
-        #share-card-header { display: flex; flex-direction: column; gap: 6px; }
-        #share-card-title { font-size: 2rem; font-weight: 800; line-height: 1.25; color: #e6e9f2; }
-        #share-card-review { font-size: 1.25rem; color: #d9e2ff; line-height: 1.55; }
-        #share-card-review.muted { color: #94a3b8; font-style: italic; }
-        #share-card-cigar-name { font-size: 1.55rem; font-weight: 750; color: #f8fafc; }
-        #share-card-cigar-size { font-size: 1.15rem; color: #cbd5e1; }
-        #share-card-username { font-size: 1.08rem; color: #cbd5e1; font-weight: 600; }
-        #share-card-score-stack { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; margin-top: 8px; }
-        #share-card-score { font-size: clamp(4.6rem, 6.2vw, 5.9rem); line-height: 1; font-weight: 900; color: #fbbf24; text-shadow: 0 6px 18px rgba(0,0,0,0.35); }
-        #share-card-grade-badge { padding: 9px 16px; border-radius: 12px; font-size: 1.22rem; font-weight: 820; background: rgba(255,255,255,0.12); color: #e0e7ff; border: 1px solid rgba(255,255,255,0.2); }
+        #share-card-header { display: flex; flex-direction: column; gap: 8px; }
+        #share-card-title { font-size: 2.4rem; font-weight: 800; line-height: 1.25; color: #e6e9f2; }
+        #share-card-review { font-size: 1.45rem; color: #d1defa; line-height: 1.55; }
+        #share-card-review.muted { color: #8da2c1; font-style: italic; }
+        #share-card-cigar-name { font-size: 1.85rem; font-weight: 750; color: #f8fafc; }
+        #share-card-cigar-size { font-size: 1.35rem; color: #d5deed; }
+        #share-card-score-stack { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; margin-top: 8px; }
+        #share-card-score { font-size: clamp(5.1rem, 6.5vw, 6.4rem); line-height: 1; font-weight: 900; color: #fbbf24; text-shadow: 0 6px 18px rgba(0,0,0,0.35); }
+        #share-card-grade-badge { padding: 10px 18px; border-radius: 12px; font-size: 1.42rem; font-weight: 820; background: rgba(255,255,255,0.12); color: #e0e7ff; border: 1px solid rgba(255,255,255,0.2); }
         #share-card-qr-block { margin-top: auto; display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
-        #share-card-signature { font-size: 1.05rem; color: #e2e8f0; max-width: 280px; white-space: normal; line-height: 1.35; text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; text-shadow: 0 4px 12px rgba(0,0,0,0.45); }
-        #share-card-footer { position: absolute; left: 26px; right: 26px; bottom: 22px; display: flex; justify-content: flex-start; pointer-events: none; }
-        .share-card-signature-url { white-space: nowrap; display: block; }
-        #share-card-rating-system { font-size: 0.98rem; color: #cbd5e1; max-width: 260px; text-align: right; line-height: 1.4; }
+        #share-card-signature { font-size: 1.25rem; color: #e2e8f0; max-width: 320px; white-space: nowrap; line-height: 1.35; text-align: center; display: block; text-shadow: 0 4px 12px rgba(0,0,0,0.45); }
+        #share-card-footer { position: absolute; left: 26px; right: 26px; bottom: 22px; display: flex; justify-content: center; pointer-events: none; }
         #share-card-qrcode {
             width: 200px;
             height: 200px;
@@ -357,10 +354,9 @@
                 <div id="share-card-info">
                     <div id="share-card-header">
                         <p id="share-card-title"></p>
-                        <p id="share-card-review"></p>
                         <p id="share-card-cigar-name"></p>
                         <p id="share-card-cigar-size"></p>
-                        <p id="share-card-username"></p>
+                        <p id="share-card-review"></p>
                     </div>
                     <div id="share-card-score-stack">
                         <span id="share-card-score">0.00</span>
@@ -368,7 +364,6 @@
                     </div>
                     <div id="share-card-qr-block">
                         <div id="share-card-qrcode"></div>
-                        <div id="share-card-rating-system">Pistacho 评分体系：96-100 卓越 / 90-95 优秀 / 85-89 不错 / 80-84 合格 / &lt;80 需改进</div>
                     </div>
                 </div>
             </div>
@@ -429,11 +424,6 @@
             zh: '查看 Pistacho 雪茄品鉴报告，回顾完整的评分细节、口感总结与分享卡片。',
             es: 'Consulta los reportes de cata de Pistacho con detalles completos, resumen y tarjetas para compartir.',
             en: 'Browse Pistacho cigar tasting reports with full scoring details, tasting summaries, and shareable cards.'
-        };
-        const RATING_SYSTEM_COPY = {
-            zh: 'Pistacho 评分体系：96-100 卓越 / 90-95 优秀 / 85-89 不错 / 80-84 合格 / <80 需改进',
-            en: 'Pistacho rating system: 96-100 Exceptional / 90-95 Excellent / 85-89 Good / 80-84 Pass / <80 Needs improvement',
-            es: 'Sistema de calificación Pistacho: 96-100 Sobresaliente / 90-95 Excelente / 85-89 Bueno / 80-84 Aprobado / <80 Necesita mejora'
         };
         const commentState = {
             comments: [],
@@ -1663,22 +1653,11 @@
             const shareTitleEl = document.getElementById('share-card-title');
             const shareCigarNameEl = document.getElementById('share-card-cigar-name');
             const shareCigarSizeEl = document.getElementById('share-card-cigar-size');
-            const usernameEl = document.getElementById('share-card-username');
             const signatureEl = document.getElementById('share-card-signature');
-            const ratingSystemEl = document.getElementById('share-card-rating-system');
             const reviewEl = document.getElementById('share-card-review');
             const displayName = userNickname || userEmail || i18next.t('common.anonymous');
-            const langContext = resolveLanguageContext(i18next.language);
-            if (usernameEl) {
-                 usernameEl.textContent = displayName;
-                 usernameEl.title = displayName;
-            }
             if (signatureEl) {
-                 signatureEl.innerHTML = `${displayName} rated on<br><span class="share-card-signature-url">www.pista-cho.com</span>`;
-            }
-            if (ratingSystemEl) {
-                 const ratingSystemText = RATING_SYSTEM_COPY[langContext.lang] || RATING_SYSTEM_COPY.en;
-                 ratingSystemEl.textContent = ratingSystemText;
+                 signatureEl.textContent = `${displayName} rated on www.pista-cho.com`;
             }
             if (reviewEl) {
                  const trimmedReview = (data.cigarReview || '').trim();
