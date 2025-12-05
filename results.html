@@ -173,9 +173,12 @@
         #share-card-score-row { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
         #share-card-score { font-size: clamp(3.75rem, 5.2vw, 5.5rem); line-height: 1; font-weight: 900; color: #fbbf24; text-shadow: 0 6px 18px rgba(0,0,0,0.35); }
         #share-card-grade-badge { padding: 9px 18px; border-radius: 999px; font-size: 1.18rem; font-weight: 800; background: rgba(255,255,255,0.12); color: #e0e7ff; border: 1px solid rgba(255,255,255,0.2); }
+        #share-card-review { font-size: 1.15rem; color: #cfd8ec; line-height: 1.5; }
+        #share-card-review.muted { color: #94a3b8; font-style: italic; }
         #share-card-username { font-size: 1.05rem; color: #cbd5e1; font-weight: 600; }
-        #share-card-qr-block { margin-top: auto; display: grid; grid-template-columns: 1fr auto; column-gap: 12px; row-gap: 6px; align-items: end; justify-items: end; }
-        #share-card-signature { font-size: 1.05rem; color: #e2e8f0; max-width: none; white-space: nowrap; line-height: 1.35; }
+        #share-card-qr-block { margin-top: auto; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+        #share-card-signature { font-size: 1.05rem; color: #e2e8f0; max-width: 260px; white-space: normal; line-height: 1.35; text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+        .share-card-signature-url { white-space: nowrap; display: block; }
         #share-card-rating-system { font-size: 0.98rem; color: #cbd5e1; max-width: 260px; text-align: right; line-height: 1.4; }
         #share-card-qrcode {
             width: 200px;
@@ -360,11 +363,12 @@
                         <span id="share-card-score">0.00</span>
                         <span id="share-card-grade-badge">? - ???</span>
                     </div>
+                    <div id="share-card-review"></div>
                     <div id="share-card-username"></div>
                     <div id="share-card-qr-block">
+                        <div id="share-card-qrcode"></div>
                         <div id="share-card-rating-system">Pistacho 评分体系：96-100 卓越 / 90-95 优秀 / 85-89 不错 / 80-84 合格 / &lt;80 需改进</div>
                         <div id="share-card-signature">rated on www.pista-cho.com</div>
-                        <div id="share-card-qrcode"></div>
                     </div>
                 </div>
             </div>
@@ -1653,13 +1657,24 @@
             const shareCigarSizeEl = document.getElementById('share-card-cigar-size');
             const usernameEl = document.getElementById('share-card-username');
             const signatureEl = document.getElementById('share-card-signature');
+            const reviewEl = document.getElementById('share-card-review');
             const displayName = userNickname || userEmail || i18next.t('common.anonymous');
             if (usernameEl) {
                  usernameEl.textContent = displayName;
                  usernameEl.title = displayName;
             }
             if (signatureEl) {
-                 signatureEl.textContent = `${displayName} rated on www.pista-cho.com`;
+                 signatureEl.innerHTML = `${displayName} rated on<br><span class="share-card-signature-url">www.pista-cho.com</span>`;
+            }
+            if (reviewEl) {
+                 const trimmedReview = (data.cigarReview || '').trim();
+                 if (trimmedReview) {
+                     reviewEl.innerHTML = trimmedReview.replace(/\n/g, '<br>');
+                     reviewEl.classList.remove('muted');
+                 } else {
+                     reviewEl.textContent = i18next.t('common.noReview');
+                     reviewEl.classList.add('muted');
+                 }
             }
             if (shareTitleEl) {
                  const shareTitle = data.title || i18next.t('common.noTitle');
