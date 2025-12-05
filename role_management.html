@@ -60,7 +60,7 @@
 
     <div class="px-4 sm:px-6 lg:px-8 pt-4">
         <div class="mx-auto max-w-7xl">
-            <div data-include-nav data-active="config" data-language="flags"></div>
+            <div data-include-nav data-active="roles" data-language="flags"></div>
         </div>
     </div>
 
@@ -321,6 +321,26 @@
                         <label class="block">
                             <span class="text-gray-700">发布模板</span>
                             <textarea id="ig-template-input" rows="4" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 focus:border-purple-500" placeholder="{{title}} 获得 {{score}} 分!&#10;&#10;{{review}}&#10;&#10;#Cigar #Pistacho."></textarea>
+                            <div class="mt-2 text-xs text-gray-600 bg-gray-50 border border-dashed border-gray-200 rounded-md p-3 space-y-1">
+                                <p class="font-semibold text-gray-700">可用变量：</p>
+                                <ul class="list-disc list-inside space-y-1">
+                                    <li><code>{{title}}</code> - 评分标题或雪茄名称</li>
+                                    <li><code>{{score}}</code> - 标准化得分</li>
+                                    <li><code>{{review}}</code> - 评语内容</li>
+                                </ul>
+                                <p class="font-semibold text-gray-700 pt-1">results 页面占位符汇总（按用途分组）：</p>
+                                <ul class="list-disc list-inside space-y-1 ml-2">
+                                    <li>
+                                        <span class="font-medium">Meta / 概要模板：</span>
+                                        <span><code>{{name}}</code>（雪茄名称）、<code>{{origin}}</code>（产地）、<code>{{size}}</code>（尺寸规格）、<code>{{grade}}</code>（最终评级字母）、<code>{{score}}</code>（最终得分数字）、<code>{{reviewer}}</code>（点评人）。</span>
+                                    </li>
+                                    <li>
+                                        <span class="font-medium">叙述性总结：</span>
+                                        <span><code>{{origin}}</code>、<code>{{name}}</code>、<code>{{size}}</code>（基本信息重用），<code>{{observations}}</code>（评分选项生成的观察总结），<code>{{flavors}}</code>（主要风味列表），<code>{{grade}}</code> / <code>{{gradeName}}</code>（评级字母与名称），<code>{{hierarchy}}</code>（评分等级层级说明），<code>{{criterion}}</code> / <code>{{option}}</code>（按“评分维度名 / 选择的选项”逐条罗列）。</span>
+                                    </li>
+                                </ul>
+                                <p class="text-gray-500">可组合常规文字与换行符，例如 <code>\n</code> 表示换行。</p>
+                            </div>
                         </label>
 
                         <div class="flex items-center gap-3">

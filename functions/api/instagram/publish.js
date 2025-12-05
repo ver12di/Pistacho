@@ -5,6 +5,29 @@
 
 const DEFAULT_TEMPLATE = '{{title}} 获得 {{score}} 分! \n\n{{review}}\n\n#Cigar #Pistacho.';
 
+// Helper: Poll Media Status
+async function waitForMediaStatus(env, igUserId, token, containerId) {
+    let attempts = 0;
+    const maxAttempts = 10; // Wait up to 20 seconds
+
+    while (attempts < maxAttempts) {
+        const res = await fetch(`https://graph.facebook.com/v21.0/${containerId}?fields=status_code&access_token=${token}`);
+        const data = await res.json();
+
+        if (data.status_code === 'FINISHED') {
+            return true;
+        }
+        if (data.status_code === 'ERROR') {
+            throw new Error(`Media processing failed for container ${containerId}`);
+        }
+
+        // Wait 2 seconds
+        await new Promise(r => setTimeout(r, 2000));
+        attempts++;
+    }
+    throw new Error(`Timeout waiting for media ${containerId} to process`);
+}
+
 async function validateSuperAdmin(request, env) {
     const authHeader = request.headers.get('Authorization') || '';
     const token = authHeader.replace('Bearer ', '');
@@ -86,22 +109,21 @@ async function fetchRating(env, ratingId) {
 }
 
 async function createContainer(env, igUserId, token, imageUrl, caption) {
-    const payload = new URLSearchParams({
+    const payload = {
         image_url: imageUrl,
         caption,
         access_token: token
-    });
+    };
     const response = await fetch(`https://graph.facebook.com/v21.0/${igUserId}/media`, {
         method: 'POST',
-        body: payload
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
     });
     const data = await response.json();
-    if (!response.ok) {
-        const message = data?.error?.message || 'Failed to create Instagram media container.';
-        throw new Error(message);
-    }
-    if (!data.id) {
-        throw new Error('Instagram did not return a creation_id');
+    if (!response.ok || !data.id) {
+        console.error('[IG Publish] Step 1 Failed:', JSON.stringify(data));
+        const igError = formatInstagramError(data, 'Unknown error creating media container');
+        throw new Error(igError);
     }
     return data.id;
 }
@@ -117,10 +139,22 @@ async function publishContainer(env, igUserId, token, creationId) {
     });
     const data = await response.json();
     if (!response.ok) {
-        const message = data?.error?.message || 'Failed to publish Instagram media.';
-        throw new Error(message);
+        const igError = formatInstagramError(data, 'Failed to publish Instagram media.');
+        throw new Error(igError);
     }
     return data.id || creationId;
+}
+
+function formatInstagramError(data, fallbackMessage) {
+    const errorInfo = data?.error || {};
+    const parts = [
+        errorInfo.message || fallbackMessage,
+        errorInfo.type ? `Type: ${errorInfo.type}` : null,
+        errorInfo.code ? `Code: ${errorInfo.code}` : null,
+        errorInfo.error_subcode ? `Subcode: ${errorInfo.error_subcode}` : null,
+        errorInfo.fbtrace_id ? `Trace ID: ${errorInfo.fbtrace_id}` : null
+    ].filter(Boolean);
+    return `Instagram Error: ${parts.join(' | ')}`;
 }
 
 export async function onRequestPost(context) {
@@ -146,15 +180,55 @@ export async function onRequestPost(context) {
         }
 
         const rating = await fetchRating(env, ratingId);
-        if (!Array.isArray(rating.imageUrls) || rating.imageUrls.length === 0) {
+        const targetKeys = Array.isArray(body?.overrideImageKeys) ? body.overrideImageKeys : [];
+        const imageKeys = targetKeys.length > 0 ? targetKeys : rating.imageUrls;
+        if (!Array.isArray(imageKeys) || imageKeys.length === 0) {
             throw new Error('This rating has no image to publish.');
         }
 
-        const imageUrl = `https://www.pista-cho.com/api/image/${rating.imageUrls[0]}`;
-        const caption = buildCaption(template, rating);
+        const origin = new URL(request.url).origin;
+        const containerIds = [];
 
-        const creationId = await createContainer(env, igUserId, accessToken, imageUrl, caption);
-        const publishId = await publishContainer(env, igUserId, accessToken, creationId);
+        for (const key of imageKeys) {
+            const imageUrl = `${origin}/api/image/${key}`;
+            const itemRes = await fetch(`https://graph.facebook.com/v21.0/${igUserId}/media`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    image_url: imageUrl,
+                    is_carousel_item: true,
+                    access_token: accessToken
+                })
+            });
+            const itemData = await itemRes.json();
+            if (!itemRes.ok || !itemData.id) {
+                const igError = formatInstagramError(itemData, 'Failed to upload carousel item');
+                throw new Error(igError);
+            }
+            await waitForMediaStatus(env, igUserId, accessToken, itemData.id);
+            containerIds.push(itemData.id);
+        }
+
+        const caption = buildCaption(template, rating);
+        const children = containerIds.join(',');
+        const carouselRes = await fetch(`https://graph.facebook.com/v21.0/${igUserId}/media`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                media_type: 'CAROUSEL',
+                children,
+                caption,
+                access_token: accessToken
+            })
+        });
+        const carouselData = await carouselRes.json();
+        if (!carouselRes.ok || !carouselData.id) {
+            const igError = formatInstagramError(carouselData, 'Failed to create carousel container');
+            throw new Error(igError);
+        }
+
+        await waitForMediaStatus(env, igUserId, accessToken, carouselData.id);
+        const publishId = await publishContainer(env, igUserId, accessToken, carouselData.id);
 
         return new Response(JSON.stringify({ success: true, publishId }), {
             headers: { 'Content-Type': 'application/json' }
