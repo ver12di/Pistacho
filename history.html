@@ -243,6 +243,11 @@
             { "grade": "H", "nameKey": "resultsPage.grade.H", "min_score": 30, "color": "orange" },
             { "grade": "O", "nameKey": "resultsPage.grade.O", "min_score": 0, "color": "red" }
         ];
+        const formatIntegerScore = (value, fallback = 'N/A') => {
+            return typeof value === 'number' && !Number.isNaN(value)
+                ? Math.trunc(value).toString()
+                : fallback;
+        };
         // --- End Global Variables ---
 
         let commentParticipationData = [];
@@ -612,7 +617,7 @@
         function renderRatingCard(data, currentUserId, currentUserRole) {
             const ratingId = data.id;
             const date = data.timestamp ? new Date(data.timestamp).toLocaleDateString(i18next.language, { year: 'numeric', month: '2-digit', day: '2-digit' }) : i18next.t('historyPage.unknownDate');
-            const scoreDisplay = data.normalizedScore !== undefined ? data.normalizedScore.toFixed(2) : 'N/A';
+            const scoreDisplay = data.normalizedScore !== undefined ? formatIntegerScore(data.normalizedScore) : 'N/A';
 
             // Use GRADING_SCALE and i18n
             const gradeDisplay = computeGradeDisplay({ ...data, id: ratingId });
@@ -757,7 +762,7 @@
                 statsRow.className = 'flex flex-wrap items-center gap-3 text-xs text-gray-500';
                 if (typeof group.normalizedScore === 'number') {
                     const scoreLabel = document.createElement('span');
-                    scoreLabel.textContent = `${i18next.t('common.score')}: ${group.normalizedScore.toFixed(2)}`;
+                    scoreLabel.textContent = `${i18next.t('common.score')}: ${formatIntegerScore(group.normalizedScore)}`;
                     statsRow.appendChild(scoreLabel);
                 }
                 const gradeLabel = document.createElement('span');
@@ -878,7 +883,7 @@
 
                 const scoreParts = [];
                 if (typeof item.normalizedScore === 'number') {
-                    scoreParts.push(`${i18next.t('common.score')}: ${item.normalizedScore.toFixed(2)}`);
+                    scoreParts.push(`${i18next.t('common.score')}: ${formatIntegerScore(item.normalizedScore)}`);
                 }
                 if (item.finalGrade_grade) {
                     scoreParts.push(`${i18next.t('historyPage.gradeShortLabel')}: ${item.finalGrade_grade}`);
