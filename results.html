@@ -130,8 +130,8 @@
             display: flex;
             width: 100%;
             height: 100%;
-            padding: 38px;
-            gap: 20px;
+            padding: 28px;
+            gap: 14px;
             z-index: 1;
         }
         #share-card-canvas.mode-sidebar { flex-direction: row; align-items: center; }
@@ -155,29 +155,29 @@
         }
         #share-card-info {
             flex: 1;
-            min-width: 320px;
+            min-width: 300px;
             display: flex;
             flex-direction: column;
-            gap: 12px;
-            background: rgba(15,23,42,0.55);
-            border: 1px solid rgba(255,255,255,0.06);
+            gap: 10px;
+            background: rgba(15,23,42,0.6);
+            border: 1px solid rgba(255,255,255,0.08);
             border-radius: 18px;
-            padding: 20px 22px;
-            backdrop-filter: blur(6px);
+            padding: 18px 18px 20px;
+            backdrop-filter: blur(8px);
             box-shadow: 0 10px 30px rgba(0,0,0,0.25);
         }
         #share-card-header { display: flex; flex-direction: column; gap: 6px; }
-        #share-card-title { font-size: 1.8rem; font-weight: 800; line-height: 1.2; color: #e2e8f0; }
-        #share-card-cigar-name { font-size: 1.45rem; font-weight: 700; color: #f8fafc; }
-        #share-card-cigar-size { font-size: 1.1rem; color: #cbd5e1; }
-        #share-card-score-row { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
-        #share-card-score { font-size: clamp(3.75rem, 5.2vw, 5.5rem); line-height: 1; font-weight: 900; color: #fbbf24; text-shadow: 0 6px 18px rgba(0,0,0,0.35); }
-        #share-card-grade-badge { padding: 9px 18px; border-radius: 999px; font-size: 1.18rem; font-weight: 800; background: rgba(255,255,255,0.12); color: #e0e7ff; border: 1px solid rgba(255,255,255,0.2); }
-        #share-card-review { font-size: 1.15rem; color: #cfd8ec; line-height: 1.5; }
+        #share-card-title { font-size: 2rem; font-weight: 800; line-height: 1.25; color: #e6e9f2; }
+        #share-card-review { font-size: 1.25rem; color: #d9e2ff; line-height: 1.55; }
         #share-card-review.muted { color: #94a3b8; font-style: italic; }
-        #share-card-username { font-size: 1.05rem; color: #cbd5e1; font-weight: 600; }
-        #share-card-qr-block { margin-top: auto; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
-        #share-card-signature { font-size: 1.05rem; color: #e2e8f0; max-width: 260px; white-space: normal; line-height: 1.35; text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+        #share-card-cigar-name { font-size: 1.55rem; font-weight: 750; color: #f8fafc; }
+        #share-card-cigar-size { font-size: 1.15rem; color: #cbd5e1; }
+        #share-card-username { font-size: 1.08rem; color: #cbd5e1; font-weight: 600; }
+        #share-card-score-stack { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; margin-top: 8px; }
+        #share-card-score { font-size: clamp(4.6rem, 6.2vw, 5.9rem); line-height: 1; font-weight: 900; color: #fbbf24; text-shadow: 0 6px 18px rgba(0,0,0,0.35); }
+        #share-card-grade-badge { padding: 9px 16px; border-radius: 12px; font-size: 1.22rem; font-weight: 820; background: rgba(255,255,255,0.12); color: #e0e7ff; border: 1px solid rgba(255,255,255,0.2); }
+        #share-card-qr-block { margin-top: auto; display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
+        #share-card-signature { font-size: 1.05rem; color: #e2e8f0; max-width: 280px; white-space: normal; line-height: 1.35; text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
         .share-card-signature-url { white-space: nowrap; display: block; }
         #share-card-rating-system { font-size: 0.98rem; color: #cbd5e1; max-width: 260px; text-align: right; line-height: 1.4; }
         #share-card-qrcode {
@@ -356,15 +356,15 @@
                 <div id="share-card-info">
                     <div id="share-card-header">
                         <p id="share-card-title"></p>
+                        <p id="share-card-review"></p>
                         <p id="share-card-cigar-name"></p>
                         <p id="share-card-cigar-size"></p>
+                        <p id="share-card-username"></p>
                     </div>
-                    <div id="share-card-score-row">
-                        <span id="share-card-score">0.00</span>
+                    <div id="share-card-score-stack">
                         <span id="share-card-grade-badge">? - ???</span>
+                        <span id="share-card-score">0.00</span>
                     </div>
-                    <div id="share-card-review"></div>
-                    <div id="share-card-username"></div>
                     <div id="share-card-qr-block">
                         <div id="share-card-qrcode"></div>
                         <div id="share-card-rating-system">Pistacho 评分体系：96-100 卓越 / 90-95 优秀 / 85-89 不错 / 80-84 合格 / &lt;80 需改进</div>
