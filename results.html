@@ -93,54 +93,102 @@
         /* Flavor tag style */
         .flavor-tag { display: inline-block; background-color: #e5e7eb; color: #374151; font-size: 0.75rem; font-weight: 600; margin-right: 0.5rem; margin-bottom: 0.5rem; padding: 0.125rem 0.625rem; border-radius: 9999px; }
 
-        /* Instagram Share Card - Fixed 4:5 Ratio */
+        /* Instagram Share Card - Fixed 4:5 Ratio with adaptive layout */
         #share-card-container {
-            /* Fixed Dimensions for IG Portrait */
             width: 1080px;
             height: 1350px;
-            background-color: #ffffff;
-            /* Hide it initially but keep it in DOM flow for assets to load */
             position: fixed;
-            top: 0; left: -9999px;
+            left: -9999px;
+            top: 0;
             z-index: -100;
-            display: flex; flex-direction: column;
-            box-sizing: border-box; font-family: sans-serif;
+            overflow: hidden;
+            border-radius: 24px;
+            background: #0f172a;
+            font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            color: #f8fafc;
+            visibility: hidden;
+            pointer-events: none;
         }
-
-        /* Image Area (Top 74%) */
-        #share-card-image-wrapper {
-            width: 100%; height: 1000px;
-            overflow: hidden; position: relative; background: #f3f4f6;
+        #share-card-container * { box-sizing: border-box; }
+        #share-card-bg {
+            position: absolute;
+            inset: -30px;
+            background-size: cover;
+            background-position: center;
+            filter: blur(32px) brightness(0.8);
+            transform: scale(1.05);
         }
-        #share-card-image {
-            width: 100%; height: 100%; object-fit: cover;
+        #share-card-overlay {
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at 20% 20%, rgba(255,255,255,0.08), transparent 35%),
+                        radial-gradient(circle at 80% 0%, rgba(255,255,255,0.08), transparent 25%),
+                        linear-gradient(135deg, rgba(15,23,42,0.85), rgba(15,23,42,0.65));
         }
-
-        /* Footer Area (Bottom 26%) - Re-layout for Vertical Card */
-        #share-card-content {
-            height: 350px;
-            padding: 30px 40px;
-            display: flex; flex-direction: row; /* Horizontal layout */
-            align-items: center; justify-content: space-between;
-            border-top: 2px solid #e5e7eb; background: white;
+        #share-card-canvas {
+            position: relative;
+            display: flex;
+            width: 100%;
+            height: 100%;
+            padding: 48px;
+            gap: 28px;
+            z-index: 1;
         }
-
-        /* Footer Elements */
-        #share-card-left { display: flex; flex-direction: column; }
-        #share-card-score { font-size: 6rem; line-height: 1; font-weight: 900; color: #4f46e5; }
-        #share-card-grade-badge { font-size: 1.4rem; padding: 5px 15px; margin-top: 10px; border-radius: 99px; background: #e0e7ff; color: #3730a3; font-weight: bold; text-align: center; }
-
-        #share-card-cigar-info { flex-grow: 1; margin: 0 40px; text-align: left; }
-        #share-card-cigar-name { font-size: 2.2rem; font-weight: 800; color: #111827; line-height: 1.2; margin-bottom: 8px; }
-        #share-card-cigar-size { font-size: 1.4rem; color: #4b5563; font-weight: 500; }
-        #share-card-watermark { font-size: 1rem; color: #9ca3af; margin-top: 15px; font-weight: 600; text-transform: uppercase; }
-
+        #share-card-canvas.mode-sidebar { flex-direction: row; align-items: center; }
+        #share-card-canvas.mode-bottom { flex-direction: column; justify-content: flex-start; }
+        #share-card-photo {
+            position: relative;
+            border-radius: 24px;
+            overflow: hidden;
+            background: rgba(255,255,255,0.05);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.35);
+            flex-shrink: 0;
+            width: 680px;
+            height: 960px;
+        }
+        #share-card-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        #share-card-photo::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(180deg, rgba(0,0,0,0.05), rgba(0,0,0,0.15));
+        }
+        #share-card-info {
+            flex: 1;
+            min-width: 320px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            background: rgba(15,23,42,0.55);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 24px;
+            padding: 24px 26px;
+            backdrop-filter: blur(6px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+        }
+        #share-card-header { display: flex; flex-direction: column; gap: 6px; }
+        #share-card-title { font-size: 1.6rem; font-weight: 800; line-height: 1.2; color: #e2e8f0; }
+        #share-card-cigar-name { font-size: 1.3rem; font-weight: 700; color: #f8fafc; }
+        #share-card-cigar-size { font-size: 1rem; color: #cbd5e1; }
+        #share-card-score-row { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+        #share-card-score { font-size: clamp(3.5rem, 5vw, 5.2rem); line-height: 1; font-weight: 900; color: #fbbf24; text-shadow: 0 6px 18px rgba(0,0,0,0.35); }
+        #share-card-grade-badge { padding: 8px 16px; border-radius: 999px; font-size: 1.05rem; font-weight: 800; background: rgba(255,255,255,0.12); color: #e0e7ff; border: 1px solid rgba(255,255,255,0.2); }
+        #share-card-username { font-size: 0.95rem; color: #cbd5e1; font-weight: 600; }
+        #share-card-qr-block { margin-top: auto; display: flex; gap: 14px; align-items: flex-end; justify-content: flex-end; flex-wrap: wrap; }
+        #share-card-signature { font-size: 0.9rem; color: #e2e8f0; max-width: 240px; line-height: 1.4; }
         #share-card-qrcode {
-            width: 220px !important; height: 220px !important;
-            background: white; border: 2px solid #e5e7eb; border-radius: 16px; padding: 10px;
-            flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+            width: 200px;
+            height: 200px;
+            background: #ffffff;
+            border-radius: 18px;
+            padding: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.28);
         }
         #share-card-qrcode img { width: 100%; height: 100%; object-fit: contain; }
+        #share-card-canvas.mode-bottom #share-card-info { width: 100%; }
     </style>
 </head>
 <body class="bg-gray-100 font-sans antialiased text-gray-800">
@@ -293,23 +341,28 @@
 
         <!-- Hidden Share Card Container (for image generation) -->
         <div id="share-card-container">
-            <div id="share-card-image-wrapper">
-                <!-- loading="lazy" intentionally omitted: this image stays off-screen but must load immediately for share card generation -->
-                <img id="share-card-image" src="" alt="Cigar Cover Image" crossorigin="anonymous" width="1080" height="1000">
-            </div>
-            <div id="share-card-content">
-                <div id="share-card-left">
-                    <span id="share-card-score">0.00</span>
-                    <span id="share-card-grade-badge">? - ???</span>
+            <div id="share-card-bg"></div>
+            <div id="share-card-overlay"></div>
+            <div id="share-card-canvas" class="mode-bottom">
+                <div id="share-card-photo">
+                    <!-- loading="lazy" intentionally omitted: this image stays off-screen but must load immediately for share card generation -->
+                    <img id="share-card-image" src="" alt="Cigar Cover Image" crossorigin="anonymous">
                 </div>
-                <div id="share-card-cigar-info">
-                    <p id="share-card-cigar-name"></p>
-                    <p id="share-card-cigar-size"></p>
-                    <p id="share-card-title"></p>
-                    <p id="share-card-watermark">rated on www.pista-cho.com</p>
-                </div>
-                <div id="share-card-qrcode">
-                    <!-- QR code img will be added here -->
+                <div id="share-card-info">
+                    <div id="share-card-header">
+                        <p id="share-card-title"></p>
+                        <p id="share-card-cigar-name"></p>
+                        <p id="share-card-cigar-size"></p>
+                    </div>
+                    <div id="share-card-score-row">
+                        <span id="share-card-score">0.00</span>
+                        <span id="share-card-grade-badge">? - ???</span>
+                    </div>
+                    <div id="share-card-username"></div>
+                    <div id="share-card-qr-block">
+                        <div id="share-card-signature">rated on www.pista-cho.com</div>
+                        <div id="share-card-qrcode"></div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1269,8 +1322,9 @@
                  }
 
                  console.log("Waiting for share card images (cover & QR)...");
-                 const [coverStatus] = await Promise.all([coverImagePromise, qrCodeImagePromise]);
+                const [coverStatus] = await Promise.all([coverImagePromise, qrCodeImagePromise]);
                  console.log("Share card images ready.");
+                 applyShareCardLayoutFromImage(coverImageElement);
 
                  if (coverStatus === 'no-cover') {
                       console.warn("Skipping share image generation because cover image is missing or invalid.");
@@ -1485,6 +1539,82 @@
             }
         }
 
+        function computeShareCardLayout(naturalWidth, naturalHeight) {
+            const canvasWidth = 1080;
+            const canvasHeight = 1350;
+            const ratio = (naturalWidth > 0 && naturalHeight > 0) ? (naturalWidth / naturalHeight) : 1;
+            if (!isFinite(ratio) || ratio <= 0) {
+                return { mode: 'bottom', width: canvasWidth * 0.78, height: canvasHeight * 0.6 };
+            }
+
+            if (ratio <= 1.05) {
+                const padding = 48;
+                const availableHeight = canvasHeight - padding * 2;
+                const minWidth = 520;
+                const maxWidth = canvasWidth - padding * 2 - 340;
+                const widthFromHeight = availableHeight * ratio;
+                const width = Math.max(minWidth, Math.min(maxWidth, widthFromHeight));
+                const height = Math.min(availableHeight, Math.round(width / ratio));
+                return { mode: 'sidebar', width, height };
+            }
+
+            const padding = 48;
+            const availableWidth = canvasWidth - padding * 2;
+            const maxHeight = canvasHeight - padding * 2 - 360;
+            const minHeight = 520;
+            const heightFromWidth = availableWidth / ratio;
+            const height = Math.max(minHeight, Math.min(maxHeight, heightFromWidth));
+            const width = Math.min(availableWidth, Math.round(height * ratio));
+            return { mode: 'bottom', width, height };
+        }
+
+        function applyShareCardLayoutFromImage(imageEl) {
+            const canvas = document.getElementById('share-card-canvas');
+            const photo = document.getElementById('share-card-photo');
+            if (!imageEl || !canvas || !photo) return;
+            const { mode, width, height } = computeShareCardLayout(imageEl.naturalWidth, imageEl.naturalHeight);
+            canvas.classList.toggle('mode-sidebar', mode === 'sidebar');
+            canvas.classList.toggle('mode-bottom', mode !== 'sidebar');
+            photo.style.width = `${Math.round(width)}px`;
+            photo.style.height = `${Math.round(height)}px`;
+            const container = document.getElementById('share-card-container');
+            if (container) container.dataset.layout = mode;
+        }
+
+        function ensureShareCardLayout(imageEl) {
+            if (!imageEl) return;
+            const runner = () => applyShareCardLayoutFromImage(imageEl);
+            if (isImageLoaded(imageEl)) {
+                runner();
+            } else {
+                imageEl.addEventListener('load', runner, { once: true });
+            }
+        }
+
+        function setShareCardBackground(imageUrl) {
+            const bg = document.getElementById('share-card-bg');
+            if (!bg) return;
+            if (imageUrl) {
+                bg.style.backgroundImage = `url('${imageUrl}')`;
+            } else {
+                bg.style.backgroundImage = '';
+            }
+        }
+
+        function getShareCardPalette(color) {
+            const palettes = {
+                gold: { score: '#fbbf24', badgeBg: 'rgba(251,191,36,0.18)', badgeText: '#fbbf24', border: 'rgba(251,191,36,0.55)' },
+                indigo: { score: '#a5b4fc', badgeBg: 'rgba(129,140,248,0.2)', badgeText: '#e0e7ff', border: 'rgba(129,140,248,0.55)' },
+                purple: { score: '#c084fc', badgeBg: 'rgba(168,85,247,0.2)', badgeText: '#f3e8ff', border: 'rgba(168,85,247,0.55)' },
+                blue: { score: '#60a5fa', badgeBg: 'rgba(96,165,250,0.2)', badgeText: '#dbeafe', border: 'rgba(96,165,250,0.55)' },
+                green: { score: '#86efac', badgeBg: 'rgba(74,222,128,0.2)', badgeText: '#ecfeff', border: 'rgba(74,222,128,0.55)' },
+                gray: { score: '#e5e7eb', badgeBg: 'rgba(148,163,184,0.2)', badgeText: '#f8fafc', border: 'rgba(148,163,184,0.45)' },
+                orange: { score: '#fb923c', badgeBg: 'rgba(251,146,60,0.2)', badgeText: '#fff7ed', border: 'rgba(251,146,60,0.55)' },
+                red: { score: '#f87171', badgeBg: 'rgba(248,113,113,0.2)', badgeText: '#fee2e2', border: 'rgba(248,113,113,0.55)' },
+            };
+            return palettes[color] || palettes.gray;
+        }
+
         // Populates the hidden share card elements
         function populateShareCard(data) {
              if (!data || !i18next.isInitialized) return;
@@ -1492,30 +1622,44 @@
              const rawFinalGrade = data.finalGrade ?? (data.finalGrade_grade ? { grade: data.finalGrade_grade, name_cn: data.finalGrade_name_cn } : null);
              const finalGrade = resolveFinalGrade(rawFinalGrade, normalizedScore);
              data.finalGrade = finalGrade;
-             // Robust check for finalGrade
+             const scoreEl = document.getElementById('share-card-score');
+             const gradeEl = document.getElementById('share-card-grade-badge');
              if (!finalGrade || typeof finalGrade !== 'object' || !finalGrade.grade || !finalGrade.nameKey || !finalGrade.color) {
                   console.warn("populateShareCard: finalGrade data missing or incomplete. Cannot populate share card grade.", finalGrade);
-                  document.getElementById('share-card-score').textContent = normalizedScore?.toFixed(2) ?? '?.??';
-                  document.getElementById('share-card-grade-badge').textContent = i18next.t('common.unrated');
-                  document.getElementById('share-card-grade-badge').className = 'inline-block px-4 py-2 rounded-full font-semibold bg-gray-200 text-gray-800';
+                  if (scoreEl) scoreEl.textContent = normalizedScore?.toFixed(2) ?? '?.??';
+                  if (gradeEl) {
+                      gradeEl.textContent = i18next.t('common.unrated');
+                      gradeEl.style.backgroundColor = 'rgba(148,163,184,0.2)';
+                      gradeEl.style.color = '#f8fafc';
+                      gradeEl.style.borderColor = 'rgba(148,163,184,0.45)';
+                  }
              } else {
                   const gradeName = i18next.t(finalGrade.nameKey);
-                  const gradeStyles = getGradeStyles(finalGrade.color);
-                  const scoreEl = document.getElementById('share-card-score');
-                  const gradeEl = document.getElementById('share-card-grade-badge');
-                  scoreEl.className = `font-black ${gradeStyles.textColor}`; // Apply color class
-                  scoreEl.textContent = normalizedScore.toFixed(2);
-                  gradeEl.className = `inline-block px-4 py-2 rounded-full font-semibold ${gradeStyles.bgColor} ${gradeStyles.textColor} bg-opacity-20`;
-                  gradeEl.textContent = gradeName;
+                  const palette = getShareCardPalette(finalGrade.color);
+                  if (scoreEl) {
+                      scoreEl.textContent = normalizedScore.toFixed(2);
+                      scoreEl.style.color = palette.score;
+                  }
+                  if (gradeEl) {
+                      gradeEl.textContent = gradeName;
+                      gradeEl.style.backgroundColor = palette.badgeBg;
+                      gradeEl.style.color = palette.badgeText;
+                      gradeEl.style.borderColor = palette.border;
+                  }
              }
 
-            const watermarkEl = document.getElementById('share-card-watermark');
             const shareTitleEl = document.getElementById('share-card-title');
             const shareCigarNameEl = document.getElementById('share-card-cigar-name');
             const shareCigarSizeEl = document.getElementById('share-card-cigar-size');
-            if (watermarkEl) {
-                 const watermarkName = userNickname || userEmail || i18next.t('common.anonymous');
-                 watermarkEl.textContent = `${watermarkName} rated on www.pista-cho.com`;
+            const usernameEl = document.getElementById('share-card-username');
+            const signatureEl = document.getElementById('share-card-signature');
+            const displayName = userNickname || userEmail || i18next.t('common.anonymous');
+            if (usernameEl) {
+                 usernameEl.textContent = displayName;
+                 usernameEl.title = displayName;
+            }
+            if (signatureEl) {
+                 signatureEl.textContent = `${displayName} rated on www.pista-cho.com`;
             }
             if (shareTitleEl) {
                  const shareTitle = data.title || i18next.t('common.noTitle');
@@ -1534,31 +1678,23 @@
             }
 
             const shareCardImage = document.getElementById('share-card-image');
-            const shareCardImageWrapper = document.getElementById('share-card-image-wrapper');
+            const coverUrl = imageUrls.length > 0 ? `/api/image/${imageUrls[0]}` : null;
             if (shareCardImage) {
-                  // Ensure the off-screen cover image loads immediately even on aggressive mobile lazy loading heuristics
                   shareCardImage.loading = 'eager';
                   shareCardImage.decoding = 'async';
                   shareCardImage.removeAttribute('loading');
                   if ('fetchPriority' in shareCardImage) {
                       shareCardImage.fetchPriority = 'high';
                   }
-            }
-            if (imageUrls.length > 0) {
-                  shareCardImage.src = `/api/image/${imageUrls[0]}`;
-                  shareCardImage.style.display = 'block';
-                  shareCardImageWrapper.classList.remove('no-image');
-                  const placeholder = shareCardImageWrapper.querySelector('.share-card-placeholder');
-                  if (placeholder) placeholder.remove();
-            } else {
-                  shareCardImage.src = '';
-                  shareCardImage.style.display = 'none';
-                  shareCardImageWrapper.classList.add('no-image');
-                  if (!shareCardImageWrapper.querySelector('.share-card-placeholder')) {
-                      const placeholder = document.createElement('span');
-                      placeholder.className = 'share-card-placeholder text-gray-400 text-sm';
-                      placeholder.textContent = i18next.t('resultsPage.shareCard.noCover');
-                      shareCardImageWrapper.appendChild(placeholder);
+                  if (coverUrl) {
+                      shareCardImage.style.display = 'block';
+                      shareCardImage.src = coverUrl;
+                      setShareCardBackground(coverUrl);
+                      ensureShareCardLayout(shareCardImage);
+                  } else {
+                      shareCardImage.removeAttribute('src');
+                      shareCardImage.style.display = 'none';
+                      setShareCardBackground(null);
                   }
             }
         }
