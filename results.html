@@ -359,7 +359,7 @@
                         <p id="share-card-review"></p>
                     </div>
                     <div id="share-card-score-stack">
-                        <span id="share-card-score">0.00</span>
+                        <span id="share-card-score">0</span>
                         <span id="share-card-grade-badge">? - ???</span>
                     </div>
                     <div id="share-card-qr-block">
@@ -402,6 +402,12 @@
             { "grade": "H", "nameKey": "resultsPage.grade.H", "min_score": 30, "color": "orange" },
             { "grade": "O", "nameKey": "resultsPage.grade.O", "min_score": 0, "color": "red" }
         ];
+
+        const truncateScore = (value) => Number.isFinite(value) ? Math.trunc(value) : null;
+        const formatScoreDisplay = (value, fallback = 'N/A') => {
+            const truncated = truncateScore(value);
+            return truncated !== null ? String(truncated) : fallback;
+        };
 
         let currentAuthUser = null; // Stores logged-in user info
         let resultsData = null;     // Stores the rating data being displayed
@@ -1628,7 +1634,7 @@
              const gradeEl = document.getElementById('share-card-grade-badge');
              if (!finalGrade || typeof finalGrade !== 'object' || !finalGrade.grade || !finalGrade.nameKey || !finalGrade.color) {
                   console.warn("populateShareCard: finalGrade data missing or incomplete. Cannot populate share card grade.", finalGrade);
-                  if (scoreEl) scoreEl.textContent = normalizedScore?.toFixed(2) ?? '?.??';
+                  if (scoreEl) scoreEl.textContent = formatScoreDisplay(normalizedScore, 'N/A');
                   if (gradeEl) {
                       gradeEl.textContent = i18next.t('common.unrated');
                       gradeEl.style.backgroundColor = 'rgba(148,163,184,0.2)';
@@ -1639,7 +1645,7 @@
                   const gradeName = i18next.t(finalGrade.nameKey);
                   const palette = getShareCardPalette(finalGrade.color);
                   if (scoreEl) {
-                      scoreEl.textContent = normalizedScore.toFixed(2);
+                      scoreEl.textContent = formatScoreDisplay(normalizedScore, 'N/A');
                       scoreEl.style.color = palette.score;
                   }
                   if (gradeEl) {
@@ -1826,7 +1832,7 @@
                 }
                 const gradeText = gradeLetter ? `${gradeLetter} - ${gradeName}` : gradeName;
                 const scoreText = typeof metaContext.normalizedScore === 'number'
-                    ? metaContext.normalizedScore.toFixed(2)
+                    ? formatScoreDisplay(metaContext.normalizedScore)
                     : t('resultsPage.meta.scoreFallback');
                 const reviewer = metaContext.userNickname || metaContext.userEmail || t('common.anonymous');
                 const description = t('resultsPage.meta.descriptionTemplate', { name, size, origin, grade: gradeText, score: scoreText, reviewer });
@@ -1845,7 +1851,7 @@
                     ? `${metaData.finalGrade.grade} - ${t(metaData.finalGrade.nameKey)}`
                     : (metaData?.finalGrade?.name || null);
                 const scoreText = typeof normalizedScoreValue === 'number'
-                    ? normalizedScoreValue.toFixed(2)
+                    ? formatScoreDisplay(normalizedScoreValue)
                     : t('resultsPage.meta.scoreFallback');
                 const resolvedGrade = gradeText || t('common.unrated');
                 const snippet = t('resultsPage.meta.searchSnippet', { score: scoreText, grade: resolvedGrade });
@@ -1900,9 +1906,7 @@
             const cigarInfo = results.cigarInfo || {};
             const langContext = resolveLanguageContext(i18next.language);
             const reviewer = results.userNickname || results.userEmail || i18next.t('common.anonymous');
-            const normalizedScore = typeof results.normalizedScore === 'number'
-                ? Number(results.normalizedScore.toFixed(2))
-                : null;
+            const normalizedScore = truncateScore(results.normalizedScore);
             const shareUrl = metadataInfo?.shareUrl || buildShareUrl();
             const seoTitle = metadataInfo?.shareTitle
                 || results.title
@@ -2036,7 +2040,7 @@
                 ? metaData.normalizedScore
                 : null;
             const normalizedScore = normalizedScoreValue !== null
-                ? normalizedScoreValue.toFixed(2)
+                ? formatScoreDisplay(normalizedScoreValue)
                 : null;
             const seoSnippet = buildSeoSnippet(metaData, langContext, normalizedScoreValue);
 
@@ -2872,7 +2876,9 @@
             const min = GRADING_SCALE[index].min_score;
             if (index === 0) return `${min}-100`; // Highest grade range
             const max = GRADING_SCALE[index - 1].min_score - 0.01; // Max is just below the next higher grade's min
-            return `${min.toFixed(0)}-${max.toFixed(2)}`;
+            const minScore = truncateScore(min);
+            const maxScore = truncateScore(max);
+            return `${minScore}-${maxScore}`;
         }
 
         // Returns Tailwind CSS classes for a grade color
@@ -2900,10 +2906,11 @@
              }
              const styles = getGradeStyles(grade.color);
              // Main score and grade name display
+             const formattedScore = formatScoreDisplay(score, '?.??');
              const scoreHtml = `
                 <div>
                     <p class="text-xl font-bold text-yellow-500 mb-1">${i18next.t('resultsPage.scoreSectionTitle')}</p>
-                    <p class="text-7xl font-black ${styles.textColor}">${score?.toFixed(2) ?? '?.??'}</p>
+                    <p class="text-7xl font-black ${styles.textColor}">${formattedScore}</p>
                     <div class="mt-2 text-3xl font-black ${styles.textColor}">${grade.name ?? i18next.t('common.unrated')}</div>
                 </div>`;
              // Grading scale legend
