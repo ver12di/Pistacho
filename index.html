@@ -448,16 +448,30 @@
 
         function renderAdminLinks() {
             const configLink = document.getElementById('config-admin-link');
-            if (!configLink || !i18next.isInitialized) return;
-            configLink.classList.add('hidden');
+            const userManagementLink = document.getElementById('user-management-link');
+            if (configLink) {
+                configLink.classList.add('hidden');
+            }
+            if (userManagementLink) {
+                userManagementLink.classList.add('hidden');
+            }
             if (!currentAuthUser) return;
 
             const userRole = currentAuthUser.db_role;
             const isAdmin = userRole === 'admin' || userRole === 'super_admin';
 
-            if (isAdmin) {
+            if (isAdmin && configLink) {
                 configLink.classList.remove('hidden');
-                configLink.textContent = i18next.t('nav.configAdmin');
+                if (i18next.isInitialized) {
+                    configLink.textContent = i18next.t('nav.configAdmin');
+                }
+            }
+
+            if (userRole === 'super_admin' && userManagementLink) {
+                userManagementLink.classList.remove('hidden');
+                if (i18next.isInitialized) {
+                    userManagementLink.textContent = i18next.t('nav.userAdmin');
+                }
             }
         }
 

@@ -60,6 +60,47 @@ function applyLinkState(link, isActive) {
     }
 }
 
+function getStoredUserRole() {
+    const rawUserInfo = readSessionStorage('userInfo');
+    if (!rawUserInfo) {
+        return null;
+    }
+    try {
+        const userInfo = JSON.parse(rawUserInfo);
+        return userInfo?.db_role || null;
+    } catch (error) {
+        console.warn('[navbar] Unable to parse stored user info:', error);
+        return null;
+    }
+}
+
+function applyAdminLinks(nav, userRole) {
+    const configLink = nav.querySelector('#config-admin-link');
+    const userManagementLink = nav.querySelector('#user-management-link');
+
+    if (configLink) {
+        configLink.classList.add('hidden');
+    }
+    if (userManagementLink) {
+        userManagementLink.classList.add('hidden');
+    }
+
+    if (!userRole) {
+        return;
+    }
+
+    const isAdmin = userRole === 'admin' || userRole === 'super_admin';
+    const isSuperAdmin = userRole === 'super_admin';
+
+    if (isAdmin && configLink) {
+        configLink.classList.remove('hidden');
+    }
+
+    if (isSuperAdmin && userManagementLink) {
+        userManagementLink.classList.remove('hidden');
+    }
+}
+
 function setActiveLink(nav, activeTarget) {
     const links = nav.querySelectorAll('[data-nav-target]');
     links.forEach(link => {
@@ -251,6 +292,7 @@ async function insertNavbars() {
 
         setActiveLink(nav, activeTarget);
         configureLanguageControls(nav, languageMode);
+        applyAdminLinks(nav, getStoredUserRole());
         setupMobileToggle(nav);
         initializeUnreadCommentsIndicator(nav);
 
