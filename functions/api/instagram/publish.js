@@ -5,6 +5,24 @@
 
 const DEFAULT_TEMPLATE = '{{title}} 获得 {{score}} 分! \n\n{{review}}\n\n#Cigar #Pistacho.';
 
+function parseJsonSafe(value, fallback) {
+    if (!value) return fallback;
+    if (typeof value === 'object') return value;
+    if (typeof value !== 'string') return fallback;
+    try {
+        return JSON.parse(value);
+    } catch (e) {
+        return fallback;
+    }
+}
+
+function formatScore(score) {
+    if (score === null || score === undefined || Number.isNaN(Number(score))) return '';
+    const num = Number(score);
+    if (!Number.isFinite(num)) return '';
+    return Number(num.toFixed(2)).toString();
+}
+
 // Helper: Poll Media Status
 async function waitForMediaStatus(env, igUserId, token, containerId) {
     let attempts = 0;
@@ -75,19 +93,31 @@ async function getConfigValues(env, keys) {
 function buildCaption(template, data) {
     const replacements = {
         title: data.title || '',
-        score: data.score ?? '',
-        review: data.review || ''
+        score: formatScore(data.score),
+        review: data.review || '',
+        reviewer: data.reviewer || '',
+        name: data.cigarInfo?.name || data.title || '',
+        origin: data.cigarInfo?.origin || '',
+        size: data.cigarInfo?.size || '',
+        grade: data.finalGrade?.grade || '',
+        gradeName: data.finalGrade?.name || data.finalGrade?.name_cn || ''
     };
+
     let caption = template || DEFAULT_TEMPLATE;
     Object.entries(replacements).forEach(([key, value]) => {
         const regex = new RegExp(`{{\\s*${key}\\s*}}`, 'gi');
         caption = caption.replace(regex, value);
     });
+
+    // Clean up any unreplaced placeholders to avoid leaking template variables.
+    caption = caption.replace(/{{\s*[^}]+\s*}}/g, '');
     return caption;
 }
 
 async function fetchRating(env, ratingId) {
-    const stmt = env.DB.prepare(`SELECT title, normalizedScore, cigarReview, imageUrl FROM ratings WHERE id = ?`).bind(ratingId);
+    const stmt = env.DB.prepare(
+        `SELECT title, normalizedScore, cigarReview, imageUrl, cigarName, cigarSize, cigarOrigin, finalGrade_grade, finalGrade_name_cn, userNickname, userEmail, fullData FROM ratings WHERE id = ?`
+    ).bind(ratingId);
     const rating = await stmt.first();
     if (!rating) throw new Error('Rating not found.');
     let imageUrls = [];
@@ -100,10 +130,26 @@ async function fetchRating(env, ratingId) {
     } catch (e) {
         imageUrls = [];
     }
+    const fullData = parseJsonSafe(rating.fullData, {});
+    const cigarInfo = {
+        name: rating.cigarName || fullData?.cigarInfo?.name || null,
+        size: rating.cigarSize || fullData?.cigarInfo?.size || null,
+        origin: rating.cigarOrigin || fullData?.cigarInfo?.origin || null
+    };
+    const finalGrade = fullData?.finalGrade || {};
+    if (!finalGrade.grade && rating.finalGrade_grade) {
+        finalGrade.grade = rating.finalGrade_grade;
+    }
+    if (!finalGrade.name && rating.finalGrade_name_cn) {
+        finalGrade.name = rating.finalGrade_name_cn;
+    }
     return {
         title: rating.title || '',
         score: rating.normalizedScore ?? '',
         review: rating.cigarReview || '',
+        reviewer: rating.userNickname || rating.userEmail || '',
+        cigarInfo,
+        finalGrade,
         imageUrls
     };
 }
