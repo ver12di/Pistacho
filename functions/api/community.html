@@ -184,9 +184,6 @@
             { "grade": "H", "nameKey": "resultsPage.grade.H", "min_score": 30, "color": "orange" },
             { "grade": "O", "nameKey": "resultsPage.grade.O", "min_score": 0, "color": "red" }
         ];
-        const formatScoreDisplay = (value, fallback = '0') => {
-            return Number.isFinite(value) ? String(Math.trunc(value)) : fallback;
-        };
         // --- End Global Variables ---
 
         // --- 核心功能 ---
@@ -296,7 +293,7 @@
             const date = formatDate(rating.timestamp);
             const author = rating.userNickname || i18next.t('common.anonymous');
             const grade = rating.finalGrade_grade || 'N/A';
-            const score = rating.normalizedScore !== undefined ? formatScoreDisplay(rating.normalizedScore) : '0';
+            const score = rating.normalizedScore?.toFixed(2) || '0.00';
 
             // **MODIFIED**: Get translated grade name using GRADING_SCALE and i18n
             let gradeName = i18next.t('common.unrated'); // Default text

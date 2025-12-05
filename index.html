@@ -194,10 +194,6 @@
         let initialScrollHandler = null;
         let fallbackScrollListenerAttached = false;
 
-        const formatScoreDisplay = (value, fallback = 'N/A') => {
-            return Number.isFinite(value) ? String(Math.trunc(value)) : fallback;
-        };
-
         // --- i18n Functions ---
         const SUPPORTED_LANGUAGES = ['zh', 'en', 'es'];
 
@@ -990,7 +986,7 @@
                 viewRatingDetails(rating.id);
             };
 
-            const score = rating.normalizedScore !== undefined ? formatScoreDisplay(rating.normalizedScore) : 'N/A';
+            const score = rating.normalizedScore !== undefined ? rating.normalizedScore.toFixed(2) : 'N/A';
             const author = rating.userNickname || rating.userEmail || i18next.t('common.anonymous');
 
             let coverImageUrl = null;

@@ -210,10 +210,6 @@
             { "grade": "O", "nameKey": "resultsPage.grade.O", "min_score": 0, "color": "red" }
         ];
 
-        const formatScoreDisplay = (value, fallback = 'N/A') => {
-            return Number.isFinite(value) ? String(Math.trunc(value)) : fallback;
-        };
-
         // --- Authentication Functions ---
         const AUTHING_APP_ID = '68f5b0b6875017c02b3bfdb3';
         const AUTHING_HOST = 'https://xfvu647mcdbk-demo.authing.cn';
@@ -284,7 +280,7 @@
              div.id = `rating-card-${rating.id}`;
              div.onclick = () => viewRatingDetails(rating.id);
 
-             const score = rating.normalizedScore !== undefined ? formatScoreDisplay(rating.normalizedScore) : 'N/A';
+             const score = rating.normalizedScore !== undefined ? rating.normalizedScore.toFixed(2) : 'N/A';
              const author = rating.userNickname || rating.userEmail || i18next.t('common.anonymous');
              let coverImageUrl = null;
              if (Array.isArray(rating.imageUrl) && rating.imageUrl.length > 0) { coverImageUrl = rating.imageUrl[0]; }
