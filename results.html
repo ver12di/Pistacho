@@ -115,7 +115,7 @@
             inset: -30px;
             background-size: cover;
             background-position: center;
-            filter: blur(32px) brightness(0.8);
+            filter: blur(32px) brightness(0.8) hue-rotate(var(--share-bg-hue, 0deg));
             transform: scale(1.05);
         }
         #share-card-overlay {
@@ -1600,6 +1600,13 @@
         function setShareCardBackground(imageUrl) {
             const bg = document.getElementById('share-card-bg');
             if (!bg) return;
+
+            const randomHue = Math.floor(Math.random() * 360);
+            const randomTint = `hsl(${randomHue} 45% 16% / 0.65)`;
+
+            bg.style.setProperty('--share-bg-hue', `${randomHue}deg`);
+            bg.style.backgroundColor = randomTint;
+
             if (imageUrl) {
                 bg.style.backgroundImage = `url('${imageUrl}')`;
             } else {
