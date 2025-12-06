@@ -115,7 +115,7 @@
             inset: -30px;
             background-size: cover;
             background-position: center;
-            filter: blur(32px) brightness(0.8);
+            filter: blur(32px) brightness(0.8) hue-rotate(var(--share-bg-hue, 0deg));
             transform: scale(1.05);
         }
         #share-card-overlay {
@@ -1599,7 +1599,21 @@
 
         function setShareCardBackground(imageUrl) {
             const bg = document.getElementById('share-card-bg');
-            if (!bg) return;
+            const overlay = document.getElementById('share-card-overlay');
+            if (!bg || !overlay) return;
+
+            const randomHue = Math.floor(Math.random() * 360);
+            const randomTint = `hsl(${randomHue} 50% 14% / 0.7)`;
+            const accentHue = (randomHue + 35) % 360;
+            const accentTint = `hsl(${accentHue} 60% 20% / 0.45)`;
+
+            bg.style.setProperty('--share-bg-hue', `${randomHue}deg`);
+            bg.style.backgroundColor = randomTint;
+
+            overlay.style.background = `radial-gradient(circle at 20% 20%, hsla(${randomHue} 70% 62% / 0.16), transparent 35%),`
+                + `radial-gradient(circle at 80% 0%, hsla(${accentHue} 65% 58% / 0.14), transparent 25%),`
+                + `linear-gradient(135deg, ${randomTint}, ${accentTint})`;
+
             if (imageUrl) {
                 bg.style.backgroundImage = `url('${imageUrl}')`;
             } else {
