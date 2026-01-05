@@ -25,7 +25,7 @@
         .prose-custom a { color: #4f46e5; }
         .prose-custom blockquote { border-left-color: #a5b4fc; }
         /* Swiper styles from results.html */
-        .swiper-container.main-swiper { width: 100%; position: relative; aspect-ratio: 1179 / 1572; }
+        .swiper-container.main-swiper { width: 100%; position: relative; /* aspect-ratio removed for auto height */ }
         .main-swiper .swiper-slide { display: flex; align-items: center; justify-content: center; background-color: #f3f4f6; }
         .main-swiper-image { width: 100%; height: auto; max-height: 100%; object-fit: contain; }
         .swiper-slide { height: auto; display: flex; flex-direction: column; align-items: center; justify-content: center; }
@@ -84,6 +84,11 @@
                     <p><strong><span data-i18n="resultsPage.size"></span>:</strong> <span id="info-cigar-size"></span></p>
                     <p><strong><span data-i18n="resultsPage.origin"></span>:</strong> <span id="info-cigar-origin"></span></p>
                     <p><strong><span data-i18n="common.score"></span>:</strong> <span id="info-score" class="font-bold text-indigo-600"></span></p>
+                </div>
+                <div class="mt-6 text-center">
+                    <a id="view-original-link" href="#" class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors" data-i18n="featuredPostPage.viewOriginal">
+                        查看原始评分
+                    </a>
                 </div>
             </div>
         </article>
@@ -300,6 +305,11 @@
             document.getElementById('info-cigar-size').textContent = cigarInfo?.size || i18next.t('common.unknown');
             document.getElementById('info-cigar-origin').textContent = cigarInfo?.origin || i18next.t('common.unknown');
             document.getElementById('info-score').textContent = typeof normalizedScore === 'number' ? Math.trunc(normalizedScore) : 'N/A';
+
+            const viewOriginalLink = document.getElementById('view-original-link');
+            if (viewOriginalLink) {
+                viewOriginalLink.href = `results.html?ratingId=${ratingId}`;
+            }
         }
 
         // --- Comments Logic (copied from results.html and simplified) ---
