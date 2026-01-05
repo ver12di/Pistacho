@@ -7,14 +7,36 @@
     <meta name="robots" content="noindex, nofollow">
     <link rel="icon" type="image/png" href="Certifiedstamp.png">
     <script src="https://cdn.tailwindcss.com"></script>
+
+    <script src="https://cdn.tiny.cloud/1/no-api-key/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
+
     <script src="https://unpkg.com/i18next/i18next.min.js" defer></script>
     <script src="https://unpkg.com/i18next-http-backend/i18nextHttpBackend.min.js" defer></script>
     <script src="https://unpkg.com/i18next-browser-languagedetector/i18nextBrowserLanguageDetector.min.js" defer></script>
     <script type="module" src="scripts/navbar.js"></script>
     <style>
-        .lang-button { padding: 2px 6px; margin: 0 2px; border: 1px solid transparent; border-radius: 4px; cursor: pointer; font-size: 0.75rem; transition: background-color 0.2s, border-color 0.2s; background-color: #f3f4f6; }
-        .lang-button:hover { background-color: #e5e7eb; }
-        .lang-button.active { font-weight: bold; background-color: #e0e7ff; border-color: #a5b4fc; color: #3730a3; cursor: default; }
+        .lang-button {
+            padding: 2px 6px;
+            margin: 0 2px;
+            border: 1px solid transparent;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.75rem;
+            transition: background-color 0.2s, border-color 0.2s;
+            background-color: #f3f4f6;
+        }
+
+        .lang-button:hover {
+            background-color: #e5e7eb;
+        }
+
+        .lang-button.active {
+            font-weight: bold;
+            background-color: #e0e7ff;
+            border-color: #a5b4fc;
+            color: #3730a3;
+            cursor: default;
+        }
     </style>
 </head>
 <body class="bg-gray-100 font-sans">
@@ -38,16 +60,18 @@
                 <input type="text" id="featured-title" class="w-full mt-2 p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
             </div>
             <div>
-                <label for="featured-body" class="text-lg font-semibold" data-i18n="editFeaturedPage.articleContent">文章内容 (支持 Markdown)</label>
-                <textarea id="featured-body" rows="20" class="w-full mt-2 p-3 border border-gray-300 rounded-lg shadow-sm font-mono focus:ring-indigo-500 focus:border-indigo-500"></textarea>
+                <label for="featured-body" class="text-lg font-semibold" data-i18n="editFeaturedPage.articleContent">文章内容</label>
+                <textarea id="featured-body" class="w-full mt-2" rows="20"></textarea>
             </div>
             <button id="save-featured-button" onclick="saveFeaturedReview()" class="px-6 py-3 bg-indigo-600 text-white font-bold rounded-lg shadow-md hover:bg-indigo-700 transition" data-i18n="editFeaturedPage.save">保存精品评鉴</button>
             <p id="status-message" class="text-sm mt-2"></p>
         </div>
     </main>
     <script type="module">
+        import {sanitize} from 'https://cdn.jsdelivr.net/npm/dompurify/+esm'
         let editorData = null;
         let currentAuthUser = null;
+        let editor = null;
         const AUTHING_APP_ID = '68f5b0b6875017c02b3bfdb3';
         const AUTHING_HOST = 'https://xfvu647mcdbk-demo.authing.cn';
 
@@ -85,7 +109,8 @@
 
         window.saveFeaturedReview = async function() {
             const title = document.getElementById('featured-title').value;
-            const content = document.getElementById('featured-body').value;
+            // Get content from TinyMCE editor
+            const content = tinymce.get('featured-body').getContent();
             const button = document.getElementById('save-featured-button');
             const status = document.getElementById('status-message');
 
@@ -124,7 +149,7 @@
                 const result = await response.json();
                 status.textContent = i18next.t('editFeaturedPage.statusSuccess');
                 status.className = 'text-green-500 text-sm mt-2';
-                
+
                 setTimeout(() => {
                     window.location.href = 'featured.html';
                 }, 1500);
@@ -143,7 +168,7 @@
             const editorContent = document.getElementById('editor-content');
 
             if (!currentAuthUser || currentAuthUser.db_role !== 'super_admin') {
-                authPrompt.textContent = i18next.t('editFeaturedPage.permissionDenied');
+                authPrompt.textContent = '您没有权限访问此页面。仅超级管理员可撰写精品评鉴。';
                 authPrompt.classList.remove('hidden');
                 editorContent.classList.add('hidden');
                 return;
@@ -159,20 +184,29 @@
             editorData = JSON.parse(rawData);
 
             document.getElementById('featured-title').value = editorData.title;
-            // Feature: Pre-fill content if editing an existing featured review
-            if (editorData.content) {
-                document.getElementById('featured-body').value = editorData.content;
-            }
             const imageContainer = document.getElementById('image-preview-container');
             if (editorData.imageUrls && editorData.imageUrls.length > 0) {
-                imageContainer.innerHTML = editorData.imageUrls.map(key => 
+                imageContainer.innerHTML = editorData.imageUrls.map(key =>
                     `<div class="aspect-w-3 aspect-h-4"><img src="/api/image/${key}" class="w-full h-full object-cover rounded-lg shadow"></div>`
                 ).join('');
             } else {
                 imageContainer.innerHTML = `<p class="col-span-full text-gray-500">没有图片。</p>`;
             }
-            
+
             editorContent.classList.remove('hidden');
+
+            tinymce.init({
+                selector: '#featured-body',
+                plugins: 'ai tinycomments mentions anchor autolink charmap codesample emoticons image link lists media searchreplace table visualblocks wordcount checklist mediaembed casechange export formatpainter pageembed permanentpen typography footnotes advtemplate advtable advcode editimage tableofcontents mergetags powerpaste tinymcespellchecker autocorrect a11ychecker inlinecss',
+                toolbar: 'undo redo | blocks fontfamily fontsize | bold italic underline strikethrough | link image media table mergetags | align lineheight | tinycomments | checklist numlist bullist indent outdent | emoticons charmap | removeformat | a11ycheck code',
+                ai_request: (request, respondWith) => respondWith.json({ output: '这里是AI输出的结果' }),
+                setup: (editor) => {
+                    // Load content from editorData.content when available
+                    editor.on('init', () => {
+                        editor.setContent(sanitize(editorData.content || ''));
+                    });
+                }
+            });
         }
     </script>
 </body>
