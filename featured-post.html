@@ -278,14 +278,16 @@
         }
 
         function renderBlogPost(data) {
-            const { title, userNickname, timestamp, imageUrls, featured_content, cigarInfo, normalizedScore } = data;
+            const { title, userNickname, timestamp, imageUrl, imageUrls, featured_content, cigarInfo, normalizedScore } = data;
 
             document.getElementById('article-title').textContent = title;
             
             const date = new Date(timestamp);
             const formattedDate = isNaN(date) ? i18next.t('common.unknownDate') : date.toLocaleDateString(i18next.language);
             document.getElementById('article-meta').textContent = `${i18next.t('common.by')} ${userNickname || i18next.t('common.anonymous')} · ${formattedDate}`;
-            initSwipers(imageUrls || []);
+            // Fix: API returns 'imageUrl' (array), results.html normalizes to 'imageUrls'. Check both.
+            const imagesToDisplay = imageUrls || imageUrl || [];
+            initSwipers(imagesToDisplay);
 
             const articleBody = document.getElementById('article-body');
             if (featured_content && typeof marked !== 'undefined' && typeof DOMPurify !== 'undefined') {

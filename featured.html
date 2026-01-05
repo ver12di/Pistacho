@@ -68,6 +68,7 @@
         .action-buttons .btn-uncertify { @apply bg-yellow-600 text-white hover:bg-yellow-700; }
         .action-buttons .btn-pin { @apply bg-pink-500 text-white hover:bg-pink-600; }
         .action-buttons .btn-unpin { @apply bg-gray-500 text-white hover:bg-gray-600; }
+        .action-buttons .btn-edit { @apply bg-blue-500 text-white hover:bg-blue-600; }
         .pinned-indicator { position: absolute; top: 0.5rem; right: 0.5rem; background-color: #ec4899; color: white; padding: 0.1rem 0.5rem; border-radius: 9999px; font-size: 0.7rem; font-weight: bold; display: flex; align-items: center; z-index: 10; }
         .pinned-indicator svg { width: 0.7rem; height: 0.7rem; margin-right: 0.2rem; }
         .certification-badge { position: absolute; top: 0.5rem; left: 0.5rem; width: 28%; max-width: 3.75rem; min-width: 2.25rem; display: flex; align-items: center; justify-content: center; z-index: 10; pointer-events: none; }
@@ -458,6 +459,25 @@
                 console.error("Session validation failed:", e);
                 return null;
             }
+        }
+
+        window.editFeaturedReview = function(ratingId, event) {
+            event?.stopPropagation();
+            const rating = displayedRatings[ratingId];
+            if (!rating) {
+                alert(i18next.t('common.loadDetailFailed'));
+                return;
+            }
+            
+            const editorData = {
+                ratingId: rating.id,
+                title: rating.title,
+                cigarInfo: rating.cigarInfo,
+                imageUrls: rating.imageUrl || [], // API returns imageUrl as array
+                content: rating.featured_content // Pass content for pre-filling
+            };
+            sessionStorage.setItem('featuredReviewEditorData', JSON.stringify(editorData));
+            window.location.href = 'edit-featured.html';
         }
 
         window.deleteRating = async function(ratingId, event) {
@@ -935,6 +955,7 @@
                         <details>
                             <summary>${i18next.t('common.adminActions')}</summary>
                             <div class="action-buttons-content action-buttons pt-2 border-t border-gray-100 flex items-center space-x-1 flex-wrap gap-1 justify-end">
+                                <button onclick="editFeaturedReview('${rating.id}', event)" class="btn-edit">${i18next.t('common.edit')}</button>
                                 <button onclick="deleteRating('${rating.id}', event)" class="btn-delete">${i18next.t('common.delete')}</button>
                                 <button data-action="certify" onclick="updateCertification('${rating.id}', true, event)" class="btn-certify ${isCertified ? 'hidden' : ''}">${i18next.t('common.certify')}</button>
                                 <button data-action="uncertify" onclick="updateCertification('${rating.id}', false, event)" class="btn-uncertify ${!isCertified ? 'hidden' : ''}">${i18next.t('common.uncertify')}</button>

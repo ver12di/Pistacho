@@ -159,6 +159,10 @@
             editorData = JSON.parse(rawData);
 
             document.getElementById('featured-title').value = editorData.title;
+            // Feature: Pre-fill content if editing an existing featured review
+            if (editorData.content) {
+                document.getElementById('featured-body').value = editorData.content;
+            }
             const imageContainer = document.getElementById('image-preview-container');
             if (editorData.imageUrls && editorData.imageUrls.length > 0) {
                 imageContainer.innerHTML = editorData.imageUrls.map(key => 
