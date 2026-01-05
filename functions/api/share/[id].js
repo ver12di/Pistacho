@@ -6,7 +6,7 @@ export async function onRequestGet(context) {
     return new Response("Missing ID", { status: 400 });
   }
 
-  // 从 KV 获取 HTML
+  // 从 KV 获取 HTML (使用 PISTACHO_KV)
   const html = await env.PISTACHO_KV.get(id);
 
   if (!html) {

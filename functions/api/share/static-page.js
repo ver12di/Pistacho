@@ -18,8 +18,6 @@ export async function onRequestPost(context) {
     // 保存到 KV，设置 30 天过期 (2592000 秒)
     // 请确保在 Cloudflare Pages 设置中绑定了名为 'PISTACHO_KV' 的 KV 命名空间
     await env.PISTACHO_KV.put(shareId, htmlContent, { expirationTtl: 2592000 });
-    // 注意：这里使用了 env.KV，请确保你的 Cloudflare Pages 设置或 wrangler.toml 中绑定名为 'KV'
-    await env.KV.put(shareId, htmlContent, { expirationTtl: 2592000 });
 
     // 构建访问 URL
     const url = new URL(request.url);
