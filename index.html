@@ -305,7 +305,9 @@
 
             const canonicalLink = document.getElementById('canonical-link');
             if (canonicalLink && typeof window !== 'undefined' && window.location) {
-                const canonicalUrl = `${window.location.origin}${window.location.pathname}`;
+                // 优化: 移除路径末尾的 index.html，与服务器重定向保持一致，避免 SEO 重复
+                const cleanPath = window.location.pathname.replace(/\/index\.html$/, '/');
+                const canonicalUrl = `${window.location.origin}${cleanPath}`;
                 canonicalLink.setAttribute('href', canonicalUrl);
             }
         }
@@ -1203,4 +1205,3 @@
     </script>
 </body>
 </html>
-

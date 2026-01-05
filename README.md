@@ -11,4 +11,3 @@ To enable automatic multilingual translations for rating titles and reviews, con
 | `BAIDU_TRANSLATE_APP_SECRET` | Baidu Translate secret key |
 
 If the credentials are not provided, ratings will still be saved, but the original text will be used for every language.
-   
