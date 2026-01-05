@@ -516,8 +516,10 @@
                  // Include config and ratings ONLY if fullData is complete
                  config: hasCompleteFullData ? ratingData.fullData.config : null,
                  ratings: hasCompleteFullData ? ratingData.fullData.ratings : null,
-                calculatedScore: hasCompleteFullData ? ratingData.fullData.calculatedScore : null,
-                sourceLanguage: sourceLanguage
+                 calculatedScore: hasCompleteFullData ? ratingData.fullData.calculatedScore : null,
+                 sourceLanguage: sourceLanguage,
+                 is_featured: ratingData.is_featured,
+                 featured_content: ratingData.featured_content
             };
 
             console.log("[history.html viewRatingDetails] Storing data to sessionStorage:", JSON.stringify(detailedData).substring(0,500) + '...'); // Log data being stored

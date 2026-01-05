@@ -1132,7 +1132,9 @@
                 userNickname: ratingData.userNickname,
                 userEmail: ratingData.userEmail,
                 isDraft: false, // Data from index/history is NEVER a draft
-                sourceLanguage: sourceLanguage
+                sourceLanguage: sourceLanguage,
+                is_featured: ratingData.is_featured,
+                featured_content: ratingData.featured_content
             };
 
             if (hasCompleteFullData) {
