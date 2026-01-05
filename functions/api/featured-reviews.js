@@ -97,3 +97,34 @@ export async function onRequestDelete(context) {
         return new Response(JSON.stringify({ error: 'An internal server error occurred.' }), { status: 500 });
     }
 }
+
+export async function onRequestDelete(context) {
+    const { request, env } = context;
+    const db = env.DB;
+
+    if (!db) {
+        return new Response(JSON.stringify({ error: 'Database connection not configured.' }), { status: 500 });
+    }
+
+    try {
+        const user = await getUserFromToken(request);
+        if (!user || user.db_role !== 'super_admin') {
+            return new Response(JSON.stringify({ error: 'Permission denied. Super admin role required.' }), { status: 403 });
+        }
+
+        const url = new URL(request.url);
+        const ratingId = url.searchParams.get('ratingId');
+
+        if (!ratingId) {
+            return new Response(JSON.stringify({ error: 'Missing ratingId parameter.' }), { status: 400 });
+        }
+
+        const stmt = db.prepare('UPDATE ratings SET is_featured = 0, featured_content = NULL WHERE id = ?').bind(ratingId);
+        await stmt.run();
+
+        return new Response(JSON.stringify({ success: true }), { headers: { 'Content-Type': 'application/json' } });
+    } catch (err) {
+        console.error('Error unfeaturing review:', err);
+        return new Response(JSON.stringify({ error: 'An internal server error occurred.' }), { status: 500 });
+    }
+}

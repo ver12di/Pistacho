@@ -483,6 +483,32 @@
         window.unfeatureRating = async function(ratingId, event) {
             event?.stopPropagation();
             if (!i18next.isInitialized) return;
+            if (!confirm(i18next.t('common.confirmDeletion'))) { return; } // 目前使用通用确认信息
+            const button = event ? (event.currentTarget || event.target) : null;
+            if (button) { button.textContent = i18next.t('common.deleting'); button.disabled = true; }
+
+            const token = sessionStorage.getItem('accessToken');
+            if (!token) {
+                alert(i18next.t('common.loginRequired'));
+                if (button) { button.textContent = i18next.t('common.delete'); button.disabled = false; }
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/featured-reviews?ratingId=${ratingId}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
+                if (!response.ok) { const err = await response.json(); throw new Error(err.error || 'Failed to unfeature'); }
+                const cardToRemove = document.getElementById(`rating-card-${ratingId}`);
+                if (cardToRemove) { cardToRemove.style.transition = 'opacity 0.5s ease-out'; cardToRemove.style.opacity = '0'; setTimeout(() => cardToRemove.remove(), 500); }
+                alert(i18next.t('common.deleteSuccess'));
+            } catch (error) {
+                alert(i18next.t('common.deleteFailed', { msg: error.message }));
+                if (button) { button.textContent = i18next.t('common.delete'); button.disabled = false; }
+            }
+        }
+
+        window.unfeatureRating = async function(ratingId, event) {
+            event?.stopPropagation();
+            if (!i18next.isInitialized) return;
             if (!confirm(i18next.t('common.confirmDeletion'))) { return; } // Using generic confirmation for now
             const button = event ? (event.currentTarget || event.target) : null;
             if (button) { button.textContent = i18next.t('common.deleting'); button.disabled = true; }
