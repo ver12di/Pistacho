@@ -2850,6 +2850,12 @@ Check out the full rating on www.pista-cho.com
                  })();
 
                  const dataPromise = (async () => {
+                     // Check for preloaded data (injected by static page generator)
+                     if (window.PRELOADED_DATA) {
+                         console.log("[results.html onload] Using preloaded data");
+                         return normalizeResultsData(window.PRELOADED_DATA);
+                     }
+
                      if (ratingId) {
                          console.log("[results.html onload] Loading rating from API with ID:", ratingId);
                          if (code) {
