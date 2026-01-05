@@ -1056,8 +1056,12 @@
             }
 
             try {
-                 sessionStorage.setItem('cigarRatingResults', JSON.stringify(detailedData));
-                 window.location.href = `results.html`;
+                if (ratingData.is_featured) {
+                    window.location.href = `featured-post.html?ratingId=${ratingId}`;
+                } else {
+                    sessionStorage.setItem('cigarRatingResults', JSON.stringify(detailedData));
+                    window.location.href = `results.html`;
+                }
             }
             catch (e) {
                 console.error("Error setting sessionStorage:", e);

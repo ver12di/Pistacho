@@ -525,8 +525,12 @@
             console.log("[history.html viewRatingDetails] Storing data to sessionStorage:", JSON.stringify(detailedData).substring(0,500) + '...'); // Log data being stored
 
              try {
-                 sessionStorage.setItem('cigarRatingResults', JSON.stringify(detailedData));
-                 window.location.href = 'results.html'; // Navigate to results page (will load from sessionStorage)
+                if (ratingData.is_featured) {
+                    window.location.href = `featured-post.html?ratingId=${ratingId}`;
+                } else {
+                    sessionStorage.setItem('cigarRatingResults', JSON.stringify(detailedData));
+                    window.location.href = 'results.html';
+                }
              } catch (e) {
                  console.error("Error setting sessionStorage:", e);
                  alert(i18next.t('common.sessionStoreFailed'));
