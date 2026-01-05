@@ -503,6 +503,7 @@
         document.addEventListener('navbar:loaded', () => {
             renderLanguageSwitcher();
             renderLoginStatus(currentAuthUser);
+            updateContent();
         });
 
         // Handles the OIDC callback from Authing after successful login
@@ -1285,4 +1286,3 @@
     </script>
 </body>
 </html>
-

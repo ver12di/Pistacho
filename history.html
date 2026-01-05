@@ -212,6 +212,7 @@
         document.addEventListener('navbar:loaded', () => {
             renderLanguageSwitcher();
             renderLoginStatus(currentAuthUser);
+            updateContent();
         });
 
         // --- End i18n Functions ---

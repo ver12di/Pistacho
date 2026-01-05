@@ -156,6 +156,10 @@
 
     <script type="module">
         // --- **NEW**: i18n Initialization Functions ---
+        document.addEventListener('navbar:loaded', () => {
+            renderLanguageSwitcher();
+            updateContent();
+        });
         
         async function initI18n() {
             await i18next
@@ -768,4 +772,3 @@
     </script>
 </body>
 </html>
-

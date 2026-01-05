@@ -7,6 +7,8 @@
     <meta name="robots" content="noindex, nofollow">
     <link rel="icon" type="image/png" href="Certifiedstamp.png">
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/Swiper/11.0.5/swiper-bundle.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Swiper/11.0.5/swiper-bundle.min.js" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify/dist/purify.min.js" defer></script>
     <script src="https://unpkg.com/i18next/i18next.min.js" defer></script>
@@ -22,6 +24,18 @@
         .prose-custom p { color: #374151; line-height: 1.75; }
         .prose-custom a { color: #4f46e5; }
         .prose-custom blockquote { border-left-color: #a5b4fc; }
+        /* Swiper styles from results.html */
+        .swiper-container.main-swiper { width: 100%; position: relative; aspect-ratio: 1179 / 1572; }
+        .main-swiper .swiper-slide { display: flex; align-items: center; justify-content: center; background-color: #f3f4f6; }
+        .main-swiper-image { width: 100%; height: auto; max-height: 100%; object-fit: contain; }
+        .swiper-slide { height: auto; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .swiper-wrapper { align-items: flex-start; }
+        .swiper-slide img { display: block; width: 100%; height: auto; object-fit: contain; max-height: 80vh; }
+        .swiper-button-next, .swiper-button-prev { color: #fff; background-color: rgba(0,0,0,0.3); padding: 10px; border-radius: 50%; width: 40px; height: 40px; } .swiper-button-next::after, .swiper-button-prev::after { font-size: 1.2rem; }
+        .swiper-pagination { display: none !important; }
+        .thumbnail-swiper .swiper-slide { width: 60px !important; height: 80px; opacity: 0.6; cursor: pointer; border: 2px solid transparent; transition: opacity 0.3s, border-color 0.3s; }
+        .thumbnail-swiper .swiper-slide img { object-fit: cover; width: 100%; height: 100%;}
+        .thumbnail-swiper .swiper-slide-thumb-active { opacity: 1; border-color: #4f46e5; } .thumbnail-swiper { margin-top: 0.5rem; padding: 5px 0; }
     </style>
 </head>
 <body class="bg-slate-50 font-sans">
@@ -42,10 +56,20 @@
                 <p id="article-meta" class="text-sm text-gray-500"></p>
             </header>
 
-            <!-- Hero Image -->
-            <figure id="article-image-container" class="mb-8 hidden">
-                <img id="article-image" src="" alt="Featured Review Image" class="w-full h-auto max-h-[70vh] object-contain rounded-lg shadow-lg mx-auto">
-            </figure>
+            <!-- Image Gallery -->
+            <div id="image-gallery-container" class="mb-8 bg-white rounded-lg shadow-md overflow-hidden">
+                <!-- Main Swiper -->
+                <div class="swiper-container main-swiper bg-gray-200 relative">
+                     <div class="swiper-wrapper" id="main-swiper-wrapper">
+                         <!-- Slides will be injected here -->
+                     </div>
+                     <div class="swiper-pagination"></div>
+                     <div class="swiper-button-next"></div>
+                     <div class="swiper-button-prev"></div>
+                </div>
+                <!-- Thumbnail Swiper -->
+                <div class="swiper-container thumbnail-swiper hidden"> <div class="swiper-wrapper" id="thumbnail-swiper-wrapper"></div> </div>
+            </div>
 
             <!-- Article Body -->
             <div id="article-body" class="prose prose-lg max-w-none prose-custom">
@@ -92,6 +116,8 @@
         // Re-using a simplified version of results.html's script
         let currentAuthUser = null;
         let ratingId = null;
+        let mainSwiper = null;
+        let thumbnailSwiper = null;
         let commentState = { comments: [], mutedUserIds: new Set(), currentUserMuted: false, currentUserId: null, currentUserRole: 'guest' };
         let commentStatusTimer = null;
         let commentSubmitBound = false;
@@ -168,6 +194,53 @@
             }
         }
 
+        async function initSwipers(imageUrls = []) {
+            const mainWrapper = document.getElementById('main-swiper-wrapper');
+            const thumbWrapper = document.getElementById('thumbnail-swiper-wrapper');
+            const thumbContainer = document.querySelector('.thumbnail-swiper');
+            if (!mainWrapper || !thumbWrapper || !thumbContainer) return;
+
+            mainWrapper.innerHTML = '';
+            thumbWrapper.innerHTML = '';
+
+            if (imageUrls.length === 0) {
+                mainWrapper.innerHTML = `<div class="swiper-slide flex items-center justify-center text-gray-400 aspect-[1179/1572]">${i18next.t('common.noImage')}</div>`;
+                thumbContainer.classList.add('hidden');
+                if (mainSwiper) mainSwiper.destroy(true, true);
+                if (thumbnailSwiper) thumbnailSwiper.destroy(true, true);
+                mainSwiper = null;
+                thumbnailSwiper = null;
+                return;
+            }
+
+            imageUrls.forEach(key => {
+                const imageUrl = `/api/image/${key}`;
+                const imgElement = `<img src="${imageUrl}" alt="${i18next.t('common.cigarImageAlt')}" class="main-swiper-image" loading="lazy">`;
+                mainWrapper.innerHTML += `<div class="swiper-slide">${imgElement}</div>`;
+                thumbWrapper.innerHTML += `<div class="swiper-slide thumbnail-slide">${imgElement}</div>`;
+            });
+
+            if (mainSwiper) mainSwiper.destroy(true, true);
+            if (thumbnailSwiper) thumbnailSwiper.destroy(true, true);
+
+            if (imageUrls.length > 1) {
+                thumbContainer.classList.remove('hidden');
+                thumbnailSwiper = new Swiper('.thumbnail-swiper', {
+                    spaceBetween: 10,
+                    slidesPerView: 'auto',
+                    freeMode: true,
+                    watchSlidesProgress: true,
+                });
+            } else {
+                thumbContainer.classList.add('hidden');
+                thumbnailSwiper = null;
+            }
+
+            mainSwiper = new Swiper('.main-swiper', {
+                spaceBetween: 10, autoHeight: true, navigation: { nextEl: '.swiper-button-next', prevEl: '.swiper-button-prev' }, pagination: { el: '.main-swiper .swiper-pagination', clickable: true }, thumbs: { swiper: thumbnailSwiper },
+            });
+        }
+
         async function handleOidcCallback(code) {
             try {
                 const redirectUri = window.location.origin + window.location.pathname;
@@ -212,14 +285,7 @@
             const date = new Date(timestamp);
             const formattedDate = isNaN(date) ? i18next.t('common.unknownDate') : date.toLocaleDateString(i18next.language);
             document.getElementById('article-meta').textContent = `${i18next.t('common.by')} ${userNickname || i18next.t('common.anonymous')} · ${formattedDate}`;
-
-            const imageContainer = document.getElementById('article-image-container');
-            const articleImage = document.getElementById('article-image');
-            if (imageUrls && imageUrls.length > 0) {
-                articleImage.src = `/api/image/${imageUrls[0]}`;
-                articleImage.alt = title;
-                imageContainer.classList.remove('hidden');
-            }
+            initSwipers(imageUrls || []);
 
             const articleBody = document.getElementById('article-body');
             if (featured_content && typeof marked !== 'undefined' && typeof DOMPurify !== 'undefined') {
