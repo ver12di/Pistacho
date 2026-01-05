@@ -25,6 +25,8 @@
     <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
     <link rel="preconnect" href="https://unpkg.com" crossorigin>
     <script src="https://cdn.tailwindcss.com" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify/dist/purify.min.js" defer></script>
 
     <script src="https://unpkg.com/i18next/i18next.min.js" defer></script>
     <script src="https://unpkg.com/i18next-http-backend/i18nextHttpBackend.min.js" defer></script>
@@ -2827,8 +2829,18 @@ Check out the full rating on www.pista-cho.com
                  if (ratingTitleEl) ratingTitleEl.textContent = title;
                  if (cigarNameEl) cigarNameEl.textContent = cigarInfo?.name ?? i18next.t('common.unknown');
                  if (cigarSizeEl) cigarSizeEl.textContent = cigarInfo?.size ?? i18next.t('common.unknown');
-                 if (cigarOriginEl) cigarOriginEl.textContent = cigarInfo?.origin ?? i18next.t('common.unknown');
-                 if (reviewContainerEl) reviewContainerEl.innerHTML = (cigarReview && cigarReview.trim() && cigarReview !== i18next.t('common.noReview')) ? `<p>${cigarReview.replace(/\n/g, '<br>')}</p>` : `<p class="text-gray-400 italic">${i18next.t('common.noReview')}</p>`;
+                 if (cigarOriginEl) cigarOriginEl.textContent = cigarInfo?.origin ?? i18next.t('common.unknown');                 
+                 if (reviewContainerEl) {
+                    reviewContainerEl.classList.remove('prose', 'prose-indigo', 'max-w-none');
+                    if (data.featured_content && typeof marked !== 'undefined' && typeof DOMPurify !== 'undefined') {
+                        reviewContainerEl.innerHTML = DOMPurify.sanitize(marked.parse(data.featured_content));
+                        reviewContainerEl.classList.add('prose', 'prose-indigo', 'max-w-none');
+                    } else if (cigarReview && cigarReview.trim() && cigarReview !== i18next.t('common.noReview')) {
+                        reviewContainerEl.innerHTML = `<p>${cigarReview.replace(/\n/g, '<br>')}</p>`;
+                    } else {
+                        reviewContainerEl.innerHTML = `<p class="text-gray-400 italic">${i18next.t('common.noReview')}</p>`;
+                    }
+                 }
                  if (flavorsContainerEl) {
                      if (selectedFlavors.length > 0) {
                          if(flavorsDisplayEl) flavorsDisplayEl.innerHTML = selectedFlavors.map(flavorKey => `<span class="flavor-tag">${i18next.t(flavorKey) || flavorKey}</span>`).join('');

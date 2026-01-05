@@ -143,7 +143,7 @@
             const editorContent = document.getElementById('editor-content');
 
             if (!currentAuthUser || currentAuthUser.db_role !== 'super_admin') {
-                authPrompt.textContent = '您没有权限访问此页面。仅超级管理员可撰写精品评鉴。';
+                authPrompt.textContent = i18next.t('editFeaturedPage.permissionDenied');
                 authPrompt.classList.remove('hidden');
                 editorContent.classList.add('hidden');
                 return;
