@@ -77,6 +77,7 @@
     "subtitle": "The global cigar lovers community",
     "community": "Community Feed",
     "rate": "Rate a Cigar",
+    "featured": "Featured",
     "myRatings": "My Ratings",
     "certified": "Certified",
     "contact": "Contact",
@@ -144,6 +145,7 @@
     "imageRequired": "Please upload at least one image.",
     "nameRequired": "Please enter the cigar name.",
     "loadingEdit": "Loading review {{id}}...",
+    "createFeaturedReview": "Create Featured Review",
     "editLoadFailed": "Failed to load review: {{msg}}",
     "editLoaded": "Loaded review {{id}} (Edit Mode)",
     "setCover": "Set as Cover"
@@ -586,4 +588,3 @@
         "citrus": "Citrus"
     }
 }
-

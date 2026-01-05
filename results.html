@@ -251,9 +251,13 @@
                     </div>
                     <div id="admin-actions" class="hidden mb-4">
                          <div class="flex items-center gap-3">
-                             <button id="ig-publish-button" class="flex items-center gap-2 px-3 py-2 bg-pink-500 text-white rounded-lg shadow hover:bg-pink-600 transition" onclick="postToInstagram()">
+                             <button id="ig-publish-button" class="flex items-center gap-2 px-3 py-2 text-sm bg-pink-500 text-white rounded-lg shadow hover:bg-pink-600 transition" onclick="postToInstagram()">
                                  <span aria-hidden="true">📸</span>
                                  <span>发布到 Instagram</span>
+                             </button>
+                             <button id="featured-review-button" class="flex items-center gap-2 px-3 py-2 text-sm bg-purple-600 text-white rounded-lg shadow hover:bg-purple-700 transition" onclick="createFeaturedReview()">
+                                 <span aria-hidden="true">📝</span>
+                                 <span data-i18n="resultsPage.createFeaturedReview">生成长点评</span>
                              </button>
                              <span id="ig-publish-status" class="text-sm text-gray-600"></span>
                          </div>
@@ -974,6 +978,33 @@
                 button.textContent = originalText;
             }
         };
+
+        window.createFeaturedReview = function() {
+            if (!resultsData) {
+                alert('没有点评数据可以创建长点评。');
+                return;
+            }
+            if (!currentAuthUser || currentAuthUser.db_role !== 'super_admin') {
+                alert('只有超级管理员才能创建长点评。');
+                return;
+            }
+
+            // Pass the essential data to the editor page
+            const editorData = {
+                ratingId: resultsData.ratingId,
+                title: resultsData.title,
+                cigarInfo: resultsData.cigarInfo,
+                imageUrls: resultsData.imageUrls,
+            };
+
+            try {
+                sessionStorage.setItem('featuredReviewEditorData', JSON.stringify(editorData));
+                window.location.href = 'edit-featured.html';
+            } catch (e) {
+                console.error("Error setting sessionStorage for featured review:", e);
+                alert('无法跳转到编辑器页面，存储数据时出错。');
+            }
+        }
 
         window.shareToInstagramNative = async function() {
             if (!resultsData) {

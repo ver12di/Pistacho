@@ -290,6 +290,19 @@ async function insertNavbars() {
         const languageMode = placeholder.dataset.language || 'flags';
         const nav = parseHtml(html);
 
+        // Programmatically add the "Featured" link after "Certified"
+        const certifiedLink = nav.querySelector('[data-nav-target="certified"]');
+        if (certifiedLink) {
+            const featuredLink = document.createElement('a');
+            featuredLink.href = 'featured.html';
+            // Use the same classes as other nav links for consistency
+            featuredLink.className = 'nav-link'; 
+            featuredLink.dataset.navTarget = 'featured';
+            featuredLink.dataset.i18n = 'nav.featured';
+            // Insert after the certified link
+            certifiedLink.after(featuredLink);
+        }
+
         setActiveLink(nav, activeTarget);
         configureLanguageControls(nav, languageMode);
         applyAdminLinks(nav, getStoredUserRole());

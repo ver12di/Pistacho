@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="editFeaturedPage.title">撰写精品评鉴</title>
+    <meta name="robots" content="noindex, nofollow">
+    <link rel="icon" type="image/png" href="Certifiedstamp.png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/i18next/i18next.min.js" defer></script>
+    <script src="https://unpkg.com/i18next-http-backend/i18nextHttpBackend.min.js" defer></script>
+    <script src="https://unpkg.com/i18next-browser-languagedetector/i18nextBrowserLanguageDetector.min.js" defer></script>
+    <script type="module" src="scripts/navbar.js"></script>
+    <style>
+        .lang-button { padding: 2px 6px; margin: 0 2px; border: 1px solid transparent; border-radius: 4px; cursor: pointer; font-size: 0.75rem; transition: background-color 0.2s, border-color 0.2s; background-color: #f3f4f6; }
+        .lang-button:hover { background-color: #e5e7eb; }
+        .lang-button.active { font-weight: bold; background-color: #e0e7ff; border-color: #a5b4fc; color: #3730a3; cursor: default; }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans">
+    <div class="px-4 sm:px-6 lg:px-8 pt-4">
+        <div class="mx-auto max-w-7xl">
+            <div data-include-nav data-active="featured" data-language="flags"></div>
+        </div>
+    </div>
+    <main class="max-w-4xl mx-auto p-4 md:p-8">
+        <h1 class="text-3xl font-bold mb-6" data-i18n="editFeaturedPage.title">撰写精品评鉴</h1>
+        <div id="auth-prompt" class="hidden text-center p-6 bg-yellow-100 text-yellow-800 rounded-lg shadow mb-8"></div>
+        <div id="editor-content" class="hidden space-y-6">
+            <div class="bg-white p-4 rounded-lg shadow">
+                <h2 class="text-lg font-semibold mb-2">图片预览</h2>
+                <div id="image-preview-container" class="grid grid-cols-3 md:grid-cols-5 gap-4">
+                    <!-- Images will be injected here -->
+                </div>
+            </div>
+            <div>
+                <label for="featured-title" class="text-lg font-semibold" data-i18n="editFeaturedPage.articleTitle">文章标题</label>
+                <input type="text" id="featured-title" class="w-full mt-2 p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+            </div>
+            <div>
+                <label for="featured-body" class="text-lg font-semibold" data-i18n="editFeaturedPage.articleContent">文章内容 (支持 Markdown)</label>
+                <textarea id="featured-body" rows="20" class="w-full mt-2 p-3 border border-gray-300 rounded-lg shadow-sm font-mono focus:ring-indigo-500 focus:border-indigo-500"></textarea>
+            </div>
+            <button id="save-featured-button" onclick="saveFeaturedReview()" class="px-6 py-3 bg-indigo-600 text-white font-bold rounded-lg shadow-md hover:bg-indigo-700 transition" data-i18n="editFeaturedPage.save">保存精品评鉴</button>
+            <p id="status-message" class="text-sm mt-2"></p>
+        </div>
+    </main>
+    <script type="module">
+        let editorData = null;
+        let currentAuthUser = null;
+        const AUTHING_APP_ID = '68f5b0b6875017c02b3bfdb3';
+        const AUTHING_HOST = 'https://xfvu647mcdbk-demo.authing.cn';
+
+        async function initI18n() {
+            await i18next.use(i18nextHttpBackend).use(i18nextBrowserLanguageDetector).init({
+                fallbackLng: 'zh', debug: false, ns: ['translation'], defaultNS: 'translation',
+                backend: { loadPath: '/locales/{{lng}}.json?v=1' },
+                detection: { order: ['localStorage', 'navigator'], caches: ['localStorage'] }
+            });
+            updateContent();
+        }
+
+        function updateContent() {
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                const value = i18next.t(key);
+                if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+                    if (el.hasAttribute('placeholder')) el.placeholder = value;
+                } else {
+                    el.innerHTML = value;
+                }
+            });
+            document.title = i18next.t('editFeaturedPage.title');
+        }
+
+        async function validateSessionAndGetUser() {
+            const token = sessionStorage.getItem('accessToken');
+            if (!token) return null;
+            try {
+                const response = await fetch('/api/me', { headers: { 'Authorization': `Bearer ${token}` } });
+                if (!response.ok) return null;
+                return await response.json();
+            } catch (e) { return null; }
+        }
+
+        window.saveFeaturedReview = async function() {
+            const title = document.getElementById('featured-title').value;
+            const content = document.getElementById('featured-body').value;
+            const button = document.getElementById('save-featured-button');
+            const status = document.getElementById('status-message');
+
+            if (!title || !content) {
+                status.textContent = i18next.t('editFeaturedPage.validationError');
+                status.className = 'text-red-500 text-sm mt-2';
+                return;
+            }
+
+            button.disabled = true;
+            status.textContent = i18next.t('editFeaturedPage.statusSaving');
+            status.className = 'text-blue-500 text-sm mt-2';
+
+            const payload = {
+                originalRatingId: editorData.ratingId,
+                title: title,
+                content: content,
+                imageUrls: editorData.imageUrls,
+                cigarInfo: editorData.cigarInfo
+            };
+
+            try {
+                const token = sessionStorage.getItem('accessToken');
+                // This endpoint needs to be created on the backend.
+                const response = await fetch('/api/featured-reviews', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    const err = await response.json().catch(() => ({ error: 'Save failed' }));
+                    throw new Error(err.error);
+                }
+
+                const result = await response.json();
+                status.textContent = i18next.t('editFeaturedPage.statusSuccess');
+                status.className = 'text-green-500 text-sm mt-2';
+                
+                setTimeout(() => {
+                    window.location.href = 'featured.html';
+                }, 1500);
+
+            } catch (error) {
+                status.textContent = i18next.t('editFeaturedPage.statusError', { msg: error.message });
+                status.className = 'text-red-500 text-sm mt-2';
+                button.disabled = false;
+            }
+        }
+
+        window.onload = async function() {
+            await initI18n();
+            currentAuthUser = await validateSessionAndGetUser();
+            const authPrompt = document.getElementById('auth-prompt');
+            const editorContent = document.getElementById('editor-content');
+
+            if (!currentAuthUser || currentAuthUser.db_role !== 'super_admin') {
+                authPrompt.textContent = '您没有权限访问此页面。仅超级管理员可撰写精品评鉴。';
+                authPrompt.classList.remove('hidden');
+                editorContent.classList.add('hidden');
+                return;
+            }
+
+            const rawData = sessionStorage.getItem('featuredReviewEditorData');
+            if (!rawData) {
+                authPrompt.textContent = i18next.t('editFeaturedPage.noData');
+                authPrompt.classList.remove('hidden');
+                editorContent.classList.add('hidden');
+                return;
+            }
+            editorData = JSON.parse(rawData);
+
+            document.getElementById('featured-title').value = editorData.title;
+            const imageContainer = document.getElementById('image-preview-container');
+            if (editorData.imageUrls && editorData.imageUrls.length > 0) {
+                imageContainer.innerHTML = editorData.imageUrls.map(key => 
+                    `<div class="aspect-w-3 aspect-h-4"><img src="/api/image/${key}" class="w-full h-full object-cover rounded-lg shadow"></div>`
+                ).join('');
+            } else {
+                imageContainer.innerHTML = `<p class="col-span-full text-gray-500">没有图片。</p>`;
+            }
+            
+            editorContent.classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>

@@ -72,6 +72,7 @@
     "subtitle": "雪茄爱好者的全球评分社区",
     "community": "社区动态",
     "rate": "去评分",
+    "featured": "精品评鉴",
     "myRatings": "我的评分",
     "certified": "认证评分",
     "contact": "联系管理员",
@@ -139,6 +140,7 @@
     "imageRequired": "请至少上传一张图片。",
     "nameRequired": "请填写雪茄名称。",
     "loadingEdit": "正在加载点评 {{id}}...",
+    "createFeaturedReview": "生成长点评",
     "editLoadFailed": "加载点评失败: {{msg}}",
     "editLoaded": "已加载点评 {{id}} (编辑模式)",
     "setCover": "设为封面"

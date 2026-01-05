@@ -77,6 +77,7 @@
     "subtitle": "La comunidad global para amantes del puro",
     "community": "Comunidad",
     "rate": "Calificar Puro",
+    "featured": "Destacado",
     "myRatings": "Mis Reseñas",
     "certified": "Certificado",
     "contact": "Contacto",
@@ -144,6 +145,7 @@
     "imageRequired": "Por favor, sube al menos una imagen.",
     "nameRequired": "Por favor, introduce el nombre del puro.",
     "loadingEdit": "Cargando reseña {{id}}...",
+    "createFeaturedReview": "Crear Reseña Destacada",
     "editLoadFailed": "Error al cargar reseña: {{msg}}",
     "editLoaded": "Reseña {{id}} cargada (Modo Edición)",
     "setCover": "Establecer como Portada"
@@ -586,4 +588,3 @@
       "citrus": "Cítricos"
    }
 }
-
