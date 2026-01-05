@@ -1,3 +1,4 @@
+name = "pistacho-3xl"
 pages_build_output_dir = "."
 
 [[d1_databases]]
