@@ -944,13 +944,15 @@
 
             try {
                 const token = sessionStorage.getItem('accessToken');
+                const payload = { ...resultsData };
+                delete payload.userEmail; // Protect privacy in static page
                 const response = await fetch('/api/share/static-page', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'Authorization': token ? `Bearer ${token}` : ''
                     },
-                    body: JSON.stringify({ ratingId: ratingId })
+                    body: JSON.stringify({ ratingId: ratingId, data: payload })
                 });
 
                 if (!response.ok) {
