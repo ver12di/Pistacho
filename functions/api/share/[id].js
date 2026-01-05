@@ -6,8 +6,14 @@ export async function onRequestGet(context) {
     return new Response("Missing ID", { status: 400 });
   }
 
-  // 从 KV 获取 HTML (使用 PISTACHO_KV)
-  const html = await env.PISTACHO_KV.get(id);
+  // 获取 KV 绑定 (兼容 PISTACHO_KV 和 KV)
+  const storage = env.PISTACHO_KV || env.KV;
+  if (!storage) {
+    return new Response("Server configuration error: KV binding not found", { status: 500 });
+  }
+
+  // 从 KV 获取 HTML
+  const html = await storage.get(id);
 
   if (!html) {
     return new Response("Page not found or expired", { status: 404 });
