@@ -149,6 +149,7 @@ export async function onRequestGet(context) {
      const url = new URL(request.url);
      const viewMode = url.searchParams.get('view') || 'default';
      const getCertified = url.searchParams.get('certified') === 'true';
+     const getFeatured = url.searchParams.get('featured') === 'true';
      const singleRatingId = url.searchParams.get('id');
      const requestedLang = normalizeLanguageTag(url.searchParams.get('lang') || 'zh', 'zh');
      console.log(`[GET /api/ratings] Request URL: ${request.url}, Certified: ${getCertified}, Single ID: ${singleRatingId}, View: ${viewMode}`);
@@ -229,6 +230,7 @@ export async function onRequestGet(context) {
 
          } else { // List view (Community, History, Certified)
              if (getCertified) { stmt = env.DB.prepare(`SELECT ${selectFields} FROM ratings r WHERE r.isCertified = 1 ${defaultOrderBy}`); }
+             else if (getFeatured) { stmt = env.DB.prepare(`SELECT ${selectFields} FROM ratings r WHERE r.is_featured = 1 ${defaultOrderBy}`); }
              else if (currentUserRole === 'admin' || currentUserRole === 'super_admin') { stmt = env.DB.prepare(`SELECT ${selectFields} FROM ratings r ${pinnedOrderBy}`); }
              else if (userInfo) { stmt = env.DB.prepare(`SELECT ${selectFields} FROM ratings r WHERE r.userId = ? ${defaultOrderBy}`).bind(userInfo.sub); }
              else { stmt = env.DB.prepare(`SELECT ${selectFields} FROM ratings r ${pinnedOrderBy}`); } // Public community view

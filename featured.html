@@ -403,6 +403,7 @@
             if (i18next.isInitialized) {
                 renderLanguageSwitcher();
                 renderAdminLinks();
+                updateContent(); // Fix: Ensure dynamic links are translated
             }
             renderLoginStatus(currentAuthUser);
         });

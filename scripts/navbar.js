@@ -296,7 +296,8 @@ async function insertNavbars() {
             const featuredLink = document.createElement('a');
             featuredLink.href = 'featured.html';
             // Use the same classes as other nav links for consistency
-            featuredLink.className = 'nav-link'; 
+            // Fixed: Use explicit Tailwind classes instead of 'nav-link' to ensure consistent styling
+            featuredLink.className = 'block px-3 py-2 rounded-md text-base font-medium text-gray-600 hover:bg-gray-100 hover:text-indigo-600 transition-colors md:text-sm md:inline-block';
             featuredLink.dataset.navTarget = 'featured';
             featuredLink.dataset.i18n = 'nav.featured';
             // Insert after the certified link
