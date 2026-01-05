@@ -9,7 +9,8 @@ export async function onRequestGet(context) {
   // 获取 KV 绑定 (兼容 PISTACHO_KV 和 KV)
   const storage = env.PISTACHO_KV || env.KV;
   if (!storage) {
-    return new Response("Server configuration error: KV binding not found", { status: 500 });
+    const availableKeys = Object.keys(env).join(', ');
+    return new Response(`Server configuration error: KV binding not found. Available keys: ${availableKeys}`, { status: 500 });
   }
 
   // 从 KV 获取 HTML

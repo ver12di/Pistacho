@@ -18,8 +18,9 @@ export async function onRequestPost(context) {
     // 获取 KV 绑定 (兼容 PISTACHO_KV 和 KV)
     const storage = env.PISTACHO_KV || env.KV;
     if (!storage) {
-      console.error("KV binding not found. Available env keys:", Object.keys(env));
-      throw new Error("Server configuration error: KV binding not found.");
+      const availableKeys = Object.keys(env).join(', ');
+      console.error("KV binding not found. Available env keys:", availableKeys);
+      throw new Error(`Server configuration error: KV binding not found. Available keys: ${availableKeys}`);
     }
 
     // 保存到 KV，设置 30 天过期 (2592000 秒)
