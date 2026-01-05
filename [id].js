@@ -6,13 +6,13 @@ export async function onRequestGet(context) {
     return new Response("Missing ID", { status: 400 });
   }
 
-  // Retrieve HTML from KV
+  // 从 KV 获取 HTML
   const html = await env.PISTACHO_KV.get(id);
 
   if (!html) {
     return new Response("Page not found or expired", { status: 404 });
   }
 
-  // Return as HTML
+  // 返回 HTML 内容
   return new Response(html, { headers: { "Content-Type": "text/html; charset=utf-8" } });
 }

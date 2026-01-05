@@ -945,7 +945,7 @@
             try {
                 const token = sessionStorage.getItem('accessToken');
                 const payload = { ...resultsData };
-                delete payload.userEmail; // Protect privacy in static page
+                delete payload.userEmail; // 在静态页面中保护隐私，移除邮箱
                 const response = await fetch('/api/share/static-page', {
                     method: 'POST',
                     headers: {

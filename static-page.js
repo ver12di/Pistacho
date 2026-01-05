@@ -9,17 +9,17 @@ export async function onRequestPost(context) {
       return new Response(JSON.stringify({ error: "Missing data" }), { status: 400 });
     }
 
-    // Generate unique ID
+    // 生成唯一 ID
     const shareId = crypto.randomUUID();
 
-    // Generate HTML Content
+    // 生成 HTML 内容
     const htmlContent = generateHtml(data);
 
-    // Save to KV with 30 days expiration (2592000 seconds)
-    // Ensure you have bound a KV namespace named 'PISTACHO_KV' in Cloudflare Pages settings
+    // 保存到 KV，设置 30 天过期 (2592000 秒)
+    // 请确保在 Cloudflare Pages 设置中绑定了名为 'PISTACHO_KV' 的 KV 命名空间
     await env.PISTACHO_KV.put(shareId, htmlContent, { expirationTtl: 2592000 });
 
-    // Construct the view URL
+    // 构建访问 URL
     const url = new URL(request.url);
     const shareUrl = `${url.origin}/api/share/${shareId}`;
 
@@ -50,7 +50,7 @@ function generateHtml(data) {
   const reviewer = escapeHtml(data.userNickname || 'Anonymous');
   const date = new Date().toLocaleDateString();
   
-  // Use the first image if available, otherwise a placeholder
+  // 使用第一张图片，如果没有则使用占位图
   const imageUrl = (data.imageUrls && data.imageUrls.length > 0) 
     ? `/api/image/${data.imageUrls[0]}` 
     : 'https://placehold.co/600x800?text=No+Image';
