@@ -480,6 +480,32 @@
             window.location.href = 'edit-featured.html';
         }
 
+        window.unfeatureRating = async function(ratingId, event) {
+            event?.stopPropagation();
+            if (!i18next.isInitialized) return;
+            if (!confirm(i18next.t('common.confirmDeletion'))) { return; } // Using generic confirmation for now
+            const button = event ? (event.currentTarget || event.target) : null;
+            if (button) { button.textContent = i18next.t('common.deleting'); button.disabled = true; }
+
+            const token = sessionStorage.getItem('accessToken');
+            if (!token) {
+                alert(i18next.t('common.loginRequired'));
+                if (button) { button.textContent = i18next.t('common.delete'); button.disabled = false; }
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/featured-reviews?ratingId=${ratingId}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
+                if (!response.ok) { const err = await response.json(); throw new Error(err.error || 'Failed to unfeature'); }
+                const cardToRemove = document.getElementById(`rating-card-${ratingId}`);
+                if (cardToRemove) { cardToRemove.style.transition = 'opacity 0.5s ease-out'; cardToRemove.style.opacity = '0'; setTimeout(() => cardToRemove.remove(), 500); }
+                alert(i18next.t('common.deleteSuccess'));
+            } catch (error) {
+                alert(i18next.t('common.deleteFailed', { msg: error.message }));
+                if (button) { button.textContent = i18next.t('common.delete'); button.disabled = false; }
+            }
+        }
+
         window.deleteRating = async function(ratingId, event) {
             event?.stopPropagation();
              if (!i18next.isInitialized) return;
@@ -956,7 +982,7 @@
                             <summary>${i18next.t('common.adminActions')}</summary>
                             <div class="action-buttons-content action-buttons pt-2 border-t border-gray-100 flex items-center space-x-1 flex-wrap gap-1 justify-end">
                                 <button onclick="editFeaturedReview('${rating.id}', event)" class="btn-edit">${i18next.t('common.edit')}</button>
-                                <button onclick="deleteRating('${rating.id}', event)" class="btn-delete">${i18next.t('common.delete')}</button>
+                                <button onclick="unfeatureRating('${rating.id}', event)" class="btn-delete">${i18next.t('common.delete')}</button>
                                 <button data-action="certify" onclick="updateCertification('${rating.id}', true, event)" class="btn-certify ${isCertified ? 'hidden' : ''}">${i18next.t('common.certify')}</button>
                                 <button data-action="uncertify" onclick="updateCertification('${rating.id}', false, event)" class="btn-uncertify ${!isCertified ? 'hidden' : ''}">${i18next.t('common.uncertify')}</button>
                                 <button data-action="pin" onclick="updatePinStatus('${rating.id}', true, event)" class="btn-pin ${isPinned ? 'hidden' : ''}">${i18next.t('common.pin')}</button>
