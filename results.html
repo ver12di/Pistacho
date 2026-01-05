@@ -2810,7 +2810,15 @@ Check out the full rating on www.pista-cho.com
                  if (summaryDetailsEl) summaryDetailsEl.style.display = 'none';
                  // Populate basic info
                  if (userNicknameEl) userNicknameEl.textContent = userNickname;
-                 if (ratingTitleEl) ratingTitleEl.textContent = title;
+                 if (ratingTitleEl) {
+                     ratingTitleEl.textContent = title;
+                     if (data.is_featured) {
+                         const badge = document.createElement('span');
+                         badge.className = 'ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 align-middle';
+                         badge.textContent = i18next.t('nav.featured');
+                         ratingTitleEl.appendChild(badge);
+                     }
+                 }
                  if (cigarNameEl) cigarNameEl.textContent = cigarInfo?.name ?? i18next.t('common.unknown');
                  if (cigarSizeEl) cigarSizeEl.textContent = cigarInfo?.size ?? i18next.t('common.unknown');
                  if (cigarOriginEl) cigarOriginEl.textContent = cigarInfo?.origin ?? i18next.t('common.unknown');
