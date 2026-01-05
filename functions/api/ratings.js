@@ -162,7 +162,7 @@ export async function onRequestGet(context) {
          const selectFields = `r.id, r.userId, r.userEmail, r.userNickname, r.timestamp,
                                r.title, r.cigarName, r.cigarSize, r.cigarOrigin, r.normalizedScore,
                                r.finalGrade_grade, r.finalGrade_name_cn, r.isCertified,
-                               r.certifiedRatingId, r.imageUrl, r.cigarReview, r.isPinned,
+                               r.certifiedRatingId, r.imageUrl, r.cigarReview, r.isPinned, r.is_featured, r.featured_content,
                                r.fullData`;
          const defaultOrderBy = "ORDER BY r.timestamp DESC";
          const pinnedOrderBy = "ORDER BY r.isPinned DESC, r.timestamp DESC";
@@ -244,6 +244,7 @@ export async function onRequestGet(context) {
                 row.cigarInfo = { name: row.cigarName, size: row.cigarSize, origin: row.cigarOrigin };
                 if (row.finalGrade_grade && row.finalGrade_name_cn) { row.finalGrade = { grade: row.finalGrade_grade, name_cn: row.finalGrade_name_cn }; } else { row.finalGrade = null; }
                 row.isPinned = !!row.isPinned;
+                row.is_featured = !!row.is_featured;
                 row.hasNewComments = false;
                 applyTranslationsToRating(row, requestedLang);
                 return row;
