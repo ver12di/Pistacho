@@ -3,8 +3,13 @@ pages_build_output_dir = "."
 
 [[d1_databases]]
 binding = "DB"                                # 这里的名字必须是 "DB"，以匹配代码中的 env.DB
+database_name = "pistacho-db"
 database_id = "87ba5ff5-28ff-4863-a600-29fd0d2acb8e"        # 粘贴第1步获取的 ID
+
+[[kv_namespaces]]
+binding = "PISTACHO_KV"
+id = "pistacho-share-data"
 
 [[r2_buckets]]
 binding = "PISTACHO_BUCKET"
-bucket_name = "pistacho-media"
+bucket_name = "pistacho"
