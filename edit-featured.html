@@ -8,8 +8,8 @@
     <link rel="icon" type="image/png" href="Certifiedstamp.png">
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- EasyMDE Markdown Editor -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/easymde/2.18.0/easymde.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/easymde/2.18.0/easymde.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.js"></script>
     <script src="https://unpkg.com/i18next/i18next.min.js" defer></script>
     <script src="https://unpkg.com/i18next-http-backend/i18nextHttpBackend.min.js" defer></script>
     <script src="https://unpkg.com/i18next-browser-languagedetector/i18nextBrowserLanguageDetector.min.js" defer></script>
@@ -96,65 +96,6 @@
             document.title = i18next.t('editFeaturedPage.title');
         }
 
-        // --- Authentication Functions ---
-        window.login = function() {
-            // Use current URL as redirect URI so user comes back here
-            const redirectUri = window.location.href;
-            const authorizeUrl = new URL('/oidc/auth', AUTHING_HOST);
-            authorizeUrl.search = new URLSearchParams({
-                client_id: AUTHING_APP_ID,
-                redirect_uri: redirectUri,
-                response_type: 'code',
-                scope: 'openid profile email phone',
-                state: Math.random().toString(36).substring(2)
-            }).toString();
-            window.location.href = authorizeUrl.toString();
-        }
-
-        window.logout = function() {
-            const logoutUrl = new URL('/oidc/session/end', AUTHING_HOST);
-            logoutUrl.search = new URLSearchParams({ post_logout_redirect_uri: window.location.href }).toString();
-            sessionStorage.removeItem('userInfo');
-            sessionStorage.removeItem('accessToken');
-            window.location.href = logoutUrl.toString();
-        }
-
-        async function handleOidcCallback(code) {
-            try {
-                // Construct the redirect URI exactly as it was when login() was called
-                // (Current URL without code/state params)
-                const url = new URL(window.location.href);
-                url.searchParams.delete('code');
-                url.searchParams.delete('state');
-                const redirectUri = url.toString();
-
-                const apiUrl = new URL('/api/authing/callback', window.location.origin);
-                const response = await fetch(apiUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ code, redirect_uri: redirectUri })
-                });
-                if (!response.ok) {
-                    const err = await response.json().catch(() => ({}));
-                    throw new Error(err.error || i18next.t('errors.authCallbackFailed', { status: response.status }));
-                }
-                const fullUserProfile = await response.json();
-                sessionStorage.setItem('userInfo', JSON.stringify(fullUserProfile));
-                sessionStorage.setItem('accessToken', fullUserProfile.accessToken);
-                return fullUserProfile;
-            } catch (e) {
-                console.error('Authentication callback handling failed:', e);
-                alert(i18next.t('errors.loginFailed', { message: e.message }));
-                return null;
-            } finally {
-                // Clean URL
-                const url = new URL(window.location.href);
-                url.searchParams.delete('code');
-                url.searchParams.delete('state');
-                window.history.replaceState({}, document.title, url.toString());
-            }
-        }
-
         async function validateSessionAndGetUser() {
             const token = sessionStorage.getItem('accessToken');
             if (!token) return null;
@@ -221,13 +162,7 @@
 
         window.onload = async function() {
             await initI18n();
-            
-            const urlParams = new URLSearchParams(window.location.search);
-            const code = urlParams.get('code');
-            
-            // Handle login callback or validate existing session
-            currentAuthUser = code ? await handleOidcCallback(code) : await validateSessionAndGetUser();
-            
+            currentAuthUser = await validateSessionAndGetUser();
             const authPrompt = document.getElementById('auth-prompt');
             const editorContent = document.getElementById('editor-content');
 

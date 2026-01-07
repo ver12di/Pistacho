@@ -1,6 +1,10 @@
 name = "pistacho-3xl"
 pages_build_output_dir = "."
 
+[vars]
+AUTHING_APP_ID = "68f5b0b6875017c02b3bfdb3"
+AUTHING_ISSUER = "https://xfvu647mcdbk-demo.authing.cn"
+
 [[d1_databases]]
 binding = "DB"                                # 这里的名字必须是 "DB"，以匹配代码中的 env.DB
 database_name = "pistacho-db"

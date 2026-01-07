@@ -354,7 +354,7 @@
 
             const articleBody = document.getElementById('article-body');
             if (featured_content && typeof marked !== 'undefined' && typeof DOMPurify !== 'undefined') {
-                // Instead of parsing markdown, we directly set the HTML from Quill
+                // Parse Markdown content and sanitize HTML
                 articleBody.innerHTML = DOMPurify.sanitize(marked.parse(featured_content));
             } else {
                 articleBody.innerHTML = `<p class="italic text-gray-500">${i18next.t('common.noReview')}</p>`;
