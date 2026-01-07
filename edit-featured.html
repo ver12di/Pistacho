@@ -194,13 +194,15 @@
 
             editorContent.classList.remove('hidden');
 
-            // Initialize EasyMDE editor
-            easyMDE = new EasyMDE({
-                element: document.getElementById('featured-body'),
-                initialValue: editorData.content || '',
-                spellChecker: false,
-                placeholder: i18next.t('editFeaturedPage.articleContent'),
-                previewClass: ['editor-preview', 'prose', 'max-w-none'] // Apply Tailwind typography to preview
+            // Initialize EasyMDE editor after DOM is fully loaded
+            document.addEventListener('DOMContentLoaded', function() {
+                easyMDE = new EasyMDE({
+                    element: document.getElementById('featured-body'),
+                    initialValue: editorData.content || '',
+                    spellChecker: false,
+                    placeholder: i18next.t('editFeaturedPage.articleContent'),
+                    previewClass: ['editor-preview', 'prose', 'max-w-none'] // Apply Tailwind typography to preview
+                });
             });
         }
     </script>
