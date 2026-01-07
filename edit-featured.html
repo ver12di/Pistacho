@@ -149,6 +149,11 @@
                 status.textContent = i18next.t('editFeaturedPage.statusSuccess');
                 status.className = 'text-green-500 text-sm mt-2';
 
+                // Update editorData with new ID to prevent duplicate creation on subsequent saves
+                if (result.action === 'created' && result.ratingId) {
+                    editorData.ratingId = result.ratingId;
+                }
+
                 setTimeout(() => {
                     window.location.href = 'featured.html';
                 }, 1500);

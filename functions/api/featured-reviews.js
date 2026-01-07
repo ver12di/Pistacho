@@ -3,7 +3,6 @@ async function getUserFromToken(request) {
     if (!authHeader || !authHeader.startsWith('Bearer ')) return null;
     const token = authHeader.substring(7);
 
-    // This leverages the existing /api/me endpoint to validate the session and get user details.
     const meUrl = new URL('/api/me', request.url);
     const meResponse = await fetch(meUrl.toString(), {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -18,7 +17,7 @@ async function getUserFromToken(request) {
 
 export async function onRequestPost(context) {
     const { request, env } = context;
-    const db = env.DB; // Assumes D1 DB is bound as 'DB'
+    const db = env.DB;
 
     if (!db) {
         return new Response(JSON.stringify({ error: 'Database connection not configured.' }), { status: 500 });
@@ -37,30 +36,60 @@ export async function onRequestPost(context) {
             return new Response(JSON.stringify({ error: 'Missing required fields: originalRatingId, title, or content.' }), { status: 400 });
         }
 
-        // 1. Fetch existing data to get fullData
-        const stmtSelect = db.prepare('SELECT fullData FROM ratings WHERE id = ?').bind(originalRatingId);
+        // 1. Fetch existing data
+        const stmtSelect = db.prepare('SELECT * FROM ratings WHERE id = ?').bind(originalRatingId);
         const existing = await stmtSelect.first();
+
+        if (!existing) {
+             return new Response(JSON.stringify({ error: 'Original rating not found.' }), { status: 404 });
+        }
         
         let fullData = {};
-        if (existing && existing.fullData) {
+        if (existing.fullData) {
             try { fullData = JSON.parse(existing.fullData); } catch(e) { console.error("Failed to parse fullData", e); }
         }
         
-        // 2. Update fullData to reflect new title and remove conflicting translations
+        // Update fullData common fields
         fullData.title = title;
-        // Remove title translations so the new hardcoded title is used by the GET API
         if (fullData.translations && fullData.translations.title) {
             delete fullData.translations.title; 
         }
-        fullData.featured_content = content; // Keep JSON in sync
+        fullData.featured_content = content;
 
-        // 3. Update DB
-        const stmt = db.prepare('UPDATE ratings SET title = ?, featured_content = ?, is_featured = 1, fullData = ? WHERE id = ?').bind(title, content, JSON.stringify(fullData), originalRatingId);
-        const result = await stmt.run();
+        // Check if we are updating an existing featured review or creating a new one
+        if (existing.is_featured === 1) {
+            // UPDATE existing featured review
+            const stmtUpdate = db.prepare('UPDATE ratings SET title = ?, featured_content = ?, fullData = ? WHERE id = ?').bind(title, content, JSON.stringify(fullData), originalRatingId);
+            await stmtUpdate.run();
+            return new Response(JSON.stringify({ success: true, ratingId: originalRatingId, action: 'updated' }), { headers: { 'Content-Type': 'application/json' } });
+        } else {
+            // INSERT new featured review (Clone)
+            const newId = crypto.randomUUID();
+            const newTimestamp = new Date().toISOString();
+            
+            const stmtInsert = db.prepare(`
+                INSERT INTO ratings (
+                    id, userId, userEmail, userNickname, timestamp, 
+                    title, cigarName, cigarSize, cigarOrigin, normalizedScore, 
+                    finalGrade_grade, finalGrade_name_cn, isCertified, certifiedRatingId, imageUrl, 
+                    cigarReview, isPinned, fullData, is_featured, featured_content
+                ) VALUES (
+                    ?, ?, ?, ?, ?, 
+                    ?, ?, ?, ?, ?, 
+                    ?, ?, ?, ?, ?, 
+                    ?, ?, ?, 1, ?
+                )
+            `).bind(
+                newId, existing.userId, existing.userEmail, existing.userNickname, newTimestamp,
+                title, existing.cigarName, existing.cigarSize, existing.cigarOrigin, existing.normalizedScore,
+                existing.finalGrade_grade, existing.finalGrade_name_cn, existing.isCertified, existing.certifiedRatingId, existing.imageUrl,
+                existing.cigarReview, existing.isPinned, JSON.stringify(fullData), content
+            );
 
-        if (result.changes === 0) return new Response(JSON.stringify({ error: 'Rating not found or no changes were made.' }), { status: 404 });
+            await stmtInsert.run();
+            return new Response(JSON.stringify({ success: true, ratingId: newId, action: 'created' }), { headers: { 'Content-Type': 'application/json' } });
+        }
 
-        return new Response(JSON.stringify({ success: true, ratingId: originalRatingId }), { headers: { 'Content-Type': 'application/json' } });
     } catch (err) {
         console.error('Error saving featured review:', err);
         return new Response(JSON.stringify({ error: 'An internal server error occurred.' }), { status: 500 });
