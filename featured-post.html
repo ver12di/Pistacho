@@ -245,53 +245,6 @@
             });
         }
 
-        async function initSwipers(imageUrls = []) {
-            const mainWrapper = document.getElementById('main-swiper-wrapper');
-            const thumbWrapper = document.getElementById('thumbnail-swiper-wrapper');
-            const thumbContainer = document.querySelector('.thumbnail-swiper');
-            if (!mainWrapper || !thumbWrapper || !thumbContainer) return;
-
-            mainWrapper.innerHTML = '';
-            thumbWrapper.innerHTML = '';
-
-            if (imageUrls.length === 0) {
-                mainWrapper.innerHTML = `<div class="swiper-slide flex items-center justify-center text-gray-400 aspect-[1179/1572]">${i18next.t('common.noImage')}</div>`;
-                thumbContainer.classList.add('hidden');
-                if (mainSwiper) mainSwiper.destroy(true, true);
-                if (thumbnailSwiper) thumbnailSwiper.destroy(true, true);
-                mainSwiper = null;
-                thumbnailSwiper = null;
-                return;
-            }
-
-            imageUrls.forEach(key => {
-                const imageUrl = `/api/image/${key}`;
-                const imgElement = `<img src="${imageUrl}" alt="${i18next.t('common.cigarImageAlt')}" class="main-swiper-image" loading="lazy">`;
-                mainWrapper.innerHTML += `<div class="swiper-slide">${imgElement}</div>`;
-                thumbWrapper.innerHTML += `<div class="swiper-slide thumbnail-slide">${imgElement}</div>`;
-            });
-
-            if (mainSwiper) mainSwiper.destroy(true, true);
-            if (thumbnailSwiper) thumbnailSwiper.destroy(true, true);
-
-            if (imageUrls.length > 1) {
-                thumbContainer.classList.remove('hidden');
-                thumbnailSwiper = new Swiper('.thumbnail-swiper', {
-                    spaceBetween: 10,
-                    slidesPerView: 'auto',
-                    freeMode: true,
-                    watchSlidesProgress: true,
-                });
-            } else {
-                thumbContainer.classList.add('hidden');
-                thumbnailSwiper = null;
-            }
-
-            mainSwiper = new Swiper('.main-swiper', {
-                spaceBetween: 10, autoHeight: true, navigation: { nextEl: '.swiper-button-next', prevEl: '.swiper-button-prev' }, pagination: { el: '.main-swiper .swiper-pagination', clickable: true }, thumbs: { swiper: thumbnailSwiper },
-            });
-        }
-
         async function handleOidcCallback(code) {
             try {
                 // Fix: Reconstruct the exact URL used during login (including query params like ratingId)
