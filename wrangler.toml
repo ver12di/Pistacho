@@ -8,7 +8,7 @@ database_id = "87ba5ff5-28ff-4863-a600-29fd0d2acb8e"        # 粘贴第1步获�
 
 [[kv_namespaces]]
 binding = "PISTACHO_KV"
-id = "pistacho-share-data"
+id = "143e476c717f44a99ebef7e40b330cac"
 
 [[r2_buckets]]
 binding = "PISTACHO_BUCKET"
