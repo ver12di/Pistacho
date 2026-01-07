@@ -91,6 +91,8 @@
   "indexPage": {
     "searchPlaceholder": "Search cigar name, origin, size, review, user...",
     "sortLatest": "Latest",
+    "latestRatings": "Latest Reviews",
+    "featuredRatings": "Featured Reviews",
     "sortHighest": "Highest Score",
     "sortLowest": "Lowest Score",
     "loadingRatings": "Loading reviews...",

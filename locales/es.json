@@ -91,6 +91,8 @@
   "indexPage": {
     "searchPlaceholder": "Buscar nombre, origen, tamaño, reseña, usuario...",
     "sortLatest": "Más Reciente",
+    "latestRatings": "Últimas Reseñas",
+    "featuredRatings": "Reseñas Destacadas",
     "sortHighest": "Puntaje Más Alto",
     "sortLowest": "Puntaje Más Bajo",
     "loadingRatings": "Cargando reseñas...",

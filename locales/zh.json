@@ -85,6 +85,8 @@
   "indexPage": {
     "searchPlaceholder": "搜索雪茄名称, 产地, 尺寸, 点评, 用户...",
     "sortLatest": "最新发布",
+    "latestRatings": "最新点评",
+    "featuredRatings": "精品评鉴",
     "sortHighest": "评分最高",
     "sortLowest": "评分最低",
     "loadingRatings": "正在加载点评...",

@@ -161,8 +161,21 @@
             <button onclick="applyFilters()" class="h-10 px-4 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition text-sm flex-shrink-0" data-i18n="common.apply">应用</button>
         </div>
 
-        <div id="ratings-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-4">
-            <p id="loading-message" class="col-span-full text-center text-gray-500 py-10" data-i18n="indexPage.loadingRatings">正在加载点评...</p>
+        <div class="flex flex-col lg:flex-row gap-6">
+            <!-- Left Column: Regular Ratings (4/5 width on desktop) -->
+            <div class="w-full lg:w-4/5">
+                <h2 class="text-xl font-bold mb-4 text-gray-800" data-i18n="indexPage.latestRatings">最新点评</h2>
+                <div id="ratings-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 md:gap-4">
+                    <p id="loading-message" class="col-span-full text-center text-gray-500 py-10" data-i18n="indexPage.loadingRatings">正在加载点评...</p>
+                </div>
+            </div>
+            <!-- Right Column: Featured Ratings (1/5 width on desktop) -->
+            <div class="w-full lg:w-1/5">
+                <h2 class="text-xl font-bold mb-4 text-gray-800" data-i18n="indexPage.featuredRatings">精品评鉴</h2>
+                <div id="featured-grid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-1 gap-3 md:gap-4">
+                    <!-- Featured items will be rendered here -->
+                </div>
+            </div>
         </div>
 
          <footer class="mt-8 text-center text-gray-500 text-sm space-y-2">
@@ -937,6 +950,8 @@
              if (!ratingsGrid || !loadingMessage || !i18next.isInitialized) return;
 
             ratingsGrid.innerHTML = '';
+            const featuredGrid = document.getElementById('featured-grid');
+            if (featuredGrid) featuredGrid.innerHTML = '';
             cleanupGridObserver();
             if (ratingsGridSentinel && ratingsGridSentinel.isConnected) {
                 ratingsGridSentinel.remove();
@@ -954,16 +969,34 @@
             displayedRatings = {};
             pendingRenderQueue = [];
 
+            const regularRatings = [];
+            const featuredRatings = [];
+
             ratingsToRender.forEach(rating => {
                 if (!rating || !rating.id) {
                     console.warn("Skipping rendering invalid rating object:", rating);
                     return;
                 }
                 displayedRatings[rating.id] = rating;
-                pendingRenderQueue.push(rating);
+                if (rating.is_featured) {
+                    featuredRatings.push(rating);
+                } else {
+                    regularRatings.push(rating);
+                }
             });
 
-            if (pendingRenderQueue.length === 0) {
+            // Render Featured Ratings immediately
+            featuredRatings.forEach(rating => {
+                const card = createRatingCard(rating);
+                if (card && featuredGrid) featuredGrid.appendChild(card);
+            });
+
+            // Queue Regular Ratings for batch rendering
+            pendingRenderQueue = regularRatings;
+
+            if (pendingRenderQueue.length === 0 && featuredRatings.length === 0) {
+                loadingMessage.textContent = i18next.t('indexPage.noMatches');
+                loadingMessage.style.display = 'block';
                 return;
             }
 
