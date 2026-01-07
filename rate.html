@@ -408,11 +408,11 @@
         // --- Authentication ---
         // Initiates Authing login process
         window.login = function() {
-            const redirectUri = window.location.origin; // Use base origin for redirect
+            const redirectUri = window.location.href; // Use current page
             const authorizeUrl = new URL('/oidc/auth', AUTHING_HOST);
             authorizeUrl.search = new URLSearchParams({
                 client_id: AUTHING_APP_ID,
-                redirect_uri: redirectUri, // Pass base origin
+                redirect_uri: redirectUri,
                 response_type: 'code',
                 scope: 'openid profile email phone',
                 state: Math.random().toString(36).substring(2) // Random state for security
@@ -425,7 +425,7 @@
             const logoutUrl = new URL('/oidc/session/end', AUTHING_HOST);
              // Redirect back to the base origin after logout
             logoutUrl.search = new URLSearchParams({
-                post_logout_redirect_uri: window.location.origin // Use base origin
+                post_logout_redirect_uri: window.location.href
             }).toString();
             // Clear local session data
             sessionStorage.removeItem('userInfo');
@@ -509,13 +509,17 @@
         // Handles the OIDC callback from Authing after successful login
         async function handleOidcCallback(code) {
             try {
-                const redirectUri = window.location.origin; // Use base origin
+                const url = new URL(window.location.href);
+                url.searchParams.delete('code');
+                url.searchParams.delete('state');
+                const redirectUri = url.toString();
+
                 const apiUrl = new URL('/api/authing/callback', window.location.origin);
                 // Send the code and redirect URI to our backend function
                 const response = await fetch(apiUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ code: code, redirect_uri: redirectUri }) // Send base origin
+                    body: JSON.stringify({ code: code, redirect_uri: redirectUri })
                 });
                 if (!response.ok) { // Handle errors from our backend
                     let errorText = i18next.t('errors.authCallbackFailed', { status: response.status });

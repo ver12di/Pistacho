@@ -301,7 +301,12 @@
 
         async function handleOidcCallback(code) {
             try {
-                const redirectUri = window.location.origin + window.location.pathname;
+                // Fix: Reconstruct the exact URL used during login (including query params like ratingId)
+                const url = new URL(window.location.href);
+                url.searchParams.delete('code');
+                url.searchParams.delete('state');
+                const redirectUri = url.toString();
+
                 const apiUrl = new URL('/api/authing/callback', window.location.origin);
                 const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code, redirect_uri: redirectUri }) });
                 if (!response.ok) throw new Error(i18next.t('errors.authCallbackFailed', { status: response.status }));
